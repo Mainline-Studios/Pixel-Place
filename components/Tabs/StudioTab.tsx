@@ -29,6 +29,19 @@ export default function StudioTab({ user, editMode }: StudioTabProps) {
   const sceneRef = useRef<any>(null);
   const cameraRef = useRef<any>(null);
   const controlsRef = useRef<any>(null);
+  const resizeHandlerRef = useRef<(() => void) | null>(null);
+
+  const resizeRenderer = (renderer: any, canvas: HTMLCanvasElement) => {
+    const width = canvas.clientWidth;
+    const height = canvas.clientHeight;
+    if (canvas.width !== width || canvas.height !== height) {
+      renderer.setSize(width, height, false);
+      if (cameraRef.current) {
+        cameraRef.current.aspect = width / height;
+        cameraRef.current.updateProjectionMatrix();
+      }
+    }
+  };
 
   useEffect(() => {
     if (!canvasRef.current) return;
@@ -88,29 +101,21 @@ export default function StudioTab({ user, editMode }: StudioTabProps) {
         }
         animate();
 
-        window.addEventListener('resize', () => resizeRenderer(renderer, canvas));
+        const handleResize = () => resizeRenderer(renderer, canvas);
+        resizeHandlerRef.current = handleResize;
+        window.addEventListener('resize', handleResize);
       });
-    });
 
     return () => {
       if (rendererRef.current) {
         rendererRef.current.dispose();
       }
-      window.removeEventListener('resize', () => {});
+      if (resizeHandlerRef.current) {
+        window.removeEventListener('resize', resizeHandlerRef.current);
+        resizeHandlerRef.current = null;
+      }
     };
   }, []);
-
-  const resizeRenderer = (renderer: any, canvas: HTMLCanvasElement) => {
-    const width = canvas.clientWidth;
-    const height = canvas.clientHeight;
-    if (canvas.width !== width || canvas.height !== height) {
-      renderer.setSize(width, height, false);
-      if (cameraRef.current) {
-        cameraRef.current.aspect = width / height;
-        cameraRef.current.updateProjectionMatrix();
-      }
-    }
-  };
 
   const makeCubeMesh = (THREE: any) => {
     const geom = new THREE.BoxGeometry(1, 1, 1);
