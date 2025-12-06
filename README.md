@@ -191,4 +191,4 @@ Built with:
 
 ---
 
-**Note**: This is a development version. For production deployment, configure environment variables and set up proper authentication.
+**Note**: This is a development version. Data may not transfer correctly to the full version.
