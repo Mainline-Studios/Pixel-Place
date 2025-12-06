@@ -32,6 +32,7 @@ Before you can run this project, you need to install Node.js (which includes npm
 ## 🏃 Getting Started
 
 ### Installation
+*make sure Git is installed*
 
 1. Clone the repository:
 ```bash
