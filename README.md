@@ -32,7 +32,7 @@ Before you can run this project, you need to install Node.js (which includes npm
 ## 🏃 Getting Started
 
 ### Installation
-*make sure Git is installed*
+**make sure Git is installed**
 
 1. Clone the repository:
 ```bash
@@ -90,12 +90,6 @@ Pixel-Place/
 3. New users start with 250 Pixel Coins
 
 ### Admin Accounts
-
-The following accounts are pre-configured as admins (auto-created on first login):
-- `admin` / `456`
-- `admin2` / `password`
-- `345` / `345`
-- And more... (see `lib/storage.ts` for full list)
 
 Admins have:
 - 99,999 starting coins
