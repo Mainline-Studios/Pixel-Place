@@ -5,6 +5,7 @@ import { User, Skin } from '@/types';
 import { getSkins, saveSkins } from '@/lib/storage';
 import { escapeHTML } from '@/lib/utils';
 import { useUser } from '@/contexts/UserContext';
+import Avatar3D from '../Avatar3D';
 
 interface AvatarShopTabProps {
   user: User;
@@ -71,12 +72,22 @@ function SkinThumb({ skin }: { skin: Skin }) {
     <div
       className="skin-thumb"
       style={{
-        background: `radial-gradient(circle at 30% 30%,${torsoColor},#000)`,
-        boxShadow: `0 20px 40px rgba(0,0,0,.9), 0 0 20px ${torsoColor}55, 0 0 60px ${torsoColor}33`,
-        border: `1px solid ${torsoColor}`,
+        width: '80px',
+        height: '80px',
+        margin: '0 auto',
+        borderRadius: '8px',
+        border: '1px solid var(--border)',
+        overflow: 'hidden',
+        position: 'relative',
+        background: '#0f1117',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
       }}
     >
-      {escapeHTML(skin.img)}
+      <div style={{ width: '100%', height: '100%', position: 'relative' }}>
+        <Avatar3D skin={skin} size={0.35} autoRotate={true} />
+      </div>
     </div>
   );
 }

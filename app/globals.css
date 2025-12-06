@@ -77,11 +77,31 @@ body {
   color: var(--text-main);
   font-size: 13px;
   font-weight: 600;
-  padding: 8px 12px;
-  border-radius: 8px;
+  padding: 10px 16px;
+  border-radius: 10px;
   cursor: pointer;
   box-shadow: 0 10px 24px rgba(0, 0, 0, .8), 0 0 20px rgba(255, 255, 255, .07);
-  transition: all 0.2s;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+}
+
+.btn::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.1);
+  transform: translate(-50%, -50%);
+  transition: width 0.6s, height 0.6s;
+}
+
+.btn:hover::before {
+  width: 300px;
+  height: 300px;
 }
 
 .btn:hover:not(:disabled) {
@@ -295,15 +315,25 @@ textarea {
 
 .avatar-showcase {
   width: 100%;
-  background: radial-gradient(circle at 50% 15%, rgba(255, 255, 255, .07) 0%, rgba(0, 0, 0, 0) 60%);
+  background: radial-gradient(circle at 50% 15%, rgba(255, 255, 255, .1) 0%, rgba(0, 0, 0, 0) 60%);
   border: 1px solid var(--border);
   border-radius: var(--panel-radius);
-  box-shadow: var(--shadow-card), 0 0 40px rgba(255, 255, 255, .07);
+  box-shadow: var(--shadow-card), 0 0 60px rgba(255, 255, 255, .1);
   padding: 32px 0 40px;
   text-align: center;
   position: relative;
   margin-bottom: 16px;
   overflow: hidden;
+  animation: pulse-glow 3s ease-in-out infinite;
+}
+
+@keyframes pulse-glow {
+  0%, 100% {
+    box-shadow: var(--shadow-card), 0 0 60px rgba(255, 255, 255, .1);
+  }
+  50% {
+    box-shadow: var(--shadow-card), 0 0 80px rgba(255, 255, 255, .15);
+  }
 }
 
 .figure-wrapper {
@@ -790,13 +820,40 @@ textarea {
 .skin-card {
   background: var(--panel-alt);
   border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 12px;
+  border-radius: 16px;
+  padding: 16px;
   text-align: center;
   box-shadow:
     0 24px 48px rgba(0, 0, 0, .9),
     0 0 40px rgba(255, 255, 255, .07),
     inset 0 0 20px rgba(255, 255, 255, .03);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+}
+
+.skin-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.05), transparent);
+  transition: left 0.5s;
+}
+
+.skin-card:hover {
+  transform: translateY(-4px);
+  border-color: var(--accent);
+  box-shadow:
+    0 32px 64px rgba(0, 0, 0, .95),
+    0 0 60px rgba(255, 255, 255, .12),
+    inset 0 0 30px rgba(255, 255, 255, .05);
+}
+
+.skin-card:hover::before {
+  left: 100%;
 }
 
 .skin-thumb {
