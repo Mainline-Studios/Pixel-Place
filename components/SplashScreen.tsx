@@ -86,7 +86,7 @@ export default function SplashScreen({ onComplete }: SplashScreenProps) {
           letterSpacing: '2px',
         }}
       >
-        by Mainline Studios
+        Presenting Pixel Place
       </p>
     </div>
   );
