@@ -78,16 +78,6 @@ export default function SplashScreen({ onComplete }: SplashScreenProps) {
       >
         MAINLINE STUDIOS
       </h1>
-      <p
-        style={{
-          fontSize: '16px',
-          color: '#8b90a8',
-          marginTop: '16px',
-          letterSpacing: '2px',
-        }}
-      >
-        Presenting Pixel Place
-      </p>
     </div>
   );
 }

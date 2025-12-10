@@ -23,7 +23,7 @@ export default function Login() {
   return (
     <div id="login-screen">
       <div className="login-box">
-        <h1>Mainline Studios</h1>
+        <h1>Pixel Place</h1>
         <input
           id="user"
           placeholder="Username"
