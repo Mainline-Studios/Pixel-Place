@@ -83,7 +83,7 @@ export interface CoinPack {
   stripePriceId: string;
 }
 
-export type TabType = 'home' | 'discover' | 'avatarShop' | 'createGame' | 'studio' | 'coins' | 'friends' | 'settings' | 'donation' | 'aiCoder';
+export type TabType = 'home' | 'discover' | 'avatarShop' | 'createGame' | 'studio' | 'games' | 'coins' | 'friends' | 'settings' | 'donation' | 'aiCoder';
 
 export interface TabContent {
   home?: string;

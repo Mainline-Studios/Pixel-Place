@@ -14,6 +14,7 @@ interface TopBarProps {
 const tabs: { key: TabType; label: string }[] = [
   { key: 'home', label: 'Home' },
   { key: 'discover', label: 'Discover' },
+  { key: 'games', label: 'Games' },
   { key: 'avatarShop', label: 'Avatar Shop' },
   { key: 'createGame', label: 'Create' },
   { key: 'studio', label: 'Studio' },
