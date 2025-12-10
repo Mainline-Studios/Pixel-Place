@@ -36,7 +36,7 @@ Before you can run this project, you need to install Node.js (which includes npm
 
 1. Clone the repository:
 ```bash
-git clone <your-repo-url>
+git clone <https://github.com/boehmlaird0/Pixel-Place>
 cd Pixel-Place
 ```
 
