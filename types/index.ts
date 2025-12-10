@@ -6,6 +6,10 @@ export interface User {
   coins: number;
   ownedSkins: string[];
   equippedSkin: string;
+  isDonor?: boolean;
+  donationAmount?: number;
+  ownedAccessories?: string[];
+  equippedAccessories?: { [key: string]: string };
 }
 
 export interface Skin {
@@ -22,11 +26,35 @@ export interface Skin {
   };
 }
 
+export interface Accessory {
+  id: string;
+  name: string;
+  type: 'hat' | 'glasses' | 'mask' | 'backpack' | 'weapon';
+  rarity: 'common' | 'rare' | 'legendary';
+  price: number;
+  img: string;
+  color?: string;
+  position?: { x: number; y: number; z: number };
+  scale?: number;
+}
+
 export interface PublishedGame {
   title: string;
   desc: string;
   owner: string;
   ts: number;
+  isPrebuilt?: boolean;
+  sceneData?: SceneData;
+}
+
+export interface PrebuiltGame {
+  id: string;
+  title: string;
+  desc: string;
+  category: string;
+  thumbnail: string;
+  sceneData: SceneData;
+  tags: string[];
 }
 
 export interface DraftGame {
@@ -55,7 +83,7 @@ export interface CoinPack {
   stripePriceId: string;
 }
 
-export type TabType = 'home' | 'discover' | 'avatarShop' | 'createGame' | 'studio' | 'coins' | 'friends' | 'settings';
+export type TabType = 'home' | 'discover' | 'avatarShop' | 'createGame' | 'studio' | 'coins' | 'friends' | 'settings' | 'donation' | 'aiCoder';
 
 export interface TabContent {
   home?: string;

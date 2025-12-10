@@ -16,7 +16,6 @@
         "three": "^0.168.0"
     },
     "devDependencies": {
-        "@next/swc-win32-x64-msvc": "^16.0.7",
         "@types/node": "^20.14.12",
         "@types/react": "^18.3.3",
         "@types/react-dom": "^18.3.0",

@@ -40,7 +40,10 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
           role: 'admin',
           coins: 99999,
           ownedSkins: ['starter_classic'],
-          equippedSkin: 'starter_classic'
+          equippedSkin: 'starter_classic',
+          isDonor: false,
+          ownedAccessories: [],
+          equippedAccessories: {}
         };
         users.push(found);
         saveUsers(users);
@@ -71,7 +74,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
 
     const isAdmin = ADMIN_ACCOUNTS_LIST.some(a => a.username === username && a.password === password);
     const role = isAdmin ? 'admin' : 'user';
-    const coins = role === 'admin' ? 99999 : 250;
+    const coins = role === 'admin' ? 99999 : 0;
 
     const newUser: User = {
       username,
@@ -80,7 +83,10 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       role,
       coins,
       ownedSkins: ['starter_classic'],
-      equippedSkin: 'starter_classic'
+      equippedSkin: 'starter_classic',
+      isDonor: false,
+      ownedAccessories: [],
+      equippedAccessories: {}
     };
 
     users.push(newUser);

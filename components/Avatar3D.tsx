@@ -1,16 +1,17 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
-import { Skin } from '@/types';
+import { Skin, Accessory } from '@/types';
 
 interface Avatar3DProps {
   skin: Skin;
   size?: number;
   autoRotate?: boolean;
   showControls?: boolean;
+  accessories?: Accessory[];
 }
 
-export default function Avatar3D({ skin, size = 1, autoRotate = false, showControls = false }: Avatar3DProps) {
+export default function Avatar3D({ skin, size = 1, autoRotate = false, showControls = false, accessories = [] }: Avatar3DProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const sceneRef = useRef<any>(null);
   const rendererRef = useRef<any>(null);
@@ -164,6 +165,93 @@ export default function Avatar3D({ skin, size = 1, autoRotate = false, showContr
       rightLeg.position.set(0.25 * size, -0.3 * size, 0);
       avatarGroup.add(rightLeg);
 
+      // Add accessories
+      accessories.forEach((accessory) => {
+        if (!accessory.position) return;
+        
+        let accessoryMesh;
+        const pos = accessory.position;
+        const scale = accessory.scale || 1;
+        const color = accessory.color ? new THREE.Color(accessory.color) : new THREE.Color(0xffffff);
+        
+        if (accessory.type === 'hat') {
+          if (accessory.id.includes('crown')) {
+            // Crown geometry
+            const crownGroup = new THREE.Group();
+            for (let i = 0; i < 5; i++) {
+              const spike = new THREE.ConeGeometry(0.05 * size * scale, 0.15 * size * scale, 8);
+              const spikeMat = new THREE.MeshStandardMaterial({ color, metalness: 0.8, roughness: 0.2 });
+              const spikeMesh = new THREE.Mesh(spike, spikeMat);
+              spikeMesh.position.set(
+                (i - 2) * 0.12 * size * scale,
+                0,
+                0
+              );
+              crownGroup.add(spikeMesh);
+            }
+            const band = new THREE.TorusGeometry(0.32 * size * scale, 0.03 * size * scale, 8, 16);
+            const bandMat = new THREE.MeshStandardMaterial({ color, metalness: 0.8, roughness: 0.2 });
+            const bandMesh = new THREE.Mesh(band, bandMat);
+            crownGroup.add(bandMesh);
+            accessoryMesh = crownGroup;
+          } else {
+            // Cap geometry
+            const capGroup = new THREE.Group();
+            const capTop = new THREE.CylinderGeometry(0.35 * size * scale, 0.35 * size * scale, 0.15 * size * scale, 16);
+            const capTopMat = new THREE.MeshStandardMaterial({ color });
+            const capTopMesh = new THREE.Mesh(capTop, capTopMat);
+            capTopMesh.rotation.x = Math.PI / 2;
+            capGroup.add(capTopMesh);
+            
+            const brim = new THREE.TorusGeometry(0.4 * size * scale, 0.02 * size * scale, 8, 16);
+            const brimMat = new THREE.MeshStandardMaterial({ color: 0x1a1a1a });
+            const brimMesh = new THREE.Mesh(brim, brimMat);
+            brimMesh.position.y = -0.08 * size * scale;
+            capGroup.add(brimMesh);
+            accessoryMesh = capGroup;
+          }
+        } else if (accessory.type === 'glasses') {
+          const glassesGroup = new THREE.Group();
+          // Left lens
+          const leftLens = new THREE.CircleGeometry(0.12 * size * scale, 16);
+          const lensMat = new THREE.MeshStandardMaterial({ color: 0x1a1a1a, transparent: true, opacity: 0.3 });
+          const leftLensMesh = new THREE.Mesh(leftLens, lensMat);
+          leftLensMesh.position.set(-0.12 * size * scale, 0, 0);
+          glassesGroup.add(leftLensMesh);
+          
+          // Right lens
+          const rightLens = new THREE.CircleGeometry(0.12 * size * scale, 16);
+          const rightLensMesh = new THREE.Mesh(rightLens, lensMat);
+          rightLensMesh.position.set(0.12 * size * scale, 0, 0);
+          glassesGroup.add(rightLensMesh);
+          
+          // Frame
+          const frameMat = new THREE.MeshStandardMaterial({ color });
+          const bridge = new THREE.BoxGeometry(0.05 * size * scale, 0.02 * size * scale, 0.01 * size * scale);
+          const bridgeMesh = new THREE.Mesh(bridge, frameMat);
+          glassesGroup.add(bridgeMesh);
+          accessoryMesh = glassesGroup;
+        } else if (accessory.type === 'mask') {
+          const maskGeo = new THREE.BoxGeometry(0.5 * size * scale, 0.3 * size * scale, 0.05 * size * scale);
+          const maskMat = new THREE.MeshStandardMaterial({ color });
+          accessoryMesh = new THREE.Mesh(maskGeo, maskMat);
+        } else {
+          // Default box for other types
+          const defaultGeo = new THREE.BoxGeometry(0.3 * size * scale, 0.3 * size * scale, 0.3 * size * scale);
+          const defaultMat = new THREE.MeshStandardMaterial({ color });
+          accessoryMesh = new THREE.Mesh(defaultGeo, defaultMat);
+        }
+        
+        if (accessoryMesh) {
+          accessoryMesh.position.set(
+            pos.x * size,
+            pos.y * size,
+            pos.z * size
+          );
+          avatarGroup.add(accessoryMesh);
+        }
+      });
+
       // Add glow effect based on rarity
       if (skin.rarity === 'legendary') {
         const glowGeometry = new THREE.BoxGeometry(1.2 * size, 2.5 * size, 1.2 * size);
@@ -249,7 +337,7 @@ export default function Avatar3D({ skin, size = 1, autoRotate = false, showContr
         rendererRef.current.dispose();
       }
     };
-  }, [skin, size, autoRotate, showControls]);
+  }, [skin, size, autoRotate, showControls, accessories]);
 
   return (
     <div
