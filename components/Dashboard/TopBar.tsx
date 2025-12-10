@@ -29,7 +29,7 @@ export default function TopBar({ currentTab, onTabChange, username, role, avatar
   return (
     <div className="topbar">
       <div className="topbar-inner">
-        <div className="brand">PIXEL PLACE</div>
+        <div className="brand">MAINLINE STUDIOS</div>
         <div className="header-nav">
           {tabs.map((tab) => (
             <button
