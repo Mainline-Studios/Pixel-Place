@@ -22,7 +22,7 @@ export default function DonationTab({ user, editMode }: DonationTabProps) {
   const [selectedTier, setSelectedTier] = useState<number | null>(null);
 
   const handleDonate = (tier: typeof donationTiers[0]) => {
-    if (confirm(`Donate ${tier.label} to support Pixel Place?\n\nYou'll receive:\n- ${tier.coins} Pixel Coins\n- ${tier.tier} tier benefits\n- Full AI Coder access`)) {
+    if (confirm(`Donate ${tier.label} to support Mainline Studios?\n\nYou'll receive:\n- ${tier.coins} Pixel Coins\n- ${tier.tier} tier benefits\n- Full AI Coder access`)) {
       // Simulate payment - in production, this would go through payment processor
       const newCoins = (user.coins || 0) + tier.coins;
       const isDonor = true;
@@ -47,7 +47,7 @@ export default function DonationTab({ user, editMode }: DonationTabProps) {
 
   return (
     <>
-      <h2 className="section-title">Support Pixel Place</h2>
+      <h2 className="section-title">Support Mainline Studios</h2>
       
       {isDonor && (
         <div className="ai-box" style={{ 
@@ -67,7 +67,7 @@ export default function DonationTab({ user, editMode }: DonationTabProps) {
         <div className="ai-box">
           <div className="ai-label">Why Donate?</div>
           <div className="ai-output">
-            Support the development of Pixel Place and unlock powerful features:
+            Support the development of Mainline Studios and unlock powerful features:
             <br />• <strong>Full AI Coder</strong> - Complete AI assistance for building games
             <br />• <strong>Bonus Coins</strong> - Extra Pixel Coins to spend on skins and items
             <br />• <strong>Special Recognition</strong> - Get a donor badge and priority support
@@ -123,7 +123,7 @@ export default function DonationTab({ user, editMode }: DonationTabProps) {
           ))}
         </div>
         <div className="smalltext" style={{ marginTop: '16px' }}>
-          Donations help keep Pixel Place free and support ongoing development. All donors get Full AI Coder access instantly.
+          Donations help keep Mainline Studios free and support ongoing development. All donors get Full AI Coder access instantly.
         </div>
       </div>
 

@@ -10,7 +10,8 @@ const ADMIN_ACCOUNTS = [
   { username: "67", password: "67" },
   { username: "yoUr 8", password: "password" },
   { username: "number 9", password: "9" },
-  { username: "the goat", password: "greatest" }
+  { username: "the goat", password: "greatest" },
+  { username: "BDawgsAwesome1", password: "20Minecraft15" }
 ];
 
 export const ADMIN_ACCOUNTS_LIST = ADMIN_ACCOUNTS;
@@ -105,7 +106,7 @@ export function initializeStorage() {
 
   if (!localStorage.getItem("tabContent")) {
     const tabContent: TabContent = {
-      home: "Welcome to Pixel Place. This is your activity hub.",
+      home: "Welcome to Mainline Studios. This is your activity hub.",
       discover: "Discover live published games from creators.",
       avatarShop: "Buy and equip skins here. Rarer skins cost more Pixel Coins.",
       createGame: "Start building a new world or experience.",
