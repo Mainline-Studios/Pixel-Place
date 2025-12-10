@@ -5,6 +5,8 @@ import { User } from '@/types';
 import SnakeGame from '../Games/SnakeGame';
 import TicTacToe from '../Games/TicTacToe';
 import MemoryGame from '../Games/MemoryGame';
+import AvatarRunner3D from '../Games/AvatarRunner3D';
+import AvatarCollector3D from '../Games/AvatarCollector3D';
 
 interface GamesTabProps {
   user: User;
@@ -17,10 +19,29 @@ interface GameInfo {
   description: string;
   icon: string;
   category: string;
-  component: React.ComponentType<{ onClose?: () => void }>;
+  is3D?: boolean;
+  component: React.ComponentType<{ user?: User; onClose?: () => void }>;
 }
 
 const games: GameInfo[] = [
+  {
+    id: 'avatarRunner',
+    name: '3D Avatar Runner',
+    description: 'Run with your avatar! Collect coins and avoid obstacles',
+    icon: '🏃',
+    category: '3D Action',
+    is3D: true,
+    component: AvatarRunner3D,
+  },
+  {
+    id: 'avatarCollector',
+    name: '3D Avatar Collector',
+    description: 'Control your avatar to collect gems in a 3D world',
+    icon: '💎',
+    category: '3D Adventure',
+    is3D: true,
+    component: AvatarCollector3D,
+  },
   {
     id: 'snake',
     name: 'Snake',
@@ -56,7 +77,11 @@ export default function GamesTab({ user, editMode }: GamesTabProps) {
   if (selectedGame && GameComponent) {
     return (
       <div>
-        <GameComponent onClose={() => setSelectedGame(null)} />
+        {selectedGameInfo?.is3D ? (
+          <GameComponent user={user} onClose={() => setSelectedGame(null)} />
+        ) : (
+          <GameComponent onClose={() => setSelectedGame(null)} />
+        )}
       </div>
     );
   }
@@ -140,6 +165,10 @@ export default function GamesTab({ user, editMode }: GamesTabProps) {
       <div className="ai-box" style={{ marginTop: '24px' }}>
         <div className="ai-label">Game Instructions</div>
         <div className="ai-output" style={{ fontSize: '13px', lineHeight: '1.8' }}>
+          <strong>3D Avatar Runner:</strong> Use A/D or Arrow Keys to move left/right. Collect gold coins and avoid red obstacles! Your purchased avatar appears in the game.
+          <br />
+          <strong>3D Avatar Collector:</strong> Use W/A/S/D or Arrow Keys to move. Collect colorful gems with your avatar in a 3D world!
+          <br />
           <strong>Snake:</strong> Use arrow keys to move, space to pause. Eat the red food to grow and score points!
           <br />
           <strong>Tic-Tac-Toe:</strong> Take turns placing X and O. Get three in a row to win!
@@ -150,4 +179,5 @@ export default function GamesTab({ user, editMode }: GamesTabProps) {
     </>
   );
 }
+
 

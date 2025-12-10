@@ -197,3 +197,4 @@ export default function SnakeGame({ onClose }: SnakeGameProps) {
   );
 }
 
+
