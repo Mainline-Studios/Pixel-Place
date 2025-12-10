@@ -106,7 +106,7 @@ export function initializeStorage() {
 
   if (!localStorage.getItem("tabContent")) {
     const tabContent: TabContent = {
-      home: "Welcome to Mainline Studios. This is your activity hub.",
+      home: "Welcome to Pixel Place. This is your activity hub.",
       discover: "Discover live published games from creators.",
       avatarShop: "Buy and equip skins here. Rarer skins cost more Pixel Coins.",
       createGame: "Start building a new world or experience.",

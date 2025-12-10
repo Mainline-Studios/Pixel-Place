@@ -3,8 +3,8 @@ import "./globals.css";
 import { UserProvider } from "@/contexts/UserContext";
 
 export const metadata: Metadata = {
-  title: "Mainline Studios",
-  description: "A Next.js application by Mainline Studios",
+  title: "Pixel Place",
+  description: "Pixel Place by Mainline Studios",
 };
 
 export default function RootLayout({

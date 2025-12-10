@@ -124,7 +124,7 @@ export default function Dashboard({ user }: DashboardProps) {
           </a>
         </div>
         <div style={{ fontSize: '12px', color: 'var(--text-dim)', opacity: 0.7 }}>
-          Mainline Studios 2025
+          Pixel Place by Mainline Studios 2025
         </div>
       </footer>
     </div>
