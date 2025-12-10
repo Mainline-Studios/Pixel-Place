@@ -133,8 +133,6 @@ export default function DonationTab({ user, editMode }: DonationTabProps) {
           <strong>Payment Methods:</strong> Credit Card, PayPal, Apple Pay
           <br />
           <strong>Note:</strong> In development mode, donations are simulated. Production mode will connect to a real payment processor.
-          <br />
-          <strong>Support:</strong> Contact us at support@pixelplace.com for any questions about donations.
         </div>
       </div>
     </>

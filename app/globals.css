@@ -42,8 +42,25 @@ body {
   margin: 0;
   font-family: "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   background: radial-gradient(circle at 20% 20%, #1e2337 0%, #0f1117 60%);
+  background-attachment: fixed;
   color: var(--text-main);
   min-height: 100vh;
+  position: relative;
+}
+
+body::before {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: 
+    radial-gradient(circle at 10% 20%, rgba(74, 144, 226, 0.1) 0%, transparent 50%),
+    radial-gradient(circle at 90% 80%, rgba(255, 77, 77, 0.1) 0%, transparent 50%),
+    radial-gradient(circle at 50% 50%, rgba(46, 204, 113, 0.05) 0%, transparent 50%);
+  pointer-events: none;
+  z-index: 0;
 }
 
 .hidden {
@@ -58,10 +75,14 @@ body {
 
 .section-title {
   margin: 0 0 8px;
-  font-size: 16px;
+  font-size: 18px;
   font-weight: 700;
   color: var(--text-main);
   text-shadow: 0 0 16px rgba(255, 255, 255, .4);
+  background: linear-gradient(135deg, #ffffff 0%, #c9cde0 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }
 
 .price-tag {
@@ -72,7 +93,7 @@ body {
 }
 
 .btn {
-  background: var(--accent-bg);
+  background: linear-gradient(135deg, var(--accent-bg) 0%, var(--accent-bg-hover) 100%);
   border: 1px solid var(--border);
   color: var(--text-main);
   font-size: 13px;
@@ -487,7 +508,7 @@ textarea {
 .main-card {
   flex: 1;
   min-width: 0;
-  background: var(--panel);
+  background: linear-gradient(135deg, var(--panel) 0%, var(--panel-soft) 100%);
   border-radius: var(--panel-radius);
   border: 1px solid var(--border);
   box-shadow: var(--shadow-card), var(--glow-outline), var(--panel-inner-shadow);
@@ -495,6 +516,25 @@ textarea {
   min-height: 600px;
   display: flex;
   flex-direction: column;
+  position: relative;
+  overflow: hidden;
+}
+
+.main-card::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  right: -50%;
+  width: 200%;
+  height: 200%;
+  background: radial-gradient(circle, rgba(74, 144, 226, 0.05) 0%, transparent 70%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.main-card > * {
+  position: relative;
+  z-index: 1;
 }
 
 .section-block {
@@ -534,12 +574,35 @@ textarea {
 }
 
 .ai-box {
-  background: #0f1117;
+  background: linear-gradient(135deg, rgba(15, 17, 23, 0.9) 0%, rgba(26, 29, 41, 0.9) 100%);
   border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 16px;
-  margin-bottom: 16px;
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 20px;
   box-shadow: 0 24px 48px rgba(0, 0, 0, .9), 0 0 40px rgba(255, 255, 255, .05), inset 0 0 20px rgba(255, 255, 255, .03);
+  position: relative;
+  overflow: hidden;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.ai-box::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.03), transparent);
+  transition: left 0.5s ease;
+}
+
+.ai-box:hover::before {
+  left: 100%;
+}
+
+.ai-box:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 28px 56px rgba(0, 0, 0, 0.95), 0 0 60px rgba(255, 255, 255, 0.08);
 }
 
 .ai-label {
@@ -904,8 +967,30 @@ footer {
   text-align: center;
   font-size: .8rem;
   color: var(--text-dim);
-  padding: 24px 0 32px;
+  padding: 32px 20px;
   text-shadow: 0 0 20px rgba(255, 255, 255, .2);
+  position: relative;
+  margin-top: 40px;
+}
+
+footer::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 200px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--border), transparent);
+}
+
+footer a {
+  transition: all 0.3s ease;
+}
+
+footer a:hover {
+  color: var(--text-main);
+  text-shadow: 0 0 20px rgba(255, 255, 255, .4);
 }
 
 #modalOverlay {

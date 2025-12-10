@@ -16,6 +16,7 @@ import FriendsTab from '../Tabs/FriendsTab';
 import SettingsTab from '../Tabs/SettingsTab';
 import DonationTab from '../Tabs/DonationTab';
 import AICoderTab from '../Tabs/AICoderTab';
+import GamesTab from '../Tabs/GamesTab';
 
 interface DashboardProps {
   user: User;
@@ -29,7 +30,7 @@ export default function Dashboard({ user }: DashboardProps) {
   useEffect(() => {
     const handleHashChange = () => {
       const hash = window.location.hash.slice(1);
-      if (hash && ['home', 'discover', 'avatarShop', 'createGame', 'studio', 'coins', 'friends', 'settings', 'donation', 'aiCoder'].includes(hash)) {
+      if (hash && ['home', 'discover', 'games', 'avatarShop', 'createGame', 'studio', 'coins', 'friends', 'settings', 'donation', 'aiCoder'].includes(hash)) {
         setCurrentTab(hash as TabType);
       }
     };
@@ -56,6 +57,8 @@ export default function Dashboard({ user }: DashboardProps) {
         return <HomeTab user={user} editMode={editMode} />;
       case 'discover':
         return <DiscoverTab user={user} editMode={editMode} onResetPublished={handleResetPublished} />;
+      case 'games':
+        return <GamesTab user={user} editMode={editMode} />;
       case 'avatarShop':
         return <AvatarShopTab user={user} editMode={editMode} />;
       case 'createGame':
@@ -102,7 +105,28 @@ export default function Dashboard({ user }: DashboardProps) {
           <section className="main-card">{renderTabContent()}</section>
         </div>
       </div>
-      <footer>© 2025 Pixel Place | All Rights Reserved</footer>
+      <footer>
+        <div style={{ marginBottom: '8px' }}>
+          <a 
+            href="https://creativecommons.org/licenses/by-nd-nc/4.0/" 
+            target="_blank" 
+            rel="noopener noreferrer"
+            style={{ 
+              color: 'var(--text-dim)', 
+              textDecoration: 'none',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px'
+            }}
+          >
+            <span style={{ fontSize: '18px' }}>©</span>
+            <span>Creative Commons BY-ND-NC 4.0</span>
+          </a>
+        </div>
+        <div style={{ fontSize: '12px', color: 'var(--text-dim)', opacity: 0.7 }}>
+          Pixel Place 2025
+        </div>
+      </footer>
     </div>
   );
 }
