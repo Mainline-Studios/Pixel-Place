@@ -1,8 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { User, Skin } from '@/types';
-import { getSkins, saveSkins } from '@/lib/storage';
+import { User, Skin, Accessory } from '@/types';
+import { getSkins, saveSkins, getAccessories, saveAccessories } from '@/lib/storage';
 import { escapeHTML } from '@/lib/utils';
 import { useUser } from '@/contexts/UserContext';
 import Avatar3D from '../Avatar3D';
@@ -66,7 +66,7 @@ function RarityBadge({ rarity }: { rarity: string }) {
   );
 }
 
-function SkinThumb({ skin }: { skin: Skin }) {
+function SkinThumb({ skin, accessories }: { skin: Skin; accessories?: Accessory[] }) {
   const torsoColor = skin.colors?.torso || '#4d536f';
   return (
     <div
@@ -86,7 +86,35 @@ function SkinThumb({ skin }: { skin: Skin }) {
       }}
     >
       <div style={{ width: '100%', height: '100%', position: 'relative' }}>
-        <Avatar3D skin={skin} size={0.35} autoRotate={true} />
+        <Avatar3D skin={skin} size={0.35} autoRotate={true} accessories={accessories || []} />
+      </div>
+    </div>
+  );
+}
+
+function AccessoryThumb({ accessory, skin, equippedAccessories }: { accessory: Accessory; skin: Skin; equippedAccessories?: { [key: string]: string } }) {
+  const equipped = equippedAccessories?.[accessory.type] === accessory.id;
+  const accessoriesList = equipped ? [accessory] : [];
+  
+  return (
+    <div
+      className="skin-thumb"
+      style={{
+        width: '80px',
+        height: '80px',
+        margin: '0 auto',
+        borderRadius: '8px',
+        border: equipped ? '2px solid #4a90e2' : '1px solid var(--border)',
+        overflow: 'hidden',
+        position: 'relative',
+        background: '#0f1117',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+      }}
+    >
+      <div style={{ width: '100%', height: '100%', position: 'relative' }}>
+        <Avatar3D skin={skin} size={0.35} autoRotate={true} accessories={accessoriesList} />
       </div>
     </div>
   );
@@ -95,8 +123,10 @@ function SkinThumb({ skin }: { skin: Skin }) {
 export default function AvatarShopTab({ user, editMode }: AvatarShopTabProps) {
   const { updateUser } = useUser();
   const [skins, setSkins] = useState(getSkins());
+  const [accessories, setAccessories] = useState(getAccessories());
   const ownedSkins = skins.filter((s) => user.ownedSkins?.includes(s.id));
-  const equippedSkin = skins.find((s) => s.id === user.equippedSkin);
+  const ownedAccessories = accessories.filter((a) => user.ownedAccessories?.includes(a.id));
+  const equippedSkin = skins.find((s) => s.id === user.equippedSkin) || skins[0];
   const equippedSkinName = equippedSkin ? equippedSkin.name : 'None';
 
   const handlePurchase = (skin: Skin) => {
@@ -124,6 +154,42 @@ export default function AvatarShopTab({ user, editMode }: AvatarShopTabProps) {
       return;
     }
     updateUser({ equippedSkin: skinId });
+  };
+
+  const handlePurchaseAccessory = (accessory: Accessory) => {
+    if (user.ownedAccessories?.includes(accessory.id)) {
+      alert('You already own this accessory.');
+      return;
+    }
+
+    if ((user.coins || 0) < accessory.price) {
+      alert(`You don't have enough Pixel Coins to buy ${accessory.name}.`);
+      return;
+    }
+
+    if (confirm(`Buy ${accessory.name} for ${accessory.price} Coins?\nYour balance: ${user.coins || 0}`)) {
+      const newCoins = (user.coins || 0) - accessory.price;
+      const newOwnedAccessories = [...(user.ownedAccessories || []), accessory.id];
+      updateUser({ coins: newCoins, ownedAccessories: newOwnedAccessories });
+      alert(`Purchased ${accessory.name}!`);
+      setAccessories([...accessories]);
+    }
+  };
+
+  const handleEquipAccessory = (accessoryId: string, type: string) => {
+    if (!user.ownedAccessories?.includes(accessoryId)) {
+      alert("You don't own that accessory.");
+      return;
+    }
+    const newEquipped = { ...(user.equippedAccessories || {}) };
+    newEquipped[type] = accessoryId;
+    updateUser({ equippedAccessories: newEquipped });
+  };
+
+  const handleUnequipAccessory = (type: string) => {
+    const newEquipped = { ...(user.equippedAccessories || {}) };
+    delete newEquipped[type];
+    updateUser({ equippedAccessories: newEquipped });
   };
 
   const handleAddSkin = () => {
@@ -188,9 +254,14 @@ export default function AvatarShopTab({ user, editMode }: AvatarShopTabProps) {
           {ownedSkins.length === 0 ? (
             <div className="smalltext">You don't own any extra skins yet.</div>
           ) : (
-            ownedSkins.map((s) => (
+            ownedSkins.map((s) => {
+              const equippedAccessoriesList = Object.values(user.equippedAccessories || {}).map(id => 
+                accessories.find(a => a.id === id)
+              ).filter(Boolean) as Accessory[];
+              
+              return (
               <div key={s.id} className="skin-card">
-                <SkinThumb skin={s} />
+                <SkinThumb skin={s} accessories={s.id === user.equippedSkin ? equippedAccessoriesList : []} />
                 <div className="skin-name">{escapeHTML(s.name)}</div>
                 <div className="skin-meta">
                   <RarityBadge rarity={s.rarity} />
@@ -207,7 +278,8 @@ export default function AvatarShopTab({ user, editMode }: AvatarShopTabProps) {
                   </button>
                 </div>
               </div>
-            ))
+              );
+            })
           )}
         </div>
       </div>
@@ -224,7 +296,7 @@ export default function AvatarShopTab({ user, editMode }: AvatarShopTabProps) {
 
             return (
               <div key={s.id} className="skin-card">
-                <SkinThumb skin={s} />
+                <SkinThumb skin={s} accessories={[]} />
                 <div className="skin-name">{escapeHTML(s.name)}</div>
                 <div className="skin-meta">
                   <RarityBadge rarity={s.rarity} />
@@ -247,6 +319,92 @@ export default function AvatarShopTab({ user, editMode }: AvatarShopTabProps) {
                       onClick={() => handlePurchase(s)}
                     >
                       Buy for {s.price} 💠
+                    </button>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      <div className="ai-box">
+        <div className="skins-section-title">Accessories</div>
+        <div className="smalltext" style={{ marginBottom: '8px' }}>
+          Customize your avatar with hats, glasses, masks, and more. Mix and match different accessories!
+        </div>
+        
+        {ownedAccessories.length > 0 && (
+          <>
+            <div style={{ marginBottom: '16px', paddingBottom: '16px', borderBottom: '1px solid var(--border)' }}>
+              <div className="skins-section-title" style={{ fontSize: '14px', marginBottom: '12px' }}>Equipped Accessories</div>
+              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                {Object.entries(user.equippedAccessories || {}).map(([type, accessoryId]) => {
+                  const acc = accessories.find(a => a.id === accessoryId);
+                  if (!acc) return null;
+                  return (
+                    <div key={type} style={{ 
+                      padding: '8px 12px', 
+                      background: 'var(--panel-soft)', 
+                      borderRadius: '8px',
+                      border: '1px solid var(--border)',
+                      fontSize: '12px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px'
+                    }}>
+                      <span>{acc.name}</span>
+                      <button 
+                        className="btn" 
+                        onClick={() => handleUnequipAccessory(type)}
+                        style={{ padding: '4px 8px', fontSize: '10px' }}
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </>
+        )}
+
+        <div className="skins-grid">
+          {accessories.map((acc) => {
+            const owned = user.ownedAccessories?.includes(acc.id);
+            const equipped = user.equippedAccessories?.[acc.type] === acc.id;
+            const affordable = (user.coins || 0) >= acc.price;
+
+            return (
+              <div key={acc.id} className="skin-card">
+                <AccessoryThumb 
+                  accessory={acc} 
+                  skin={equippedSkin} 
+                  equippedAccessories={user.equippedAccessories}
+                />
+                <div className="skin-name">{escapeHTML(acc.name)}</div>
+                <div className="skin-meta">
+                  <RarityBadge rarity={acc.rarity} />
+                  <br />
+                  <span style={{ fontSize: '11px', color: '#8b90a8' }}>{acc.type}</span>
+                  <br />
+                  <span className="price-tag">{acc.price} Coins</span>
+                </div>
+                <div className="skin-actions">
+                  {owned ? (
+                    <button
+                      className="btn"
+                      onClick={() => equipped ? handleUnequipAccessory(acc.type) : handleEquipAccessory(acc.id, acc.type)}
+                    >
+                      {equipped ? 'Unequip' : 'Equip'}
+                    </button>
+                  ) : (
+                    <button
+                      className="btn"
+                      disabled={!affordable}
+                      onClick={() => handlePurchaseAccessory(acc)}
+                    >
+                      Buy for {acc.price} 💠
                     </button>
                   )}
                 </div>

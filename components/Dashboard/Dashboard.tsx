@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { TabType, User } from '@/types';
 import { getInitials } from '@/lib/utils';
 import { getPublished, savePublished } from '@/lib/storage';
@@ -14,6 +14,8 @@ import StudioTab from '../Tabs/StudioTab';
 import CoinsTab from '../Tabs/CoinsTab';
 import FriendsTab from '../Tabs/FriendsTab';
 import SettingsTab from '../Tabs/SettingsTab';
+import DonationTab from '../Tabs/DonationTab';
+import AICoderTab from '../Tabs/AICoderTab';
 
 interface DashboardProps {
   user: User;
@@ -22,6 +24,20 @@ interface DashboardProps {
 export default function Dashboard({ user }: DashboardProps) {
   const [currentTab, setCurrentTab] = useState<TabType>('home');
   const [editMode, setEditMode] = useState(false);
+
+  // Handle hash-based navigation
+  useEffect(() => {
+    const handleHashChange = () => {
+      const hash = window.location.hash.slice(1);
+      if (hash && ['home', 'discover', 'avatarShop', 'createGame', 'studio', 'coins', 'friends', 'settings', 'donation', 'aiCoder'].includes(hash)) {
+        setCurrentTab(hash as TabType);
+      }
+    };
+    
+    handleHashChange();
+    window.addEventListener('hashchange', handleHashChange);
+    return () => window.removeEventListener('hashchange', handleHashChange);
+  }, []);
 
   const handleResetPublished = () => {
     if (user.role !== 'admin') return;
@@ -59,6 +75,10 @@ export default function Dashboard({ user }: DashboardProps) {
             onResetPublished={handleResetPublished}
           />
         );
+      case 'donation':
+        return <DonationTab user={user} editMode={editMode} />;
+      case 'aiCoder':
+        return <AICoderTab user={user} editMode={editMode} />;
       default:
         return <div>Unknown tab</div>;
     }
@@ -68,7 +88,10 @@ export default function Dashboard({ user }: DashboardProps) {
     <div id="dashboard">
       <TopBar
         currentTab={currentTab}
-        onTabChange={setCurrentTab}
+        onTabChange={(tab) => {
+          setCurrentTab(tab);
+          window.location.hash = tab;
+        }}
         username={user.username}
         role={user.role}
         avatarInitials={getInitials(user.username)}

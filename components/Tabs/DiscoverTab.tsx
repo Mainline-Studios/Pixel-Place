@@ -1,7 +1,7 @@
 'use client';
 
-import { User, PublishedGame } from '@/types';
-import { getPublished, getTabContent } from '@/lib/storage';
+import { User, PublishedGame, PrebuiltGame } from '@/types';
+import { getPublished, getTabContent, getPrebuiltGames, saveSceneData } from '@/lib/storage';
 import { escapeHTML } from '@/lib/utils';
 
 interface DiscoverTabProps {
@@ -12,7 +12,17 @@ interface DiscoverTabProps {
 
 export default function DiscoverTab({ user, editMode, onResetPublished }: DiscoverTabProps) {
   const published = getPublished();
+  const prebuiltGames = getPrebuiltGames();
   const tabContent = getTabContent();
+
+  const handleLoadPrebuilt = (game: PrebuiltGame) => {
+    if (confirm(`Load "${game.title}" template? This will replace your current scene.`)) {
+      if (game.sceneData) {
+        saveSceneData(game.sceneData);
+        alert(`Loaded "${game.title}" template! Go to Studio to see it.`);
+      }
+    }
+  };
 
   const listHTML = published.length === 0 ? (
     <div className="smalltext">No published games yet.</div>
@@ -31,6 +41,42 @@ export default function DiscoverTab({ user, editMode, onResetPublished }: Discov
           <div className="game-desc">{escapeHTML(g.desc)}</div>
         </div>
       ))
+  );
+
+  const prebuiltHTML = prebuiltGames.length === 0 ? null : (
+    <>
+      <div className="skins-section-title" style={{ marginBottom: '12px', marginTop: '24px' }}>Pre-Built Game Templates</div>
+      <div className="skins-grid">
+        {prebuiltGames.map((game) => (
+          <div key={game.id} className="skin-card">
+            <div style={{
+              width: '100%',
+              height: '120px',
+              background: `linear-gradient(135deg, ${game.category === 'Platformer' ? '#4a90e2' : game.category === 'Racing' ? '#ff4d4d' : game.category === 'Puzzle' ? '#9b59b6' : '#2ecc71'}30, ${game.category === 'Platformer' ? '#1a4a7a' : game.category === 'Racing' ? '#7a1a1a' : game.category === 'Puzzle' ? '#4a1a6a' : '#1a4a2a'}30)`,
+              borderRadius: '8px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '48px',
+              marginBottom: '12px',
+              border: '1px solid var(--border)'
+            }}>
+              {game.category === 'Platformer' ? '🦘' : game.category === 'Racing' ? '🏎️' : game.category === 'Puzzle' ? '🧩' : '🗺️'}
+            </div>
+            <div className="skin-name">{escapeHTML(game.title)}</div>
+            <div className="skin-meta">
+              <span style={{ fontSize: '12px', color: '#8b90a8' }}>{game.category}</span>
+            </div>
+            <div className="game-desc" style={{ fontSize: '11px', marginBottom: '12px', minHeight: '40px' }}>
+              {escapeHTML(game.desc)}
+            </div>
+            <button className="btn" onClick={() => handleLoadPrebuilt(game)} style={{ width: '100%' }}>
+              Use Template
+            </button>
+          </div>
+        ))}
+      </div>
+    </>
   );
 
   return (
@@ -54,6 +100,15 @@ export default function DiscoverTab({ user, editMode, onResetPublished }: Discov
         <div className="ai-label">Published Games</div>
         {listHTML}
       </div>
+      {prebuiltHTML && (
+        <div className="ai-box">
+          <div className="ai-label">Start with a Template</div>
+          <div className="smalltext" style={{ marginBottom: '12px' }}>
+            Pre-built game templates help you get started quickly. Load a template to use it in Studio.
+          </div>
+          {prebuiltHTML}
+        </div>
+      )}
       <div className="ai-box">
         <div className="ai-label">Discover Info</div>
         <div className="ai-output">{tabContent.discover || ''}</div>

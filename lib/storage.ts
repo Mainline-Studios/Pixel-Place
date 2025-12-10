@@ -1,4 +1,4 @@
-import { User, Skin, PublishedGame, DraftGame, SceneData, TabContent } from '@/types';
+import { User, Skin, PublishedGame, DraftGame, SceneData, TabContent, PrebuiltGame, Accessory } from '@/types';
 
 const ADMIN_ACCOUNTS = [
   { username: "admin", password: "456" },
@@ -132,6 +132,139 @@ export function initializeStorage() {
   if (!localStorage.getItem("publishedGames")) {
     localStorage.setItem("publishedGames", JSON.stringify([]));
   }
+
+  if (!localStorage.getItem("prebuiltGames")) {
+    const prebuiltGames: PrebuiltGame[] = [
+      {
+        id: 'prebuilt_platformer',
+        title: 'Classic Platformer',
+        desc: 'Jump and collect coins in this classic platformer template',
+        category: 'Platformer',
+        thumbnail: 'platformer',
+        sceneData: {
+          objects: [
+            { id: 'obj_1', type: 'cube', position: { x: 0, y: 0.5, z: 0 } },
+            { id: 'obj_2', type: 'cube', position: { x: 3, y: 0.5, z: 0 } },
+            { id: 'obj_3', type: 'cube', position: { x: 6, y: 0.5, z: 0 } },
+            { id: 'obj_4', type: 'sphere', position: { x: 1.5, y: 2, z: 0 } },
+            { id: 'obj_5', type: 'light', position: { x: 0, y: 5, z: 0 } }
+          ]
+        },
+        tags: ['platformer', 'jump', 'collect']
+      },
+      {
+        id: 'prebuilt_race',
+        title: 'Racing Track',
+        desc: 'Build your own racing game with this track template',
+        category: 'Racing',
+        thumbnail: 'race',
+        sceneData: {
+          objects: [
+            { id: 'obj_1', type: 'cube', position: { x: 0, y: 0.5, z: 0 } },
+            { id: 'obj_2', type: 'cube', position: { x: 0, y: 0.5, z: 5 } },
+            { id: 'obj_3', type: 'cube', position: { x: 0, y: 0.5, z: 10 } },
+            { id: 'obj_4', type: 'light', position: { x: 0, y: 8, z: 5 } }
+          ]
+        },
+        tags: ['racing', 'speed', 'track']
+      },
+      {
+        id: 'prebuilt_puzzle',
+        title: 'Puzzle Chamber',
+        desc: 'A mysterious puzzle room template to build your own challenges',
+        category: 'Puzzle',
+        thumbnail: 'puzzle',
+        sceneData: {
+          objects: [
+            { id: 'obj_1', type: 'cube', position: { x: -2, y: 0.5, z: 0 } },
+            { id: 'obj_2', type: 'cube', position: { x: 2, y: 0.5, z: 0 } },
+            { id: 'obj_3', type: 'sphere', position: { x: 0, y: 2, z: 0 } },
+            { id: 'obj_4', type: 'light', position: { x: 0, y: 5, z: 0 } }
+          ]
+        },
+        tags: ['puzzle', 'mystery', 'brain']
+      },
+      {
+        id: 'prebuilt_adventure',
+        title: 'Adventure World',
+        desc: 'Start your epic adventure with this open world template',
+        category: 'Adventure',
+        thumbnail: 'adventure',
+        sceneData: {
+          objects: [
+            { id: 'obj_1', type: 'cube', position: { x: 0, y: 0.5, z: 0 } },
+            { id: 'obj_2', type: 'cube', position: { x: 4, y: 0.5, z: -4 } },
+            { id: 'obj_3', type: 'cube', position: { x: -4, y: 0.5, z: 4 } },
+            { id: 'obj_4', type: 'sphere', position: { x: 0, y: 3, z: 0 } },
+            { id: 'obj_5', type: 'light', position: { x: 5, y: 10, z: 5 } }
+          ]
+        },
+        tags: ['adventure', 'open-world', 'explore']
+      }
+    ];
+    localStorage.setItem("prebuiltGames", JSON.stringify(prebuiltGames));
+  }
+
+  if (!localStorage.getItem("accessoriesCatalog")) {
+    const initialAccessories: Accessory[] = [
+      {
+        id: 'hat_cap',
+        name: 'Baseball Cap',
+        type: 'hat',
+        rarity: 'common',
+        price: 50,
+        img: 'cap',
+        color: '#3a3f57',
+        position: { x: 0, y: 1.8, z: 0 },
+        scale: 0.7
+      },
+      {
+        id: 'hat_crown',
+        name: 'Golden Crown',
+        type: 'hat',
+        rarity: 'legendary',
+        price: 500,
+        img: 'crown',
+        color: '#ffd76a',
+        position: { x: 0, y: 1.9, z: 0 },
+        scale: 0.6
+      },
+      {
+        id: 'glasses_sun',
+        name: 'Sunglasses',
+        type: 'glasses',
+        rarity: 'common',
+        price: 75,
+        img: 'sunglasses',
+        color: '#1a1a1a',
+        position: { x: 0, y: 1.6, z: 0.3 },
+        scale: 0.5
+      },
+      {
+        id: 'glasses_tech',
+        name: 'Tech Goggles',
+        type: 'glasses',
+        rarity: 'rare',
+        price: 200,
+        img: 'goggles',
+        color: '#4a90e2',
+        position: { x: 0, y: 1.6, z: 0.3 },
+        scale: 0.6
+      },
+      {
+        id: 'mask_ninja',
+        name: 'Ninja Mask',
+        type: 'mask',
+        rarity: 'rare',
+        price: 150,
+        img: 'ninja',
+        color: '#1a1a1a',
+        position: { x: 0, y: 1.5, z: 0.3 },
+        scale: 0.7
+      }
+    ];
+    localStorage.setItem("accessoriesCatalog", JSON.stringify(initialAccessories));
+  }
 }
 
 // User functions
@@ -198,6 +331,28 @@ export function getSceneData(): SceneData {
 export function saveSceneData(data: SceneData): void {
   if (typeof window === 'undefined') return;
   localStorage.setItem("sceneStore", JSON.stringify(data));
+}
+
+// Prebuilt games functions
+export function getPrebuiltGames(): PrebuiltGame[] {
+  if (typeof window === 'undefined') return [];
+  return JSON.parse(localStorage.getItem("prebuiltGames") || "[]");
+}
+
+export function savePrebuiltGames(games: PrebuiltGame[]): void {
+  if (typeof window === 'undefined') return;
+  localStorage.setItem("prebuiltGames", JSON.stringify(games));
+}
+
+// Accessories functions
+export function getAccessories(): Accessory[] {
+  if (typeof window === 'undefined') return [];
+  return JSON.parse(localStorage.getItem("accessoriesCatalog") || "[]");
+}
+
+export function saveAccessories(accessories: Accessory[]): void {
+  if (typeof window === 'undefined') return;
+  localStorage.setItem("accessoriesCatalog", JSON.stringify(accessories));
 }
 
 

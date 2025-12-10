@@ -955,3 +955,158 @@ footer {
   gap: 10px;
   margin-top: 16px;
 }
+
+/* Mobile Responsive Styles */
+@media (max-width: 768px) {
+  .topbar {
+    padding: 8px 12px;
+  }
+
+  .topbar-inner {
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .header-nav {
+    flex-wrap: wrap;
+    gap: 8px;
+    justify-content: center;
+  }
+
+  .header-nav button {
+    font-size: 12px;
+    padding: 8px 12px;
+  }
+
+  .userbox {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .body-inner {
+    flex-direction: column;
+  }
+
+  .sidebar {
+    width: 100%;
+    max-width: 100%;
+    margin-bottom: 20px;
+  }
+
+  .main-card {
+    width: 100%;
+    padding: 16px;
+  }
+
+  .section-title {
+    font-size: 18px;
+  }
+
+  .skins-grid {
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 12px;
+  }
+
+  .skin-card {
+    padding: 12px;
+  }
+
+  .coins-store-row {
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .coin-pack {
+    width: 100%;
+  }
+
+  .studio-layout {
+    flex-direction: column;
+  }
+
+  .explorer-panel,
+  .viewport-panel,
+  .props-panel {
+    width: 100%;
+    margin-bottom: 20px;
+  }
+
+  .viewport-canvas-wrap {
+    height: 300px;
+  }
+
+  .donation-tier-card {
+    width: 100%;
+  }
+
+  .ai-box {
+    padding: 16px;
+  }
+
+  .btn {
+    padding: 10px 14px;
+    font-size: 12px;
+  }
+
+  footer {
+    padding: 16px 12px;
+    font-size: 11px;
+  }
+}
+
+@media (max-width: 480px) {
+  .header-nav button {
+    font-size: 11px;
+    padding: 6px 10px;
+  }
+
+  .main-card {
+    padding: 12px;
+  }
+
+  .skins-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .studio-toolbar {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .studio-toolbar .btn {
+    font-size: 11px;
+    padding: 8px 12px;
+  }
+
+  .prop-input,
+  .prop-textarea {
+    font-size: 14px;
+  }
+}
+
+/* Tablet Styles */
+@media (min-width: 769px) and (max-width: 1024px) {
+  .skins-grid {
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  }
+
+  .studio-layout {
+    grid-template-columns: 200px 1fr 250px;
+  }
+}
+
+/* Touch-friendly improvements */
+@media (hover: none) and (pointer: coarse) {
+  .btn {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  .header-nav button {
+    min-height: 40px;
+  }
+
+  .skin-card {
+    padding: 16px;
+  }
+}

@@ -17,7 +17,9 @@ const tabs: { key: TabType; label: string }[] = [
   { key: 'avatarShop', label: 'Avatar Shop' },
   { key: 'createGame', label: 'Create' },
   { key: 'studio', label: 'Studio' },
+  { key: 'aiCoder', label: 'AI Coder' },
   { key: 'coins', label: 'Pixel Coins' },
+  { key: 'donation', label: 'Donate' },
   { key: 'friends', label: 'Friends' },
   { key: 'settings', label: 'Settings' },
 ];
