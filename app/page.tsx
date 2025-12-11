@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react';
 import InstallPrompt from '@/components/InstallPrompt';
-import PrivateAccess from '@/components/PrivateAccess';
 import { UserProvider, useUser } from '@/contexts/UserContext';
 import Login from '@/components/Login';
 import Dashboard from '@/components/Dashboard/Dashboard';
@@ -76,11 +75,9 @@ function AppContent() {
 export default function Home() {
   return (
     <ErrorBoundary>
-      <PrivateAccess>
-        <UserProvider>
-          <AppContent />
-        </UserProvider>
-      </PrivateAccess>
+      <UserProvider>
+        <AppContent />
+      </UserProvider>
     </ErrorBoundary>
   );
 }
