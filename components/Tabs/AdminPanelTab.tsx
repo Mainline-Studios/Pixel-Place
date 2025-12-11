@@ -191,6 +191,14 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
   return (
     <>
       <h2 className="section-title">🛡️ Admin Panel</h2>
+      
+      <div className="ai-box" style={{ marginBottom: '20px', background: 'rgba(255, 215, 106, 0.1)', border: '1px solid #ffd76a' }}>
+        <div className="ai-label">⚠️ Browser Note</div>
+        <div className="ai-output" style={{ fontSize: '13px' }}>
+          <strong>Important:</strong> Each browser (Chrome, Safari, Cursor) has separate localStorage. 
+          Data created in one browser won't appear in another. To see all data, use the same browser where it was created.
+        </div>
+      </div>
 
       <div style={{ display: 'flex', gap: '8px', marginBottom: '20px', flexWrap: 'wrap' }}>
         <button
