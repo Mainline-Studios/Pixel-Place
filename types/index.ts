@@ -106,6 +106,17 @@ export interface Ban {
   expiresAt?: number;
 }
 
+export interface BanAppeal {
+  id: string;
+  username: string;
+  ban: Ban;
+  appealMessage: string;
+  timestamp: number;
+  status: 'pending' | 'approved' | 'denied';
+  reviewedBy?: string;
+  adminNotes?: string;
+}
+
 export interface TabContent {
   home?: string;
   discover?: string;
