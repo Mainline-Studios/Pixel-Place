@@ -75,11 +75,7 @@ export default function AvatarRunner3D({ user, onClose }: AvatarRunner3DProps) {
     let obstacles: any[] = [];
     const keys: { [key: string]: boolean } = {};
 
-    Promise.all([
-      import('three'),
-      import('three/examples/jsm/controls/PointerLockControls.js')
-    ]).then(async ([THREE, PointerLockControlsModule]) => {
-      const PointerLockControls = PointerLockControlsModule.PointerLockControls;
+    import('three').then(async (THREE) => {
 
       const canvas = canvasRef.current!;
       scene = new THREE.Scene();
