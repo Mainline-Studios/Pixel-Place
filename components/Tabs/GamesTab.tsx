@@ -7,6 +7,7 @@ import TicTacToe from '../Games/TicTacToe';
 import MemoryGame from '../Games/MemoryGame';
 import AvatarRunner3D from '../Games/AvatarRunner3D';
 import AvatarCollector3D from '../Games/AvatarCollector3D';
+import TagGame from '../Games/TagGame';
 
 interface GamesTabProps {
   user: User;
@@ -65,6 +66,14 @@ const games: GameInfo[] = [
     icon: '🧠',
     category: 'Puzzle',
     component: MemoryGame,
+  },
+  {
+    id: 'tag',
+    name: 'Tag Game',
+    description: 'Play tag with friends or CPU! Wait in lobby for 3+ players',
+    icon: '🏃',
+    category: 'Action',
+    component: TagGame,
   },
 ];
 
@@ -174,6 +183,8 @@ export default function GamesTab({ user, editMode }: GamesTabProps) {
           <strong>Tic-Tac-Toe:</strong> Take turns placing X and O. Get three in a row to win!
           <br />
           <strong>Memory Game:</strong> Click cards to flip them. Match pairs of emojis to win!
+          <br />
+          <strong>Tag Game:</strong> Wait in lobby for 3+ players or play with CPU. Use W/A/S/D to move and avoid the player marked "IT"!
         </div>
       </div>
     </>
