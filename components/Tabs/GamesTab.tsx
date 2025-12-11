@@ -90,7 +90,8 @@ export default function GamesTab({ user, editMode }: GamesTabProps) {
       setUserMadeGames(games);
     };
     loadGames();
-  }, [
+  }, []);
+
   const handleDeleteGame = async (gameId: string, gameTitle: string) => {
     if (!confirm(`Delete game "${gameTitle}"? This action cannot be undone.`)) return;
     await deleteUserMadeGame(gameId);
@@ -98,8 +99,6 @@ export default function GamesTab({ user, editMode }: GamesTabProps) {
     setUserMadeGames(games);
     alert(`Game "${gameTitle}" has been deleted.`);
   };
-
-]);
 
   const selectedGameInfo = games.find(g => g.id === selectedGame);
   const GameComponent = selectedGameInfo?.component;
