@@ -377,13 +377,18 @@ export function saveBannedUsers(bans: Ban[]): void {
 
 export function isUserBanned(username: string): boolean {
   if (typeof window === 'undefined') return false;
+  if (!username || !username.trim()) return false;
+  
+  const usernameLower = username.trim().toLowerCase();
   const bans = getBannedUsers();
-  const ban = bans.find(b => b.username.toLowerCase() === username.toLowerCase());
+  const ban = bans.find(b => b.username.toLowerCase() === usernameLower);
   if (!ban) return false;
+  
   if (ban.permanent) return true;
   if (ban.expiresAt && ban.expiresAt > Date.now()) return true;
+  
   // Ban expired, remove it
-  const updatedBans = bans.filter(b => b.username.toLowerCase() !== username.toLowerCase());
+  const updatedBans = bans.filter(b => b.username.toLowerCase() !== usernameLower);
   saveBannedUsers(updatedBans);
   return false;
 }
@@ -391,23 +396,27 @@ export function isUserBanned(username: string): boolean {
 export function banUser(username: string, bannedBy: string, reason: string, permanent: boolean = true, days?: number): boolean {
   if (typeof window === 'undefined') return false;
   
+  const usernameLower = username.trim().toLowerCase();
+  
   // Check if trying to ban an admin
   const users = getUsers();
-  const targetUser = users.find(u => u.username.toLowerCase() === username.toLowerCase());
+  const targetUser = users.find(u => u.username.toLowerCase() === usernameLower);
   if (targetUser && targetUser.role === 'admin') {
     return false;
   }
   
-  const isAdminAccount = ADMIN_ACCOUNTS_LIST.some(a => a.username.toLowerCase() === username.toLowerCase());
+  const isAdminAccount = ADMIN_ACCOUNTS_LIST.some(a => a.username.toLowerCase() === usernameLower);
   if (isAdminAccount) {
     return false;
   }
   
   const bans = getBannedUsers();
-  // Remove existing ban if any
-  const filteredBans = bans.filter(b => b.username.toLowerCase() !== username.toLowerCase());
+  // Remove existing ban if any (case-insensitive)
+  const filteredBans = bans.filter(b => b.username.toLowerCase() !== usernameLower);
+  
+  // Store the original username (not lowercased) for display, but we check case-insensitively
   const newBan: Ban = {
-    username,
+    username: username.trim(), // Store original case
     bannedBy,
     reason,
     timestamp: Date.now(),
@@ -416,6 +425,12 @@ export function banUser(username: string, bannedBy: string, reason: string, perm
   };
   filteredBans.push(newBan);
   saveBannedUsers(filteredBans);
+  
+  // Force localStorage sync
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new Event('storage'));
+  }
+  
   return true;
 }
 

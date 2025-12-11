@@ -97,14 +97,24 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
       return;
     }
 
+    const usernameToBanFinal = banUsername.trim();
     const days = banPermanent ? undefined : banDays;
-    const success = banUser(banUsername.trim(), user.username, banReason.trim(), banPermanent, days);
+    const success = banUser(usernameToBanFinal, user.username, banReason.trim(), banPermanent, days);
+    
     if (success) {
-      setBanUsername('');
-      setBanReason('');
-      setBanPermanent(true);
-      loadData();
-      alert(`User "${banUsername}" has been ${banPermanent ? 'permanently' : `temporarily (${banDays} days)`} banned.`);
+      // Verify the ban was actually saved
+      const updatedBans = getBannedUsers();
+      const banExists = updatedBans.some(b => b.username.toLowerCase() === usernameToBanFinal.toLowerCase());
+      
+      if (banExists) {
+        setBanUsername('');
+        setBanReason('');
+        setBanPermanent(true);
+        loadData();
+        alert(`User "${usernameToBanFinal}" has been ${banPermanent ? 'permanently' : `temporarily (${banDays} days)`} banned.`);
+      } else {
+        alert('Error: Ban was not saved properly. Please try again.');
+      }
     } else {
       alert('Cannot ban administrators. Admins are protected from bans.');
     }
@@ -326,7 +336,16 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
           </div>
 
           <div className="ai-box">
-            <div className="ai-label">Banned Users ({bans.length})</div>
+            <div className="ai-label">
+              Banned Users ({bans.length})
+              <button 
+                className="btn" 
+                onClick={loadData}
+                style={{ marginLeft: '12px', padding: '4px 12px', fontSize: '12px' }}
+              >
+                Refresh
+              </button>
+            </div>
             <div className="ai-output" style={{ maxHeight: '500px', overflowY: 'auto' }}>
               {bans.length === 0 ? (
                 <div className="smalltext">No banned users.</div>
