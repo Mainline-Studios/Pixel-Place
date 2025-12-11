@@ -2,7 +2,7 @@
 
 **Pixel Place** is an immersive web-based gaming platform and creative studio developed by **Mainline Studios**. Build games, play with friends, customize your avatar, and explore a vibrant community of creators.
 
-![Pixel Place](https://img.shields.io/badge/Version-0.1.0-blue)
+![Pixel Place](https://img.shields.io/badge/Version-0.1-blue)
 ![Next.js](https://img.shields.io/badge/Next.js-14.2.5-black)
 ![React](https://img.shields.io/badge/React-18.3.1-61dafb)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.5.4-3178c6)
