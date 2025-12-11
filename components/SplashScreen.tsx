@@ -72,12 +72,25 @@ export default function SplashScreen({ onComplete }: SplashScreenProps) {
           fontWeight: 700,
           color: '#ffffff',
           margin: 0,
+          marginBottom: '20px',
           textShadow: '0 0 30px rgba(43, 108, 176, 0.8), 0 0 60px rgba(43, 108, 176, 0.5)',
           letterSpacing: '4px',
         }}
       >
         MAINLINE STUDIOS
       </h1>
+      <h2
+        style={{
+          fontSize: '36px',
+          fontWeight: 700,
+          color: '#ffffff',
+          margin: 0,
+          textShadow: '0 0 30px rgba(43, 108, 176, 0.8), 0 0 60px rgba(43, 108, 176, 0.5)',
+          letterSpacing: '4px',
+        }}
+      >
+        PIXEL PLACE
+      </h2>
     </div>
   );
 }
