@@ -1,4 +1,4 @@
-import { User, Skin, PublishedGame, DraftGame, SceneData, TabContent, PrebuiltGame, Accessory } from '@/types';
+import { User, Skin, PublishedGame, DraftGame, SceneData, TabContent, PrebuiltGame, Accessory, Report, Ban } from '@/types';
 
 const ADMIN_ACCOUNTS = [
   { username: "admin", password: "456" },
@@ -266,6 +266,14 @@ export function initializeStorage() {
     ];
     localStorage.setItem("accessoriesCatalog", JSON.stringify(initialAccessories));
   }
+
+  if (!localStorage.getItem("bannedUsers")) {
+    localStorage.setItem("bannedUsers", JSON.stringify([]));
+  }
+
+  if (!localStorage.getItem("reports")) {
+    localStorage.setItem("reports", JSON.stringify([]));
+  }
 }
 
 // User functions
@@ -354,6 +362,94 @@ export function getAccessories(): Accessory[] {
 export function saveAccessories(accessories: Accessory[]): void {
   if (typeof window === 'undefined') return;
   localStorage.setItem("accessoriesCatalog", JSON.stringify(accessories));
+}
+
+// Ban functions
+export function getBannedUsers(): Ban[] {
+  if (typeof window === 'undefined') return [];
+  return JSON.parse(localStorage.getItem("bannedUsers") || "[]");
+}
+
+export function saveBannedUsers(bans: Ban[]): void {
+  if (typeof window === 'undefined') return;
+  localStorage.setItem("bannedUsers", JSON.stringify(bans));
+}
+
+export function isUserBanned(username: string): boolean {
+  if (typeof window === 'undefined') return false;
+  const bans = getBannedUsers();
+  const ban = bans.find(b => b.username.toLowerCase() === username.toLowerCase());
+  if (!ban) return false;
+  if (ban.permanent) return true;
+  if (ban.expiresAt && ban.expiresAt > Date.now()) return true;
+  // Ban expired, remove it
+  const updatedBans = bans.filter(b => b.username.toLowerCase() !== username.toLowerCase());
+  saveBannedUsers(updatedBans);
+  return false;
+}
+
+export function banUser(username: string, bannedBy: string, reason: string, permanent: boolean = true, days?: number): void {
+  if (typeof window === 'undefined') return;
+  const bans = getBannedUsers();
+  // Remove existing ban if any
+  const filteredBans = bans.filter(b => b.username.toLowerCase() !== username.toLowerCase());
+  const newBan: Ban = {
+    username,
+    bannedBy,
+    reason,
+    timestamp: Date.now(),
+    permanent,
+    expiresAt: permanent ? undefined : (days ? Date.now() + (days * 24 * 60 * 60 * 1000) : undefined)
+  };
+  filteredBans.push(newBan);
+  saveBannedUsers(filteredBans);
+}
+
+export function unbanUser(username: string): void {
+  if (typeof window === 'undefined') return;
+  const bans = getBannedUsers();
+  const filteredBans = bans.filter(b => b.username.toLowerCase() !== username.toLowerCase());
+  saveBannedUsers(filteredBans);
+}
+
+// Report functions
+export function getReports(): Report[] {
+  if (typeof window === 'undefined') return [];
+  return JSON.parse(localStorage.getItem("reports") || "[]");
+}
+
+export function saveReports(reports: Report[]): void {
+  if (typeof window === 'undefined') return;
+  localStorage.setItem("reports", JSON.stringify(reports));
+}
+
+export function createReport(reportedUsername: string, reporterUsername: string, reason: string, description: string): string {
+  if (typeof window === 'undefined') return '';
+  const reports = getReports();
+  const newReport: Report = {
+    id: `report_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+    reportedUsername,
+    reporterUsername,
+    reason,
+    description,
+    timestamp: Date.now(),
+    status: 'pending'
+  };
+  reports.push(newReport);
+  saveReports(reports);
+  return newReport.id;
+}
+
+export function updateReportStatus(reportId: string, status: Report['status'], adminUsername: string, notes?: string): void {
+  if (typeof window === 'undefined') return;
+  const reports = getReports();
+  const report = reports.find(r => r.id === reportId);
+  if (report) {
+    report.status = status;
+    report.reviewedBy = adminUsername;
+    if (notes) report.adminNotes = notes;
+  }
+  saveReports(reports);
 }
 
 

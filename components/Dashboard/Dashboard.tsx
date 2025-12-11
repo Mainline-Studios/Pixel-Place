@@ -17,6 +17,8 @@ import SettingsTab from '../Tabs/SettingsTab';
 import DonationTab from '../Tabs/DonationTab';
 import AICoderTab from '../Tabs/AICoderTab';
 import GamesTab from '../Tabs/GamesTab';
+import AdminPanelTab from '../Tabs/AdminPanelTab';
+import ReportTab from '../Tabs/ReportTab';
 
 interface DashboardProps {
   user: User;
@@ -30,7 +32,7 @@ export default function Dashboard({ user }: DashboardProps) {
   useEffect(() => {
     const handleHashChange = () => {
       const hash = window.location.hash.slice(1);
-      if (hash && ['home', 'discover', 'games', 'avatarShop', 'createGame', 'studio', 'coins', 'friends', 'settings', 'donation', 'aiCoder'].includes(hash)) {
+      if (hash && ['home', 'discover', 'games', 'avatarShop', 'createGame', 'studio', 'coins', 'friends', 'settings', 'donation', 'aiCoder', 'adminPanel', 'report'].includes(hash)) {
         setCurrentTab(hash as TabType);
       }
     };
@@ -82,6 +84,10 @@ export default function Dashboard({ user }: DashboardProps) {
         return <DonationTab user={user} editMode={editMode} />;
       case 'aiCoder':
         return <AICoderTab user={user} editMode={editMode} />;
+      case 'adminPanel':
+        return <AdminPanelTab user={user} editMode={editMode} />;
+      case 'report':
+        return <ReportTab user={user} editMode={editMode} />;
       default:
         return <div>Unknown tab</div>;
     }

@@ -83,7 +83,28 @@ export interface CoinPack {
   stripePriceId: string;
 }
 
-export type TabType = 'home' | 'discover' | 'avatarShop' | 'createGame' | 'studio' | 'games' | 'coins' | 'friends' | 'settings' | 'donation' | 'aiCoder';
+export type TabType = 'home' | 'discover' | 'avatarShop' | 'createGame' | 'studio' | 'games' | 'coins' | 'friends' | 'settings' | 'donation' | 'aiCoder' | 'adminPanel' | 'report';
+
+export interface Report {
+  id: string;
+  reportedUsername: string;
+  reporterUsername: string;
+  reason: string;
+  description: string;
+  timestamp: number;
+  status: 'pending' | 'reviewed' | 'resolved' | 'dismissed';
+  adminNotes?: string;
+  reviewedBy?: string;
+}
+
+export interface Ban {
+  username: string;
+  bannedBy: string;
+  reason: string;
+  timestamp: number;
+  permanent: boolean;
+  expiresAt?: number;
+}
 
 export interface TabContent {
   home?: string;

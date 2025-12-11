@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { User } from '@/types';
-import { initializeStorage, getUsers, saveUsers, ADMIN_ACCOUNTS_LIST } from '@/lib/storage';
+import { initializeStorage, getUsers, saveUsers, ADMIN_ACCOUNTS_LIST, isUserBanned } from '@/lib/storage';
 
 interface UserContextType {
   user: User | null;
@@ -24,6 +24,11 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
   const login = async (username: string, password: string): Promise<{ success: boolean; message: string }> => {
     if (!username || !password) {
       return { success: false, message: 'Enter username and password.' };
+    }
+
+    // Check if user is banned
+    if (isUserBanned(username)) {
+      return { success: false, message: 'This account has been banned. Please contact an administrator.' };
     }
 
     let users = getUsers();
@@ -65,6 +70,11 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
   const createAccount = async (username: string, password: string, gender: string): Promise<{ success: boolean; message: string }> => {
     if (!username || !password || !gender) {
       return { success: false, message: 'All fields required (username, password, gender).' };
+    }
+
+    // Check if username is banned
+    if (isUserBanned(username)) {
+      return { success: false, message: 'This username is banned and cannot be used.' };
     }
 
     const users = getUsers();

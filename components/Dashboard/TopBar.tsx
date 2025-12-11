@@ -11,7 +11,7 @@ interface TopBarProps {
   avatarInitials: string;
 }
 
-const tabs: { key: TabType; label: string }[] = [
+const tabs: { key: TabType; label: string; adminOnly?: boolean }[] = [
   { key: 'home', label: 'Home' },
   { key: 'discover', label: 'Discover' },
   { key: 'games', label: 'Games' },
@@ -22,7 +22,9 @@ const tabs: { key: TabType; label: string }[] = [
   { key: 'coins', label: 'Pixel Coins' },
   { key: 'donation', label: 'Donate' },
   { key: 'friends', label: 'Friends' },
+  { key: 'report', label: 'Report' },
   { key: 'settings', label: 'Settings' },
+  { key: 'adminPanel', label: 'Admin Panel', adminOnly: true },
 ];
 
 export default function TopBar({ currentTab, onTabChange, username, role, avatarInitials }: TopBarProps) {
@@ -31,16 +33,18 @@ export default function TopBar({ currentTab, onTabChange, username, role, avatar
       <div className="topbar-inner">
         <div className="brand">PIXEL PLACE</div>
         <div className="header-nav">
-          {tabs.map((tab) => (
-            <button
-              key={tab.key}
-              data-tab={tab.key}
-              className={currentTab === tab.key ? 'active' : ''}
-              onClick={() => onTabChange(tab.key)}
-            >
-              {tab.label}
-            </button>
-          ))}
+          {tabs
+            .filter(tab => !tab.adminOnly || role === 'admin')
+            .map((tab) => (
+              <button
+                key={tab.key}
+                data-tab={tab.key}
+                className={currentTab === tab.key ? 'active' : ''}
+                onClick={() => onTabChange(tab.key)}
+              >
+                {tab.label}
+              </button>
+            ))}
         </div>
         <div className="userbox">
           <div className="avatar-top">{avatarInitials}</div>
