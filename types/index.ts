@@ -128,3 +128,26 @@ export interface TabContent {
   settings?: string;
 }
 
+
+
+export interface UserMadeGame {
+  id: string;
+  title: string;
+  desc: string;
+  owner: string;
+  ts: number;
+  sceneData: SceneData;
+  publishedBy?: string; // Admin who published it
+}
+
+export interface GameSubmission {
+  id: string;
+  title: string;
+  desc: string;
+  owner: string;
+  ts: number;
+  sceneData: SceneData;
+  status: 'pending' | 'approved' | 'rejected';
+  reviewedBy?: string;
+  adminNotes?: string;
+}

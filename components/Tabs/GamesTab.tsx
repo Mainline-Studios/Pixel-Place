@@ -1,7 +1,9 @@
 'use client';
 
-import { useState } from 'react';
-import { User } from '@/types';
+import { useState, useEffect } from 'react';
+import { User, UserMadeGame } from '@/types';
+import { getUserMadeGames, deleteUserMadeGame } from '@/lib/storage';
+import UserMadeGamePlayer from '../Games/UserMadeGamePlayer';
 import SnakeGame from '../Games/SnakeGame';
 import TicTacToe from '../Games/TicTacToe';
 import MemoryGame from '../Games/MemoryGame';
@@ -79,9 +81,36 @@ const games: GameInfo[] = [
 
 export default function GamesTab({ user, editMode }: GamesTabProps) {
   const [selectedGame, setSelectedGame] = useState<string | null>(null);
+  const [selectedUserGame, setSelectedUserGame] = useState<UserMadeGame | null>(null);
+  const [userMadeGames, setUserMadeGames] = useState<UserMadeGame[]>([]);
+
+  useEffect(() => {
+    const loadGames = async () => {
+      const games = await getUserMadeGames();
+      setUserMadeGames(games);
+    };
+    loadGames();
+  }, [
+  const handleDeleteGame = async (gameId: string, gameTitle: string) => {
+    if (!confirm(`Delete game "${gameTitle}"? This action cannot be undone.`)) return;
+    await deleteUserMadeGame(gameId);
+    const games = await getUserMadeGames();
+    setUserMadeGames(games);
+    alert(`Game "${gameTitle}" has been deleted.`);
+  };
+
+]);
 
   const selectedGameInfo = games.find(g => g.id === selectedGame);
   const GameComponent = selectedGameInfo?.component;
+
+  if (selectedUserGame) {
+    return (
+      <div>
+        <UserMadeGamePlayer game={selectedUserGame} user={user} onClose={() => setSelectedUserGame(null)} />
+      </div>
+    );
+  }
 
   if (selectedGame && GameComponent) {
     return (
@@ -187,6 +216,103 @@ export default function GamesTab({ user, editMode }: GamesTabProps) {
           <strong>Tag Game:</strong> Wait in lobby for 3+ players or play with CPU. Use W/A/S/D to move and avoid the player marked "IT"!
         </div>
       </div>
+
+      {userMadeGames.length > 0 && (
+        <>
+          <h2 className="section-title" style={{ marginTop: '40px' }}>🎨 User-Made Games</h2>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '20px', marginTop: '20px' }}>
+            {userMadeGames.map((game) => (
+              <div
+                key={game.id}
+                className="game-card-enhanced"
+                onClick={() => setSelectedUserGame(game)}
+                style={{
+                  background: 'linear-gradient(135deg, var(--panel) 0%, var(--panel-soft) 100%)',
+                  borderRadius: '16px',
+                  padding: '24px',
+                  border: '1px solid var(--border)',
+                  cursor: 'pointer',
+                  transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                  position: 'relative',
+                  overflow: 'hidden',
+                  boxShadow: 'var(--shadow-card)'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = 'translateY(-4px)';
+                  e.currentTarget.style.boxShadow = '0 20px 40px rgba(0, 0, 0, 0.95), 0 0 60px rgba(255, 255, 255, 0.12)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.boxShadow = 'var(--shadow-card)';
+                }}
+              >
+                <div style={{
+                  fontSize: '48px',
+                  textAlign: 'center',
+                  marginBottom: '16px'
+                }}>
+                  🎮
+                </div>
+                <div style={{
+                  fontSize: '20px',
+                  fontWeight: 700,
+                  marginBottom: '8px',
+                  textAlign: 'center'
+                }}>
+                  {game.title}
+                </div>
+                <div style={{
+                  fontSize: '12px',
+                  color: '#8b90a8',
+                  textAlign: 'center',
+                  marginBottom: '12px'
+                }}>
+                  User-Made
+                </div>
+                <div style={{
+                  fontSize: '13px',
+                  color: 'var(--text-dim)',
+                  textAlign: 'center',
+                  lineHeight: '1.6',
+                  marginBottom: '16px'
+                }}>
+                  {game.desc}
+                </div>
+                <div style={{
+                  fontSize: '11px',
+                  color: '#8b90a8',
+                  textAlign: 'center',
+                  marginBottom: '16px'
+                }}>
+                  By: {game.owner}
+                </div>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <button className="btn" style={{ flex: 1 }} onClick={(e) => { e.stopPropagation(); setSelectedUserGame(game); }}>
+                    Play Now
+                  </button>
+                  {user.role === 'admin' && (
+                    <button 
+                      className="btn" 
+                      style={{ 
+                        background: '#ff4d4d', 
+                        borderColor: '#ff4d4d',
+                        padding: '10px 16px'
+                      }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDeleteGame(game.id, game.title);
+                      }}
+                      title="Delete game"
+                    >
+                      🗑️
+                    </button>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
     </>
   );
 }

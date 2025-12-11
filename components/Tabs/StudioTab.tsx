@@ -1,8 +1,8 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { User, SceneObject, DraftGame } from '@/types';
-import { getDraft, saveDraft, getPublished, savePublished, getSceneData, saveSceneData } from '@/lib/storage';
+import { User, SceneObject, DraftGame, UserMadeGame, GameSubmission } from '@/types';
+import { getDraft, saveDraft, getPublished, savePublished, getSceneData, saveSceneData, saveUserMadeGame, saveGameSubmission } from '@/lib/storage';
 import { useUser } from '@/contexts/UserContext';
 
 interface StudioTabProps {
@@ -285,6 +285,57 @@ export default function StudioTab({ user, editMode }: StudioTabProps) {
     alert('Draft saved.');
   };
 
+
+  const publishToUserMadeGames = async () => {
+    if (user.role !== 'admin') {
+      alert('Only admins can publish games.');
+      return;
+    }
+    if (!draft.title) {
+      alert('No draft to publish. Save draft first in Studio.');
+      return;
+    }
+    const sceneData = await getSceneData();
+    if (!sceneData || !sceneData.objects || sceneData.objects.length === 0) {
+      alert('No scene data to publish. Create a scene first.');
+      return;
+    }
+    const game: UserMadeGame = {
+      id: 'game_' + Date.now(),
+      title: draft.title,
+      desc: draft.desc || '(no description)',
+      owner: draft.owner || user.username,
+      ts: Date.now(),
+      sceneData: sceneData,
+      publishedBy: user.username
+    };
+    await saveUserMadeGame(game);
+    alert("Published '" + draft.title + "' to Games tab!");
+  };
+
+  const submitGameForReview = async () => {
+    if (!draft.title) {
+      alert('No draft to submit. Save draft first in Studio.');
+      return;
+    }
+    const sceneData = await getSceneData();
+    if (!sceneData || !sceneData.objects || sceneData.objects.length === 0) {
+      alert('No scene data to submit. Create a scene first.');
+      return;
+    }
+    const submission: GameSubmission = {
+      id: 'submission_' + Date.now(),
+      title: draft.title,
+      desc: draft.desc || '(no description)',
+      owner: draft.owner || user.username,
+      ts: Date.now(),
+      sceneData: sceneData,
+      status: 'pending'
+    };
+    await saveGameSubmission(submission);
+    alert("Submitted '" + draft.title + "' for admin review!");
+  };
+
   const publishDraftNow = async () => {
     if (user.role !== 'admin') {
       alert('Only admins can publish live.');
@@ -329,13 +380,23 @@ export default function StudioTab({ user, editMode }: StudioTabProps) {
           Save Draft
         </button>
         {user.role === 'admin' ? (
-          <button className="btn" onClick={publishDraftNow}>
-            Publish Game Now
-          </button>
+          <>
+            <button className="btn" onClick={publishDraftNow}>
+              Publish to Discover
+            </button>
+            <button className="btn" onClick={publishToUserMadeGames}>
+              Publish to Games Tab
+            </button>
+          </>
         ) : (
-          <button className="btn" disabled title="Admin only">
-            Publish Game Now
-          </button>
+          <>
+            <button className="btn" disabled title="Admin only">
+              Publish to Discover
+            </button>
+            <button className="btn" onClick={submitGameForReview}>
+              Submit for Review
+            </button>
+          </>
         )}
       </div>
       <div className="studio-layout">
@@ -419,13 +480,23 @@ export default function StudioTab({ user, editMode }: StudioTabProps) {
               Save Draft
             </button>
             {user.role === 'admin' ? (
-              <button className="btn" onClick={publishDraftNow}>
-                Publish Game Now
-              </button>
+              <>
+                <button className="btn" onClick={publishDraftNow}>
+                  Publish to Discover
+                </button>
+                <button className="btn" onClick={publishToUserMadeGames}>
+                  Publish to Games Tab
+                </button>
+              </>
             ) : (
-              <button className="btn" disabled title="Admin only">
-                Publish Game Now
-              </button>
+              <>
+                <button className="btn" disabled title="Admin only">
+                  Publish to Discover
+                </button>
+                <button className="btn" onClick={submitGameForReview}>
+                  Submit for Review
+                </button>
+              </>
             )}
           </div>
           <div className="smalltext" style={{ marginTop: '10px' }}>
