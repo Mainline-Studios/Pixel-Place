@@ -71,6 +71,18 @@ export interface SceneObject {
     y: number;
     z: number;
   };
+  rotation?: {
+    x: number;
+    y: number;
+    z: number;
+  };
+  scale?: {
+    x: number;
+    y: number;
+    z: number;
+  };
+  color?: string;
+  script?: string; // JavaScript code for object behavior
 }
 
 export interface SceneData {

@@ -1,5 +1,24 @@
 # How to Start Pixel Place
 
+## 🚀 Quick Start (Any Computer)
+
+### 1. Download Node.js
+- Go to: **https://nodejs.org/**
+- Download and install the **LTS** version
+
+### 2. Open Terminal/Command Prompt and run:
+```bash
+git clone https://github.com/boehmlaird0/Pixel-Place.git
+cd Pixel-Place
+npm install
+npm run dev
+```
+
+### 3. Open your browser:
+- Go to: **http://localhost:3000**
+
+---
+
 ## ⚠️ IMPORTANT: You Need Node.js First!
 
 The app **cannot run** without Node.js installed. Here's how to fix it:

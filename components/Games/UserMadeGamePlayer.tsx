@@ -16,6 +16,8 @@ export default function UserMadeGamePlayer({ game, user, onClose }: UserMadeGame
   const cameraRef = useRef<any>(null);
   const controlsRef = useRef<any>(null);
   const resizeHandlerRef = useRef<(() => void) | null>(null);
+  const scriptExecutorsRef = useRef<Map<string, any>>(new Map());
+  const meshesRef = useRef<Map<string, any>>(new Map());
 
   const resizeRenderer = (renderer: any, canvas: HTMLCanvasElement) => {
     const width = canvas.clientWidth;
@@ -77,12 +79,14 @@ export default function UserMadeGamePlayer({ game, user, onClose }: UserMadeGame
           let mesh;
           if (obj.type === 'cube') {
             const geom = new THREE.BoxGeometry(1, 1, 1);
-            const mat = new THREE.MeshStandardMaterial({ color: 0x4a90e2 });
+            const colorHex = obj.color ? parseInt(obj.color.replace('#', '0x')) : 0x4a90e2;
+            const mat = new THREE.MeshStandardMaterial({ color: colorHex });
             mesh = new THREE.Mesh(geom, mat);
             mesh.position.set(obj.position.x, obj.position.y, obj.position.z);
           } else if (obj.type === 'sphere') {
             const geom = new THREE.SphereGeometry(0.5, 32, 32);
-            const mat = new THREE.MeshStandardMaterial({ color: 0xff4d4d });
+            const colorHex = obj.color ? parseInt(obj.color.replace('#', '0x')) : 0xff4d4d;
+            const mat = new THREE.MeshStandardMaterial({ color: colorHex });
             mesh = new THREE.Mesh(geom, mat);
             mesh.position.set(obj.position.x, obj.position.y, obj.position.z);
           } else if (obj.type === 'light') {
@@ -90,9 +94,30 @@ export default function UserMadeGamePlayer({ game, user, onClose }: UserMadeGame
             mesh.position.set(obj.position.x, obj.position.y, obj.position.z);
           }
           if (mesh) {
+            if (obj.rotation) {
+              mesh.rotation.set(obj.rotation.x, obj.rotation.y, obj.rotation.z);
+            }
+            if (obj.scale) {
+              mesh.scale.set(obj.scale.x, obj.scale.y, obj.scale.z);
+            }
             mesh.castShadow = true;
             mesh.receiveShadow = true;
             scene.add(mesh);
+            meshesRef.current.set(obj.id, mesh);
+            
+            if (obj.script) {
+              try {
+                const updateFn = new Function('delta', 'mesh', `
+                  const position = mesh.position;
+                  const rotation = mesh.rotation;
+                  const scale = mesh.scale;
+                  ${obj.script}
+                `);
+                scriptExecutorsRef.current.set(obj.id, { update: updateFn });
+              } catch (e) {
+                console.error(`Error compiling script for ${obj.id}:`, e);
+              }
+            }
           }
         });
       }
@@ -102,12 +127,33 @@ export default function UserMadeGamePlayer({ game, user, onClose }: UserMadeGame
       cameraRef.current = camera;
       controlsRef.current = controls;
 
-      function animate() {
+      let lastTime = 0;
+      function animate(time: number) {
         requestAnimationFrame(animate);
+        const delta = (time - lastTime) / 1000;
+        lastTime = time;
+        
         if (controls) controls.update();
+        
+        if (game.sceneData && game.sceneData.objects) {
+          game.sceneData.objects.forEach((obj) => {
+            if (obj.script) {
+              try {
+                const executor = scriptExecutorsRef.current.get(obj.id);
+                const mesh = meshesRef.current.get(obj.id);
+                if (executor && mesh) {
+                  executor.update(delta, mesh);
+                }
+              } catch (e) {
+                console.error(`Error executing script for ${obj.id}:`, e);
+              }
+            }
+          });
+        }
+        
         renderer.render(scene, camera);
       }
-      animate();
+      animate(0);
 
       const handleResize = () => resizeRenderer(renderer, canvas);
       resizeHandlerRef.current = handleResize;
