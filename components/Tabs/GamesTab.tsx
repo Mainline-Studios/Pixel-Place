@@ -10,6 +10,7 @@ import MemoryGame from '../Games/MemoryGame';
 import AvatarRunner3D from '../Games/AvatarRunner3D';
 import AvatarCollector3D from '../Games/AvatarCollector3D';
 import TagGame from '../Games/TagGame';
+import AIExperimentTest from '../Games/AIExperimentTest';
 
 interface GamesTabProps {
   user: User;
@@ -76,6 +77,14 @@ const games: GameInfo[] = [
     icon: '🏃',
     category: 'Action',
     component: TagGame,
+  },
+  {
+    id: 'aiExperiment',
+    name: 'AI Experiment Test',
+    description: 'Text-to-speech experiment - type and hear your words',
+    icon: '🤖',
+    category: 'Experiment',
+    component: AIExperimentTest,
   },
 ];
 
