@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { User, Report, Ban } from '@/types';
-import { getUsers, getBannedUsers, getReports, banUser, unbanUser, updateReportStatus, saveBannedUsers, ADMIN_ACCOUNTS_LIST } from '@/lib/storage';
+import { getUsers, getBannedUsers, getReports, banUser, unbanUser, updateReportStatus, saveBannedUsers, ADMIN_ACCOUNTS_LIST, getBanAppeals, updateBanAppealStatus } from '@/lib/storage';
 
 interface AdminPanelTabProps {
   user: User;
@@ -13,7 +13,8 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
   const [allUsers, setAllUsers] = useState<User[]>([]);
   const [bans, setBans] = useState<Ban[]>([]);
   const [reports, setReports] = useState<Report[]>([]);
-  const [activeTab, setActiveTab] = useState<'users' | 'bans' | 'reports'>('users');
+  const [appeals, setAppeals] = useState<any[]>([]);
+  const [activeTab, setActiveTab] = useState<'users' | 'bans' | 'reports' | 'appeals'>('users');
   const [banUsername, setBanUsername] = useState('');
   const [banReason, setBanReason] = useState('');
   const [banPermanent, setBanPermanent] = useState(true);
@@ -25,6 +26,7 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
   }, []);
 
   const loadData = () => {
+    setAppeals(getBanAppeals());
     // Get ALL users from localStorage first (this includes all regular users and any admins that have logged in)
     const storedUsers = getUsers();
     
@@ -177,6 +179,12 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
           onClick={() => setActiveTab('reports')}
         >
           Reports ({reports.filter(r => r.status === 'pending').length} pending)
+        </button>
+        <button
+          className={`btn ${activeTab === 'appeals' ? 'active' : ''}`}
+          onClick={() => setActiveTab('appeals')}
+        >
+          Ban Appeals ({appeals.filter(a => a.status === 'pending').length} pending)
         </button>
       </div>
 

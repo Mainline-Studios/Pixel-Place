@@ -2,23 +2,41 @@
 
 import { useState } from 'react';
 import { useUser } from '@/contexts/UserContext';
+import BanScreen from './BanScreen';
 
 export default function Login() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [gender, setGender] = useState('');
   const [message, setMessage] = useState('');
+  const [banInfo, setBanInfo] = useState<any>(null);
   const { login, createAccount } = useUser();
 
   const handleSignIn = async () => {
     const result = await login(username, password);
-    setMessage(result.message);
+    if (result.ban) {
+      setBanInfo(result.ban);
+    } else {
+      setMessage(result.message);
+      setBanInfo(null);
+    }
   };
 
   const handleCreateAccount = async () => {
     const result = await createAccount(username, password, gender);
     setMessage(result.message);
+    setBanInfo(null);
   };
+
+  const handleAppealSubmitted = () => {
+    setBanInfo(null);
+    setUsername('');
+    setPassword('');
+  };
+
+  if (banInfo) {
+    return <BanScreen ban={banInfo} username={username} onAppealSubmitted={handleAppealSubmitted} />;
+  }
 
   return (
     <div id="login-screen">

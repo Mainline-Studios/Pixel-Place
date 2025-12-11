@@ -1,4 +1,4 @@
-import { User, Skin, PublishedGame, DraftGame, SceneData, TabContent, PrebuiltGame, Accessory, Report, Ban } from '@/types';
+import { User, Skin, PublishedGame, DraftGame, SceneData, TabContent, PrebuiltGame, Accessory, Report, Ban, BanAppeal } from '@/types';
 
 const ADMIN_ACCOUNTS = [
   { username: "admin", password: "456" },
@@ -274,6 +274,10 @@ export function initializeStorage() {
   if (!localStorage.getItem("reports")) {
     localStorage.setItem("reports", JSON.stringify([]));
   }
+
+  if (!localStorage.getItem("banAppeals")) {
+    localStorage.setItem("banAppeals", JSON.stringify([]));
+  }
 }
 
 // User functions
@@ -393,6 +397,21 @@ export function isUserBanned(username: string): boolean {
   return false;
 }
 
+export function getBanForUser(username: string): Ban | null {
+  if (typeof window === 'undefined') return null;
+  if (!username || !username.trim()) return null;
+  
+  const usernameLower = username.trim().toLowerCase();
+  const bans = getBannedUsers();
+  const ban = bans.find(b => b.username.toLowerCase() === usernameLower);
+  if (!ban) return null;
+  
+  if (ban.permanent) return ban;
+  if (ban.expiresAt && ban.expiresAt > Date.now()) return ban;
+  
+  return null;
+}
+
 export function banUser(username: string, bannedBy: string, reason: string, permanent: boolean = true, days?: number): boolean {
   if (typeof window === 'undefined') return false;
   
@@ -479,6 +498,62 @@ export function updateReportStatus(reportId: string, status: Report['status'], a
     if (notes) report.adminNotes = notes;
   }
   saveReports(reports);
+}
+
+// Ban Appeal functions
+export function getBanAppeals(): BanAppeal[] {
+  if (typeof window === 'undefined') return [];
+  return JSON.parse(localStorage.getItem("banAppeals") || "[]");
+}
+
+export function saveBanAppeals(appeals: BanAppeal[]): void {
+  if (typeof window === 'undefined') return;
+  localStorage.setItem("banAppeals", JSON.stringify(appeals));
+}
+
+export function createBanAppeal(username: string, ban: Ban, appealMessage: string): string {
+  if (typeof window === 'undefined') return '';
+  const appeals = getBanAppeals();
+  
+  // Check if user already has a pending appeal for this ban
+  const existingAppeal = appeals.find(
+    a => a.username.toLowerCase() === username.toLowerCase() && 
+         a.status === 'pending' &&
+         a.ban.username.toLowerCase() === ban.username.toLowerCase()
+  );
+  
+  if (existingAppeal) {
+    return existingAppeal.id;
+  }
+  
+  const newAppeal: BanAppeal = {
+    id: `appeal_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+    username,
+    ban,
+    appealMessage,
+    timestamp: Date.now(),
+    status: 'pending'
+  };
+  appeals.push(newAppeal);
+  saveBanAppeals(appeals);
+  return newAppeal.id;
+}
+
+export function updateBanAppealStatus(appealId: string, status: BanAppeal['status'], adminUsername: string, notes?: string, shouldUnban?: boolean): void {
+  if (typeof window === 'undefined') return;
+  const appeals = getBanAppeals();
+  const appeal = appeals.find(a => a.id === appealId);
+  if (appeal) {
+    appeal.status = status;
+    appeal.reviewedBy = adminUsername;
+    if (notes) appeal.adminNotes = notes;
+    
+    // If approved, unban the user
+    if (status === 'approved' && shouldUnban) {
+      unbanUser(appeal.username);
+    }
+  }
+  saveBanAppeals(appeals);
 }
 
 
