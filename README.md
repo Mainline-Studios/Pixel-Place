@@ -88,7 +88,6 @@
 
 5. **Open your browser**
    - Navigate to `http://localhost:3000`
-   - Enter the password: `pixelplace2024`
 
 ### Building for Production
 
