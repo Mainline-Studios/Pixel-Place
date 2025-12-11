@@ -1,8 +1,8 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { User, Report, Ban } from '@/types';
-import { getUsers, getBannedUsers, getReports, banUser, unbanUser, updateReportStatus, saveBannedUsers, ADMIN_ACCOUNTS_LIST, getBanAppeals, updateBanAppealStatus, getMessages, sendMessage } from '@/lib/storage';
+import { User, Report, Ban, GameSubmission, UserMadeGame } from '@/types';
+import { getUsers, getBannedUsers, getReports, banUser, unbanUser, updateReportStatus, saveBannedUsers, ADMIN_ACCOUNTS_LIST, getBanAppeals, updateBanAppealStatus, getMessages, sendMessage, getGameSubmissions, saveUserMadeGame, deleteGameSubmission } from '@/lib/storage';
 
 interface AdminPanelTabProps {
   user: User;
@@ -14,7 +14,8 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
   const [bans, setBans] = useState<Ban[]>([]);
   const [reports, setReports] = useState<Report[]>([]);
   const [appeals, setAppeals] = useState<any[]>([]);
-  const [activeTab, setActiveTab] = useState<'users' | 'bans' | 'reports' | 'appeals'>('users');
+  const [activeTab, setActiveTab] = useState<'users' | 'bans' | 'reports' | 'appeals' | 'gamesubmissions'>('users');
+  const [gameSubmissions, setGameSubmissions] = useState<GameSubmission[]>([]);
   const [banUsername, setBanUsername] = useState('');
   const [banReason, setBanReason] = useState('');
   const [banPermanent, setBanPermanent] = useState(true);
@@ -39,14 +40,16 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
 
   const loadData = async () => {
     try {
-      const [appealsData, storedUsers, bansData, reportsData] = await Promise.all([
+      const [appealsData, storedUsers, bansData, reportsData, submissionsData] = await Promise.all([
         getBanAppeals(),
         getUsers(),
         getBannedUsers(),
-        getReports()
+        getReports(),
+        getGameSubmissions()
       ]);
       
       setAppeals(appealsData);
+      setGameSubmissions(submissionsData);
     
     // Create a map of existing usernames for quick lookup
     const existingUsernames = new Set(storedUsers.map(u => u.username.toLowerCase()));
@@ -93,6 +96,47 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
       console.error('Error in loadData:', error);
       alert('Error loading data. Please check the browser console.');
     }
+  };
+
+
+  const handleAcceptSubmission = async (submission: GameSubmission) => {
+    if (!confirm(`Accept and publish "${submission.title}" by ${submission.owner}?`)) return;
+    
+    const game: UserMadeGame = {
+      id: 'game_' + Date.now(),
+      title: submission.title,
+      desc: submission.desc,
+      owner: submission.owner,
+      ts: Date.now(),
+      sceneData: submission.sceneData,
+      publishedBy: user.username
+    };
+    
+    await saveUserMadeGame(game);
+    
+    // Update submission status
+    submission.status = 'approved';
+    submission.reviewedBy = user.username;
+    submission.adminNotes = 'Game accepted and published to Games tab.';
+    
+    // Delete the submission
+    await deleteGameSubmission(submission.id);
+    
+    await loadData();
+    alert(`Game "${submission.title}" has been published to the Games tab!`);
+  };
+
+  const handleRejectSubmission = async (submission: GameSubmission) => {
+    const notes = prompt('Enter rejection reason (optional):');
+    if (notes === null) return; // User cancelled
+    
+    submission.status = 'rejected';
+    submission.reviewedBy = user.username;
+    submission.adminNotes = notes || 'Game rejected.';
+    
+    await deleteGameSubmission(submission.id);
+    await loadData();
+    alert(`Game submission "${submission.title}" has been rejected.`);
   };
 
   const handleBan = async () => {
@@ -244,6 +288,12 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
           onClick={() => setActiveTab('appeals')}
         >
           Ban Appeals ({appeals.filter(a => a.status === 'pending').length} pending)
+        </button>
+        <button
+          className={`btn ${activeTab === 'gamesubmissions' ? 'active' : ''}`}
+          onClick={() => setActiveTab('gamesubmissions')}
+        >
+          Game Submissions ({gameSubmissions.filter(s => s.status === 'pending').length} pending)
         </button>
       </div>
 
@@ -802,6 +852,89 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
           </div>
         </div>
       )}
+
+      {activeTab === 'gamesubmissions' && (
+        <div className="ai-box">
+          <div className="ai-label">
+            Game Submissions ({gameSubmissions.filter(s => s.status === 'pending').length} pending, {gameSubmissions.length} total)
+            <button 
+              className="btn" 
+              onClick={loadData}
+              style={{ marginLeft: '12px', padding: '4px 12px', fontSize: '12px' }}
+            >
+              Refresh
+            </button>
+          </div>
+          <div className="ai-output" style={{ maxHeight: '500px', overflowY: 'auto' }}>
+            {gameSubmissions.length === 0 ? (
+              <div className="smalltext">No game submissions.</div>
+            ) : (
+              <div style={{ display: 'grid', gap: '12px' }}>
+                {gameSubmissions
+                  .filter(s => searchTerm === '' || s.title.toLowerCase().includes(searchTerm.toLowerCase()) || s.owner.toLowerCase().includes(searchTerm.toLowerCase()))
+                  .map((submission) => (
+                    <div
+                      key={submission.id}
+                      style={{
+                        padding: '16px',
+                        background: 'var(--panel-soft)',
+                        borderRadius: '8px',
+                        border: '1px solid var(--border)',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '12px'
+                      }}
+                    >
+                      <div>
+                        <div style={{ fontWeight: 600, marginBottom: '4px', fontSize: '16px' }}>
+                          {submission.title}
+                        </div>
+                        <div className="smalltext" style={{ marginBottom: '8px' }}>
+                          By: {submission.owner} • Submitted: {new Date(submission.ts).toLocaleString()}
+                          <br />
+                          Status: <span style={{ color: submission.status === 'pending' ? '#ffa500' : submission.status === 'approved' ? '#2ecc71' : '#ff4d4d' }}>
+                            {submission.status.toUpperCase()}
+                          </span>
+                          {submission.reviewedBy && ` • Reviewed by: ${submission.reviewedBy}`}
+                        </div>
+                        <div style={{ fontSize: '13px', color: 'var(--text-dim)', marginBottom: '12px' }}>
+                          {submission.desc}
+                        </div>
+                        {submission.adminNotes && (
+                          <div style={{ fontSize: '12px', color: '#8b90a8', fontStyle: 'italic', marginTop: '8px' }}>
+                            Admin Notes: {submission.adminNotes}
+                          </div>
+                        )}
+                        <div style={{ fontSize: '11px', color: '#8b90a8', marginTop: '4px' }}>
+                          Scene Objects: {submission.sceneData?.objects?.length || 0}
+                        </div>
+                      </div>
+                      {submission.status === 'pending' && (
+                        <div style={{ display: 'flex', gap: '8px' }}>
+                          <button
+                            className="btn"
+                            onClick={() => handleAcceptSubmission(submission)}
+                            style={{ background: '#2ecc71', flex: 1 }}
+                          >
+                            ✅ Accept & Publish
+                          </button>
+                          <button
+                            className="btn"
+                            onClick={() => handleRejectSubmission(submission)}
+                            style={{ background: '#ff4d4d', flex: 1 }}
+                          >
+                            ❌ Reject
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
     </>
   );
 }
