@@ -220,7 +220,7 @@ We welcome contributions! Here's how you can help:
 
 ## 📝 License
 
-This project is private and proprietary. All rights reserved by Mainline Studios.
+This project is private and proprietary. Some rights reserved by Mainline Studios.
 
 ---
 
@@ -239,6 +239,7 @@ For issues, questions, or suggestions:
 - Check the `START_HERE.md` file for setup instructions
 - Review the `DEPENDENCY_CHECK.md` for dependency information
 - Open an issue on GitHub
+- Contact `bdawgsaweaome@icloud.com` for help.
 
 ---
 
