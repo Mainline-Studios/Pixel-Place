@@ -504,7 +504,7 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
                             </button>
                             <button
                               className="btn"
-                              onClick={() => {
+                              onClick={async () => {
                                 const reportedUser = allUsers.find(u => u.username.toLowerCase() === report.reportedUsername.toLowerCase());
                                 const isAdminAccount = ADMIN_ACCOUNTS_LIST.some(a => a.username.toLowerCase() === report.reportedUsername.toLowerCase());
                                 
