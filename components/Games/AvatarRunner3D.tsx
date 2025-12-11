@@ -65,7 +65,7 @@ export default function AvatarRunner3D({ user, onClose }: AvatarRunner3DProps) {
     return avatarGroup;
   }, []);
 
-  useEffect(async () => {
+  useEffect(() => {
     if (!canvasRef.current) return;
 
     let animationFrameId: number;
@@ -78,7 +78,7 @@ export default function AvatarRunner3D({ user, onClose }: AvatarRunner3DProps) {
     Promise.all([
       import('three'),
       import('three/examples/jsm/controls/PointerLockControls.js')
-    ]).then(([THREE, PointerLockControlsModule]) => {
+    ]).then(async ([THREE, PointerLockControlsModule]) => {
       const PointerLockControls = PointerLockControlsModule.PointerLockControls;
 
       const canvas = canvasRef.current!;
