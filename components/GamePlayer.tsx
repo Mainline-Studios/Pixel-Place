@@ -3,7 +3,18 @@
 import { useEffect, useRef, useState } from 'react';
 import { PublishedGame, GameServer } from '@/types';
 import { getServers } from '@/lib/storage';
-import { io, Socket } from 'socket.io-client';
+// Optional socket.io - completely optional, app works without it
+// Note: To enable socket.io, install: npm install socket.io-client
+// For now, socket.io is disabled to allow the app to build without it
+let io: any = null;
+let Socket: any = null;
+
+// Socket.io loading is disabled - install socket.io-client to enable
+const loadSocketIO = async () => {
+  // Socket.io is optional - install the package to enable multiplayer
+  // For now, we'll run in offline mode
+  return Promise.resolve();
+};
 
 interface GamePlayerProps {
   game: PublishedGame;
@@ -41,76 +52,87 @@ export default function GamePlayer({ game, onClose }: GamePlayerProps) {
         // Initialize Socket.io connection
         // Note: For full multiplayer, you need a Socket.io server running
         // For now, it will gracefully fall back to offline mode if server is unavailable
-        try {
-          const socketUrl = process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:3001';
-          const socket = io(socketUrl, {
-            transports: ['websocket', 'polling'],
-            reconnection: true,
-            reconnectionAttempts: 3,
-            reconnectionDelay: 1000,
-            timeout: 5000
-          });
-
-          socket.on('connect', () => {
-            console.log('Connected to game server');
-            socket.emit('join-game', {
-              serverId: serverId,
-              gameId: game.ts.toString(),
-              username: 'Player'
+        // Load socket.io if available
+        loadSocketIO().then(() => {
+          if (!io) {
+            console.warn('Socket.io not available, running in offline mode');
+            setIsOnline(false);
+            return;
+          }
+          try {
+            const socketUrl = process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:3001';
+            const socket = io(socketUrl, {
+              transports: ['websocket', 'polling'],
+              reconnection: true,
+              reconnectionAttempts: 3,
+              reconnectionDelay: 1000,
+              timeout: 5000
             });
 
-            // Update server player count
-            const servers = getServers();
-            const serverIndex = servers.findIndex(s => s.id === serverId);
-            if (serverIndex !== -1) {
-              servers[serverIndex].currentPlayers = Math.min(
-                servers[serverIndex].currentPlayers + 1,
-                servers[serverIndex].maxPlayers
-              );
-              require('@/lib/storage').saveServers(servers);
-            }
-          });
+            socket.on('connect', () => {
+              console.log('Connected to game server');
+              socket.emit('join-game', {
+                serverId: serverId,
+                gameId: game.ts.toString(),
+                username: 'Player'
+              });
 
-          socket.on('connect_error', () => {
-            console.warn('Socket.io server not available, running in offline mode');
-            setIsOnline(false);
-          });
-
-          socket.on('player-joined', (player: Player) => {
-            setPlayers(prev => {
-              if (!prev.find(p => p.id === player.id)) {
-                return [...prev, player];
+              // Update server player count
+              const servers = getServers();
+              const serverIndex = servers.findIndex(s => s.id === serverId);
+              if (serverIndex !== -1) {
+                servers[serverIndex].currentPlayers = Math.min(
+                  servers[serverIndex].currentPlayers + 1,
+                  servers[serverIndex].maxPlayers
+                );
+                require('@/lib/storage').saveServers(servers);
               }
-              return prev;
             });
-          });
 
-          socket.on('player-left', (playerId: string) => {
-            setPlayers(prev => prev.filter(p => p.id !== playerId));
+            socket.on('connect_error', () => {
+              console.warn('Socket.io server not available, running in offline mode');
+              setIsOnline(false);
+            });
 
-            // Update server player count
-            const servers = getServers();
-            const serverIndex = servers.findIndex(s => s.id === serverId);
-            if (serverIndex !== -1) {
-              servers[serverIndex].currentPlayers = Math.max(0, servers[serverIndex].currentPlayers - 1);
-              require('@/lib/storage').saveServers(servers);
-            }
-          });
+            socket.on('player-joined', (player: Player) => {
+              setPlayers(prev => {
+                if (!prev.find(p => p.id === player.id)) {
+                  return [...prev, player];
+                }
+                return prev;
+              });
+            });
 
-          socket.on('player-update', (player: Player) => {
-            setPlayers(prev => prev.map(p => p.id === player.id ? player : p));
-          });
+            socket.on('player-left', (playerId: string) => {
+              setPlayers(prev => prev.filter(p => p.id !== playerId));
 
-          socket.on('disconnect', () => {
-            console.log('Disconnected from game server');
+              // Update server player count
+              const servers = getServers();
+              const serverIndex = servers.findIndex(s => s.id === serverId);
+              if (serverIndex !== -1) {
+                servers[serverIndex].currentPlayers = Math.max(0, servers[serverIndex].currentPlayers - 1);
+                require('@/lib/storage').saveServers(servers);
+              }
+            });
+
+            socket.on('player-update', (player: Player) => {
+              setPlayers(prev => prev.map(p => p.id === player.id ? player : p));
+            });
+
+            socket.on('disconnect', () => {
+              console.log('Disconnected from game server');
+              setIsOnline(false);
+            });
+
+            socketRef.current = socket;
+          } catch (err) {
+            console.warn('Socket.io connection failed, running in offline mode:', err);
             setIsOnline(false);
-          });
-
-          socketRef.current = socket;
-        } catch (err) {
-          console.warn('Socket.io connection failed, running in offline mode:', err);
+          }
+        }).catch(() => {
+          console.warn('Socket.io not available, running in offline mode');
           setIsOnline(false);
-        }
+        });
       } else {
         console.warn('Server not found, switching to offline mode');
         setIsOnline(false);

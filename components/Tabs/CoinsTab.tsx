@@ -4,7 +4,9 @@ import { useState, useEffect } from 'react';
 import { User, CoinPack } from '@/types';
 import { getTabContent } from '@/lib/storage';
 import { useUser } from '@/contexts/UserContext';
-import { loadStripe } from '@stripe/stripe-js';
+// Optional Stripe - install @stripe/stripe-js to enable
+// For now, Stripe is disabled to allow build without the package
+let loadStripe: any = null;
 
 interface CoinsTabProps {
   user: User;
@@ -19,10 +21,10 @@ const coinPacks: CoinPack[] = [
   { coins: 10000, priceLabel: '$49.99', stripePriceId: 'price_10000' },
 ];
 
-// Initialize Stripe
-const stripePromise = loadStripe(
-  process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || 'pk_test_placeholder'
-);
+// Initialize Stripe (if available)
+const stripePromise = loadStripe
+  ? loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || 'pk_test_placeholder')
+  : Promise.resolve(null);
 
 export default function CoinsTab({ user, editMode }: CoinsTabProps) {
   const { updateUser } = useUser();

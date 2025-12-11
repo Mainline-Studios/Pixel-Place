@@ -427,11 +427,18 @@ export default function AvatarShopTab({ user, editMode }: AvatarShopTabProps) {
 
             return (
               <div key={acc.id} className="skin-card">
-                <AccessoryThumb 
-                  accessory={acc} 
-                  skin={equippedSkin} 
-                  equippedAccessories={user.equippedAccessories}
-                />
+                <div className="accessory-thumb" style={{
+                  width: '100%',
+                  height: '120px',
+                  background: acc.color || '#666',
+                  borderRadius: '8px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: '24px'
+                }}>
+                  {acc.name}
+                </div>
                 <div className="skin-name">{escapeHTML(acc.name)}</div>
                 <div className="skin-meta">
                   <RarityBadge rarity={acc.rarity} />
