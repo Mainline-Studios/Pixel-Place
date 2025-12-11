@@ -117,6 +117,18 @@ export interface Skin {
   };
 }
 
+export interface Accessory {
+  id: string;
+  name: string;
+  type: 'hat' | 'glasses' | 'mask' | 'backpack' | 'weapon';
+  rarity: 'common' | 'rare' | 'legendary';
+  price: number;
+  img: string;
+  color?: string;
+  position?: { x: number; y: number; z: number };
+  scale?: number;
+}
+
 export interface PublishedGame {
   title: string;
   desc: string;
@@ -173,6 +185,18 @@ export interface SceneObject {
     y: number;
     z: number;
   };
+  rotation?: {
+    x: number;
+    y: number;
+    z: number;
+  };
+  scale?: {
+    x: number;
+    y: number;
+    z: number;
+  };
+  color?: string;
+  script?: string; // JavaScript code for object behavior
 }
 
 export interface SceneData {
@@ -198,3 +222,26 @@ export interface TabContent {
   settings?: string;
 }
 
+
+
+export interface UserMadeGame {
+  id: string;
+  title: string;
+  desc: string;
+  owner: string;
+  ts: number;
+  sceneData: SceneData;
+  publishedBy?: string; // Admin who published it
+}
+
+export interface GameSubmission {
+  id: string;
+  title: string;
+  desc: string;
+  owner: string;
+  ts: number;
+  sceneData: SceneData;
+  status: 'pending' | 'approved' | 'rejected';
+  reviewedBy?: string;
+  adminNotes?: string;
+}
