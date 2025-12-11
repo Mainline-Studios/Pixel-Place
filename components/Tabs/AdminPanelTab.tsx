@@ -671,3 +671,40 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
     </>
   );
 }
+
+// Add chat functionality - add after line 22
+const [chattingWith, setChattingWith] = useState<string | null>(null);
+const [chatMessages, setChatMessages] = useState<any[]>([]);
+const [newChatMessage, setNewChatMessage] = useState('');
+const [sendingChatMessage, setSendingChatMessage] = useState(false);
+
+// Add chat loading function after loadData
+const loadChatMessages = async (bannedUsername: string) => {
+  const messages = await getMessages(user.username, bannedUsername);
+  setChatMessages(messages);
+};
+
+// Add chat send function
+const handleSendChatMessage = async (toUsername: string) => {
+  if (!newChatMessage.trim()) return;
+  setSendingChatMessage(true);
+  try {
+    await sendMessage(user.username, toUsername, newChatMessage.trim());
+    setNewChatMessage('');
+    await loadChatMessages(toUsername);
+  } catch (error) {
+    console.error('Error sending message:', error);
+    alert('Error sending message. Please try again.');
+  } finally {
+    setSendingChatMessage(false);
+  }
+};
+
+// Add useEffect for chat refresh
+useEffect(() => {
+  if (chattingWith) {
+    loadChatMessages(chattingWith);
+    const interval = setInterval(() => loadChatMessages(chattingWith), 2000);
+    return () => clearInterval(interval);
+  }
+}, [chattingWith, user.username]);
