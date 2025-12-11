@@ -1,7 +1,7 @@
 # 🎮 Pixel Place
 
 **Pixel Place** is an immersive web-based gaming platform and creative studio developed by **Mainline Studios**. Build games, play with friends, customize your avatar, and explore a vibrant community of creators.
-
+**THE GAME IS NOT OPEN TO THE PUBLIC. A PASSWORD WILL BE REQUIRED.**
 ![Pixel Place](https://img.shields.io/badge/Version-0.1-blue)
 ![Next.js](https://img.shields.io/badge/Next.js-14.2.5-black)
 ![React](https://img.shields.io/badge/React-18.3.1-61dafb)
@@ -103,10 +103,9 @@ npm start
 
 ### First Time Setup
 
-1. **Enter Password**: When you first open the app, enter `pixelplace2024`
-2. **Create Account**: Sign up or log in to create your profile
-3. **Customize Avatar**: Visit the Avatar Shop to personalize your character
-4. **Start Playing**: Explore games, create content, or connect with friends!
+1. **Create Account**: Sign up or log in to create your profile
+2. **Customize Avatar**: Visit the Avatar Shop to personalize your character
+3. **Start Playing**: Explore games, create content, or connect with friends!
 
 ### Game Controls
 
