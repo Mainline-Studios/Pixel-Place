@@ -22,13 +22,23 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
   const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => {
-    loadData();
+    // Ensure we're in browser environment
+    if (typeof window === 'undefined') return;
+    
+    // Try to load data, with error handling
+    try {
+      loadData();
+    } catch (error) {
+      console.error('Error loading admin panel data:', error);
+      alert('Error loading admin panel data. Please refresh the page.');
+    }
   }, []);
 
   const loadData = () => {
-    setAppeals(getBanAppeals());
-    // Get ALL users from localStorage first (this includes all regular users and any admins that have logged in)
-    const storedUsers = getUsers();
+    try {
+      setAppeals(getBanAppeals());
+      // Get ALL users from localStorage first (this includes all regular users and any admins that have logged in)
+      const storedUsers = getUsers();
     
     // Create a map of existing usernames for quick lookup
     const existingUsernames = new Set(storedUsers.map(u => u.username.toLowerCase()));
@@ -68,9 +78,13 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
       return a.username.localeCompare(b.username);
     });
     
-    setAllUsers(uniqueUsers);
-    setBans(getBannedUsers());
-    setReports(getReports());
+      setAllUsers(uniqueUsers);
+      setBans(getBannedUsers());
+      setReports(getReports());
+    } catch (error) {
+      console.error('Error in loadData:', error);
+      alert('Error loading data. Please check the browser console.');
+    }
   };
 
   const handleBan = () => {
@@ -146,12 +160,29 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
     r.reason.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  // Ensure component works in all browsers
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    
+    // Verify localStorage is accessible
+    try {
+      const testKey = '__pixel_place_test__';
+      localStorage.setItem(testKey, 'test');
+      localStorage.removeItem(testKey);
+    } catch (e) {
+      console.error('localStorage not accessible:', e);
+      alert('localStorage is not available. The admin panel may not work correctly in this browser.');
+    }
+  }, []);
+
   if (user.role !== 'admin') {
     return (
       <div className="ai-box">
         <div className="ai-label">Access Denied</div>
         <div className="ai-output">
           You must be an administrator to access this panel.
+          <br />
+          <small style={{ color: 'var(--text-dim)' }}>Current role: {user.role}</small>
         </div>
       </div>
     );
@@ -518,6 +549,119 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
                           <>
                             <div className="smalltext" style={{ fontWeight: 600, marginTop: '8px', marginBottom: '4px' }}>Admin Notes:</div>
                             <div className="smalltext">{report.adminNotes}</div>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'appeals' && (
+        <div className="ai-box">
+          <div className="ai-label">
+            Ban Appeals ({appeals.filter(a => a.status === 'pending').length} pending, {appeals.length} total)
+            <button 
+              className="btn" 
+              onClick={loadData}
+              style={{ marginLeft: '12px', padding: '4px 12px', fontSize: '12px' }}
+            >
+              Refresh
+            </button>
+          </div>
+          <div className="ai-output" style={{ maxHeight: '500px', overflowY: 'auto' }}>
+            {appeals.length === 0 ? (
+              <div className="smalltext">No ban appeals.</div>
+            ) : (
+              <div style={{ display: 'grid', gap: '12px' }}>
+                {appeals
+                  .sort((a, b) => {
+                    // Pending first, then by timestamp
+                    if (a.status === 'pending' && b.status !== 'pending') return -1;
+                    if (a.status !== 'pending' && b.status === 'pending') return 1;
+                    return b.timestamp - a.timestamp;
+                  })
+                  .map((appeal) => (
+                    <div
+                      key={appeal.id}
+                      style={{
+                        padding: '16px',
+                        background: appeal.status === 'pending' ? 'rgba(255, 215, 106, 0.1)' : 'var(--panel-soft)',
+                        borderRadius: '8px',
+                        border: `1px solid ${appeal.status === 'pending' ? '#ffd76a' : 'var(--border)'}`
+                      }}
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '12px' }}>
+                        <div>
+                          <div style={{ fontWeight: 600, marginBottom: '4px' }}>
+                            Appeal from: <span style={{ color: '#ff4d4d' }}>{appeal.username}</span>
+                          </div>
+                          <div className="smalltext">
+                            Original Ban Reason: {appeal.ban.reason}
+                            <br />
+                            Banned by: {appeal.ban.bannedBy}
+                            <br />
+                            Appeal Date: {new Date(appeal.timestamp).toLocaleString()}
+                            <br />
+                            Status: <span style={{ 
+                              color: appeal.status === 'pending' ? '#ffd76a' : 
+                                     appeal.status === 'approved' ? '#2ecc71' : '#ff4d4d'
+                            }}>
+                              {appeal.status.toUpperCase()}
+                            </span>
+                            {appeal.reviewedBy && (
+                              <>
+                                <br />
+                                Reviewed by: {appeal.reviewedBy}
+                              </>
+                            )}
+                          </div>
+                        </div>
+                        {appeal.status === 'pending' && (
+                          <div style={{ display: 'flex', gap: '8px', flexDirection: 'column' }}>
+                            <button
+                              className="btn"
+                              onClick={() => {
+                                if (confirm(`Approve appeal from "${appeal.username}" and unban them?`)) {
+                                  updateBanAppealStatus(appeal.id, 'approved', user.username, 'Appeal approved', true);
+                                  loadData();
+                                  alert(`Appeal approved. User "${appeal.username}" has been unbanned.`);
+                                }
+                              }}
+                              style={{ background: '#2ecc71', fontSize: '12px', padding: '6px 12px' }}
+                            >
+                              Approve & Unban
+                            </button>
+                            <button
+                              className="btn"
+                              onClick={() => {
+                                const notes = prompt('Add notes (optional):');
+                                updateBanAppealStatus(appeal.id, 'denied', user.username, notes || undefined, false);
+                                loadData();
+                                alert('Appeal denied.');
+                              }}
+                              style={{ background: '#ff4d4d', fontSize: '12px', padding: '6px 12px' }}
+                            >
+                              Deny
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                      <div style={{ 
+                        padding: '8px', 
+                        background: 'var(--panel)', 
+                        borderRadius: '4px',
+                        marginTop: '8px'
+                      }}>
+                        <div className="smalltext" style={{ fontWeight: 600, marginBottom: '4px' }}>Appeal Message:</div>
+                        <div className="smalltext">{appeal.appealMessage || 'No message provided.'}</div>
+                        {appeal.adminNotes && (
+                          <>
+                            <div className="smalltext" style={{ fontWeight: 600, marginTop: '8px', marginBottom: '4px' }}>Admin Notes:</div>
+                            <div className="smalltext">{appeal.adminNotes}</div>
                           </>
                         )}
                       </div>

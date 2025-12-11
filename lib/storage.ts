@@ -19,6 +19,17 @@ export const ADMIN_ACCOUNTS_LIST = ADMIN_ACCOUNTS;
 // Initialize localStorage data
 export function initializeStorage() {
   if (typeof window === 'undefined') return;
+  
+  // Ensure localStorage is available
+  try {
+    if (!window.localStorage) {
+      console.error('localStorage is not available');
+      return;
+    }
+  } catch (e) {
+    console.error('Error accessing localStorage:', e);
+    return;
+  }
 
   if (!localStorage.getItem("skinsCatalog")) {
     const initialSkins: Skin[] = [
@@ -283,12 +294,23 @@ export function initializeStorage() {
 // User functions
 export function getUsers(): User[] {
   if (typeof window === 'undefined') return [];
-  return JSON.parse(localStorage.getItem("pixelPlaceUsers") || "[]");
+  try {
+    const data = localStorage.getItem("pixelPlaceUsers");
+    if (!data) return [];
+    return JSON.parse(data);
+  } catch (e) {
+    console.error('Error reading users from localStorage:', e);
+    return [];
+  }
 }
 
 export function saveUsers(users: User[]): void {
   if (typeof window === 'undefined') return;
-  localStorage.setItem("pixelPlaceUsers", JSON.stringify(users));
+  try {
+    localStorage.setItem("pixelPlaceUsers", JSON.stringify(users));
+  } catch (e) {
+    console.error('Error saving users to localStorage:', e);
+  }
 }
 
 // Skin functions
