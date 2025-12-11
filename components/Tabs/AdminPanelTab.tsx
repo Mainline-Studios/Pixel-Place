@@ -107,16 +107,9 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
 
     const usernameToBan = banUsername.trim().toLowerCase();
     
-    // Check if user is an admin
+    // Check if user is an admin (only check if user exists in system)
     const targetUser = allUsers.find(u => u.username.toLowerCase() === usernameToBan);
     if (targetUser && targetUser.role === 'admin') {
-      alert('Cannot ban administrators. Admins are protected from bans.');
-      return;
-    }
-    
-    // Also check admin accounts list
-    const isAdminAccount = ADMIN_ACCOUNTS_LIST.some(a => a.username.toLowerCase() === usernameToBan);
-    if (isAdminAccount) {
       alert('Cannot ban administrators. Admins are protected from bans.');
       return;
     }
