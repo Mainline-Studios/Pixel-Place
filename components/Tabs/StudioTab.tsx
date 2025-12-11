@@ -45,6 +45,12 @@ export default function StudioTab({ user, editMode }: StudioTabProps) {
   const mouseRef = useRef({ x: 0, y: 0 });
   const resizeHandlerRef = useRef<(() => void) | null>(null);
   const scriptExecutorsRef = useRef<Map<string, any>>(new Map());
+  const isDraggingRef = useRef(false);
+  const dragObjectRef = useRef<string | null>(null);
+  const selectedObjectIdRef = useRef<string | null>(null);
+
+  const dragPlaneRef = useRef<any>(null);
+
 
   const resizeRenderer = (renderer: any, canvas: HTMLCanvasElement) => {
     const width = canvas.clientWidth;
@@ -109,8 +115,15 @@ export default function StudioTab({ user, editMode }: StudioTabProps) {
       cameraRef.current = camera;
       controlsRef.current = controls;
 
-      // Click to select
-      const handleClick = (event: MouseEvent) => {
+      // Create drag plane
+      const dragPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+      dragPlaneRef.current = dragPlane;
+
+      
+      // Mouse down - start drag or select
+      const handleMouseDown = (event: MouseEvent) => {
+        if (event.button !== 0) return; // Only left mouse button
+        
         const rect = canvas.getBoundingClientRect();
         mouseRef.current.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
         mouseRef.current.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
@@ -122,13 +135,112 @@ export default function StudioTab({ user, editMode }: StudioTabProps) {
 
         if (intersects.length > 0) {
           const objectId = intersects[0].object.userData.objectId;
-          selectObjectById(objectId);
+          const mesh = intersects[0].object;
+          if (mesh) {
+            // Find object in current sceneObjects
+            const currentObjects = sceneObjects;
+            const obj = currentObjects.find(o => o.id === objectId);
+            if (obj) {
+              selectObjectById(objectId);
+              selectedObjectIdRef.current = objectId;
+              isDraggingRef.current = true;
+              dragObjectRef.current = objectId;
+              controls.enabled = false;
+              
+              // Update drag plane to object's Y position
+              dragPlane.constant = -mesh.position.y;
+            }
+          }
         } else {
           setSelectedObjectId(null);
+          selectedObjectIdRef.current = null;
         }
       };
 
-      canvas.addEventListener('click', handleClick);
+      // Mouse move - drag object
+      const handleMouseMove = (event: MouseEvent) => {
+        if (isDraggingRef.current && dragObjectRef.current) {
+          // Get mesh directly from scene
+          const mesh = scene.children.find((child: any) => 
+            child.userData.objectId === dragObjectRef.current
+          );
+          
+          if (mesh) {
+            const rect = canvas.getBoundingClientRect();
+            const mouseX = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+            const mouseY = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+            
+            raycaster.setFromCamera({ x: mouseX, y: mouseY }, camera);
+            const intersect = new THREE.Vector3();
+            raycaster.ray.intersectPlane(dragPlane, intersect);
+            
+            if (intersect) {
+              mesh.position.copy(intersect);
+              mesh.position.y = Math.max(0.5, mesh.position.y);
+              
+              // Update state
+              setPosX(mesh.position.x.toFixed(2));
+              setPosY(mesh.position.y.toFixed(2));
+              setPosZ(mesh.position.z.toFixed(2));
+              
+              // Update sceneObjects state
+              setSceneObjects(prev => prev.map(o => 
+                o.id === dragObjectRef.current 
+                  ? { ...o, mesh } 
+                  : o
+              ));
+            }
+          }
+        }
+      };
+
+      // Mouse up - end drag
+      const handleMouseUp = () => {
+        if (isDraggingRef.current) {
+          isDraggingRef.current = false;
+          dragObjectRef.current = null;
+          if (controlsRef.current) {
+            controlsRef.current.enabled = true;
+          }
+        }
+      };
+
+      // Mouse wheel - scale selected object
+      const handleWheel = (event: WheelEvent) => {
+        if (selectedObjectIdRef.current && !isDraggingRef.current) {
+          event.preventDefault();
+          const mesh = scene.children.find((child: any) => 
+            child.userData.objectId === selectedObjectIdRef.current
+          );
+          
+          if (mesh) {
+            const scaleFactor = event.deltaY > 0 ? 0.9 : 1.1;
+            mesh.scale.multiplyScalar(scaleFactor);
+            setScaleX(mesh.scale.x.toFixed(2));
+            setScaleY(mesh.scale.y.toFixed(2));
+            setScaleZ(mesh.scale.z.toFixed(2));
+            
+            // Update sceneObjects state
+            setSceneObjects(prev => prev.map(o => 
+              o.id === selectedObjectIdRef.current 
+                ? { ...o, mesh } 
+                : o
+            ));
+          }
+        }
+      };
+
+      canvas.addEventListener('mousedown', handleMouseDown);
+      window.addEventListener('mousemove', handleMouseMove);
+      window.addEventListener('mouseup', handleMouseUp);
+      canvas.addEventListener('wheel', handleWheel, { passive: false });
+
+      return () => {
+        canvas.removeEventListener('mousedown', handleMouseDown);
+        window.removeEventListener('mousemove', handleMouseMove);
+        window.removeEventListener('mouseup', handleMouseUp);
+        canvas.removeEventListener('wheel', handleWheel);
+      };
 
       loadSceneObjects(scene, THREE);
 
@@ -151,9 +263,6 @@ export default function StudioTab({ user, editMode }: StudioTabProps) {
       resizeHandlerRef.current = handleResize;
       window.addEventListener('resize', handleResize);
 
-      return () => {
-        canvas.removeEventListener('click', handleClick);
-      };
     });
 
     return () => {
@@ -166,6 +275,18 @@ export default function StudioTab({ user, editMode }: StudioTabProps) {
       }
     };
   }, []);
+
+  // Load draft on mount
+  useEffect(() => {
+    const loadDraftData = async () => {
+      const savedDraft = await getDraft();
+      if (savedDraft && (savedDraft.title || savedDraft.desc || savedDraft.owner)) {
+        setDraft(savedDraft);
+      }
+    };
+    loadDraftData();
+  }, []);
+
 
   const executeScripts = (delta: number) => {
     sceneObjects.forEach((obj) => {
@@ -270,6 +391,7 @@ export default function StudioTab({ user, editMode }: StudioTabProps) {
     if (!obj) return;
 
     setSelectedObjectId(id);
+    selectedObjectIdRef.current = id;
     setPosX(obj.mesh.position.x.toFixed(2));
     setPosY(obj.mesh.position.y.toFixed(2));
     setPosZ(obj.mesh.position.z.toFixed(2));
@@ -558,7 +680,7 @@ export default function StudioTab({ user, editMode }: StudioTabProps) {
         {/* Viewport */}
         <div style={{ background: 'var(--panel-soft)', borderRadius: '8px', padding: '12px', position: 'relative' }}>
           <div style={{ fontSize: '11px', color: '#8b90a8', marginBottom: '8px' }}>
-            Click objects to select • Orbit: drag • Zoom: scroll • Pan: right-click
+            Click & drag objects to move • Scroll to scale selected • Right-click + drag to orbit • Middle-click to pan
           </div>
           <canvas
             id="studioCanvas"
