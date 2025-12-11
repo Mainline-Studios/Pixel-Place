@@ -351,81 +351,368 @@ export function getUsersSync(): User[] {
   }
 }
 
-// Skin functions
-export function getSkins(): Skin[] {
+// Skin functions - Now using API
+export async function getSkins(): Promise<Skin[]> {
   if (typeof window === 'undefined') return [];
-  return JSON.parse(localStorage.getItem("skinsCatalog") || "[]");
+  try {
+    const response = await fetch('/api/skins');
+    if (!response.ok) throw new Error('Failed to fetch skins');
+    const apiSkins = await response.json();
+    
+    // Migration: Move localStorage data to API if it exists
+    try {
+      const localData = localStorage.getItem("skinsCatalog");
+      if (localData && apiSkins.length === 0) {
+        const localSkins: Skin[] = JSON.parse(localData);
+        if (localSkins.length > 0) {
+          await fetch('/api/skins', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(localSkins)
+          }).catch(() => {});
+          localStorage.removeItem("skinsCatalog");
+          const updatedResponse = await fetch('/api/skins');
+          if (updatedResponse.ok) return await updatedResponse.json();
+        }
+      }
+    } catch (migrationError) {
+      console.error('Error migrating skins:', migrationError);
+    }
+    
+    return apiSkins;
+  } catch (e) {
+    console.error('Error reading skins from API:', e);
+    try {
+      const data = localStorage.getItem("skinsCatalog");
+      if (data) return JSON.parse(data);
+    } catch {}
+    return [];
+  }
 }
 
-export function saveSkins(skins: Skin[]): void {
+export async function saveSkins(skins: Skin[]): Promise<void> {
   if (typeof window === 'undefined') return;
-  localStorage.setItem("skinsCatalog", JSON.stringify(skins));
+  try {
+    await fetch('/api/skins', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(skins)
+    });
+  } catch (e) {
+    console.error('Error saving skins to API:', e);
+  }
 }
 
-// Tab content functions
-export function getTabContent(): TabContent {
+// Tab content functions - Now using API
+export async function getTabContent(): Promise<TabContent> {
   if (typeof window === 'undefined') return {} as TabContent;
-  return JSON.parse(localStorage.getItem("tabContent") || "{}");
+  try {
+    const response = await fetch('/api/tabcontent');
+    if (!response.ok) throw new Error('Failed to fetch tab content');
+    const apiContent = await response.json();
+    
+    // Migration: Move localStorage data to API if it exists
+    try {
+      const localData = localStorage.getItem("tabContent");
+      if (localData && Object.keys(apiContent).length === 0) {
+        const localContent: TabContent = JSON.parse(localData);
+        if (Object.keys(localContent).length > 0) {
+          await fetch('/api/tabcontent', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(localContent)
+          }).catch(() => {});
+          localStorage.removeItem("tabContent");
+          const updatedResponse = await fetch('/api/tabcontent');
+          if (updatedResponse.ok) return await updatedResponse.json();
+        }
+      }
+    } catch (migrationError) {
+      console.error('Error migrating tab content:', migrationError);
+    }
+    
+    return apiContent;
+  } catch (e) {
+    console.error('Error reading tab content from API:', e);
+    try {
+      const data = localStorage.getItem("tabContent");
+      if (data) return JSON.parse(data);
+    } catch {}
+    return {} as TabContent;
+  }
 }
 
-export function saveTabContent(content: TabContent): void {
+export async function saveTabContent(content: TabContent): Promise<void> {
   if (typeof window === 'undefined') return;
-  localStorage.setItem("tabContent", JSON.stringify(content));
+  try {
+    await fetch('/api/tabcontent', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(content)
+    });
+  } catch (e) {
+    console.error('Error saving tab content to API:', e);
+  }
 }
 
-// Draft functions
-export function getDraft(): DraftGame {
+// Draft functions - Now using API
+export async function getDraft(): Promise<DraftGame> {
   if (typeof window === 'undefined') return { title: "", desc: "", owner: "" };
-  return JSON.parse(localStorage.getItem("draftGame") || '{"title":"","desc":"","owner":""}');
+  try {
+    const response = await fetch('/api/draft');
+    if (!response.ok) throw new Error('Failed to fetch draft');
+    const apiDraft = await response.json();
+    
+    // Migration: Move localStorage data to API if it exists
+    try {
+      const localData = localStorage.getItem("draftGame");
+      if (localData && (!apiDraft.title && !apiDraft.desc && !apiDraft.owner)) {
+        const localDraft: DraftGame = JSON.parse(localData);
+        if (localDraft.title || localDraft.desc || localDraft.owner) {
+          await fetch('/api/draft', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(localDraft)
+          }).catch(() => {});
+          localStorage.removeItem("draftGame");
+          const updatedResponse = await fetch('/api/draft');
+          if (updatedResponse.ok) return await updatedResponse.json();
+        }
+      }
+    } catch (migrationError) {
+      console.error('Error migrating draft:', migrationError);
+    }
+    
+    return apiDraft;
+  } catch (e) {
+    console.error('Error reading draft from API:', e);
+    try {
+      const data = localStorage.getItem("draftGame");
+      if (data) return JSON.parse(data);
+    } catch {}
+    return { title: "", desc: "", owner: "" };
+  }
 }
 
-export function saveDraft(draft: DraftGame): void {
+export async function saveDraft(draft: DraftGame): Promise<void> {
   if (typeof window === 'undefined') return;
-  localStorage.setItem("draftGame", JSON.stringify(draft));
+  try {
+    await fetch('/api/draft', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(draft)
+    });
+  } catch (e) {
+    console.error('Error saving draft to API:', e);
+  }
 }
 
-// Published games functions
-export function getPublished(): PublishedGame[] {
+// Published games functions - Now using API
+export async function getPublished(): Promise<PublishedGame[]> {
   if (typeof window === 'undefined') return [];
-  return JSON.parse(localStorage.getItem("publishedGames") || "[]");
+  try {
+    const response = await fetch('/api/published');
+    if (!response.ok) throw new Error('Failed to fetch published games');
+    const apiGames = await response.json();
+    
+    // Migration: Move localStorage data to API if it exists
+    try {
+      const localData = localStorage.getItem("publishedGames");
+      if (localData && apiGames.length === 0) {
+        const localGames: PublishedGame[] = JSON.parse(localData);
+        if (localGames.length > 0) {
+          await fetch('/api/published', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(localGames)
+          }).catch(() => {});
+          localStorage.removeItem("publishedGames");
+          const updatedResponse = await fetch('/api/published');
+          if (updatedResponse.ok) return await updatedResponse.json();
+        }
+      }
+    } catch (migrationError) {
+      console.error('Error migrating published games:', migrationError);
+    }
+    
+    return apiGames;
+  } catch (e) {
+    console.error('Error reading published games from API:', e);
+    try {
+      const data = localStorage.getItem("publishedGames");
+      if (data) return JSON.parse(data);
+    } catch {}
+    return [];
+  }
 }
 
-export function savePublished(games: PublishedGame[]): void {
+export async function savePublished(games: PublishedGame[]): Promise<void> {
   if (typeof window === 'undefined') return;
-  localStorage.setItem("publishedGames", JSON.stringify(games));
+  try {
+    await fetch('/api/published', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(games)
+    });
+  } catch (e) {
+    console.error('Error saving published games to API:', e);
+  }
 }
 
-// Scene functions
-export function getSceneData(): SceneData {
+// Scene functions - Now using API
+export async function getSceneData(): Promise<SceneData> {
   if (typeof window === 'undefined') return { objects: [] };
-  return JSON.parse(localStorage.getItem("sceneStore") || '{"objects":[]}');
+  try {
+    const response = await fetch('/api/scene');
+    if (!response.ok) throw new Error('Failed to fetch scene');
+    const apiScene = await response.json();
+    
+    // Migration: Move localStorage data to API if it exists
+    try {
+      const localData = localStorage.getItem("sceneStore");
+      if (localData && (!apiScene.objects || apiScene.objects.length === 0)) {
+        const localScene: SceneData = JSON.parse(localData);
+        if (localScene.objects && localScene.objects.length > 0) {
+          await fetch('/api/scene', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(localScene)
+          }).catch(() => {});
+          localStorage.removeItem("sceneStore");
+          const updatedResponse = await fetch('/api/scene');
+          if (updatedResponse.ok) return await updatedResponse.json();
+        }
+      }
+    } catch (migrationError) {
+      console.error('Error migrating scene:', migrationError);
+    }
+    
+    return apiScene;
+  } catch (e) {
+    console.error('Error reading scene from API:', e);
+    try {
+      const data = localStorage.getItem("sceneStore");
+      if (data) return JSON.parse(data);
+    } catch {}
+    return { objects: [] };
+  }
 }
 
-export function saveSceneData(data: SceneData): void {
+export async function saveSceneData(data: SceneData): Promise<void> {
   if (typeof window === 'undefined') return;
-  localStorage.setItem("sceneStore", JSON.stringify(data));
+  try {
+    await fetch('/api/scene', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    });
+  } catch (e) {
+    console.error('Error saving scene to API:', e);
+  }
 }
 
-// Prebuilt games functions
-export function getPrebuiltGames(): PrebuiltGame[] {
+// Prebuilt games functions - Now using API
+export async function getPrebuiltGames(): Promise<PrebuiltGame[]> {
   if (typeof window === 'undefined') return [];
-  return JSON.parse(localStorage.getItem("prebuiltGames") || "[]");
+  try {
+    const response = await fetch('/api/prebuilt');
+    if (!response.ok) throw new Error('Failed to fetch prebuilt games');
+    const apiGames = await response.json();
+    
+    // Migration: Move localStorage data to API if it exists
+    try {
+      const localData = localStorage.getItem("prebuiltGames");
+      if (localData && apiGames.length === 0) {
+        const localGames: PrebuiltGame[] = JSON.parse(localData);
+        if (localGames.length > 0) {
+          await fetch('/api/prebuilt', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(localGames)
+          }).catch(() => {});
+          localStorage.removeItem("prebuiltGames");
+          const updatedResponse = await fetch('/api/prebuilt');
+          if (updatedResponse.ok) return await updatedResponse.json();
+        }
+      }
+    } catch (migrationError) {
+      console.error('Error migrating prebuilt games:', migrationError);
+    }
+    
+    return apiGames;
+  } catch (e) {
+    console.error('Error reading prebuilt games from API:', e);
+    try {
+      const data = localStorage.getItem("prebuiltGames");
+      if (data) return JSON.parse(data);
+    } catch {}
+    return [];
+  }
 }
 
-export function savePrebuiltGames(games: PrebuiltGame[]): void {
+export async function savePrebuiltGames(games: PrebuiltGame[]): Promise<void> {
   if (typeof window === 'undefined') return;
-  localStorage.setItem("prebuiltGames", JSON.stringify(games));
+  try {
+    await fetch('/api/prebuilt', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(games)
+    });
+  } catch (e) {
+    console.error('Error saving prebuilt games to API:', e);
+  }
 }
 
-// Accessories functions
-export function getAccessories(): Accessory[] {
+// Accessories functions - Now using API
+export async function getAccessories(): Promise<Accessory[]> {
   if (typeof window === 'undefined') return [];
-  return JSON.parse(localStorage.getItem("accessoriesCatalog") || "[]");
+  try {
+    const response = await fetch('/api/accessories');
+    if (!response.ok) throw new Error('Failed to fetch accessories');
+    const apiAccessories = await response.json();
+    
+    // Migration: Move localStorage data to API if it exists
+    try {
+      const localData = localStorage.getItem("accessoriesCatalog");
+      if (localData && apiAccessories.length === 0) {
+        const localAccessories: Accessory[] = JSON.parse(localData);
+        if (localAccessories.length > 0) {
+          await fetch('/api/accessories', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(localAccessories)
+          }).catch(() => {});
+          localStorage.removeItem("accessoriesCatalog");
+          const updatedResponse = await fetch('/api/accessories');
+          if (updatedResponse.ok) return await updatedResponse.json();
+        }
+      }
+    } catch (migrationError) {
+      console.error('Error migrating accessories:', migrationError);
+    }
+    
+    return apiAccessories;
+  } catch (e) {
+    console.error('Error reading accessories from API:', e);
+    try {
+      const data = localStorage.getItem("accessoriesCatalog");
+      if (data) return JSON.parse(data);
+    } catch {}
+    return [];
+  }
 }
 
-export function saveAccessories(accessories: Accessory[]): void {
+export async function saveAccessories(accessories: Accessory[]): Promise<void> {
   if (typeof window === 'undefined') return;
-  localStorage.setItem("accessoriesCatalog", JSON.stringify(accessories));
+  try {
+    await fetch('/api/accessories', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(accessories)
+    });
+  } catch (e) {
+    console.error('Error saving accessories to API:', e);
+  }
 }
 
 // Ban functions - Now using API
