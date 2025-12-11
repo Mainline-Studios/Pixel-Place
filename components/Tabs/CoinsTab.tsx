@@ -1,6 +1,7 @@
 'use client';
 
-import { User, CoinPack } from '@/types';
+import { useState, useEffect } from 'react';
+import { User, CoinPack, TabContent } from '@/types';
 import { getTabContent } from '@/lib/storage';
 import { useUser } from '@/contexts/UserContext';
 

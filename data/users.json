@@ -4,14 +4,19 @@
     "password": "20Minecraft15",
     "gender": "N/A",
     "role": "admin",
-    "coins": 99999,
+    "coins": 98299,
     "ownedSkins": [
-      "starter_classic"
+      "starter_classic",
+      "galaxy_guard"
     ],
-    "equippedSkin": "starter_classic",
+    "equippedSkin": "galaxy_guard",
     "isDonor": false,
-    "ownedAccessories": [],
-    "equippedAccessories": {}
+    "ownedAccessories": [
+      "hat_crown"
+    ],
+    "equippedAccessories": {
+      "hat": "hat_crown"
+    }
   },
   {
     "username": "Marioguy",
@@ -48,4 +53,3 @@
     "equippedAccessories": {}
   }
 ]
-
