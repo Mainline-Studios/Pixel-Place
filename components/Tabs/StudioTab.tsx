@@ -637,52 +637,89 @@ export default function StudioTab({ user, editMode }: StudioTabProps) {
   const selectedObject = sceneObjects.find(o => o.id === selectedObjectId);
 
   return (
-    <>
-      <h2 className="section-title">🎨 Studio</h2>
+    <div style={{ height: '100%', display: 'flex', flexDirection: 'column', gap: '20px', padding: '20px', background: 'linear-gradient(135deg, #0a0e1a 0%, #1a1f2e 100%)' }}>
+      {/* Modern Header */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+        <div>
+          <h2 style={{ fontSize: '32px', fontWeight: 700, margin: 0, background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+            🎨 Studio
+          </h2>
+          <p style={{ fontSize: '14px', color: '#8b90a8', margin: '4px 0 0 0' }}>Create and design 3D games</p>
+        </div>
+      </div>
       
-      <div className="studio-toolbar" style={{ marginBottom: '16px', display: 'flex', gap: '8px', flexWrap: 'wrap', padding: '12px', background: 'var(--panel-soft)', borderRadius: '8px' }}>
-        <button className="btn" onClick={() => addObject('cube')}>+ Cube</button>
-        <button className="btn" onClick={() => addObject('sphere')}>+ Sphere</button>
-        <button className="btn" onClick={() => addObject('light')}>+ Light</button>
-        <div style={{ width: '1px', background: 'var(--border)', margin: '0 8px' }}></div>
-        <button className="btn" onClick={saveScene}>💾 Save Scene</button>
-        <button className="btn" onClick={loadScene}>📂 Load Scene</button>
-        <button className="btn" onClick={saveDraftFromProps}>💾 Save Draft</button>
-        {user.role === 'admin' ? (
-          <>
-            <button className="btn" onClick={publishDraftNow}>🚀 Publish to Discover</button>
-            <button className="btn" onClick={publishToUserMadeGames}>🎮 Publish to Games</button>
-          </>
-        ) : (
-          <button className="btn" onClick={submitGameForReview}>📤 Submit for Review</button>
-        )}
+      {/* Modern Toolbar */}
+      <div style={{ 
+        display: 'flex', 
+        gap: '10px', 
+        flexWrap: 'wrap', 
+        padding: '16px', 
+        background: 'rgba(26, 31, 46, 0.8)', 
+        backdropFilter: 'blur(10px)',
+        borderRadius: '12px',
+        border: '1px solid rgba(255, 255, 255, 0.1)',
+        boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)'
+      }}>
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+          <span style={{ fontSize: '12px', color: '#8b90a8', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Objects</span>
+          <button className="btn" onClick={() => addObject('cube')} style={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', border: 'none', color: 'white', fontWeight: 600, padding: '10px 16px', borderRadius: '8px', cursor: 'pointer', transition: 'all 0.2s', boxShadow: '0 4px 12px rgba(102, 126, 234, 0.3)' }}>📦 Cube</button>
+          <button className="btn" onClick={() => addObject('sphere')} style={{ background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)', border: 'none', color: 'white', fontWeight: 600, padding: '10px 16px', borderRadius: '8px', cursor: 'pointer', transition: 'all 0.2s', boxShadow: '0 4px 12px rgba(245, 87, 108, 0.3)' }}>⚪ Sphere</button>
+          <button className="btn" onClick={() => addObject('light')} style={{ background: 'linear-gradient(135deg, #fad961 0%, #f76b1c 100%)', border: 'none', color: 'white', fontWeight: 600, padding: '10px 16px', borderRadius: '8px', cursor: 'pointer', transition: 'all 0.2s', boxShadow: '0 4px 12px rgba(247, 107, 28, 0.3)' }}>💡 Light</button>
+        </div>
+        <div style={{ width: '1px', background: 'rgba(255, 255, 255, 0.1)', margin: '0 8px' }}></div>
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+          <span style={{ fontSize: '12px', color: '#8b90a8', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Scene</span>
+          <button className="btn" onClick={saveScene} style={{ background: 'rgba(52, 152, 219, 0.2)', border: '1px solid rgba(52, 152, 219, 0.3)', color: '#3498db', fontWeight: 600, padding: '10px 16px', borderRadius: '8px', cursor: 'pointer' }}>💾 Save</button>
+          <button className="btn" onClick={loadScene} style={{ background: 'rgba(46, 204, 113, 0.2)', border: '1px solid rgba(46, 204, 113, 0.3)', color: '#2ecc71', fontWeight: 600, padding: '10px 16px', borderRadius: '8px', cursor: 'pointer' }}>📂 Load</button>
+        </div>
+        <div style={{ width: '1px', background: 'rgba(255, 255, 255, 0.1)', margin: '0 8px' }}></div>
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+          <span style={{ fontSize: '12px', color: '#8b90a8', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Game</span>
+          <button className="btn" onClick={saveDraftFromProps} style={{ background: 'rgba(155, 89, 182, 0.2)', border: '1px solid rgba(155, 89, 182, 0.3)', color: '#9b59b6', fontWeight: 600, padding: '10px 16px', borderRadius: '8px', cursor: 'pointer' }}>💾 Draft</button>
+          {user.role === 'admin' ? (
+            <>
+              <button className="btn" onClick={publishDraftNow} style={{ background: 'linear-gradient(135deg, #11998e 0%, #38ef7d 100%)', border: 'none', color: 'white', fontWeight: 600, padding: '10px 16px', borderRadius: '8px', cursor: 'pointer', boxShadow: '0 4px 12px rgba(17, 153, 142, 0.3)' }}>🚀 Publish</button>
+              <button className="btn" onClick={publishToUserMadeGames} style={{ background: 'linear-gradient(135deg, #ee0979 0%, #ff6a00 100%)', border: 'none', color: 'white', fontWeight: 600, padding: '10px 16px', borderRadius: '8px', cursor: 'pointer', boxShadow: '0 4px 12px rgba(238, 9, 121, 0.3)' }}>🎮 Games</button>
+            </>
+          ) : (
+            <button className="btn" onClick={submitGameForReview} style={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', border: 'none', color: 'white', fontWeight: 600, padding: '10px 16px', borderRadius: '8px', cursor: 'pointer', boxShadow: '0 4px 12px rgba(102, 126, 234, 0.3)' }}>📤 Submit</button>
+          )}
+        </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '250px 1fr 350px', gap: '16px', height: 'calc(100vh - 250px)' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '280px 1fr 380px', gap: '20px', flex: 1, minHeight: 0 }}>
         {/* Explorer Panel */}
-        <div style={{ background: 'var(--panel-soft)', borderRadius: '8px', padding: '12px', overflowY: 'auto' }}>
-          <div style={{ fontWeight: 700, marginBottom: '12px', fontSize: '12px', textTransform: 'uppercase', color: 'var(--text-dim)' }}>Scene Objects</div>
+        <div style={{ background: 'rgba(26, 31, 46, 0.8)', backdropFilter: 'blur(10px)', borderRadius: '12px', padding: '16px', overflowY: 'auto', border: '1px solid rgba(255, 255, 255, 0.1)', boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)' }}>
+          <div style={{ fontWeight: 700, marginBottom: '16px', fontSize: '13px', textTransform: 'uppercase', color: '#8b90a8', letterSpacing: '1px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span style={{ fontSize: '16px' }}>📋</span> Scene Objects
+            <span style={{ marginLeft: 'auto', background: 'rgba(102, 126, 234, 0.2)', color: '#667eea', padding: '2px 8px', borderRadius: '12px', fontSize: '11px', fontWeight: 600 }}>{sceneObjects.length}</span>
+          </div>
           {sceneObjects.length === 0 ? (
-            <div className="smalltext" style={{ color: 'var(--text-dim)' }}>No objects in scene</div>
+            <div style={{ color: '#8b90a8', textAlign: 'center', padding: '40px 20px', fontSize: '14px', fontStyle: 'italic' }}>
+              No objects in scene
+              <div style={{ marginTop: '8px', fontSize: '24px' }}>🎨</div>
+            </div>
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
               {sceneObjects.map((obj) => (
                 <div
                   key={obj.id}
                   onClick={() => selectObjectById(obj.id)}
                   style={{
-                    padding: '8px',
-                    background: selectedObjectId === obj.id ? 'var(--panel)' : 'transparent',
-                    borderRadius: '4px',
+                    padding: '12px',
+                    background: selectedObjectId === obj.id ? 'linear-gradient(135deg, rgba(102, 126, 234, 0.3) 0%, rgba(118, 75, 162, 0.3) 100%)' : 'rgba(255, 255, 255, 0.03)',
+                    borderRadius: '8px',
                     cursor: 'pointer',
-                    border: selectedObjectId === obj.id ? '1px solid var(--border)' : '1px solid transparent',
-                    fontSize: '12px'
+                    border: selectedObjectId === obj.id ? '1px solid rgba(102, 126, 234, 0.5)' : '1px solid rgba(255, 255, 255, 0.05)',
+                    fontSize: '13px',
+                    transition: 'all 0.2s'
                   }}
                 >
-                  <div style={{ fontWeight: selectedObjectId === obj.id ? 600 : 400 }}>
-                    {obj.type === 'cube' ? '📦' : obj.type === 'sphere' ? '⚪' : '💡'} {obj.id}
+                  <div style={{ fontWeight: selectedObjectId === obj.id ? 600 : 500, color: selectedObjectId === obj.id ? '#fff' : '#e0e0e0', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span style={{ fontSize: '18px' }}>{obj.type === 'cube' ? '📦' : obj.type === 'sphere' ? '⚪' : '💡'}</span>
+                    <span style={{ flex: 1, fontSize: '12px', fontFamily: 'monospace' }}>{obj.id}</span>
                   </div>
-                  {obj.script && <div style={{ fontSize: '10px', color: '#2ecc71', marginTop: '2px' }}>📜 Scripted</div>}
+                  {obj.script && <div style={{ fontSize: '10px', color: '#2ecc71', marginTop: '6px', display: 'flex', alignItems: 'center', gap: '4px', fontWeight: 600 }}><span>📜</span> Scripted</div>}
                 </div>
               ))}
             </div>
@@ -690,96 +727,58 @@ export default function StudioTab({ user, editMode }: StudioTabProps) {
         </div>
 
         {/* Viewport */}
-        <div style={{ background: 'var(--panel-soft)', borderRadius: '8px', padding: '12px', position: 'relative' }}>
-          <div style={{ fontSize: '11px', color: '#8b90a8', marginBottom: '8px' }}>
-            Click & drag objects to move • Scroll to scale selected • Right-click + drag to orbit • Middle-click to pan
+        <div style={{ background: 'rgba(10, 14, 26, 0.6)', backdropFilter: 'blur(10px)', borderRadius: '12px', padding: '16px', position: 'relative', border: '1px solid rgba(255, 255, 255, 0.1)', boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4)', display: 'flex', flexDirection: 'column' }}>
+          <div style={{ fontSize: '12px', color: '#8b90a8', marginBottom: '12px', padding: '8px 12px', background: 'rgba(102, 126, 234, 0.1)', borderRadius: '6px', border: '1px solid rgba(102, 126, 234, 0.2)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span>💡</span>
+            <span>Click & drag to move • Scroll to scale • Right-click to orbit</span>
           </div>
-          <canvas
-            id="studioCanvas"
-            ref={canvasRef}
-            style={{ width: '100%', height: 'calc(100% - 30px)', display: 'block', borderRadius: '4px' }}
-          />
+          <div style={{ flex: 1, position: 'relative', borderRadius: '8px', overflow: 'hidden', border: '1px solid rgba(255, 255, 255, 0.05)' }}>
+            <canvas id="studioCanvas" ref={canvasRef} style={{ width: '100%', height: '100%', display: 'block' }} />
+          </div>
         </div>
 
         {/* Properties Panel */}
-        <div style={{ background: 'var(--panel-soft)', borderRadius: '8px', padding: '12px', overflowY: 'auto' }}>
-          <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
-            <button
-              className={`btn ${activeTab === 'properties' ? 'active' : ''}`}
-              onClick={() => setActiveTab('properties')}
-              style={{ flex: 1, fontSize: '12px', padding: '6px' }}
-            >
-              Properties
-            </button>
-            <button
-              className={`btn ${activeTab === 'script' ? 'active' : ''}`}
-              onClick={() => setActiveTab('script')}
-              style={{ flex: 1, fontSize: '12px', padding: '6px' }}
-            >
-              Script
-            </button>
-            <button
-              className={`btn ${activeTab === 'game' ? 'active' : ''}`}
-              onClick={() => setActiveTab('game')}
-              style={{ flex: 1, fontSize: '12px', padding: '6px' }}
-            >
-              Game
-            </button>
+        <div style={{ background: 'rgba(26, 31, 46, 0.8)', backdropFilter: 'blur(10px)', borderRadius: '12px', padding: '16px', overflowY: 'auto', border: '1px solid rgba(255, 255, 255, 0.1)', boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)', display: 'flex', flexDirection: 'column' }}>
+          <div style={{ display: 'flex', gap: '6px', marginBottom: '16px', background: 'rgba(0, 0, 0, 0.2)', padding: '4px', borderRadius: '8px' }}>
+            <button onClick={() => setActiveTab('properties')} style={{ flex: 1, fontSize: '12px', padding: '10px', borderRadius: '6px', border: 'none', cursor: 'pointer', fontWeight: 600, transition: 'all 0.2s', background: activeTab === 'properties' ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' : 'transparent', color: activeTab === 'properties' ? 'white' : '#8b90a8' }}>⚙️ Properties</button>
+            <button onClick={() => setActiveTab('script')} style={{ flex: 1, fontSize: '12px', padding: '10px', borderRadius: '6px', border: 'none', cursor: 'pointer', fontWeight: 600, transition: 'all 0.2s', background: activeTab === 'script' ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' : 'transparent', color: activeTab === 'script' ? 'white' : '#8b90a8' }}>📜 Script</button>
+            <button onClick={() => setActiveTab('game')} style={{ flex: 1, fontSize: '12px', padding: '10px', borderRadius: '6px', border: 'none', cursor: 'pointer', fontWeight: 600, transition: 'all 0.2s', background: activeTab === 'game' ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' : 'transparent', color: activeTab === 'game' ? 'white' : '#8b90a8' }}>🎮 Game</button>
           </div>
 
           {activeTab === 'properties' && (
             <div>
               {!selectedObject ? (
-                <div className="smalltext" style={{ color: 'var(--text-dim)' }}>Select an object to edit properties</div>
+                <div style={{ color: '#8b90a8', textAlign: 'center', padding: '40px 20px', fontSize: '14px', fontStyle: 'italic' }}>Select an object to edit properties</div>
               ) : (
                 <>
                   <div className="prop-field-label">Object ID</div>
                   <input className="prop-input" value={selectedObjectId || ''} disabled style={{ marginBottom: '12px' }} />
-                  
                   <div className="prop-field-label">Position</div>
                   <div className="prop-row-xyz" style={{ marginBottom: '12px' }}>
                     <input className="prop-input" placeholder="X" value={posX} onChange={(e) => setPosX(e.target.value)} />
                     <input className="prop-input" placeholder="Y" value={posY} onChange={(e) => setPosY(e.target.value)} />
                     <input className="prop-input" placeholder="Z" value={posZ} onChange={(e) => setPosZ(e.target.value)} />
                   </div>
-
                   <div className="prop-field-label">Rotation (degrees)</div>
                   <div className="prop-row-xyz" style={{ marginBottom: '12px' }}>
                     <input className="prop-input" placeholder="X" value={rotX} onChange={(e) => setRotX(e.target.value)} />
                     <input className="prop-input" placeholder="Y" value={rotY} onChange={(e) => setRotY(e.target.value)} />
                     <input className="prop-input" placeholder="Z" value={rotZ} onChange={(e) => setRotZ(e.target.value)} />
                   </div>
-
                   <div className="prop-field-label">Scale</div>
                   <div className="prop-row-xyz" style={{ marginBottom: '12px' }}>
                     <input className="prop-input" placeholder="X" value={scaleX} onChange={(e) => setScaleX(e.target.value)} />
                     <input className="prop-input" placeholder="Y" value={scaleY} onChange={(e) => setScaleY(e.target.value)} />
                     <input className="prop-input" placeholder="Z" value={scaleZ} onChange={(e) => setScaleZ(e.target.value)} />
                   </div>
-
                   {selectedObject.type !== 'light' && (
                     <>
                       <div className="prop-field-label">Color</div>
-                      <input
-                        type="color"
-                        value={color}
-                        onChange={(e) => setColor(e.target.value)}
-                        style={{ width: '100%', height: '40px', marginBottom: '12px', borderRadius: '4px', border: '1px solid var(--border)' }}
-                      />
+                      <input type="color" value={color} onChange={(e) => setColor(e.target.value)} style={{ width: '100%', height: '40px', marginBottom: '12px', borderRadius: '4px', border: '1px solid var(--border)' }} />
                     </>
                   )}
-
-                  <button className="btn" style={{ width: '100%', marginBottom: '12px' }} onClick={applyTransform}>
-                    Apply Transform
-                  </button>
-
-                  <button
-                    className="btn"
-                    style={{ width: '100%', background: '#3a1a1a', borderColor: '#5a2a2a', color: '#ff4d4d' }}
-                    onClick={deleteSelected}
-                  >
-                    Delete Object
-                  </button>
+                  <button className="btn" style={{ width: '100%', marginBottom: '12px' }} onClick={applyTransform}>Apply Transform</button>
+                  <button className="btn" style={{ width: '100%', background: '#3a1a1a', borderColor: '#5a2a2a', color: '#ff4d4d' }} onClick={deleteSelected}>Delete Object</button>
                 </>
               )}
             </div>
@@ -788,7 +787,7 @@ export default function StudioTab({ user, editMode }: StudioTabProps) {
           {activeTab === 'script' && (
             <div>
               {!selectedObject ? (
-                <div className="smalltext" style={{ color: 'var(--text-dim)' }}>Select an object to add scripting</div>
+                <div style={{ color: '#8b90a8', textAlign: 'center', padding: '40px 20px', fontSize: '14px', fontStyle: 'italic' }}>Select an object to add scripting</div>
               ) : (
                 <>
                   <div className="prop-field-label">JavaScript Script</div>
@@ -796,27 +795,8 @@ export default function StudioTab({ user, editMode }: StudioTabProps) {
                     Use <code>delta</code> (time in seconds) and <code>mesh</code> (Three.js object).<br/>
                     Example: <code>rotation.y += delta;</code>
                   </div>
-                  <textarea
-                    value={script}
-                    onChange={(e) => setScript(e.target.value)}
-                    placeholder="// Example: rotation.y += delta * 2;"
-                    style={{
-                      width: '100%',
-                      height: '300px',
-                      padding: '12px',
-                      background: '#1a1a1a',
-                      color: '#e0e0e0',
-                      border: '1px solid var(--border)',
-                      borderRadius: '4px',
-                      fontFamily: 'monospace',
-                      fontSize: '12px',
-                      marginBottom: '12px',
-                      resize: 'vertical'
-                    }}
-                  />
-                  <button className="btn" style={{ width: '100%' }} onClick={saveScript}>
-                    💾 Save & Compile Script
-                  </button>
+                  <textarea value={script} onChange={(e) => setScript(e.target.value)} placeholder="// Example: rotation.y += delta * 2;" style={{ width: '100%', height: '300px', padding: '12px', background: '#1a1a1a', color: '#e0e0e0', border: '1px solid var(--border)', borderRadius: '4px', fontFamily: 'monospace', fontSize: '12px', marginBottom: '12px', resize: 'vertical' }} />
+                  <button className="btn" style={{ width: '100%' }} onClick={saveScript}>💾 Save & Compile Script</button>
                 </>
               )}
             </div>
@@ -825,29 +805,11 @@ export default function StudioTab({ user, editMode }: StudioTabProps) {
           {activeTab === 'game' && (
             <div>
               <div className="prop-field-label">Game Title</div>
-              <input
-                className="prop-input"
-                value={draft.title}
-                onChange={(e) => setDraft({ ...draft, title: e.target.value })}
-                placeholder="Untitled Game"
-                style={{ marginBottom: '12px' }}
-              />
+              <input className="prop-input" value={draft.title} onChange={(e) => setDraft({ ...draft, title: e.target.value })} placeholder="Untitled Game" style={{ marginBottom: '12px' }} />
               <div className="prop-field-label">Description</div>
-              <textarea
-                className="prop-textarea"
-                value={draft.desc}
-                onChange={(e) => setDraft({ ...draft, desc: e.target.value })}
-                placeholder="Describe your game..."
-                style={{ marginBottom: '12px', minHeight: '80px' }}
-              />
+              <textarea className="prop-textarea" value={draft.desc} onChange={(e) => setDraft({ ...draft, desc: e.target.value })} placeholder="Describe your game..." style={{ marginBottom: '12px', minHeight: '80px' }} />
               <div className="prop-field-label">Creator</div>
-              <input
-                className="prop-input"
-                value={draft.owner}
-                onChange={(e) => setDraft({ ...draft, owner: e.target.value })}
-                placeholder="Creator name"
-                style={{ marginBottom: '12px' }}
-              />
+              <input className="prop-input" value={draft.owner} onChange={(e) => setDraft({ ...draft, owner: e.target.value })} placeholder="Creator name" style={{ marginBottom: '12px' }} />
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 <button className="btn" onClick={saveDraftFromProps}>💾 Save Draft</button>
                 {user.role === 'admin' ? (
@@ -863,6 +825,6 @@ export default function StudioTab({ user, editMode }: StudioTabProps) {
           )}
         </div>
       </div>
-    </>
+    </div>
   );
-}
+
