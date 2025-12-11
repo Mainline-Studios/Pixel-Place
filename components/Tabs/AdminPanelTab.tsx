@@ -90,7 +90,7 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
     }
   };
 
-  const handleBan = () => {
+  const handleBan = async () => {
     if (!banUsername.trim()) {
       alert('Please enter a username to ban.');
       return;
