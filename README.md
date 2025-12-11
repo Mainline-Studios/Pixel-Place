@@ -239,7 +239,10 @@ For issues, questions, or suggestions:
 - Check the `START_HERE.md` file for setup instructions
 - Review the `DEPENDENCY_CHECK.md` for dependency information
 - Open an issue on GitHub
-- Contact `bdawgsaweaome@icloud.com` for help.
+- Contact
+   ```
+     bdawgsaweaome@icloud.com
+ for further help.
 
 ---
 
