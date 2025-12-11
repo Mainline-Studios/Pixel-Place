@@ -549,6 +549,9 @@ export default function StudioTab({ user, editMode }: StudioTabProps) {
 
   const saveDraftFromProps = async () => {
     await saveDraft(draft);
+    // Reload draft to ensure state is in sync
+    const savedDraft = await getDraft();
+    setDraft(savedDraft);
     alert('Draft saved.');
   };
 
@@ -557,10 +560,13 @@ export default function StudioTab({ user, editMode }: StudioTabProps) {
       alert('Only admins can publish games.');
       return;
     }
-    if (!draft.title) {
+    // Reload draft from storage to ensure we have the latest
+    const currentDraft = await getDraft();
+    if (!currentDraft.title) {
       alert('No draft to publish. Save draft first in Studio.');
       return;
     }
+    setDraft(currentDraft);
     const sceneData = await getSceneData();
     if (!sceneData || !sceneData.objects || sceneData.objects.length === 0) {
       alert('No scene data to publish. Create a scene first.');
@@ -568,22 +574,25 @@ export default function StudioTab({ user, editMode }: StudioTabProps) {
     }
     const game: UserMadeGame = {
       id: 'game_' + Date.now(),
-      title: draft.title,
-      desc: draft.desc || '(no description)',
-      owner: draft.owner || user.username,
+      title: currentDraft.title,
+      desc: currentDraft.desc || '(no description)',
+      owner: currentDraft.owner || user.username,
       ts: Date.now(),
       sceneData: sceneData,
       publishedBy: user.username
     };
     await saveUserMadeGame(game);
-    alert("Published '" + draft.title + "' to Games tab!");
+    alert("Published '" + currentDraft.title + "' to Games tab!");
   };
 
   const submitGameForReview = async () => {
-    if (!draft.title) {
+    // Reload draft from storage to ensure we have the latest
+    const currentDraft = await getDraft();
+    if (!currentDraft.title) {
       alert('No draft to submit. Save draft first in Studio.');
       return;
     }
+    setDraft(currentDraft);
     const sceneData = await getSceneData();
     if (!sceneData || !sceneData.objects || sceneData.objects.length === 0) {
       alert('No scene data to submit. Create a scene first.');
@@ -591,15 +600,15 @@ export default function StudioTab({ user, editMode }: StudioTabProps) {
     }
     const submission: GameSubmission = {
       id: 'submission_' + Date.now(),
-      title: draft.title,
-      desc: draft.desc || '(no description)',
-      owner: draft.owner || user.username,
+      title: currentDraft.title,
+      desc: currentDraft.desc || '(no description)',
+      owner: currentDraft.owner || user.username,
       ts: Date.now(),
       sceneData: sceneData,
       status: 'pending'
     };
     await saveGameSubmission(submission);
-    alert("Submitted '" + draft.title + "' for admin review!");
+    alert("Submitted '" + currentDraft.title + "' for admin review!");
   };
 
   const publishDraftNow = async () => {
@@ -607,19 +616,22 @@ export default function StudioTab({ user, editMode }: StudioTabProps) {
       alert('Only admins can publish live.');
       return;
     }
-    if (!draft.title) {
+    // Reload draft from storage to ensure we have the latest
+    const currentDraft = await getDraft();
+    if (!currentDraft.title) {
       alert('No draft to publish. Save draft first in Studio.');
       return;
     }
+    setDraft(currentDraft);
     const pub = await getPublished();
     pub.push({
-      title: draft.title,
-      desc: draft.desc || '(no description)',
-      owner: draft.owner || user.username,
+      title: currentDraft.title,
+      desc: currentDraft.desc || '(no description)',
+      owner: currentDraft.owner || user.username,
       ts: Date.now(),
     });
     await savePublished(pub);
-    alert("Published '" + draft.title + "' to Discover instantly (no approval).");
+    alert("Published '" + currentDraft.title + "' to Discover instantly (no approval).");
   };
 
   const selectedObject = sceneObjects.find(o => o.id === selectedObjectId);
