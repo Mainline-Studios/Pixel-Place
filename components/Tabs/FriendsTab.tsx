@@ -1,6 +1,7 @@
 'use client';
 
-import { User } from '@/types';
+import { useState, useEffect } from 'react';
+import { User, TabContent } from '@/types';
 import { getTabContent } from '@/lib/storage';
 
 interface FriendsTabProps {
@@ -9,7 +10,15 @@ interface FriendsTabProps {
 }
 
 export default function FriendsTab({ user, editMode }: FriendsTabProps) {
-  const tabContent = getTabContent();
+  const [tabContent, setTabContent] = useState<TabContent>({} as TabContent);
+
+  useEffect(() => {
+    const loadData = async () => {
+      const tabData = await getTabContent();
+      setTabContent(tabData);
+    };
+    loadData();
+  }, []);
 
   return (
     <>

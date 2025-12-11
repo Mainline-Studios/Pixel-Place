@@ -1,6 +1,7 @@
 'use client';
 
-import { User } from '@/types';
+import { useState, useEffect } from 'react';
+import { User, Skin, TabContent } from '@/types';
 import { getSkins, getTabContent } from '@/lib/storage';
 import { escapeHTML } from '@/lib/utils';
 
@@ -13,10 +14,20 @@ interface SettingsTabProps {
 
 export default function SettingsTab({ user, editMode, onToggleEditMode, onResetPublished }: SettingsTabProps) {
   const coins = typeof user.coins === 'number' ? user.coins : 0;
-  const skins = getSkins();
+  const [skins, setSkins] = useState<Skin[]>([]);
+  const [tabContent, setTabContent] = useState<TabContent>({} as TabContent);
+
+  useEffect(() => {
+    const loadData = async () => {
+      const [skinsData, tabData] = await Promise.all([getSkins(), getTabContent()]);
+      setSkins(skinsData);
+      setTabContent(tabData);
+    };
+    loadData();
+  }, []);
+
   const equippedSkin = skins.find((s) => s.id === user.equippedSkin);
   const equippedSkinName = equippedSkin ? equippedSkin.name : 'None';
-  const tabContent = getTabContent();
 
   return (
     <>

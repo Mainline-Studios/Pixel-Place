@@ -136,7 +136,7 @@ export default function AvatarCollector3D({ user, onClose }: AvatarCollector3DPr
       scene.add(gridHelper);
 
       // Create avatar
-      const skins = getSkins();
+      const skins = await getSkins();
       const equippedSkin = skins.find(s => s.id === user.equippedSkin) || skins[0];
       avatar = createAvatar(THREE, equippedSkin);
       avatar.position.set(0, 1, 0);
