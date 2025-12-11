@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { User, Report, Ban } from '@/types';
-import { getUsers, getBannedUsers, getReports, banUser, unbanUser, updateReportStatus, saveBannedUsers } from '@/lib/storage';
+import { getUsers, getBannedUsers, getReports, banUser, unbanUser, updateReportStatus, saveBannedUsers, ADMIN_ACCOUNTS_LIST } from '@/lib/storage';
 
 interface AdminPanelTabProps {
   user: User;
@@ -25,7 +25,38 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
   }, []);
 
   const loadData = () => {
-    setAllUsers(getUsers());
+    const storedUsers = getUsers();
+    const allStoredUsernames = new Set(storedUsers.map(u => u.username.toLowerCase()));
+    
+    // Add admin accounts that haven't logged in yet
+    const adminAccountsNotInStorage = ADMIN_ACCOUNTS_LIST
+      .filter(admin => !allStoredUsernames.has(admin.username.toLowerCase()))
+      .map(admin => ({
+        username: admin.username,
+        password: admin.password,
+        gender: 'N/A',
+        role: 'admin' as const,
+        coins: 99999,
+        ownedSkins: ['starter_classic'],
+        equippedSkin: 'starter_classic',
+        isDonor: false,
+        ownedAccessories: [],
+        equippedAccessories: {}
+      }));
+    
+    // Combine all users
+    const combinedUsers = [...storedUsers, ...adminAccountsNotInStorage];
+    
+    // Remove duplicates (in case an admin account was created)
+    const uniqueUsers = combinedUsers.reduce((acc, user) => {
+      const existing = acc.find(u => u.username.toLowerCase() === user.username.toLowerCase());
+      if (!existing) {
+        acc.push(user);
+      }
+      return acc;
+    }, [] as User[]);
+    
+    setAllUsers(uniqueUsers);
     setBans(getBannedUsers());
     setReports(getReports());
   };
@@ -40,13 +71,33 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
       return;
     }
 
+    const usernameToBan = banUsername.trim().toLowerCase();
+    
+    // Check if user is an admin
+    const targetUser = allUsers.find(u => u.username.toLowerCase() === usernameToBan);
+    if (targetUser && targetUser.role === 'admin') {
+      alert('Cannot ban administrators. Admins are protected from bans.');
+      return;
+    }
+    
+    // Also check admin accounts list
+    const isAdminAccount = ADMIN_ACCOUNTS_LIST.some(a => a.username.toLowerCase() === usernameToBan);
+    if (isAdminAccount) {
+      alert('Cannot ban administrators. Admins are protected from bans.');
+      return;
+    }
+
     const days = banPermanent ? undefined : banDays;
-    banUser(banUsername.trim(), user.username, banReason.trim(), banPermanent, days);
-    setBanUsername('');
-    setBanReason('');
-    setBanPermanent(true);
-    loadData();
-    alert(`User "${banUsername}" has been ${banPermanent ? 'permanently' : `temporarily (${banDays} days)`} banned.`);
+    const success = banUser(banUsername.trim(), user.username, banReason.trim(), banPermanent, days);
+    if (success) {
+      setBanUsername('');
+      setBanReason('');
+      setBanPermanent(true);
+      loadData();
+      alert(`User "${banUsername}" has been ${banPermanent ? 'permanently' : `temporarily (${banDays} days)`} banned.`);
+    } else {
+      alert('Cannot ban administrators. Admins are protected from bans.');
+    }
   };
 
   const handleUnban = (username: string) => {
@@ -156,16 +207,20 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
                         Role: {u.role} • Coins: {u.coins} • Gender: {u.gender}
                       </div>
                     </div>
-                    <button
-                      className="btn"
-                      onClick={() => {
-                        setBanUsername(u.username);
-                        setActiveTab('bans');
-                      }}
-                      style={{ background: '#ff4d4d' }}
-                    >
-                      Ban User
-                    </button>
+                    {u.role !== 'admin' ? (
+                      <button
+                        className="btn"
+                        onClick={() => {
+                          setBanUsername(u.username);
+                          setActiveTab('bans');
+                        }}
+                        style={{ background: '#ff4d4d' }}
+                      >
+                        Ban User
+                      </button>
+                    ) : (
+                      <span style={{ color: '#999', fontSize: '12px' }}>Protected</span>
+                    )}
                   </div>
                 ))}
               </div>
@@ -377,12 +432,24 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
                             <button
                               className="btn"
                               onClick={() => {
+                                const reportedUser = allUsers.find(u => u.username.toLowerCase() === report.reportedUsername.toLowerCase());
+                                const isAdminAccount = ADMIN_ACCOUNTS_LIST.some(a => a.username.toLowerCase() === report.reportedUsername.toLowerCase());
+                                
+                                if (reportedUser?.role === 'admin' || isAdminAccount) {
+                                  alert('Cannot ban administrators. Admins are protected from bans.');
+                                  return;
+                                }
+                                
                                 if (confirm(`Ban user "${report.reportedUsername}" based on this report?`)) {
                                   const reason = prompt('Ban reason:', `Reported for: ${report.reason}`);
                                   if (reason) {
-                                    banUser(report.reportedUsername, user.username, reason, true);
-                                    handleReportAction(report.id, 'resolved', `User banned based on report`);
-                                    loadData();
+                                    const success = banUser(report.reportedUsername, user.username, reason, true);
+                                    if (success) {
+                                      handleReportAction(report.id, 'resolved', `User banned based on report`);
+                                      loadData();
+                                    } else {
+                                      alert('Cannot ban administrators. Admins are protected from bans.');
+                                    }
                                   }
                                 }
                               }}

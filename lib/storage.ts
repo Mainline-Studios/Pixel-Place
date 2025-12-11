@@ -388,8 +388,21 @@ export function isUserBanned(username: string): boolean {
   return false;
 }
 
-export function banUser(username: string, bannedBy: string, reason: string, permanent: boolean = true, days?: number): void {
-  if (typeof window === 'undefined') return;
+export function banUser(username: string, bannedBy: string, reason: string, permanent: boolean = true, days?: number): boolean {
+  if (typeof window === 'undefined') return false;
+  
+  // Check if trying to ban an admin
+  const users = getUsers();
+  const targetUser = users.find(u => u.username.toLowerCase() === username.toLowerCase());
+  if (targetUser && targetUser.role === 'admin') {
+    return false;
+  }
+  
+  const isAdminAccount = ADMIN_ACCOUNTS_LIST.some(a => a.username.toLowerCase() === username.toLowerCase());
+  if (isAdminAccount) {
+    return false;
+  }
+  
   const bans = getBannedUsers();
   // Remove existing ban if any
   const filteredBans = bans.filter(b => b.username.toLowerCase() !== username.toLowerCase());
@@ -403,6 +416,7 @@ export function banUser(username: string, bannedBy: string, reason: string, perm
   };
   filteredBans.push(newBan);
   saveBannedUsers(filteredBans);
+  return true;
 }
 
 export function unbanUser(username: string): void {
