@@ -163,20 +163,6 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
     r.reason.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  // Ensure component works in all browsers
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    
-    // Verify localStorage is accessible
-    try {
-      const testKey = '__pixel_place_test__';
-      localStorage.setItem(testKey, 'test');
-      localStorage.removeItem(testKey);
-    } catch (e) {
-      console.error('localStorage not accessible:', e);
-      alert('localStorage is not available. The admin panel may not work correctly in this browser.');
-    }
-  }, []);
 
   if (user.role !== 'admin') {
     return (
