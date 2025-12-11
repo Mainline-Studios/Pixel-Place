@@ -41,26 +41,13 @@
 body {
   margin: 0;
   font-family: "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-  background: radial-gradient(circle at 20% 20%, #2a2a2a 0%, #1a1a1a 60%);
+  background: #1a1a1a;
   color: var(--text-main);
   min-height: 100vh;
   position: relative;
 }
 
-body::before {
-  content: '';
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: 
-    radial-gradient(circle at 10% 20%, rgba(74, 144, 226, 0.1) 0%, transparent 50%),
-    radial-gradient(circle at 90% 80%, rgba(255, 77, 77, 0.1) 0%, transparent 50%),
-    radial-gradient(circle at 50% 50%, rgba(46, 204, 113, 0.05) 0%, transparent 50%);
-  pointer-events: none;
-  z-index: 0;
-}
+
 
 .hidden {
   display: none;
@@ -77,22 +64,17 @@ body::before {
   font-size: 18px;
   font-weight: 700;
   color: var(--text-main);
-  text-shadow: 0 0 16px rgba(255, 255, 255, .4);
-  background: linear-gradient(135deg, #ffffff 0%, #c9cde0 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
 }
 
 .price-tag {
   font-size: 12px;
   font-weight: 600;
   color: var(--accent-hover);
-  text-shadow: 0 0 10px rgba(255, 255, 255, .4);
+
 }
 
 .btn {
-  background: linear-gradient(135deg, var(--accent-bg) 0%, var(--accent-bg-hover) 100%);
+  background: var(--accent-bg);
   border: 1px solid var(--border);
   color: var(--text-main);
   font-size: 13px;
@@ -100,7 +82,6 @@ body::before {
   padding: 8px 12px;
   border-radius: 8px;
   cursor: pointer;
-  box-shadow: 0 10px 24px rgba(0, 0, 0, .8), 0 0 20px rgba(255, 255, 255, .07);
   transition: all 0.2s;
 }
 
@@ -108,7 +89,6 @@ body::before {
   background: var(--accent-bg-hover);
   border-color: var(--accent);
   color: var(--accent-hover);
-  box-shadow: 0 10px 24px rgba(0, 0, 0, .8), 0 0 30px rgba(255, 255, 255, .12);
 }
 
 .btn[disabled] {
@@ -128,7 +108,6 @@ textarea {
   border-radius: 8px;
   font-size: 14px;
   padding: 10px 12px;
-  box-shadow: inset 0 0 10px rgba(255, 255, 255, .04), 0 20px 40px rgba(0, 0, 0, .9);
 }
 
 textarea {
@@ -141,64 +120,25 @@ textarea {
   align-items: center;
   justify-content: center;
   padding: 24px;
-  background: linear-gradient(180deg, #0a0e1a 0%, #1a2340 50%, #0f1625 100%);
+  background: #0a0e1a;
   position: relative;
   overflow: hidden;
 }
 
 /* Blue Pixel Place Background - Grid and Digital Patterns */
-#login-screen::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-image: 
-    linear-gradient(rgba(0, 150, 255, 0.1) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(0, 150, 255, 0.1) 1px, transparent 1px);
-  background-size: 50px 50px;
-  background-position: 0 0, 0 0;
-  opacity: 0.4;
-  animation: gridMove 20s linear infinite;
-}
 
-#login-screen::after {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: 
-    radial-gradient(circle at 20% 30%, rgba(0, 150, 255, 0.15) 0%, transparent 50%),
-    radial-gradient(circle at 80% 70%, rgba(100, 200, 255, 0.1) 0%, transparent 50%);
-  pointer-events: none;
-}
 
-/* Digital Circuit Patterns */
-#login-screen {
-  background-image: 
-    url("data:image/svg+xml,%3Csvg width='100' height='100' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M10 10 L30 10 L30 30 L50 30 L50 50 L70 50' stroke='rgba(0,150,255,0.2)' stroke-width='1' fill='none'/%3E%3C/svg%3E");
-  background-size: 200px 200px;
-  background-position: 0 0;
-}
 
-@keyframes gridMove {
-  0% { background-position: 0 0, 0 0; }
-  100% { background-position: 50px 50px, 50px 50px; }
-}
+
+
+
+
 
 .login-box {
   width: 380px;
   background: rgba(26, 29, 41, 0.95);
-  backdrop-filter: blur(10px);
   border-radius: var(--panel-radius);
-  border: 1px solid rgba(0, 170, 255, 0.3);
-  box-shadow: 
-    0 28px 60px rgba(0, 0, 0, 0.9),
-    0 0 30px rgba(0, 170, 255, 0.2),
-    inset 0 0 20px rgba(0, 170, 255, 0.05);
+  border: 1px solid var(--border);
   padding: 32px;
   text-align: center;
   position: relative;
@@ -212,36 +152,16 @@ textarea {
   font-weight: 900;
   letter-spacing: 4px;
   color: #00aaff;
-  text-shadow: 
-    0 0 10px rgba(0, 170, 255, 0.8),
-    0 0 20px rgba(0, 170, 255, 0.6),
-    0 0 30px rgba(0, 170, 255, 0.4),
-    0 0 40px rgba(0, 170, 255, 0.2);
-  animation: glowPulse 2s ease-in-out infinite alternate;
 }
 
-@keyframes glowPulse {
-  from {
-    text-shadow: 
-      0 0 10px rgba(0, 170, 255, 0.8),
-      0 0 20px rgba(0, 170, 255, 0.6),
-      0 0 30px rgba(0, 170, 255, 0.4);
-  }
-  to {
-    text-shadow: 
-      0 0 15px rgba(0, 170, 255, 1),
-      0 0 25px rgba(0, 170, 255, 0.8),
-      0 0 35px rgba(0, 170, 255, 0.6),
-      0 0 45px rgba(0, 170, 255, 0.4);
-  }
-}
+
 
 .login-box input,
 .login-box select {
   width: 100%;
   margin-top: 10px;
   background: rgba(15, 20, 35, 0.8);
-  border: 1px solid rgba(0, 170, 255, 0.3);
+  border: 1px solid var(--border);
   border-radius: 8px;
   padding: 12px;
   color: var(--text-main);
@@ -252,8 +172,7 @@ textarea {
 .login-box input:focus,
 .login-box select:focus {
   outline: none;
-  border-color: rgba(0, 170, 255, 0.6);
-  box-shadow: 0 0 15px rgba(0, 170, 255, 0.3);
+  border-color: var(--accent);
   background: rgba(15, 20, 35, 0.95);
 }
 
@@ -265,19 +184,16 @@ textarea {
   width: 100%;
   margin-top: 14px;
   background: #00aaff;
-  border: 1px solid rgba(0, 170, 255, 0.5);
+  border: 1px solid #00aaff;
   color: white;
   font-weight: 700;
   padding: 14px;
   border-radius: 8px;
-  box-shadow: 0 0 20px rgba(0, 170, 255, 0.4);
   transition: all 0.3s;
 }
 
 .auth-btn:hover {
   background: #00bfff;
-  box-shadow: 0 0 30px rgba(0, 170, 255, 0.6);
-  transform: translateY(-2px);
 }
 
 #msg {
@@ -295,8 +211,7 @@ textarea {
 }
 
 .topbar {
-  background: rgba(20, 22, 32, .8);
-  backdrop-filter: blur(12px);
+  background: rgba(20, 22, 32, .95);
   border-bottom: 1px solid var(--border);
   box-shadow: 0 20px 40px rgba(0, 0, 0, .9);
   height: var(--nav-height);
@@ -318,7 +233,7 @@ textarea {
   font-size: 18px;
   font-weight: 700;
   color: var(--accent-hover);
-  text-shadow: 0 0 20px rgba(255, 255, 255, .28);
+
   white-space: nowrap;
 }
 
@@ -338,14 +253,14 @@ textarea {
   font-weight: 600;
   color: var(--text-dim);
   cursor: pointer;
-  text-shadow: 0 0 16px rgba(255, 255, 255, .08);
+
   transition: all 0.2s;
 }
 
 .header-nav button.active,
 .header-nav button:hover {
   color: var(--accent-hover);
-  text-shadow: 0 0 16px rgba(255, 255, 255, .4);
+
 }
 
 .userbox {
@@ -358,7 +273,7 @@ textarea {
   width: 48px;
   height: 48px;
   border-radius: 10px;
-  background: linear-gradient(#2d3246, #1a1d2c);
+  background: #2d3246;
   border: 2px solid var(--border);
   box-shadow: 0 12px 32px rgba(0, 0, 0, .9), 0 0 30px rgba(255, 255, 255, .12);
   color: var(--accent-hover);
@@ -368,7 +283,7 @@ textarea {
   display: flex;
   align-items: center;
   justify-content: center;
-  text-shadow: 0 0 16px rgba(255, 255, 255, .4);
+
 }
 
 .user-texts {
@@ -414,7 +329,7 @@ textarea {
   background: var(--panel);
   border-radius: var(--panel-radius);
   border: 1px solid var(--border);
-  box-shadow: var(--shadow-card), var(--glow-outline), var(--panel-inner-shadow);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
   padding: 20px;
   display: flex;
   flex-direction: column;
@@ -455,7 +370,7 @@ textarea {
   height: var(--head-size);
   border-radius: 6px;
   border: 1px solid var(--border);
-  background: linear-gradient(#4a4f66, #2a2f45);
+  background: #4a4f66;
   box-shadow:
     inset 0 0 20px rgba(0, 0, 0, .8),
     0 10px 24px rgba(0, 0, 0, .9),
@@ -481,7 +396,7 @@ textarea {
   border-radius: 6px;
   border: 1px solid var(--border);
   margin-top: 10px;
-  background: linear-gradient(#3a3f56, #1a1d29);
+  background: #3a3f56;
   box-shadow:
     inset 0 0 20px rgba(0, 0, 0, .8),
     0 10px 24px rgba(0, 0, 0, .9),
@@ -501,7 +416,7 @@ textarea {
   height: var(--torso-height);
   border-radius: 6px;
   border: 1px solid var(--border);
-  background: linear-gradient(#4d536f, #1a1d29);
+  background: #4d536f;
   box-shadow:
     inset 0 0 20px rgba(0, 0, 0, .8),
     0 10px 24px rgba(0, 0, 0, .9),
@@ -518,7 +433,7 @@ textarea {
   height: var(--legs-height);
   border-radius: 6px;
   border: 1px solid var(--border);
-  background: linear-gradient(#3a3f56, #1a1d29);
+  background: #3a3f56;
   box-shadow:
     inset 0 0 20px rgba(0, 0, 0, .8),
     0 10px 24px rgba(0, 0, 0, .9),
@@ -570,7 +485,7 @@ textarea {
 .sidebar-sep {
   width: 100%;
   height: 1px;
-  background: linear-gradient(to right, rgba(255, 255, 255, .05), rgba(255, 255, 255, 0));
+  background: rgba(255, 255, 255, .1);
   margin: 16px 0;
 }
 
@@ -585,33 +500,13 @@ textarea {
 .main-card {
   flex: 1;
   min-width: 0;
-  background: linear-gradient(135deg, var(--panel) 0%, var(--panel-soft) 100%);
+  background: var(--panel);
   border-radius: var(--panel-radius);
   border: 1px solid var(--border);
-  box-shadow: var(--shadow-card), var(--glow-outline), var(--panel-inner-shadow);
   padding: 24px;
   min-height: 600px;
   display: flex;
   flex-direction: column;
-  position: relative;
-  overflow: hidden;
-}
-
-.main-card::before {
-  content: '';
-  position: absolute;
-  top: -50%;
-  right: -50%;
-  width: 200%;
-  height: 200%;
-  background: radial-gradient(circle, rgba(74, 144, 226, 0.05) 0%, transparent 70%);
-  pointer-events: none;
-  z-index: 0;
-}
-
-.main-card > * {
-  position: relative;
-  z-index: 1;
 }
 
 .section-block {
@@ -651,7 +546,7 @@ textarea {
 }
 
 .ai-box {
-  background: linear-gradient(135deg, rgba(15, 17, 23, 0.9) 0%, rgba(26, 29, 41, 0.9) 100%);
+  background: var(--panel);
   border: 1px solid var(--border);
   border-radius: 12px;
   padding: 20px;
@@ -669,7 +564,7 @@ textarea {
   left: -100%;
   width: 100%;
   height: 100%;
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.03), transparent);
+  background: rgba(255, 255, 255, 0.05);
   transition: left 0.5s ease;
 }
 
@@ -687,7 +582,7 @@ textarea {
   font-weight: 600;
   color: var(--text-main);
   margin-bottom: 6px;
-  text-shadow: 0 0 10px rgba(255, 255, 255, .4);
+
 }
 
 .ai-output {
@@ -719,7 +614,7 @@ textarea {
   font-weight: 700;
   color: var(--text-main);
   margin-bottom: 4px;
-  text-shadow: 0 0 16px rgba(255, 255, 255, .4);
+
 }
 
 .game-desc {
@@ -758,7 +653,7 @@ textarea {
   font-weight: 600;
   color: var(--text-main);
   margin-right: auto;
-  text-shadow: 0 0 12px rgba(255, 255, 255, .4);
+  
 }
 
 .studio-layout {
@@ -784,7 +679,7 @@ textarea {
   font-size: 12px;
   font-weight: 700;
   color: var(--accent-hover);
-  text-shadow: 0 0 16px rgba(255, 255, 255, .4);
+
   margin-bottom: 8px;
 }
 
@@ -805,7 +700,7 @@ textarea {
 }
 
 .viewport-panel {
-  background: radial-gradient(circle at 50% 20%, #1c233a 0%, #0d1019 70%);
+  
   border: 1px solid var(--border-strong);
   border-radius: 10px;
   position: relative;
@@ -860,7 +755,7 @@ textarea {
   font-size: 12px;
   font-weight: 700;
   color: var(--accent-hover);
-  text-shadow: 0 0 16px rgba(255, 255, 255, .4);
+
   margin-bottom: 8px;
 }
 
@@ -919,7 +814,7 @@ textarea {
   font-size: 16px;
   font-weight: 700;
   color: var(--text-main);
-  text-shadow: 0 0 16px rgba(255, 255, 255, .4);
+
 }
 
 .coin-price {
@@ -927,7 +822,7 @@ textarea {
   font-weight: 600;
   color: var(--accent-hover);
   margin: 6px 0 12px;
-  text-shadow: 0 0 12px rgba(255, 255, 255, .4);
+  
 }
 
 .coin-buy-btn {
@@ -944,7 +839,7 @@ textarea {
   font-size: 14px;
   font-weight: 700;
   color: var(--text-main);
-  text-shadow: 0 0 16px rgba(255, 255, 255, .4);
+
   margin-bottom: 6px;
   display: flex;
   align-items: center;
@@ -991,7 +886,7 @@ textarea {
   font-size: 13px;
   font-weight: 700;
   color: var(--text-main);
-  text-shadow: 0 0 12px rgba(255, 255, 255, .4);
+  
 }
 
 .skin-meta {
@@ -1013,7 +908,7 @@ footer {
   font-size: .8rem;
   color: var(--text-dim);
   padding: 32px 20px;
-  text-shadow: 0 0 20px rgba(255, 255, 255, .2);
+  
   position: relative;
   margin-top: 40px;
 }
@@ -1026,7 +921,7 @@ footer::before {
   transform: translateX(-50%);
   width: 200px;
   height: 1px;
-  background: linear-gradient(90deg, transparent, var(--border), transparent);
+  background: var(--border);
 }
 
 footer a {
@@ -1035,7 +930,7 @@ footer a {
 
 footer a:hover {
   color: var(--text-main);
-  text-shadow: 0 0 20px rgba(255, 255, 255, .4);
+  
 }
 
 #modalOverlay {
@@ -1069,7 +964,7 @@ footer a:hover {
   font-size: 16px;
   font-weight: 700;
   color: var(--accent-hover);
-  text-shadow: 0 0 20px rgba(255, 255, 255, .4);
+  
 }
 
 #modalText {

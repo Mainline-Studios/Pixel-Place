@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useUser } from '@/contexts/UserContext';
 
 interface PrivateAccessProps {
   children: React.ReactNode;
@@ -17,10 +16,20 @@ export default function PrivateAccess({ children }: PrivateAccessProps) {
   const ACCESS_PASSWORD = process.env.NEXT_PUBLIC_ACCESS_PASSWORD || 'pixelplace2026';
 
   useEffect(() => {
-    // Check if user has already authenticated in this session
-    const sessionAuth = sessionStorage.getItem('pixelPlaceAccess');
-    if (sessionAuth === 'granted') {
-      setIsAuthenticated(true);
+    // Only access sessionStorage on client side
+    if (typeof window === 'undefined') {
+      setIsChecking(false);
+      return;
+    }
+    
+    try {
+      // Check if user has already authenticated in this session
+      const sessionAuth = sessionStorage.getItem('pixelPlaceAccess');
+      if (sessionAuth === 'granted') {
+        setIsAuthenticated(true);
+      }
+    } catch (e) {
+      console.error('Error accessing sessionStorage:', e);
     }
     setIsChecking(false);
   }, []);
@@ -30,8 +39,15 @@ export default function PrivateAccess({ children }: PrivateAccessProps) {
     setError('');
 
     if (password === ACCESS_PASSWORD) {
-      sessionStorage.setItem('pixelPlaceAccess', 'granted');
-      setIsAuthenticated(true);
+      try {
+        if (typeof window !== 'undefined') {
+          sessionStorage.setItem('pixelPlaceAccess', 'granted');
+        }
+        setIsAuthenticated(true);
+      } catch (e) {
+        console.error('Error setting sessionStorage:', e);
+        setIsAuthenticated(true); // Still allow access even if storage fails
+      }
     } else {
       setError('Incorrect access password. Please contact the owner for access.');
     }

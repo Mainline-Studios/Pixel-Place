@@ -1,9 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
-import Stripe from 'stripe';
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
+// Optional Stripe import
+let Stripe: any = null;
+try {
+  Stripe = require('stripe').default;
+} catch (e) {
+  // Stripe not installed
+}
+
+const stripe = Stripe ? new Stripe(process.env.STRIPE_SECRET_KEY || '', {
   apiVersion: '2023-10-16',
-});
+}) : null;
 
 // Coin pack prices in cents
 const COIN_PACKS: { [key: string]: { coins: number; amount: number } } = {
@@ -15,6 +22,12 @@ const COIN_PACKS: { [key: string]: { coins: number; amount: number } } = {
 };
 
 export async function POST(request: NextRequest) {
+  if (!stripe) {
+    return NextResponse.json(
+      { error: 'Stripe is not configured. Please install stripe package.' },
+      { status: 503 }
+    );
+  }
   try {
     const { priceId, userId, coins } = await request.json();
 

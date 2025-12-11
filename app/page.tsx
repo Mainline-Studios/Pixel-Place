@@ -1,5 +1,6 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import InstallPrompt from '@/components/InstallPrompt';
 import PrivateAccess from '@/components/PrivateAccess';
 import { UserProvider, useUser } from '@/contexts/UserContext';
@@ -7,31 +8,52 @@ import Login from '@/components/Login';
 import Dashboard from '@/components/Dashboard/Dashboard';
 import SplashScreen from '@/components/SplashScreen';
 import PasswordGate from '@/components/PasswordGate';
+import ErrorBoundary from '@/components/ErrorBoundary';
 
 function AppContent() {
+  const [mounted, setMounted] = useState(false);
   const { user } = useUser();
   const [showSplash, setShowSplash] = useState(true);
   const [passwordVerified, setPasswordVerified] = useState(false);
 
   useEffect(() => {
+    setMounted(true);
+    
+    // Only access sessionStorage on client side
+    if (typeof window === 'undefined') return;
+    
     // Check if password has been verified in this session
-    const verified = sessionStorage.getItem('passwordVerified');
-    if (verified === 'true') {
-      setPasswordVerified(true);
-    }
-    // Check if splash has been shown before in this session
-    const splashShown = sessionStorage.getItem('splashShown');
-    if (splashShown) {
-      setShowSplash(false);
+    try {
+      const verified = sessionStorage.getItem('passwordVerified');
+      if (verified === 'true') {
+        setPasswordVerified(true);
+      }
+      // Check if splash has been shown before in this session
+      const splashShown = sessionStorage.getItem('splashShown');
+      if (splashShown) {
+        setShowSplash(false);
+      }
+    } catch (e) {
+      console.error('Error accessing sessionStorage:', e);
     }
   }, []);
+
+  if (!mounted) {
+    return null; // Prevent hydration mismatch
+  }
 
   const handlePasswordSuccess = () => {
     setPasswordVerified(true);
   };
 
   const handleSplashComplete = () => {
-    sessionStorage.setItem('splashShown', 'true');
+    if (typeof window !== 'undefined') {
+      try {
+        sessionStorage.setItem('splashShown', 'true');
+      } catch (e) {
+        console.error('Error setting sessionStorage:', e);
+      }
+    }
     setShowSplash(false);
   };
 
@@ -53,10 +75,12 @@ function AppContent() {
 
 export default function Home() {
   return (
-    <PrivateAccess>
-      <UserProvider>
-        <AppContent />
-      </UserProvider>
-    </PrivateAccess>
+    <ErrorBoundary>
+      <PrivateAccess>
+        <UserProvider>
+          <AppContent />
+        </UserProvider>
+      </PrivateAccess>
+    </ErrorBoundary>
   );
 }

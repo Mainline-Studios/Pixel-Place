@@ -18,7 +18,11 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
 
   useEffect(() => {
-    initializeStorage();
+    try {
+      initializeStorage();
+    } catch (e) {
+      console.error('Error initializing storage:', e);
+    }
   }, []);
 
   const login = async (username: string, password: string): Promise<{ success: boolean; message: string }> => {
