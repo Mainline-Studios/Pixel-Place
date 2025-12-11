@@ -77,16 +77,21 @@ export default function TagGame({ onClose }: TagGameProps) {
     const newPlayers: Player[] = [];
     
     // Add human player
-    const humanPlayer = createPlayer('player1', 'You', false, actualCount === 1, gameMode);
+    const humanPlayer = createPlayer('player1', 'You', false, false, gameMode);
     newPlayers.push(humanPlayer);
 
     // Add CPU players
     if (startWithCPU || actualCount > 1) {
       for (let i = 2; i <= actualCount; i++) {
-        const cpuPlayer = createPlayer(`cpu${i}`, `CPU ${i - 1}`, true, actualCount === 1 && i === 2, gameMode);
+        const cpuPlayer = createPlayer(`cpu${i}`, `CPU ${i - 1}`, true, false, gameMode);
         newPlayers.push(cpuPlayer);
       }
     }
+
+    // Randomly assign someone as "it" - ensure someone is always it
+    const randomIndex = Math.floor(Math.random() * newPlayers.length);
+    newPlayers[randomIndex].isIt = true;
+    newPlayers[randomIndex].color = '#ff0000'; // Make it red
 
     setPlayers(newPlayers);
     setGameState('playing');
@@ -106,7 +111,13 @@ export default function TagGame({ onClose }: TagGameProps) {
   }, []);
 
   const initialize3DGame = useCallback(() => {
-    if (!canvas3DRef.current) return;
+    if (!canvas3DRef.current || !players.length) return;
+
+    // Clean up existing scene
+    if (threeSceneRef.current) {
+      threeSceneRef.current.renderer.dispose();
+      threeSceneRef.current.scene.clear();
+    }
 
     import('three').then((THREE) => {
       const canvas = canvas3DRef.current!;
@@ -176,34 +187,40 @@ export default function TagGame({ onClose }: TagGameProps) {
 
       threeSceneRef.current = { scene, camera, renderer, playerMeshes };
 
+      let animationId: number;
       const animate = () => {
-        if (gameState === 'playing' && gameMode === '3d') {
-          requestAnimationFrame(animate);
+        animationId = requestAnimationFrame(animate);
+        if (gameState === 'playing' && gameMode === '3d' && !isPaused) {
           renderer.render(scene, camera);
         }
       };
       animate();
 
       const handleResize = () => {
-        camera.aspect = window.innerWidth / window.innerHeight;
-        camera.updateProjectionMatrix();
-        renderer.setSize(window.innerWidth, window.innerHeight);
+        if (camera && renderer) {
+          camera.aspect = window.innerWidth / window.innerHeight;
+          camera.updateProjectionMatrix();
+          renderer.setSize(window.innerWidth, window.innerHeight);
+        }
       };
       window.addEventListener('resize', handleResize);
 
       return () => {
         window.removeEventListener('resize', handleResize);
+        if (animationId) cancelAnimationFrame(animationId);
       };
     });
-  }, [players, gameState, gameMode]);
+  }, [players, gameState, gameMode, isPaused]);
 
   useEffect(() => {
-    if (gameMode === '3d' && gameState === 'playing' && players.length > 0) {
-      setTimeout(() => {
+    if (gameMode === '3d' && gameState === 'playing' && players.length > 0 && isFullscreen) {
+      // Wait a bit for fullscreen to be ready
+      const timer = setTimeout(() => {
         initialize3DGame();
-      }, 100);
+      }, 200);
+      return () => clearTimeout(timer);
     }
-  }, [gameMode, gameState, players.length, initialize3DGame]);
+  }, [gameMode, gameState, players, isFullscreen, initialize3DGame]);
 
   useEffect(() => {
     window.addEventListener('keydown', handleKeyDown);
@@ -383,7 +400,7 @@ export default function TagGame({ onClose }: TagGameProps) {
   }, []);
 
   useEffect(() => {
-    if (gameState !== 'playing') return;
+    if (gameState !== 'playing' || isPaused) return;
 
     const gameLoop = () => {
       setPlayers(prevPlayers => {
@@ -459,13 +476,14 @@ export default function TagGame({ onClose }: TagGameProps) {
             if (meshData) {
               meshData.group.position.set(player.x, player.y, player.z || 0);
               const colorHex = player.isIt ? 0xff0000 : parseInt(player.color.replace('#', ''), 16);
-              meshData.body.material.color.setHex(colorHex);
-              meshData.head.material.color.setHex(colorHex);
+              if (meshData.body && meshData.body.material) {
+                meshData.body.material.color.setHex(colorHex);
+              }
+              if (meshData.head && meshData.head.material) {
+                meshData.head.material.color.setHex(colorHex);
+              }
             }
           });
-          if (threeSceneRef.current?.renderer && threeSceneRef.current?.scene && threeSceneRef.current?.camera) {
-            threeSceneRef.current.renderer.render(threeSceneRef.current.scene, threeSceneRef.current.camera);
-          }
         }
 
         return updatedPlayers;
