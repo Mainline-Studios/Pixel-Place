@@ -15,18 +15,24 @@ export default function BanScreen({ ban, username, onAppealSubmitted }: BanScree
   const [appealSubmitted, setAppealSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
-  const handleAppeal = () => {
+  const handleAppeal = async () => {
     if (!appealMessage.trim()) {
       alert('Please enter a reason for your appeal.');
       return;
     }
 
     setSubmitting(true);
-    createBanAppeal(username, ban, appealMessage.trim());
-    setSubmitting(false);
-    setAppealSubmitted(true);
-    onAppealSubmitted();
-    alert('Your appeal has been submitted. An administrator will review it.');
+    try {
+      await createBanAppeal(username, ban, appealMessage.trim());
+      setAppealSubmitted(true);
+      onAppealSubmitted();
+      alert('Your appeal has been submitted. An administrator will review it.');
+    } catch (error) {
+      console.error('Error submitting appeal:', error);
+      alert('Error submitting appeal. Please try again.');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
