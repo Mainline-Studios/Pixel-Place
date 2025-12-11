@@ -27,12 +27,13 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     }
 
     // Check if user is banned
-    if (isUserBanned(username)) {
-      const ban = getBanForUser(username);
+    const isBanned = await isUserBanned(username);
+    if (isBanned) {
+      const ban = await getBanForUser(username);
       return { success: false, message: 'This account has been banned. Please contact an administrator.', ban: ban || undefined };
     }
 
-    let users = getUsers();
+    let users = await getUsers();
     let found = users.find(x => x.username === username);
 
     // Auto-create admin if not found but matches admin list
@@ -52,7 +53,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
           equippedAccessories: {}
         };
         users.push(found);
-        saveUsers(users);
+        await saveUsers(users);
       }
     }
 
@@ -74,11 +75,12 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     }
 
     // Check if username is banned
-    if (isUserBanned(username)) {
+    const isBanned = await isUserBanned(username);
+    if (isBanned) {
       return { success: false, message: 'This username is banned and cannot be used.' };
     }
 
-    const users = getUsers();
+    const users = await getUsers();
     if (users.find(x => x.username === username)) {
       return { success: false, message: 'Username already exists.' };
     }
@@ -101,23 +103,23 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     };
 
     users.push(newUser);
-    saveUsers(users);
+    await saveUsers(users);
     setUser(newUser);
 
     return { success: true, message: 'Account created! You can sign in now.' };
   };
 
-  const updateUser = (updates: Partial<User>) => {
+  const updateUser = async (updates: Partial<User>) => {
     if (!user) return;
 
     const updatedUser = { ...user, ...updates };
     setUser(updatedUser);
 
-    const users = getUsers();
+    const users = await getUsers();
     const index = users.findIndex(u => u.username === user.username);
     if (index !== -1) {
       users[index] = { ...users[index], ...updates };
-      saveUsers(users);
+      await saveUsers(users);
     }
   };
 

@@ -26,19 +26,22 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
     if (typeof window === 'undefined') return;
     
     // Try to load data, with error handling
-    try {
-      loadData();
-    } catch (error) {
+    loadData().catch((error) => {
       console.error('Error loading admin panel data:', error);
       alert('Error loading admin panel data. Please refresh the page.');
-    }
+    });
   }, []);
 
-  const loadData = () => {
+  const loadData = async () => {
     try {
-      setAppeals(getBanAppeals());
-      // Get ALL users from localStorage first (this includes all regular users and any admins that have logged in)
-      const storedUsers = getUsers();
+      const [appealsData, storedUsers, bansData, reportsData] = await Promise.all([
+        getBanAppeals(),
+        getUsers(),
+        getBannedUsers(),
+        getReports()
+      ]);
+      
+      setAppeals(appealsData);
     
     // Create a map of existing usernames for quick lookup
     const existingUsernames = new Set(storedUsers.map(u => u.username.toLowerCase()));
@@ -79,8 +82,8 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
     });
     
       setAllUsers(uniqueUsers);
-      setBans(getBannedUsers());
-      setReports(getReports());
+      setBans(bansData);
+      setReports(reportsData);
     } catch (error) {
       console.error('Error in loadData:', error);
       alert('Error loading data. Please check the browser console.');
@@ -115,18 +118,18 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
 
     const usernameToBanFinal = banUsername.trim();
     const days = banPermanent ? undefined : banDays;
-    const success = banUser(usernameToBanFinal, user.username, banReason.trim(), banPermanent, days);
+    const success = await banUser(usernameToBanFinal, user.username, banReason.trim(), banPermanent, days);
     
     if (success) {
       // Verify the ban was actually saved
-      const updatedBans = getBannedUsers();
+      const updatedBans = await getBannedUsers();
       const banExists = updatedBans.some(b => b.username.toLowerCase() === usernameToBanFinal.toLowerCase());
       
       if (banExists) {
         setBanUsername('');
         setBanReason('');
         setBanPermanent(true);
-        loadData();
+        await loadData();
         alert(`User "${usernameToBanFinal}" has been ${banPermanent ? 'permanently' : `temporarily (${banDays} days)`} banned.`);
       } else {
         alert('Error: Ban was not saved properly. Please try again.');
@@ -136,17 +139,17 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
     }
   };
 
-  const handleUnban = (username: string) => {
+  const handleUnban = async (username: string) => {
     if (confirm(`Unban user "${username}"?`)) {
-      unbanUser(username);
-      loadData();
+      await unbanUser(username);
+      await loadData();
       alert(`User "${username}" has been unbanned.`);
     }
   };
 
-  const handleReportAction = (reportId: string, action: 'resolved' | 'dismissed', notes?: string) => {
-    updateReportStatus(reportId, action, user.username, notes);
-    loadData();
+  const handleReportAction = async (reportId: string, action: 'resolved' | 'dismissed', notes?: string) => {
+    await updateReportStatus(reportId, action, user.username, notes);
+    await loadData();
     alert(`Report marked as ${action}.`);
   };
 
@@ -192,11 +195,10 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
     <>
       <h2 className="section-title">🛡️ Admin Panel</h2>
       
-      <div className="ai-box" style={{ marginBottom: '20px', background: 'rgba(255, 215, 106, 0.1)', border: '1px solid #ffd76a' }}>
-        <div className="ai-label">⚠️ Browser Note</div>
+      <div className="ai-box" style={{ marginBottom: '20px', background: 'rgba(46, 204, 113, 0.1)', border: '1px solid #2ecc71' }}>
+        <div className="ai-label">✅ Shared Storage</div>
         <div className="ai-output" style={{ fontSize: '13px' }}>
-          <strong>Important:</strong> Each browser (Chrome, Safari, Cursor) has separate localStorage. 
-          Data created in one browser won't appear in another. To see all data, use the same browser where it was created.
+          <strong>Data is now shared across all browsers!</strong> All accounts, bans, reports, and appeals are stored in the <code>/data</code> folder and work in Chrome, Safari, and Cursor.
         </div>
       </div>
 
@@ -528,10 +530,10 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
                                 if (confirm(`Ban user "${report.reportedUsername}" based on this report?`)) {
                                   const reason = prompt('Ban reason:', `Reported for: ${report.reason}`);
                                   if (reason) {
-                                    const success = banUser(report.reportedUsername, user.username, reason, true);
+                                    const success = await banUser(report.reportedUsername, user.username, reason, true);
                                     if (success) {
-                                      handleReportAction(report.id, 'resolved', `User banned based on report`);
-                                      loadData();
+                                      await handleReportAction(report.id, 'resolved', `User banned based on report`);
+                                      await loadData();
                                     } else {
                                       alert('Cannot ban administrators. Admins are protected from bans.');
                                     }
@@ -632,10 +634,10 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
                           <div style={{ display: 'flex', gap: '8px', flexDirection: 'column' }}>
                             <button
                               className="btn"
-                              onClick={() => {
+                              onClick={async () => {
                                 if (confirm(`Approve appeal from "${appeal.username}" and unban them?`)) {
-                                  updateBanAppealStatus(appeal.id, 'approved', user.username, 'Appeal approved', true);
-                                  loadData();
+                                  await updateBanAppealStatus(appeal.id, 'approved', user.username, 'Appeal approved', true);
+                                  await loadData();
                                   alert(`Appeal approved. User "${appeal.username}" has been unbanned.`);
                                 }
                               }}
@@ -645,10 +647,10 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
                             </button>
                             <button
                               className="btn"
-                              onClick={() => {
+                              onClick={async () => {
                                 const notes = prompt('Add notes (optional):');
-                                updateBanAppealStatus(appeal.id, 'denied', user.username, notes || undefined, false);
-                                loadData();
+                                await updateBanAppealStatus(appeal.id, 'denied', user.username, notes || undefined, false);
+                                await loadData();
                                 alert('Appeal denied.');
                               }}
                               style={{ background: '#ff4d4d', fontSize: '12px', padding: '6px 12px' }}

@@ -291,25 +291,63 @@ export function initializeStorage() {
   }
 }
 
-// User functions
-export function getUsers(): User[] {
+// User functions - Now using API
+export async function getUsers(): Promise<User[]> {
   if (typeof window === 'undefined') return [];
+  try {
+    const response = await fetch('/api/users');
+    if (!response.ok) throw new Error('Failed to fetch users');
+    return await response.json();
+  } catch (e) {
+    console.error('Error reading users from API:', e);
+    // Fallback to localStorage for migration
+    try {
+      const data = localStorage.getItem("pixelPlaceUsers");
+      if (data) {
+        const users = JSON.parse(data);
+        // Migrate to API
+        if (users.length > 0) {
+          users.forEach((user: User) => {
+            fetch('/api/users', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(user)
+            }).catch(() => {});
+          });
+        }
+        return users;
+      }
+    } catch {}
+    return [];
+  }
+}
+
+export async function saveUsers(users: User[]): Promise<void> {
+  if (typeof window === 'undefined') return;
+  try {
+    // Save each user (API handles updates if user exists)
+    for (const user of users) {
+      await fetch('/api/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(user)
+      }).catch(() => {});
+    }
+  } catch (e) {
+    console.error('Error saving users to API:', e);
+  }
+}
+
+// Sync function for compatibility
+export function getUsersSync(): User[] {
+  if (typeof window === 'undefined') return [];
+  // This is a fallback - should use async getUsers() instead
   try {
     const data = localStorage.getItem("pixelPlaceUsers");
     if (!data) return [];
     return JSON.parse(data);
   } catch (e) {
-    console.error('Error reading users from localStorage:', e);
     return [];
-  }
-}
-
-export function saveUsers(users: User[]): void {
-  if (typeof window === 'undefined') return;
-  try {
-    localStorage.setItem("pixelPlaceUsers", JSON.stringify(users));
-  } catch (e) {
-    console.error('Error saving users to localStorage:', e);
   }
 }
 
@@ -390,57 +428,90 @@ export function saveAccessories(accessories: Accessory[]): void {
   localStorage.setItem("accessoriesCatalog", JSON.stringify(accessories));
 }
 
-// Ban functions
-export function getBannedUsers(): Ban[] {
+// Ban functions - Now using API
+export async function getBannedUsers(): Promise<Ban[]> {
   if (typeof window === 'undefined') return [];
-  return JSON.parse(localStorage.getItem("bannedUsers") || "[]");
+  try {
+    const response = await fetch('/api/bans');
+    if (!response.ok) throw new Error('Failed to fetch bans');
+    const bans = await response.json();
+    // Filter out expired bans
+    const now = Date.now();
+    const activeBans = bans.filter((ban: Ban) => {
+      if (ban.permanent) return true;
+      if (ban.expiresAt && ban.expiresAt > now) return true;
+      return false;
+    });
+    // Remove expired bans
+    if (activeBans.length !== bans.length) {
+      await saveBannedUsers(activeBans);
+    }
+    return activeBans;
+  } catch (e) {
+    console.error('Error reading bans from API:', e);
+    // Fallback to localStorage
+    try {
+      const data = localStorage.getItem("bannedUsers");
+      if (data) return JSON.parse(data);
+    } catch {}
+    return [];
+  }
 }
 
-export function saveBannedUsers(bans: Ban[]): void {
+export async function saveBannedUsers(bans: Ban[]): Promise<void> {
   if (typeof window === 'undefined') return;
-  localStorage.setItem("bannedUsers", JSON.stringify(bans));
+  try {
+    // Save each ban
+    for (const ban of bans) {
+      await fetch('/api/bans', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(ban)
+      }).catch(() => {});
+    }
+  } catch (e) {
+    console.error('Error saving bans to API:', e);
+  }
 }
 
-export function isUserBanned(username: string): boolean {
+export async function isUserBanned(username: string): Promise<boolean> {
   if (typeof window === 'undefined') return false;
   if (!username || !username.trim()) return false;
   
   const usernameLower = username.trim().toLowerCase();
-  const bans = getBannedUsers();
+  const bans = await getBannedUsers();
   const ban = bans.find(b => b.username.toLowerCase() === usernameLower);
-  if (!ban) return false;
-  
-  if (ban.permanent) return true;
-  if (ban.expiresAt && ban.expiresAt > Date.now()) return true;
-  
-  // Ban expired, remove it
-  const updatedBans = bans.filter(b => b.username.toLowerCase() !== usernameLower);
-  saveBannedUsers(updatedBans);
-  return false;
+  return !!ban;
 }
 
-export function getBanForUser(username: string): Ban | null {
+export async function getBanForUser(username: string): Promise<Ban | null> {
   if (typeof window === 'undefined') return null;
   if (!username || !username.trim()) return null;
   
   const usernameLower = username.trim().toLowerCase();
-  const bans = getBannedUsers();
-  const ban = bans.find(b => b.username.toLowerCase() === usernameLower);
-  if (!ban) return null;
-  
-  if (ban.permanent) return ban;
-  if (ban.expiresAt && ban.expiresAt > Date.now()) return ban;
-  
-  return null;
+  const bans = await getBannedUsers();
+  return bans.find(b => b.username.toLowerCase() === usernameLower) || null;
 }
 
-export function banUser(username: string, bannedBy: string, reason: string, permanent: boolean = true, days?: number): boolean {
+// Sync versions for compatibility
+export function getBannedUsersSync(): Ban[] {
+  if (typeof window === 'undefined') return [];
+  try {
+    const data = localStorage.getItem("bannedUsers");
+    if (!data) return [];
+    return JSON.parse(data);
+  } catch (e) {
+    return [];
+  }
+}
+
+export async function banUser(username: string, bannedBy: string, reason: string, permanent: boolean = true, days?: number): Promise<boolean> {
   if (typeof window === 'undefined') return false;
   
   const usernameLower = username.trim().toLowerCase();
   
   // Check if trying to ban an admin
-  const users = getUsers();
+  const users = await getUsers();
   const targetUser = users.find(u => u.username.toLowerCase() === usernameLower);
   if (targetUser && targetUser.role === 'admin') {
     return false;
@@ -451,51 +522,63 @@ export function banUser(username: string, bannedBy: string, reason: string, perm
     return false;
   }
   
-  const bans = getBannedUsers();
-  // Remove existing ban if any (case-insensitive)
-  const filteredBans = bans.filter(b => b.username.toLowerCase() !== usernameLower);
-  
-  // Store the original username (not lowercased) for display, but we check case-insensitively
   const newBan: Ban = {
-    username: username.trim(), // Store original case
+    username: username.trim(),
     bannedBy,
     reason,
     timestamp: Date.now(),
     permanent,
     expiresAt: permanent ? undefined : (days ? Date.now() + (days * 24 * 60 * 60 * 1000) : undefined)
   };
-  filteredBans.push(newBan);
-  saveBannedUsers(filteredBans);
   
-  // Force localStorage sync
-  if (typeof window !== 'undefined') {
-    window.dispatchEvent(new Event('storage'));
+  try {
+    const response = await fetch('/api/bans', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(newBan)
+    });
+    return response.ok;
+  } catch (e) {
+    console.error('Error banning user:', e);
+    return false;
   }
-  
-  return true;
 }
 
-export function unbanUser(username: string): void {
+export async function unbanUser(username: string): Promise<void> {
   if (typeof window === 'undefined') return;
-  const bans = getBannedUsers();
-  const filteredBans = bans.filter(b => b.username.toLowerCase() !== username.toLowerCase());
-  saveBannedUsers(filteredBans);
+  try {
+    await fetch(`/api/bans?username=${encodeURIComponent(username)}`, {
+      method: 'DELETE'
+    });
+  } catch (e) {
+    console.error('Error unbanning user:', e);
+  }
 }
 
-// Report functions
-export function getReports(): Report[] {
+// Report functions - Now using API
+export async function getReports(): Promise<Report[]> {
   if (typeof window === 'undefined') return [];
-  return JSON.parse(localStorage.getItem("reports") || "[]");
+  try {
+    const response = await fetch('/api/reports');
+    if (!response.ok) throw new Error('Failed to fetch reports');
+    return await response.json();
+  } catch (e) {
+    console.error('Error reading reports from API:', e);
+    try {
+      const data = localStorage.getItem("reports");
+      if (data) return JSON.parse(data);
+    } catch {}
+    return [];
+  }
 }
 
-export function saveReports(reports: Report[]): void {
+export async function saveReports(reports: Report[]): Promise<void> {
   if (typeof window === 'undefined') return;
-  localStorage.setItem("reports", JSON.stringify(reports));
+  // Reports are managed individually via API
 }
 
-export function createReport(reportedUsername: string, reporterUsername: string, reason: string, description: string): string {
+export async function createReport(reportedUsername: string, reporterUsername: string, reason: string, description: string): Promise<string> {
   if (typeof window === 'undefined') return '';
-  const reports = getReports();
   const newReport: Report = {
     id: `report_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
     reportedUsername,
@@ -505,40 +588,64 @@ export function createReport(reportedUsername: string, reporterUsername: string,
     timestamp: Date.now(),
     status: 'pending'
   };
-  reports.push(newReport);
-  saveReports(reports);
+  
+  try {
+    const response = await fetch('/api/reports', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(newReport)
+    });
+    if (response.ok) {
+      const saved = await response.json();
+      return saved.id;
+    }
+  } catch (e) {
+    console.error('Error creating report:', e);
+  }
   return newReport.id;
 }
 
-export function updateReportStatus(reportId: string, status: Report['status'], adminUsername: string, notes?: string): void {
+export async function updateReportStatus(reportId: string, status: Report['status'], adminUsername: string, notes?: string): Promise<void> {
   if (typeof window === 'undefined') return;
-  const reports = getReports();
-  const report = reports.find(r => r.id === reportId);
-  if (report) {
-    report.status = status;
-    report.reviewedBy = adminUsername;
-    if (notes) report.adminNotes = notes;
+  try {
+    await fetch('/api/reports', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: reportId, status, reviewedBy: adminUsername, adminNotes: notes })
+    });
+  } catch (e) {
+    console.error('Error updating report:', e);
   }
-  saveReports(reports);
 }
 
-// Ban Appeal functions
-export function getBanAppeals(): BanAppeal[] {
+// Ban Appeal functions - Now using API
+export async function getBanAppeals(): Promise<BanAppeal[]> {
   if (typeof window === 'undefined') return [];
-  return JSON.parse(localStorage.getItem("banAppeals") || "[]");
+  try {
+    const response = await fetch('/api/appeals');
+    if (!response.ok) throw new Error('Failed to fetch appeals');
+    return await response.json();
+  } catch (e) {
+    console.error('Error reading appeals from API:', e);
+    try {
+      const data = localStorage.getItem("banAppeals");
+      if (data) return JSON.parse(data);
+    } catch {}
+    return [];
+  }
 }
 
-export function saveBanAppeals(appeals: BanAppeal[]): void {
+export async function saveBanAppeals(appeals: BanAppeal[]): Promise<void> {
   if (typeof window === 'undefined') return;
-  localStorage.setItem("banAppeals", JSON.stringify(appeals));
+  // Appeals are managed individually via API
 }
 
-export function createBanAppeal(username: string, ban: Ban, appealMessage: string): string {
+export async function createBanAppeal(username: string, ban: Ban, appealMessage: string): Promise<string> {
   if (typeof window === 'undefined') return '';
-  const appeals = getBanAppeals();
   
-  // Check if user already has a pending appeal for this ban
-  const existingAppeal = appeals.find(
+  // Check if user already has a pending appeal
+  const existingAppeals = await getBanAppeals();
+  const existingAppeal = existingAppeals.find(
     a => a.username.toLowerCase() === username.toLowerCase() && 
          a.status === 'pending' &&
          a.ban.username.toLowerCase() === ban.username.toLowerCase()
@@ -556,26 +663,34 @@ export function createBanAppeal(username: string, ban: Ban, appealMessage: strin
     timestamp: Date.now(),
     status: 'pending'
   };
-  appeals.push(newAppeal);
-  saveBanAppeals(appeals);
+  
+  try {
+    const response = await fetch('/api/appeals', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(newAppeal)
+    });
+    if (response.ok) {
+      const saved = await response.json();
+      return saved.id;
+    }
+  } catch (e) {
+    console.error('Error creating appeal:', e);
+  }
   return newAppeal.id;
 }
 
-export function updateBanAppealStatus(appealId: string, status: BanAppeal['status'], adminUsername: string, notes?: string, shouldUnban?: boolean): void {
+export async function updateBanAppealStatus(appealId: string, status: BanAppeal['status'], adminUsername: string, notes?: string, shouldUnban?: boolean): Promise<void> {
   if (typeof window === 'undefined') return;
-  const appeals = getBanAppeals();
-  const appeal = appeals.find(a => a.id === appealId);
-  if (appeal) {
-    appeal.status = status;
-    appeal.reviewedBy = adminUsername;
-    if (notes) appeal.adminNotes = notes;
-    
-    // If approved, unban the user
-    if (status === 'approved' && shouldUnban) {
-      unbanUser(appeal.username);
-    }
+  try {
+    await fetch('/api/appeals', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: appealId, status, reviewedBy: adminUsername, adminNotes: notes, shouldUnban })
+    });
+  } catch (e) {
+    console.error('Error updating appeal:', e);
   }
-  saveBanAppeals(appeals);
 }
 
 
