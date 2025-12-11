@@ -5,7 +5,7 @@ import { User, Skin } from '@/types';
 import { getSkins, saveSkins } from '@/lib/storage';
 import { escapeHTML } from '@/lib/utils';
 import { useUser } from '@/contexts/UserContext';
-import Avatar3D from '../Avatar3D';
+import Avatar3DViewer from '@/components/Avatar3DViewer';
 
 interface AvatarShopTabProps {
   user: User;
@@ -67,27 +67,27 @@ function RarityBadge({ rarity }: { rarity: string }) {
 }
 
 function SkinThumb({ skin }: { skin: Skin }) {
-  const torsoColor = skin.colors?.torso || '#4d536f';
   return (
     <div
       className="skin-thumb"
       style={{
-        width: '80px',
-        height: '80px',
-        margin: '0 auto',
-        borderRadius: '8px',
-        border: '1px solid var(--border)',
-        overflow: 'hidden',
-        position: 'relative',
-        background: '#0f1117',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
+        background: 'transparent',
+        border: 'none',
+        boxShadow: 'none',
+        overflow: 'hidden',
+        borderRadius: '8px'
       }}
     >
-      <div style={{ width: '100%', height: '100%', position: 'relative' }}>
-        <Avatar3D skin={skin} size={0.35} autoRotate={true} />
-      </div>
+      <Avatar3DViewer
+        skin={skin}
+        width={80}
+        height={80}
+        interactive={true}
+        animation={skin.defaultAnimation || 'idle'}
+      />
     </div>
   );
 }
@@ -137,6 +137,30 @@ export default function AvatarShopTab({ user, editMode }: AvatarShopTabProps) {
     const priceStr = prompt('Price in coins? (0 for free)');
     const rarity = prompt('Rarity: common / rare / legendary', 'common');
     const torsoColor = prompt('Main color hex (like #4d536f)', '#4d536f');
+    const headColor = prompt('Head color hex (or press Enter to use main color)', torsoColor || '#4d536f');
+    const armColor = prompt('Arm color hex (or press Enter to use main color)', torsoColor || '#4d536f');
+    const legColor = prompt('Leg color hex (or press Enter to use main color)', torsoColor || '#4d536f');
+
+    const addAccessories = confirm('Add accessories? (chains, hats, etc.)');
+    const accessories = [];
+
+    if (addAccessories) {
+      let addMore = true;
+      while (addMore) {
+        const accessoryType = prompt('Accessory type: hat / chain / glasses / shirt / pants / shoes / backpack / other', 'chain');
+        if (accessoryType) {
+          const accessoryName = prompt('Accessory name?', accessoryType);
+          const accessoryColor = prompt('Accessory color hex?', '#888888');
+          accessories.push({
+            id: 'acc_' + Date.now() + '_' + Math.random(),
+            type: (accessoryType.toLowerCase() as any) || 'other',
+            name: accessoryName || accessoryType,
+            color: accessoryColor || '#888888'
+          });
+        }
+        addMore = confirm('Add another accessory?');
+      }
+    }
 
     const newSkin: Skin = {
       id: 'skin_' + Date.now(),
@@ -144,18 +168,35 @@ export default function AvatarShopTab({ user, editMode }: AvatarShopTabProps) {
       rarity: (rarity || 'common').toLowerCase() as 'common' | 'rare' | 'legendary',
       price: parseInt(priceStr || '0', 10),
       img: name,
+      use3d: true,
+      defaultAnimation: 'idle',
       colors: {
-        head: torsoColor || '#4d536f',
+        head: headColor || torsoColor || '#4d536f',
         torso: torsoColor || '#4d536f',
-        arm: torsoColor || '#4d536f',
-        legs: torsoColor || '#4d536f',
+        arm: armColor || torsoColor || '#4d536f',
+        legs: legColor || torsoColor || '#4d536f',
       },
+      accessories: accessories.length > 0 ? accessories : undefined,
     };
 
     const updatedSkins = [...skins, newSkin];
     saveSkins(updatedSkins);
     setSkins(updatedSkins);
     alert('Skin added.');
+  };
+
+  const handleDeleteSkin = (skin: Skin) => {
+    if (user.role !== 'admin') {
+      alert('Admin only');
+      return;
+    }
+
+    if (confirm(`Delete skin "${skin.name}"? This action cannot be undone.`)) {
+      const updatedSkins = skins.filter((s) => s.id !== skin.id);
+      saveSkins(updatedSkins);
+      setSkins(updatedSkins);
+      alert(`Skin "${skin.name}" deleted.`);
+    }
   };
 
   return (
@@ -186,7 +227,7 @@ export default function AvatarShopTab({ user, editMode }: AvatarShopTabProps) {
         <div className="skins-section-title">Owned Skins</div>
         <div className="skins-grid">
           {ownedSkins.length === 0 ? (
-            <div className="smalltext">You don't own any extra skins yet.</div>
+            <div className="smalltext">You don&apos;t own any extra skins yet.</div>
           ) : (
             ownedSkins.map((s) => (
               <div key={s.id} className="skin-card">
@@ -205,6 +246,20 @@ export default function AvatarShopTab({ user, editMode }: AvatarShopTabProps) {
                   >
                     {user.equippedSkin === s.id ? 'Equipped' : 'Equip'}
                   </button>
+                  {user.role === 'admin' && (
+                    <button
+                      className="btn"
+                      style={{
+                        marginTop: '8px',
+                        background: '#5a1f1f',
+                        border: '1px solid #8b2d2d',
+                        color: '#ff6b6b'
+                      }}
+                      onClick={() => handleDeleteSkin(s)}
+                    >
+                      Delete Skin
+                    </button>
+                  )}
                 </div>
               </div>
             ))
@@ -247,6 +302,20 @@ export default function AvatarShopTab({ user, editMode }: AvatarShopTabProps) {
                       onClick={() => handlePurchase(s)}
                     >
                       Buy for {s.price} 💠
+                    </button>
+                  )}
+                  {user.role === 'admin' && (
+                    <button
+                      className="btn"
+                      style={{
+                        marginTop: '8px',
+                        background: '#5a1f1f',
+                        border: '1px solid #8b2d2d',
+                        color: '#ff6b6b'
+                      }}
+                      onClick={() => handleDeleteSkin(s)}
+                    >
+                      Delete Skin
                     </button>
                   )}
                 </div>

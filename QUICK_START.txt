@@ -1,0 +1,46 @@
+═══════════════════════════════════════════════════════════════
+  QUICK START - DEPLOY & BUILD DESKTOP APP
+═══════════════════════════════════════════════════════════════
+
+1. DEPLOY TO VERCEL (PowerShell):
+───────────────────────────────────────────────────────────────
+cd "c:\Users\Landon Boehm\Pixel-Place"
+npm install -g vercel
+npm install
+npm run build
+vercel login
+vercel --prod
+
+   → Copy the Vercel URL shown (e.g., https://pixel-place-abc123.vercel.app)
+
+
+2. UPDATE ELECTRON URL:
+───────────────────────────────────────────────────────────────
+   Open electron-main.js
+   Replace 'YOUR_VERCEL_URL_HERE.vercel.app' with your actual Vercel URL
+
+
+3. BUILD DESKTOP INSTALLER (PowerShell):
+───────────────────────────────────────────────────────────────
+cd "c:\Users\Landon Boehm\Pixel-Place"
+npm install electron electron-builder --save-dev
+npm run build
+npm run electron:dist
+
+   → Installer will be in: dist-electron\Pixel Place Setup.exe
+
+
+4. HOST INSTALLER & GET DOWNLOAD URL:
+───────────────────────────────────────────────────────────────
+   Upload "Pixel Place Setup.exe" to GitHub Releases, Dropbox, etc.
+   Get the direct download URL
+
+
+5. DOWNLOAD COMMAND FOR USERS (PowerShell):
+───────────────────────────────────────────────────────────────
+   Replace YOUR_URL with your installer download link:
+
+Invoke-WebRequest -Uri "YOUR_URL" -OutFile "$env:USERPROFILE\Downloads\Pixel-Place-Setup.exe"; Start-Process "$env:USERPROFILE\Downloads\Pixel-Place-Setup.exe"
+
+═══════════════════════════════════════════════════════════════
+

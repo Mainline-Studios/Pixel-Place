@@ -1,0 +1,22 @@
+HOW TO USE THE DOWNLOADED APP:
+
+After deployment, you'll get a URL like: https://pixel-place.vercel.app
+
+1. OPEN IN BROWSER:
+   - Copy the URL from Vercel
+   - Paste in Chrome/Edge: https://pixel-place.vercel.app
+
+2. INSTALL THE APP:
+   - Desktop: Click install icon in address bar OR use the InstallPrompt
+   - Mobile: Menu → "Install app" or "Add to Home screen"
+
+3. LAUNCH THE APP:
+   - Desktop: Open from Start Menu or Desktop shortcut
+   - Mobile: Tap the app icon on home screen
+
+4. USE IT:
+   - Works like a native app
+   - Opens in its own window
+   - Works offline (cached content)
+   - No browser address bar when installed
+

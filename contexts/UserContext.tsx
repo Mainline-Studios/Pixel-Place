@@ -60,8 +60,8 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
   };
 
   const createAccount = async (username: string, password: string, gender: string): Promise<{ success: boolean; message: string }> => {
-    if (!username || !password || !gender) {
-      return { success: false, message: 'All fields required (username, password, gender).' };
+    if (!username || !password) {
+      return { success: false, message: 'Username and password are required.' };
     }
 
     const users = getUsers();
@@ -71,12 +71,12 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
 
     const isAdmin = ADMIN_ACCOUNTS_LIST.some(a => a.username === username && a.password === password);
     const role = isAdmin ? 'admin' : 'user';
-    const coins = role === 'admin' ? 99999 : 250;
+    const coins = role === 'admin' ? 99999 : 0; // Users start with 0 coins
 
     const newUser: User = {
       username,
       password,
-      gender,
+      gender: gender || 'N/A', // Gender is optional, default to 'N/A'
       role,
       coins,
       ownedSkins: ['starter_classic'],

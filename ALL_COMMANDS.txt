@@ -1,0 +1,40 @@
+═══════════════════════════════════════════════════════════════
+  PIXEL PLACE - ALL COMMANDS & QUICK REFERENCE
+═══════════════════════════════════════════════════════════════
+
+1. START LOCALHOST (Development):
+   cd "c:\Users\Landon Boehm\Pixel-Place"; npm run dev
+   Then open: http://localhost:3000
+
+2. DEPLOY TO VERCEL (Production PWA):
+   cd "c:\Users\Landon Boehm\Pixel-Place"; npm install -g vercel; npm install; npm run build; vercel login; vercel --prod
+   
+   Or use the script:
+   .\DEPLOY.ps1
+
+3. AFTER DEPLOYMENT - INSTALL & USE APP:
+   Step 1: Copy the Vercel URL (e.g., https://pixel-place.vercel.app)
+   Step 2: Open in Chrome/Edge
+   Step 3: Click "Install" button in address bar
+   Step 4: App opens in its own window - works offline!
+
+═══════════════════════════════════════════════════════════════
+  FEATURES STATUS
+═══════════════════════════════════════════════════════════════
+
+✅ Users start with 0 coins (updated)
+✅ Real 3D skins with Roblox-style rendering (completed)
+✅ Pre-built games (FNAF added to Home tab)
+✅ PWA setup (installable app)
+✅ Game Studio (Code editor + AI generator)
+✅ Accessories system (working)
+
+📋 In Progress:
+- GitHub integration (guide created)
+- Enhanced user auth
+- Page design system
+- More pre-built games
+- Mobile optimizations
+
+═══════════════════════════════════════════════════════════════
+

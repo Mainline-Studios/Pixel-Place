@@ -1,0 +1,54 @@
+═══════════════════════════════════════════════════════════════
+  PIXEL PLACE - DOWNLOAD & INSTALL COMMANDS
+═══════════════════════════════════════════════════════════════
+
+STEP 1: DEPLOY TO VERCEL (Run in PowerShell):
+───────────────────────────────────────────────────────────────
+cd "c:\Users\Landon Boehm\Pixel-Place"; npm install -g vercel; npm install; npm run build; vercel login; vercel --prod
+
+Or use the script:
+.\DEPLOY_COMMAND.ps1
+
+After deployment, COPY THE VERCEL URL (e.g., https://pixel-place-abc123.vercel.app)
+
+
+STEP 2: UPDATE ELECTRON URL
+───────────────────────────────────────────────────────────────
+Edit electron-main.js and replace:
+  'https://pixel-place.vercel.app'
+with your actual Vercel URL
+
+
+STEP 3: BUILD DESKTOP INSTALLER (Run in PowerShell):
+───────────────────────────────────────────────────────────────
+cd "c:\Users\Landon Boehm\Pixel-Place"; npm install electron electron-builder --save-dev; npm run build; npm run electron:dist
+
+Or use the script:
+.\BUILD_APP_COMMAND.ps1
+
+The installer will be in: dist-electron\Pixel Place Setup.exe
+
+
+STEP 4: HOST THE INSTALLER
+───────────────────────────────────────────────────────────────
+Upload "Pixel Place Setup.exe" to:
+- GitHub Releases (recommended)
+- Dropbox (public link)
+- Google Drive (public link)
+- Your own server
+
+Get the direct download URL (e.g., https://github.com/user/repo/releases/download/v1.0.0/Pixel-Place-Setup.exe)
+
+
+STEP 5: DOWNLOAD COMMAND FOR USERS (PowerShell):
+───────────────────────────────────────────────────────────────
+Replace YOUR_INSTALLER_URL with your actual download link:
+
+Invoke-WebRequest -Uri "YOUR_INSTALLER_URL" -OutFile "$env:USERPROFILE\Downloads\Pixel-Place-Setup.exe"; Start-Process "$env:USERPROFILE\Downloads\Pixel-Place-Setup.exe"
+
+Example:
+Invoke-WebRequest -Uri "https://github.com/username/pixel-place/releases/download/v1.0.0/Pixel-Place-Setup.exe" -OutFile "$env:USERPROFILE\Downloads\Pixel-Place-Setup.exe"; Start-Process "$env:USERPROFILE\Downloads\Pixel-Place-Setup.exe"
+
+
+═══════════════════════════════════════════════════════════════
+
