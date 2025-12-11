@@ -1,8 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Ban } from '@/types';
-import { createBanAppeal } from '@/lib/storage';
+import { createBanAppeal, getMessages, sendMessage } from '@/lib/storage';
 
 interface BanScreenProps {
   ban: Ban;
@@ -14,6 +14,45 @@ export default function BanScreen({ ban, username, onAppealSubmitted }: BanScree
   const [appealMessage, setAppealMessage] = useState('');
   const [appealSubmitted, setAppealSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [showChat, setShowChat] = useState(false);
+  const [chatMessages, setChatMessages] = useState<any[]>([]);
+  const [newMessage, setNewMessage] = useState('');
+  const [sendingMessage, setSendingMessage] = useState(false);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  const loadMessages = async () => {
+    const messages = await getMessages(username, ban.bannedBy);
+    setChatMessages(messages);
+  };
+
+  useEffect(() => {
+    if (showChat) {
+      loadMessages();
+      const interval = setInterval(loadMessages, 2000);
+      return () => clearInterval(interval);
+    }
+  }, [showChat, username, ban.bannedBy]);
+
+  useEffect(() => {
+    if (messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [chatMessages]);
+
+  const handleSendMessage = async () => {
+    if (!newMessage.trim()) return;
+    setSendingMessage(true);
+    try {
+      await sendMessage(username, ban.bannedBy, newMessage.trim());
+      setNewMessage('');
+      await loadMessages();
+    } catch (error) {
+      console.error('Error sending message:', error);
+      alert('Error sending message. Please try again.');
+    } finally {
+      setSendingMessage(false);
+    }
+  };
 
   const handleAppeal = async () => {
     if (!appealMessage.trim()) {
@@ -176,6 +215,114 @@ export default function BanScreen({ ban, username, onAppealSubmitted }: BanScree
           If you believe this ban was issued in error, you can submit an appeal above.
           <br />
           Appeals are reviewed by administrators and may take time to process.
+        </div>
+
+        <div style={{ marginTop: '24px', borderTop: '1px solid var(--border)', paddingTop: '24px' }}>
+          <button
+            className="btn"
+            onClick={() => setShowChat(!showChat)}
+            style={{
+              width: '100%',
+              padding: '12px',
+              fontSize: '16px',
+              background: showChat ? 'var(--accent)' : 'var(--panel-soft)',
+              marginBottom: showChat ? '16px' : '0'
+            }}
+          >
+            {showChat ? 'Hide Chat' : '💬 Chat with Administrator'}
+          </button>
+
+          {showChat && (
+            <div style={{
+              marginTop: '16px',
+              background: 'var(--panel-soft)',
+              borderRadius: '8px',
+              padding: '16px',
+              maxHeight: '400px',
+              display: 'flex',
+              flexDirection: 'column'
+            }}>
+              <div style={{
+                fontSize: '14px',
+                fontWeight: 600,
+                marginBottom: '12px',
+                color: 'var(--text)'
+              }}>
+                Chat with {ban.bannedBy}
+              </div>
+              
+              <div style={{
+                flex: 1,
+                overflowY: 'auto',
+                marginBottom: '12px',
+                minHeight: '200px',
+                maxHeight: '300px',
+                padding: '8px',
+                background: 'var(--panel)',
+                borderRadius: '4px'
+              }}>
+                {chatMessages.length === 0 ? (
+                  <div style={{ textAlign: 'center', color: 'var(--text-dim)', padding: '20px' }}>
+                    No messages yet. Start the conversation!
+                  </div>
+                ) : (
+                  chatMessages.map((msg) => (
+                    <div
+                      key={msg.id}
+                      style={{
+                        marginBottom: '12px',
+                        padding: '8px 12px',
+                        borderRadius: '8px',
+                        background: msg.fromUsername === username ? 'rgba(46, 204, 113, 0.2)' : 'rgba(100, 100, 100, 0.2)',
+                        textAlign: msg.fromUsername === username ? 'right' : 'left',
+                        alignSelf: msg.fromUsername === username ? 'flex-end' : 'flex-start',
+                        maxWidth: '80%'
+                      }}
+                    >
+                      <div style={{ fontSize: '12px', color: 'var(--text-dim)', marginBottom: '4px' }}>
+                        {msg.fromUsername === username ? 'You' : ban.bannedBy} • {new Date(msg.timestamp).toLocaleTimeString()}
+                      </div>
+                      <div style={{ fontSize: '14px', color: 'var(--text)' }}>
+                        {msg.message}
+                      </div>
+                    </div>
+                  ))
+                )}
+                <div ref={messagesEndRef} />
+              </div>
+
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <input
+                  type="text"
+                  value={newMessage}
+                  onChange={(e) => setNewMessage(e.target.value)}
+                  onKeyPress={(e) => e.key === 'Enter' && !sendingMessage && handleSendMessage()}
+                  placeholder="Type your message..."
+                  style={{
+                    flex: 1,
+                    padding: '10px',
+                    borderRadius: '8px',
+                    border: '1px solid var(--border)',
+                    background: 'var(--panel)',
+                    color: 'var(--text)',
+                    fontSize: '14px'
+                  }}
+                />
+                <button
+                  className="btn"
+                  onClick={handleSendMessage}
+                  disabled={sendingMessage || !newMessage.trim()}
+                  style={{
+                    padding: '10px 20px',
+                    opacity: (sendingMessage || !newMessage.trim()) ? 0.5 : 1,
+                    cursor: (sendingMessage || !newMessage.trim()) ? 'not-allowed' : 'pointer'
+                  }}
+                >
+                  {sendingMessage ? 'Sending...' : 'Send'}
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>

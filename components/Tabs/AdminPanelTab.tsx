@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { User, Report, Ban } from '@/types';
-import { getUsers, getBannedUsers, getReports, banUser, unbanUser, updateReportStatus, saveBannedUsers, ADMIN_ACCOUNTS_LIST, getBanAppeals, updateBanAppealStatus } from '@/lib/storage';
+import { getUsers, getBannedUsers, getReports, banUser, unbanUser, updateReportStatus, saveBannedUsers, ADMIN_ACCOUNTS_LIST, getBanAppeals, updateBanAppealStatus, getMessages, sendMessage } from '@/lib/storage';
 
 interface AdminPanelTabProps {
   user: User;
@@ -20,6 +20,11 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
   const [banPermanent, setBanPermanent] = useState(true);
   const [banDays, setBanDays] = useState(7);
   const [searchTerm, setSearchTerm] = useState('');
+  const [chattingWith, setChattingWith] = useState<string | null>(null);
+  const [chatMessages, setChatMessages] = useState<any[]>([]);
+  const [newChatMessage, setNewChatMessage] = useState('');
+  const [sendingChatMessage, setSendingChatMessage] = useState(false);
+  const chatEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     // Ensure we're in browser environment
@@ -152,6 +157,40 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
     await loadData();
     alert(`Report marked as ${action}.`);
   };
+
+  const loadChatMessages = async (bannedUsername: string) => {
+    const messages = await getMessages(user.username, bannedUsername);
+    setChatMessages(messages);
+  };
+
+  const handleSendChatMessage = async (toUsername: string) => {
+    if (!newChatMessage.trim()) return;
+    setSendingChatMessage(true);
+    try {
+      await sendMessage(user.username, toUsername, newChatMessage.trim());
+      setNewChatMessage('');
+      await loadChatMessages(toUsername);
+    } catch (error) {
+      console.error('Error sending message:', error);
+      alert('Error sending message. Please try again.');
+    } finally {
+      setSendingChatMessage(false);
+    }
+  };
+
+  useEffect(() => {
+    if (chattingWith) {
+      loadChatMessages(chattingWith);
+      const interval = setInterval(() => loadChatMessages(chattingWith), 2000);
+      return () => clearInterval(interval);
+    }
+  }, [chattingWith, user.username]);
+
+  useEffect(() => {
+    if (chatEndRef.current) {
+      chatEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [chatMessages]);
 
   const filteredUsers = allUsers.filter(u => 
     u.username.toLowerCase().includes(searchTerm.toLowerCase())
@@ -413,14 +452,113 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
                           Type: {ban.permanent ? 'Permanent' : `Temporary (expires ${ban.expiresAt ? new Date(ban.expiresAt).toLocaleString() : 'N/A'})`}
                         </div>
                       </div>
-                      <button
-                        className="btn"
-                        onClick={() => handleUnban(ban.username)}
-                        style={{ background: 'var(--accent)' }}
-                      >
-                        Unban
-                      </button>
+                      <div style={{ display: 'flex', gap: '8px' }}>
+                        <button
+                          className="btn"
+                          onClick={() => {
+                            setChattingWith(chattingWith === ban.username ? null : ban.username);
+                            if (chattingWith !== ban.username) {
+                              loadChatMessages(ban.username);
+                            }
+                          }}
+                          style={{ background: chattingWith === ban.username ? 'var(--accent)' : '#2ecc71', fontSize: '12px', padding: '6px 12px' }}
+                        >
+                          {chattingWith === ban.username ? 'Close Chat' : '💬 Chat'}
+                        </button>
+                        <button
+                          className="btn"
+                          onClick={() => handleUnban(ban.username)}
+                          style={{ background: 'var(--accent)' }}
+                        >
+                          Unban
+                        </button>
+                      </div>
                     </div>
+                    {chattingWith === ban.username && (
+                      <div style={{
+                        marginTop: '12px',
+                        padding: '16px',
+                        background: 'var(--panel)',
+                        borderRadius: '8px',
+                        border: '1px solid var(--border)',
+                        maxHeight: '400px',
+                        display: 'flex',
+                        flexDirection: 'column'
+                      }}>
+                        <div style={{ fontSize: '14px', fontWeight: 600, marginBottom: '12px', color: 'var(--text)' }}>
+                          Chat with {ban.username}
+                        </div>
+                        <div style={{
+                          flex: 1,
+                          overflowY: 'auto',
+                          marginBottom: '12px',
+                          minHeight: '200px',
+                          maxHeight: '300px',
+                          padding: '8px',
+                          background: 'var(--panel-soft)',
+                          borderRadius: '4px'
+                        }}>
+                          {chatMessages.length === 0 ? (
+                            <div style={{ textAlign: 'center', color: 'var(--text-dim)', padding: '20px' }}>
+                              No messages yet. Start the conversation!
+                            </div>
+                          ) : (
+                            chatMessages.map((msg) => (
+                              <div
+                                key={msg.id}
+                                style={{
+                                  marginBottom: '12px',
+                                  padding: '8px 12px',
+                                  borderRadius: '8px',
+                                  background: msg.fromUsername === user.username ? 'rgba(46, 204, 113, 0.2)' : 'rgba(100, 100, 100, 0.2)',
+                                  textAlign: msg.fromUsername === user.username ? 'right' : 'left',
+                                  alignSelf: msg.fromUsername === user.username ? 'flex-end' : 'flex-start',
+                                  maxWidth: '80%'
+                                }}
+                              >
+                                <div style={{ fontSize: '12px', color: 'var(--text-dim)', marginBottom: '4px' }}>
+                                  {msg.fromUsername === user.username ? 'You' : ban.username} • {new Date(msg.timestamp).toLocaleTimeString()}
+                                </div>
+                                <div style={{ fontSize: '14px', color: 'var(--text)' }}>
+                                  {msg.message}
+                                </div>
+                              </div>
+                            ))
+                          )}
+                          <div ref={chatEndRef} />
+                        </div>
+                        <div style={{ display: 'flex', gap: '8px' }}>
+                          <input
+                            type="text"
+                            value={newChatMessage}
+                            onChange={(e) => setNewChatMessage(e.target.value)}
+                            onKeyPress={(e) => e.key === 'Enter' && !sendingChatMessage && handleSendChatMessage(ban.username)}
+                            placeholder="Type your message..."
+                            style={{
+                              flex: 1,
+                              padding: '10px',
+                              borderRadius: '8px',
+                              border: '1px solid var(--border)',
+                              background: 'var(--panel-soft)',
+                              color: 'var(--text)',
+                              fontSize: '14px'
+                            }}
+                          />
+                          <button
+                            className="btn"
+                            onClick={() => handleSendChatMessage(ban.username)}
+                            disabled={sendingChatMessage || !newChatMessage.trim()}
+                            style={{
+                              padding: '10px 20px',
+                              opacity: (sendingChatMessage || !newChatMessage.trim()) ? 0.5 : 1,
+                              cursor: (sendingChatMessage || !newChatMessage.trim()) ? 'not-allowed' : 'pointer'
+                            }}
+                          >
+                            {sendingChatMessage ? 'Sending...' : 'Send'}
+                          </button>
+                        </div>
+                      </div>
+                    )}
                   ))}
                 </div>
               )}
@@ -671,40 +809,3 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
     </>
   );
 }
-
-// Add chat functionality - add after line 22
-const [chattingWith, setChattingWith] = useState<string | null>(null);
-const [chatMessages, setChatMessages] = useState<any[]>([]);
-const [newChatMessage, setNewChatMessage] = useState('');
-const [sendingChatMessage, setSendingChatMessage] = useState(false);
-
-// Add chat loading function after loadData
-const loadChatMessages = async (bannedUsername: string) => {
-  const messages = await getMessages(user.username, bannedUsername);
-  setChatMessages(messages);
-};
-
-// Add chat send function
-const handleSendChatMessage = async (toUsername: string) => {
-  if (!newChatMessage.trim()) return;
-  setSendingChatMessage(true);
-  try {
-    await sendMessage(user.username, toUsername, newChatMessage.trim());
-    setNewChatMessage('');
-    await loadChatMessages(toUsername);
-  } catch (error) {
-    console.error('Error sending message:', error);
-    alert('Error sending message. Please try again.');
-  } finally {
-    setSendingChatMessage(false);
-  }
-};
-
-// Add useEffect for chat refresh
-useEffect(() => {
-  if (chattingWith) {
-    loadChatMessages(chattingWith);
-    const interval = setInterval(() => loadChatMessages(chattingWith), 2000);
-    return () => clearInterval(interval);
-  }
-}, [chattingWith, user.username]);
