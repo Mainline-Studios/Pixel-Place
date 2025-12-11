@@ -696,3 +696,51 @@ export async function updateBanAppealStatus(appealId: string, status: BanAppeal[
 
 
 
+
+
+// Message functions - Using API
+export async function getMessages(username: string, withUsername?: string): Promise<any[]> {
+  if (typeof window === 'undefined') return [];
+  try {
+    const url = withUsername 
+      ? `/api/messages?username=${encodeURIComponent(username)}&with=${encodeURIComponent(withUsername)}`
+      : `/api/messages?username=${encodeURIComponent(username)}`;
+    const response = await fetch(url);
+    if (!response.ok) throw new Error('Failed to fetch messages');
+    return await response.json();
+  } catch (e) {
+    console.error('Error reading messages from API:', e);
+    return [];
+  }
+}
+
+export async function sendMessage(fromUsername: string, toUsername: string, message: string): Promise<string> {
+  if (typeof window === 'undefined') return '';
+  try {
+    const response = await fetch('/api/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ fromUsername, toUsername, message })
+    });
+    if (response.ok) {
+      const saved = await response.json();
+      return saved.id;
+    }
+  } catch (e) {
+    console.error('Error sending message:', e);
+  }
+  return '';
+}
+
+export async function markMessageAsRead(messageId: string): Promise<void> {
+  if (typeof window === 'undefined') return;
+  try {
+    await fetch('/api/messages', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: messageId, read: true })
+    });
+  } catch (e) {
+    console.error('Error marking message as read:', e);
+  }
+}

@@ -1,1 +1,16 @@
-[]
+[
+  {
+    "username": "BDawgsAwesome1",
+    "password": "20Minecraft15",
+    "gender": "N/A",
+    "role": "admin",
+    "coins": 99999,
+    "ownedSkins": [
+      "starter_classic"
+    ],
+    "equippedSkin": "starter_classic",
+    "isDonor": false,
+    "ownedAccessories": [],
+    "equippedAccessories": {}
+  }
+]
