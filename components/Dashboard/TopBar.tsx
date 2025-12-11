@@ -1,6 +1,7 @@
 'use client';
 
 import { TabType } from '@/types';
+import Image from 'next/image';
 import { getInitials } from '@/lib/utils';
 
 interface TopBarProps {
@@ -31,7 +32,17 @@ export default function TopBar({ currentTab, onTabChange, username, role, avatar
   return (
     <div className="topbar">
       <div className="topbar-inner">
-        <div className="brand">PIXEL PLACE</div>
+        <div className="brand" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <Image
+            src="/logo.png"
+            alt="Pixel Place Logo"
+            width={32}
+            height={32}
+            style={{ objectFit: 'contain' }}
+            priority
+          />
+          <span>PIXEL PLACE</span>
+        </div>
         <div className="header-nav">
           {tabs
             .filter(tab => !tab.adminOnly || role === 'admin')

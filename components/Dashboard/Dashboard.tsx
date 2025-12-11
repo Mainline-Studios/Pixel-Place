@@ -19,6 +19,7 @@ import AICoderTab from '../Tabs/AICoderTab';
 import GamesTab from '../Tabs/GamesTab';
 import AdminPanelTab from '../Tabs/AdminPanelTab';
 import ReportTab from '../Tabs/ReportTab';
+import Image from 'next/image';
 
 interface DashboardProps {
   user: User;
@@ -129,8 +130,15 @@ export default function Dashboard({ user }: DashboardProps) {
             <span>Creative Commons BY-ND-NC 4.0</span>
           </a>
         </div>
-        <div style={{ fontSize: '12px', color: 'var(--text-dim)', opacity: 0.7 }}>
-          Pixel Place by Mainline Studios 2025
+        <div style={{ fontSize: '12px', color: 'var(--text-dim)', opacity: 0.7, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+          <Image
+            src="/logo.png"
+            alt="Pixel Place Logo"
+            width={16}
+            height={16}
+            style={{ objectFit: 'contain' }}
+          />
+          <span>Pixel Place by Mainline Studios 2025</span>
         </div>
       </footer>
     </div>

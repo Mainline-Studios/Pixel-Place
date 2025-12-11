@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useUser } from '@/contexts/UserContext';
 import BanScreen from './BanScreen';
+import Image from 'next/image';
 
 export default function Login() {
   const [username, setUsername] = useState('');
@@ -41,7 +42,17 @@ export default function Login() {
   return (
     <div id="login-screen">
       <div className="login-box">
-        <h1>Pixel Place</h1>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px', marginBottom: '20px' }}>
+          <Image
+            src="/logo.png"
+            alt="Pixel Place Logo"
+            width={48}
+            height={48}
+            style={{ objectFit: 'contain' }}
+            priority
+          />
+          <h1 style={{ margin: 0 }}>Pixel Place</h1>
+        </div>
         <input
           id="user"
           placeholder="Username"

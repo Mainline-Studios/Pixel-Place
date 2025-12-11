@@ -1,41 +1,62 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Image from 'next/image';
 
 interface SplashScreenProps {
   onComplete: () => void;
 }
 
 export default function SplashScreen({ onComplete }: SplashScreenProps) {
+  const [phase, setPhase] = useState<'mainline' | 'pixelplace'>('mainline');
   const [opacity, setOpacity] = useState(0);
   const [show, setShow] = useState(true);
 
   useEffect(() => {
-    // Fade in
-    const fadeIn = setTimeout(() => {
+    // Phase 1: Fade in "MAINLINE STUDIOS"
+    const fadeInMainline = setTimeout(() => {
       setOpacity(1);
     }, 100);
 
-    // Hold
-    const hold = setTimeout(() => {
+    // Phase 2: Hold "MAINLINE STUDIOS"
+    const holdMainline = setTimeout(() => {
       setOpacity(1);
+    }, 2000);
+
+    // Phase 3: Fade out "MAINLINE STUDIOS"
+    const fadeOutMainline = setTimeout(() => {
+      setOpacity(0);
     }, 2500);
 
-    // Fade out
-    const fadeOut = setTimeout(() => {
-      setOpacity(0);
+    // Phase 4: Switch to "PIXEL PLACE" with logo
+    const switchToPixelPlace = setTimeout(() => {
+      setPhase('pixelplace');
+      setOpacity(1);
     }, 3000);
 
-    // Hide and complete
+    // Phase 5: Hold "PIXEL PLACE"
+    const holdPixelPlace = setTimeout(() => {
+      setOpacity(1);
+    }, 4500);
+
+    // Phase 6: Fade out "PIXEL PLACE"
+    const fadeOutPixelPlace = setTimeout(() => {
+      setOpacity(0);
+    }, 5000);
+
+    // Phase 7: Hide and complete
     const hide = setTimeout(() => {
       setShow(false);
       onComplete();
-    }, 4000);
+    }, 6000);
 
     return () => {
-      clearTimeout(fadeIn);
-      clearTimeout(hold);
-      clearTimeout(fadeOut);
+      clearTimeout(fadeInMainline);
+      clearTimeout(holdMainline);
+      clearTimeout(fadeOutMainline);
+      clearTimeout(switchToPixelPlace);
+      clearTimeout(holdPixelPlace);
+      clearTimeout(fadeOutPixelPlace);
       clearTimeout(hide);
     };
   }, [onComplete]);
@@ -57,41 +78,48 @@ export default function SplashScreen({ onComplete }: SplashScreenProps) {
         justifyContent: 'center',
         zIndex: 9999,
         opacity,
-        transition: 'opacity 1s ease-in-out',
+        transition: 'opacity 0.8s ease-in-out',
       }}
     >
-      <div style={{ marginBottom: '30px' }}>
-        <svg width="120" height="120" viewBox="0 0 100 100">
-          <rect x="10" y="10" width="80" height="80" rx="10" fill="none" stroke="#2b6cb0" strokeWidth="3"/>
-          <rect x="25" y="25" width="50" height="50" rx="5" fill="#2b6cb0"/>
-        </svg>
-      </div>
-      <h1
-        style={{
-          fontSize: '48px',
-          fontWeight: 700,
-          color: '#ffffff',
-          margin: 0,
-          marginBottom: '20px',
-          textShadow: '0 0 30px rgba(43, 108, 176, 0.8), 0 0 60px rgba(43, 108, 176, 0.5)',
-          letterSpacing: '4px',
-        }}
-      >
-        MAINLINE STUDIOS
-      </h1>
-      <h2
-        style={{
-          fontSize: '36px',
-          fontWeight: 700,
-          color: '#ffffff',
-          margin: 0,
-          textShadow: '0 0 30px rgba(43, 108, 176, 0.8), 0 0 60px rgba(43, 108, 176, 0.5)',
-          letterSpacing: '4px',
-        }}
-      >
-        PIXEL PLACE
-      </h2>
+      {phase === 'mainline' ? (
+        <h1
+          style={{
+            fontSize: '48px',
+            fontWeight: 700,
+            color: '#ffffff',
+            margin: 0,
+            textShadow: '0 0 30px rgba(43, 108, 176, 0.8), 0 0 60px rgba(43, 108, 176, 0.5)',
+            letterSpacing: '4px',
+          }}
+        >
+          MAINLINE STUDIOS
+        </h1>
+      ) : (
+        <>
+          <div style={{ marginBottom: '30px', position: 'relative', width: '120px', height: '120px' }}>
+            <Image
+              src="/logo.png"
+              alt="Pixel Place Logo"
+              width={120}
+              height={120}
+              style={{ objectFit: 'contain' }}
+              priority
+            />
+          </div>
+          <h2
+            style={{
+              fontSize: '48px',
+              fontWeight: 700,
+              color: '#ffffff',
+              margin: 0,
+              textShadow: '0 0 30px rgba(43, 108, 176, 0.8), 0 0 60px rgba(43, 108, 176, 0.5)',
+              letterSpacing: '4px',
+            }}
+          >
+            PIXEL PLACE
+          </h2>
+        </>
+      )}
     </div>
   );
 }
-
