@@ -25,12 +25,15 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
   }, []);
 
   const loadData = () => {
+    // Get ALL users from localStorage first (this includes all regular users and any admins that have logged in)
     const storedUsers = getUsers();
-    const allStoredUsernames = new Set(storedUsers.map(u => u.username.toLowerCase()));
     
-    // Add admin accounts that haven't logged in yet
+    // Create a map of existing usernames for quick lookup
+    const existingUsernames = new Set(storedUsers.map(u => u.username.toLowerCase()));
+    
+    // Add admin accounts that haven't logged in yet (so they appear in the list even if never logged in)
     const adminAccountsNotInStorage = ADMIN_ACCOUNTS_LIST
-      .filter(admin => !allStoredUsernames.has(admin.username.toLowerCase()))
+      .filter(admin => !existingUsernames.has(admin.username.toLowerCase()))
       .map(admin => ({
         username: admin.username,
         password: admin.password,
@@ -44,17 +47,24 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
         equippedAccessories: {}
       }));
     
-    // Combine all users
-    const combinedUsers = [...storedUsers, ...adminAccountsNotInStorage];
+    // Combine: ALL stored users (regular + admins who logged in) + admin accounts that never logged in
+    // Start with stored users (these are the real accounts)
+    const uniqueUsers: User[] = [...storedUsers];
     
-    // Remove duplicates (in case an admin account was created)
-    const uniqueUsers = combinedUsers.reduce((acc, user) => {
-      const existing = acc.find(u => u.username.toLowerCase() === user.username.toLowerCase());
-      if (!existing) {
-        acc.push(user);
+    // Add admin accounts that haven't logged in yet (so they appear in the list)
+    adminAccountsNotInStorage.forEach(admin => {
+      // Only add if not already in the list
+      if (!uniqueUsers.some(u => u.username.toLowerCase() === admin.username.toLowerCase())) {
+        uniqueUsers.push(admin);
       }
-      return acc;
-    }, [] as User[]);
+    });
+    
+    // Sort: admins first, then alphabetically
+    uniqueUsers.sort((a, b) => {
+      if (a.role === 'admin' && b.role !== 'admin') return -1;
+      if (a.role !== 'admin' && b.role === 'admin') return 1;
+      return a.username.localeCompare(b.username);
+    });
     
     setAllUsers(uniqueUsers);
     setBans(getBannedUsers());
@@ -179,10 +189,19 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
 
       {activeTab === 'users' && (
         <div className="ai-box">
-          <div className="ai-label">All Users ({filteredUsers.length})</div>
+          <div className="ai-label">
+            All Users ({filteredUsers.length} of {allUsers.length} total)
+            <button 
+              className="btn" 
+              onClick={loadData}
+              style={{ marginLeft: '12px', padding: '4px 12px', fontSize: '12px' }}
+            >
+              Refresh
+            </button>
+          </div>
           <div className="ai-output" style={{ maxHeight: '500px', overflowY: 'auto' }}>
             {filteredUsers.length === 0 ? (
-              <div className="smalltext">No users found.</div>
+              <div className="smalltext">No users found. {allUsers.length === 0 ? 'No users in system.' : `Try a different search term.`}</div>
             ) : (
               <div style={{ display: 'grid', gap: '12px' }}>
                 {filteredUsers.map((u) => (
