@@ -92,7 +92,7 @@ export default function AvatarCollector3D({ user, onClose }: AvatarCollector3DPr
     Promise.all([
       import('three'),
       import('three/examples/jsm/controls/OrbitControls.js')
-    ]).then(([THREE, OrbitControlsModule]) => {
+    ]).then(async ([THREE, OrbitControlsModule]) => {
       const OrbitControls = OrbitControlsModule.OrbitControls;
 
       const canvas = canvasRef.current!;
