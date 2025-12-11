@@ -190,7 +190,7 @@ export default function TagGame({ onClose }: TagGameProps) {
       let animationId: number;
       const animate = () => {
         animationId = requestAnimationFrame(animate);
-        if (gameState === 'playing' && gameMode === '3d' && !isPaused) {
+        if (gameMode === '3d') {
           renderer.render(scene, camera);
         }
       };
@@ -213,11 +213,13 @@ export default function TagGame({ onClose }: TagGameProps) {
   }, [players, gameState, gameMode, isPaused]);
 
   useEffect(() => {
-    if (gameMode === '3d' && gameState === 'playing' && players.length > 0 && isFullscreen) {
+    if (gameMode === '3d' && gameState === 'playing' && players.length > 0) {
       // Wait a bit for fullscreen to be ready
       const timer = setTimeout(() => {
-        initialize3DGame();
-      }, 200);
+        if (canvas3DRef.current) {
+          initialize3DGame();
+        }
+      }, 300);
       return () => clearTimeout(timer);
     }
   }, [gameMode, gameState, players, isFullscreen, initialize3DGame]);
@@ -737,7 +739,7 @@ export default function TagGame({ onClose }: TagGameProps) {
       >
         <canvas
           ref={canvas3DRef}
-          style={{ width: '100%', height: '100%', display: 'block' }}
+          style={{ width: '100%', height: '100%', display: 'block', background: '#1a2332' }}
         />
         {gameState === 'paused' && (
           <div style={{
