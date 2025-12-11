@@ -1,4 +1,4 @@
-import { User, Skin, PublishedGame, DraftGame, SceneData, TabContent, PrebuiltGame, Accessory, Report, Ban, BanAppeal } from '@/types';
+import { User, Skin, PublishedGame, DraftGame, SceneData, TabContent, PrebuiltGame, Accessory, Report, Ban, BanAppeal, UserMadeGame, GameSubmission } from '@/types';
 
 const ADMIN_ACCOUNTS = [
   { username: "admin", password: "456" },
@@ -1062,5 +1062,80 @@ export async function markMessageAsRead(messageId: string): Promise<void> {
     });
   } catch (e) {
     console.error('Error marking message as read:', e);
+  }
+}
+
+
+// User-made games functions - Using API
+export async function getUserMadeGames(): Promise<UserMadeGame[]> {
+  if (typeof window === 'undefined') return [];
+  try {
+    const response = await fetch('/api/usermadegamefiles');
+    if (!response.ok) throw new Error('Failed to fetch user-made games');
+    return await response.json();
+  } catch (e) {
+    console.error('Error reading user-made games from API:', e);
+    return [];
+  }
+}
+
+export async function saveUserMadeGame(game: UserMadeGame): Promise<void> {
+  if (typeof window === 'undefined') return;
+  try {
+    await fetch('/api/usermadegamefiles', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(game)
+    });
+  } catch (e) {
+    console.error('Error saving user-made game to API:', e);
+  }
+}
+
+export async function deleteUserMadeGame(gameId: string): Promise<void> {
+  if (typeof window === 'undefined') return;
+  try {
+    await fetch(`/api/usermadegamefiles?id=${encodeURIComponent(gameId)}`, {
+      method: 'DELETE'
+    });
+  } catch (e) {
+    console.error('Error deleting user-made game:', e);
+  }
+}
+
+// Game submissions functions - Using API
+export async function getGameSubmissions(): Promise<GameSubmission[]> {
+  if (typeof window === 'undefined') return [];
+  try {
+    const response = await fetch('/api/gamesubmissions');
+    if (!response.ok) throw new Error('Failed to fetch game submissions');
+    return await response.json();
+  } catch (e) {
+    console.error('Error reading game submissions from API:', e);
+    return [];
+  }
+}
+
+export async function saveGameSubmission(submission: GameSubmission): Promise<void> {
+  if (typeof window === 'undefined') return;
+  try {
+    await fetch('/api/gamesubmissions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(submission)
+    });
+  } catch (e) {
+    console.error('Error saving game submission to API:', e);
+  }
+}
+
+export async function deleteGameSubmission(submissionId: string): Promise<void> {
+  if (typeof window === 'undefined') return;
+  try {
+    await fetch(`/api/gamesubmissions?id=${encodeURIComponent(submissionId)}`, {
+      method: 'DELETE'
+    });
+  } catch (e) {
+    console.error('Error deleting game submission:', e);
   }
 }

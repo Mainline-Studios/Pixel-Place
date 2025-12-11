@@ -12,5 +12,39 @@
     "isDonor": false,
     "ownedAccessories": [],
     "equippedAccessories": {}
+  },
+  {
+    "username": "Marioguy",
+    "password": "111",
+    "gender": "Male",
+    "role": "user",
+    "coins": 8800,
+    "ownedSkins": [
+      "starter_classic",
+      "galaxy_guard"
+    ],
+    "equippedSkin": "galaxy_guard",
+    "isDonor": true,
+    "ownedAccessories": [
+      "hat_crown"
+    ],
+    "equippedAccessories": {
+      "hat": "hat_crown"
+    },
+    "donationAmount": 5
+  },
+  {
+    "username": "BANACCOUNTTEST",
+    "password": "PIXELPLACE",
+    "gender": "Other",
+    "role": "user",
+    "coins": 0,
+    "ownedSkins": [
+      "starter_classic"
+    ],
+    "equippedSkin": "starter_classic",
+    "isDonor": false,
+    "ownedAccessories": [],
+    "equippedAccessories": {}
   }
 ]
