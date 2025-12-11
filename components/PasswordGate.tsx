@@ -7,6 +7,7 @@ interface PasswordGateProps {
 }
 
 export default function PasswordGate({ onSuccess }: PasswordGateProps) {
+  console.log("Pixel Place is not open to the public. A password will be required.");
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
 
