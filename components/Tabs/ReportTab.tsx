@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { User } from '@/types';
-import { createReport, getReports } from '@/lib/storage';
+import { createReport } from '@/lib/storage';
 
 interface ReportTabProps {
   user: User;
@@ -24,7 +24,7 @@ export default function ReportTab({ user }: ReportTabProps) {
     'Other'
   ];
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!reportedUsername.trim()) {
       alert('Please enter the username you want to report.');
       return;
@@ -43,28 +43,19 @@ export default function ReportTab({ user }: ReportTabProps) {
       return;
     }
 
-    // Check if user exists
-    const reports = getReports();
-    const recentReport = reports.find(
-      r => r.reporterUsername === user.username &&
-           r.reportedUsername.toLowerCase() === reportedUsername.toLowerCase() &&
-           r.status === 'pending' &&
-           (Date.now() - r.timestamp) < 60000 // Within last minute
-    );
-
-    if (recentReport) {
-      alert('You have already submitted a report for this user recently. Please wait before submitting another.');
-      return;
+    try {
+      await createReport(reportedUsername.trim(), user.username, reason, description.trim());
+      setSubmitted(true);
+      setReportedUsername('');
+      setReason('');
+      setDescription('');
+      
+      setTimeout(() => setSubmitted(false), 3000);
+      alert('Report submitted successfully! An administrator will review it.');
+    } catch (error) {
+      console.error('Error submitting report:', error);
+      alert('Error submitting report. Please try again.');
     }
-
-    createReport(reportedUsername.trim(), user.username, reason, description.trim());
-    setSubmitted(true);
-    setReportedUsername('');
-    setReason('');
-    setDescription('');
-    
-    setTimeout(() => setSubmitted(false), 3000);
-    alert('Report submitted successfully! An administrator will review it.');
   };
 
   return (

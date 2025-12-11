@@ -1,0 +1,5 @@
+# This folder contains shared data files that work across all browsers
+# users.json - All user accounts
+# bans.json - All bans
+# reports.json - All reports  
+# appeals.json - All ban appeals
