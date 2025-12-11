@@ -168,7 +168,7 @@ Current setup uses LocalStorage for data persistence, but can be easily migrated
 
 ## 📝 License
 
-This project is private and all rights reserved.
+This project is private and licensed under Creative Commons BY-ND-NC. Some Rights Reserved.
 
 ## 👨‍💻 Development
 
