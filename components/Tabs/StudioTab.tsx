@@ -249,7 +249,7 @@ export default function StudioTab({ user, editMode }: StudioTabProps) {
     setPosZ('');
   };
 
-  const saveScene = () => {
+  const saveScene = async () => {
     const data = {
       objects: sceneObjects.map((o) => ({
         id: o.id,
@@ -261,7 +261,7 @@ export default function StudioTab({ user, editMode }: StudioTabProps) {
         },
       })),
     };
-    saveSceneData(data);
+    await saveSceneData(data);
     alert('Scene saved.');
   };
 
@@ -280,8 +280,8 @@ export default function StudioTab({ user, editMode }: StudioTabProps) {
     alert('Scene loaded.');
   };
 
-  const saveDraftFromProps = () => {
-    saveDraft(draft);
+  const saveDraftFromProps = async () => {
+    await saveDraft(draft);
     alert('Draft saved.');
   };
 
@@ -301,7 +301,7 @@ export default function StudioTab({ user, editMode }: StudioTabProps) {
       owner: draft.owner || user.username,
       ts: Date.now(),
     });
-    savePublished(pub);
+    await savePublished(pub);
     alert("Published '" + draft.title + "' to Discover instantly (no approval).");
   };
 
