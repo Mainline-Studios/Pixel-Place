@@ -297,23 +297,56 @@ export async function getUsers(): Promise<User[]> {
   try {
     const response = await fetch('/api/users');
     if (!response.ok) throw new Error('Failed to fetch users');
-    return await response.json();
+    const apiUsers = await response.json();
+    
+    // Migration: Move localStorage data to API if it exists
+    try {
+      const localData = localStorage.getItem("pixelPlaceUsers");
+      if (localData) {
+        const localUsers: User[] = JSON.parse(localData);
+        if (localUsers.length > 0) {
+          // Check if users need to be migrated
+          const apiUsernames = new Set(apiUsers.map((u: User) => u.username.toLowerCase()));
+          const usersToMigrate = localUsers.filter(u => !apiUsernames.has(u.username.toLowerCase()));
+          
+          if (usersToMigrate.length > 0) {
+            // Migrate users that don't exist in API
+            for (const user of usersToMigrate) {
+              await fetch('/api/users', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(user)
+              }).catch(() => {});
+            }
+            // Remove from localStorage after successful migration
+            localStorage.removeItem("pixelPlaceUsers");
+            // Fetch updated list
+            const updatedResponse = await fetch('/api/users');
+            if (updatedResponse.ok) return await updatedResponse.json();
+          }
+        }
+      }
+    } catch (migrationError) {
+      console.error('Error migrating users:', migrationError);
+    }
+    
+    return apiUsers;
   } catch (e) {
     console.error('Error reading users from API:', e);
-    // Fallback to localStorage for migration
+    // Fallback to localStorage
     try {
       const data = localStorage.getItem("pixelPlaceUsers");
       if (data) {
         const users = JSON.parse(data);
-        // Migrate to API
+        // Try to migrate even on error
         if (users.length > 0) {
-          users.forEach((user: User) => {
-            fetch('/api/users', {
+          for (const user of users) {
+            await fetch('/api/users', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify(user)
             }).catch(() => {});
-          });
+          }
         }
         return users;
       }
