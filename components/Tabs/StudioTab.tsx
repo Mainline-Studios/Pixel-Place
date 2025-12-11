@@ -827,4 +827,4 @@ export default function StudioTab({ user, editMode }: StudioTabProps) {
       </div>
     </div>
   );
-
+}
