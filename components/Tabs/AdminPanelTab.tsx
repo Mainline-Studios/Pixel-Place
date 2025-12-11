@@ -426,55 +426,56 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
               ) : (
                 <div style={{ display: 'grid', gap: '12px' }}>
                   {bans.map((ban) => (
-                    <div
-                      key={ban.username}
-                      style={{
-                        padding: '12px',
-                        background: 'var(--panel-soft)',
-                        borderRadius: '8px',
-                        border: '1px solid var(--border)',
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center'
-                      }}
-                    >
-                      <div>
-                        <div style={{ fontWeight: 600, marginBottom: '4px', color: '#ff4d4d' }}>
-                          {ban.username}
+                    <>
+                      <div
+                        key={ban.username}
+                        style={{
+                          padding: '12px',
+                          background: 'var(--panel-soft)',
+                          borderRadius: '8px',
+                          border: '1px solid var(--border)',
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center'
+                        }}
+                      >
+                        <div>
+                          <div style={{ fontWeight: 600, marginBottom: '4px', color: '#ff4d4d' }}>
+                            {ban.username}
+                          </div>
+                          <div className="smalltext">
+                            Reason: {ban.reason}
+                            <br />
+                            Banned by: {ban.bannedBy}
+                            <br />
+                            Date: {new Date(ban.timestamp).toLocaleString()}
+                            <br />
+                            Type: {ban.permanent ? 'Permanent' : `Temporary (expires ${ban.expiresAt ? new Date(ban.expiresAt).toLocaleString() : 'N/A'})`}
+                          </div>
                         </div>
-                        <div className="smalltext">
-                          Reason: {ban.reason}
-                          <br />
-                          Banned by: {ban.bannedBy}
-                          <br />
-                          Date: {new Date(ban.timestamp).toLocaleString()}
-                          <br />
-                          Type: {ban.permanent ? 'Permanent' : `Temporary (expires ${ban.expiresAt ? new Date(ban.expiresAt).toLocaleString() : 'N/A'})`}
+                        <div style={{ display: 'flex', gap: '8px' }}>
+                          <button
+                            className="btn"
+                            onClick={() => {
+                              setChattingWith(chattingWith === ban.username ? null : ban.username);
+                              if (chattingWith !== ban.username) {
+                                loadChatMessages(ban.username);
+                              }
+                            }}
+                            style={{ background: chattingWith === ban.username ? 'var(--accent)' : '#2ecc71', fontSize: '12px', padding: '6px 12px' }}
+                          >
+                            {chattingWith === ban.username ? 'Close Chat' : '💬 Chat'}
+                          </button>
+                          <button
+                            className="btn"
+                            onClick={() => handleUnban(ban.username)}
+                            style={{ background: 'var(--accent)' }}
+                          >
+                            Unban
+                          </button>
                         </div>
                       </div>
-                      <div style={{ display: 'flex', gap: '8px' }}>
-                        <button
-                          className="btn"
-                          onClick={() => {
-                            setChattingWith(chattingWith === ban.username ? null : ban.username);
-                            if (chattingWith !== ban.username) {
-                              loadChatMessages(ban.username);
-                            }
-                          }}
-                          style={{ background: chattingWith === ban.username ? 'var(--accent)' : '#2ecc71', fontSize: '12px', padding: '6px 12px' }}
-                        >
-                          {chattingWith === ban.username ? 'Close Chat' : '💬 Chat'}
-                        </button>
-                        <button
-                          className="btn"
-                          onClick={() => handleUnban(ban.username)}
-                          style={{ background: 'var(--accent)' }}
-                        >
-                          Unban
-                        </button>
-                      </div>
-                    </div>
-                    {chattingWith === ban.username && (
+                      {chattingWith === ban.username && (
                       <div style={{
                         marginTop: '12px',
                         padding: '16px',
@@ -559,7 +560,9 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
                         </div>
                       </div>
                     )}
+                    </>
                   ))}
+
                 </div>
               )}
             </div>
