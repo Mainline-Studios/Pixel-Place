@@ -35,6 +35,10 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
+# Data folder (contains user accounts, bans, reports, appeals)
+/data/*.json
+!/data/.gitkeep
+
 
 
 
