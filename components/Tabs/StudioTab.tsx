@@ -20,7 +20,7 @@ export default function StudioTab({ user, editMode }: StudioTabProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [selectedObjectId, setSelectedObjectId] = useState<string | null>(null);
   const [sceneObjects, setSceneObjects] = useState<SceneObjectRef[]>([]);
-  const [draft, setDraft] = useState<DraftGame>(getDraft());
+  const [draft, setDraft] = useState<DraftGame>({ title: '', desc: '', owner: '' });
   const [posX, setPosX] = useState('');
   const [posY, setPosY] = useState('');
   const [posZ, setPosZ] = useState('');
@@ -143,8 +143,8 @@ export default function StudioTab({ user, editMode }: StudioTabProps) {
     return light;
   };
 
-  const loadSceneObjects = (scene: any, THREE: any) => {
-    const saved = getSceneData();
+  const loadSceneObjects = async (scene: any, THREE: any) => {
+    const saved = await getSceneData();
     if (!saved || !saved.objects) return;
 
     const objects: SceneObjectRef[] = [];
@@ -285,7 +285,7 @@ export default function StudioTab({ user, editMode }: StudioTabProps) {
     alert('Draft saved.');
   };
 
-  const publishDraftNow = () => {
+  const publishDraftNow = async () => {
     if (user.role !== 'admin') {
       alert('Only admins can publish live.');
       return;
@@ -294,7 +294,7 @@ export default function StudioTab({ user, editMode }: StudioTabProps) {
       alert('No draft to publish. Save draft first in Studio.');
       return;
     }
-    const pub = getPublished();
+    const pub = await getPublished();
     pub.push({
       title: draft.title,
       desc: draft.desc || '(no description)',

@@ -1,6 +1,7 @@
 'use client';
 
-import { User, PublishedGame, PrebuiltGame } from '@/types';
+import { useState, useEffect } from 'react';
+import { User, PublishedGame, PrebuiltGame, TabContent } from '@/types';
 import { getPublished, getTabContent, getPrebuiltGames, saveSceneData } from '@/lib/storage';
 import { escapeHTML } from '@/lib/utils';
 
@@ -11,14 +12,24 @@ interface DiscoverTabProps {
 }
 
 export default function DiscoverTab({ user, editMode, onResetPublished }: DiscoverTabProps) {
-  const published = getPublished();
-  const prebuiltGames = getPrebuiltGames();
-  const tabContent = getTabContent();
+  const [published, setPublished] = useState<PublishedGame[]>([]);
+  const [prebuiltGames, setPrebuiltGames] = useState<PrebuiltGame[]>([]);
+  const [tabContent, setTabContent] = useState<TabContent>({} as TabContent);
 
-  const handleLoadPrebuilt = (game: PrebuiltGame) => {
+  useEffect(() => {
+    const loadData = async () => {
+      const [pubData, prebuiltData, tabData] = await Promise.all([getPublished(), getPrebuiltGames(), getTabContent()]);
+      setPublished(pubData);
+      setPrebuiltGames(prebuiltData);
+      setTabContent(tabData);
+    };
+    loadData();
+  }, []);
+
+  const handleLoadPrebuilt = async (game: PrebuiltGame) => {
     if (confirm(`Load "${game.title}" template? This will replace your current scene.`)) {
       if (game.sceneData) {
-        saveSceneData(game.sceneData);
+        await saveSceneData(game.sceneData);
         alert(`Loaded "${game.title}" template! Go to Studio to see it.`);
       }
     }

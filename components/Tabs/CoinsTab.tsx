@@ -20,7 +20,15 @@ const coinPacks: CoinPack[] = [
 export default function CoinsTab({ user, editMode }: CoinsTabProps) {
   const { updateUser } = useUser();
   const bal = typeof user.coins === 'number' ? user.coins : 0;
-  const tabContent = getTabContent();
+  const [tabContent, setTabContent] = useState<TabContent>({} as TabContent);
+
+  useEffect(() => {
+    const loadData = async () => {
+      const tabData = await getTabContent();
+      setTabContent(tabData);
+    };
+    loadData();
+  }, []);
 
   const handlePurchase = (pack: CoinPack) => {
     if (confirm(`Buy ${pack.coins} Coins for ${pack.priceLabel}?\nCurrent balance: ${bal}`)) {

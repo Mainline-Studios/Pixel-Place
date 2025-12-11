@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { User, Skin, Accessory } from '@/types';
 import { getSkins, saveSkins, getAccessories, saveAccessories } from '@/lib/storage';
 import { escapeHTML } from '@/lib/utils';
@@ -122,8 +122,17 @@ function AccessoryThumb({ accessory, skin, equippedAccessories }: { accessory: A
 
 export default function AvatarShopTab({ user, editMode }: AvatarShopTabProps) {
   const { updateUser } = useUser();
-  const [skins, setSkins] = useState(getSkins());
-  const [accessories, setAccessories] = useState(getAccessories());
+  const [skins, setSkins] = useState<Skin[]>([]);
+  const [accessories, setAccessories] = useState<Accessory[]>([]);
+
+  useEffect(() => {
+    const loadData = async () => {
+      const [skinsData, accessoriesData] = await Promise.all([getSkins(), getAccessories()]);
+      setSkins(skinsData);
+      setAccessories(accessoriesData);
+    };
+    loadData();
+  }, []);
   const ownedSkins = skins.filter((s) => user.ownedSkins?.includes(s.id));
   const ownedAccessories = accessories.filter((a) => user.ownedAccessories?.includes(a.id));
   const equippedSkin = skins.find((s) => s.id === user.equippedSkin) || skins[0];
@@ -192,7 +201,7 @@ export default function AvatarShopTab({ user, editMode }: AvatarShopTabProps) {
     updateUser({ equippedAccessories: newEquipped });
   };
 
-  const handleAddSkin = () => {
+  const handleAddSkin = async () => {
     if (user.role !== 'admin') {
       alert('Admin only');
       return;
@@ -219,7 +228,7 @@ export default function AvatarShopTab({ user, editMode }: AvatarShopTabProps) {
     };
 
     const updatedSkins = [...skins, newSkin];
-    saveSkins(updatedSkins);
+    await saveSkins(updatedSkins);
     setSkins(updatedSkins);
     alert('Skin added.');
   };
