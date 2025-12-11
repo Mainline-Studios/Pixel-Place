@@ -65,7 +65,7 @@ export default function AvatarRunner3D({ user, onClose }: AvatarRunner3DProps) {
     return avatarGroup;
   }, []);
 
-  useEffect(() => {
+  useEffect(async () => {
     if (!canvasRef.current) return;
 
     let animationFrameId: number;
@@ -112,8 +112,8 @@ export default function AvatarRunner3D({ user, onClose }: AvatarRunner3DProps) {
       scene.add(ground);
 
       // Create avatar
-      const skins = getSkins();
-      const accessories = getAccessories();
+      const skins = await getSkins();
+      const accessories = await getAccessories();
       const equippedSkin = skins.find(s => s.id === user.equippedSkin) || skins[0];
       const equippedAccessories = (user.equippedAccessories || {});
       const equippedAccessoriesList = Object.values(equippedAccessories).map(id => 

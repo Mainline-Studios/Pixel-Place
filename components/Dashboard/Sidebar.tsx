@@ -1,7 +1,7 @@
 'use client';
 
-import { useMemo } from 'react';
-import { User } from '@/types';
+import { useState, useEffect, useMemo } from 'react';
+import { User, Skin } from '@/types';
 import { getSkins } from '@/lib/storage';
 import Avatar3D from '../Avatar3D';
 
@@ -10,10 +10,20 @@ interface SidebarProps {
 }
 
 export default function Sidebar({ user }: SidebarProps) {
+  const [skins, setSkins] = useState<Skin[]>([]);
+
+  useEffect(() => {
+    const loadSkins = async () => {
+      const skinsData = await getSkins();
+      setSkins(skinsData);
+    };
+    loadSkins();
+  }, []);
+
   const skin = useMemo(() => {
-    const skins = getSkins();
+    if (skins.length === 0) return null;
     return skins.find(s => s.id === user.equippedSkin) || skins[0];
-  }, [user.equippedSkin]);
+  }, [skins, user.equippedSkin]);
 
   return (
     <aside className="sidebar-card">
