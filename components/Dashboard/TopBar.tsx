@@ -13,11 +13,10 @@ interface TopBarProps {
 
 const tabs: { key: TabType; label: string }[] = [
   { key: 'home', label: 'Home' },
-  { key: 'discover', label: 'Discover' },
   { key: 'avatarShop', label: 'Avatar Shop' },
   { key: 'createGame', label: 'Create' },
-  { key: 'studio', label: 'Studio' },
   { key: 'coins', label: 'Pixel Coins' },
+  { key: 'servers', label: 'Servers' },
   { key: 'friends', label: 'Friends' },
   { key: 'settings', label: 'Settings' },
 ];
@@ -50,7 +49,3 @@ export default function TopBar({ currentTab, onTabChange, username, role, avatar
     </div>
   );
 }
-
-
-
-

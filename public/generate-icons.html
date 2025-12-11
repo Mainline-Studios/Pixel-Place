@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Generate PWA Icons</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background: #1a1d2c;
+            color: white;
+        }
+
+        canvas {
+            border: 1px solid #4a90e2;
+            margin: 10px;
+            background: white;
+        }
+
+        button {
+            background: #4a90e2;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 10px 5px;
+        }
+
+        button:hover {
+            background: #357abd;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Generate PWA Icons for Pixel Place</h1>
+    <p>Click the button below to generate all required icon sizes. Then right-click each canvas and "Save image as..."
+        to save them in the /public folder.</p>
+
+    <button onclick="generateIcons()">Generate All Icons</button>
+    <button onclick="downloadAll()">Download All Icons</button>
+
+    <div id="canvases"></div>
+
+    <script>
+        const sizes = [72, 96, 128, 144, 152, 192, 384, 512];
+
+        function generateIcons() {
+            const container = document.getElementById('canvases');
+            container.innerHTML = '';
+
+            sizes.forEach(size => {
+                const canvas = document.createElement('canvas');
+                canvas.width = size;
+                canvas.height = size;
+                canvas.id = `icon-${size}`;
+                const ctx = canvas.getContext('2d');
+
+                // Background gradient (blue to purple)
+                const gradient = ctx.createLinearGradient(0, 0, size, size);
+                gradient.addColorStop(0, '#4a90e2');
+                gradient.addColorStop(1, '#7b68ee');
+                ctx.fillStyle = gradient;
+                ctx.fillRect(0, 0, size, size);
+
+                // Rounded corners
+                ctx.globalCompositeOperation = 'destination-in';
+                ctx.beginPath();
+                const radius = size * 0.2;
+                ctx.roundRect(0, 0, size, size, radius);
+                ctx.fill();
+                ctx.globalCompositeOperation = 'source-over';
+
+                // "PP" text
+                ctx.fillStyle = 'white';
+                ctx.font = `bold ${size * 0.4}px Arial`;
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText('PP', size / 2, size / 2);
+
+                // Border
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+                ctx.lineWidth = size * 0.02;
+                ctx.beginPath();
+                ctx.roundRect(0, 0, size, size, radius);
+                ctx.stroke();
+
+                const label = document.createElement('div');
+                label.textContent = `icon-${size}x${size}.png`;
+                label.style.marginTop = '5px';
+
+                const wrapper = document.createElement('div');
+                wrapper.style.display = 'inline-block';
+                wrapper.style.margin = '10px';
+                wrapper.style.textAlign = 'center';
+                wrapper.appendChild(canvas);
+                wrapper.appendChild(label);
+                container.appendChild(wrapper);
+            });
+        }
+
+        function downloadAll() {
+            sizes.forEach(size => {
+                const canvas = document.getElementById(`icon-${size}`);
+                if (canvas) {
+                    canvas.toBlob(blob => {
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = `icon-${size}x${size}.png`;
+                        a.click();
+                        URL.revokeObjectURL(url);
+                    });
+                }
+            });
+        }
+
+        // Generate on load
+        window.onload = generateIcons;
+    </script>
+</body>
+
+</html>

@@ -47,11 +47,6 @@ export default function SettingsTab({ user, editMode, onToggleEditMode, onResetP
             <button className="btn" onClick={onToggleEditMode}>
               {editMode ? 'Stop Editing' : 'Edit Mode'}
             </button>
-            {onResetPublished && (
-              <button className="btn" onClick={onResetPublished}>
-                Reset Published Games
-              </button>
-            )}
           </div>
         </div>
       )}

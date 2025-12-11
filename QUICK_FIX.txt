@@ -1,0 +1,39 @@
+================================================================================
+  QUICK FIX - Copy and Paste These Commands
+================================================================================
+
+Open PowerShell and run these commands ONE BY ONE:
+
+1. cd "c:\Users\Landon Boehm\Pixel-Place"
+
+2. npm install
+
+3. npm run dev
+
+Then wait for this message:
+   "✓ Ready in X seconds"
+   "○ Local: http://localhost:3000"
+
+Then open your browser and go to:
+   http://localhost:3000
+
+================================================================================
+  OR Double-Click This File:
+================================================================================
+
+TEST_AND_START.bat
+
+This will do everything automatically!
+
+================================================================================
+  If Port 3000 is Busy:
+================================================================================
+
+Run this instead:
+   npm run dev -- -p 3001
+
+Then use: http://localhost:3001
+
+================================================================================
+
+

@@ -1,0 +1,28 @@
+================================================================================
+  SIMPLEST WAY - Just Double-Click This:
+================================================================================
+
+  RUN.bat
+
+That's it! It will:
+1. Install dependencies (if needed)
+2. Start the server
+3. Open http://localhost:3000 in your browser automatically
+
+================================================================================
+  What Happens:
+================================================================================
+
+1. A new window opens with the server running
+2. After 8 seconds, your browser opens to http://localhost:3000
+3. You're done! Just use the app.
+
+================================================================================
+  To Stop:
+================================================================================
+
+Close the server window (the one that says "Pixel Place Server")
+
+================================================================================
+
+

@@ -7,11 +7,10 @@ import { getPublished, savePublished } from '@/lib/storage';
 import TopBar from './TopBar';
 import Sidebar from './Sidebar';
 import HomeTab from '../Tabs/HomeTab';
-import DiscoverTab from '../Tabs/DiscoverTab';
 import AvatarShopTab from '../Tabs/AvatarShopTab';
 import CreateTab from '../Tabs/CreateTab';
-import StudioTab from '../Tabs/StudioTab';
 import CoinsTab from '../Tabs/CoinsTab';
+import ServersTab from '../Tabs/ServersTab';
 import FriendsTab from '../Tabs/FriendsTab';
 import SettingsTab from '../Tabs/SettingsTab';
 
@@ -27,27 +26,25 @@ export default function Dashboard({ user }: DashboardProps) {
     if (user.role !== 'admin') return;
     savePublished([]);
     alert('All published games cleared.');
-    if (currentTab === 'discover') {
+    if (currentTab === 'home') {
       // Force re-render
-      setCurrentTab('home');
-      setTimeout(() => setCurrentTab('discover'), 0);
+      setCurrentTab('settings');
+      setTimeout(() => setCurrentTab('home'), 0);
     }
   };
 
   const renderTabContent = () => {
     switch (currentTab) {
       case 'home':
-        return <HomeTab user={user} editMode={editMode} />;
-      case 'discover':
-        return <DiscoverTab user={user} editMode={editMode} onResetPublished={handleResetPublished} />;
+        return <HomeTab user={user} editMode={editMode} onResetPublished={handleResetPublished} />;
       case 'avatarShop':
         return <AvatarShopTab user={user} editMode={editMode} />;
       case 'createGame':
         return <CreateTab user={user} editMode={editMode} />;
-      case 'studio':
-        return <StudioTab user={user} editMode={editMode} />;
       case 'coins':
         return <CoinsTab user={user} editMode={editMode} />;
+      case 'servers':
+        return <ServersTab user={user} editMode={editMode} />;
       case 'friends':
         return <FriendsTab user={user} editMode={editMode} />;
       case 'settings':

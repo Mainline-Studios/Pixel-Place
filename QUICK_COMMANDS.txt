@@ -1,0 +1,14 @@
+DEPLOY COMMAND (PowerShell):
+cd "c:\Users\Landon Boehm\Pixel-Place"; npm install -g vercel; npm install; npm run build; vercel login; vercel --prod
+
+START LOCALHOST (PowerShell):
+cd "c:\Users\Landon Boehm\Pixel-Place"; npm run dev
+
+Then open: http://localhost:3000
+
+AFTER DEPLOYMENT - USE THE APP:
+1. Copy the Vercel URL (e.g., https://pixel-place.vercel.app)
+2. Open in Chrome/Edge
+3. Click "Install" button (or menu → Install app)
+4. App opens in its own window - works like native app!
+

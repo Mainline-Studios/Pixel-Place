@@ -6,26 +6,55 @@
         "dev": "next dev",
         "build": "next build",
         "start": "next start",
-        "lint": "next lint"
+        "lint": "next lint",
+        "deploy": "npm run build && vercel --prod",
+        "deploy:auto": "npm install -g vercel && npm install && npm run build && vercel login && vercel --prod",
+        "electron": "electron .",
+        "electron:build": "electron-builder",
+        "electron:dist": "npm run build && electron-builder"
     },
     "dependencies": {
-        "firebase": "^10.13.2",
+        "@stripe/stripe-js": "^2.4.0",
         "next": "^14.2.5",
         "react": "^18.3.1",
         "react-dom": "^18.3.1",
+        "socket.io": "^4.7.2",
+        "socket.io-client": "^4.7.2",
+        "stripe": "^14.21.0",
         "three": "^0.168.0"
     },
     "devDependencies": {
-        "@next/swc-win32-x64-msvc": "^16.0.7",
         "@types/node": "^20.14.12",
         "@types/react": "^18.3.3",
         "@types/react-dom": "^18.3.0",
         "@types/three": "^0.168.0",
         "autoprefixer": "^10.4.19",
+        "electron": "^28.3.3",
+        "electron-builder": "^24.13.3",
         "eslint": "^8.57.0",
         "eslint-config-next": "^14.2.5",
         "postcss": "^8.4.40",
         "tailwindcss": "^3.4.7",
         "typescript": "^5.5.4"
+    },
+    "main": "electron-main.js",
+    "build": {
+        "appId": "com.pixelplace.app",
+        "productName": "Pixel Place",
+        "directories": {
+            "output": "dist-electron"
+        },
+        "win": {
+            "target": [
+                "nsis"
+            ],
+            "icon": "public/icon-512x512.png"
+        },
+        "nsis": {
+            "oneClick": false,
+            "allowToChangeInstallationDirectory": true,
+            "createDesktopShortcut": true,
+            "createStartMenuShortcut": true
+        }
     }
 }

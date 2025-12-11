@@ -23,7 +23,7 @@ export default function Login() {
   return (
     <div id="login-screen">
       <div className="login-box">
-        <h1>Pixel Place</h1>
+        <h1 className="pixel-place-title">PIXEL PLACE</h1>
         <input
           id="user"
           placeholder="Username"
@@ -42,7 +42,7 @@ export default function Login() {
           value={gender}
           onChange={(e) => setGender(e.target.value)}
         >
-          <option value="">Select Gender (for new account)</option>
+          <option value="">Gender (Optional)</option>
           <option>Male</option>
           <option>Female</option>
           <option>Other</option>
@@ -58,6 +58,7 @@ export default function Login() {
     </div>
   );
 }
+
 
 
 

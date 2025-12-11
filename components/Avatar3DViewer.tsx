@@ -1,0 +1,866 @@
+'use client';
+
+import { useEffect, useRef, useState } from 'react';
+import { Skin } from '@/types';
+
+interface Avatar3DViewerProps {
+  skin: Skin;
+  width?: number;
+  height?: number;
+  interactive?: boolean; // Enable mouse interaction
+  animation?: string; // Animation to play
+}
+
+export default function Avatar3DViewer({
+  skin,
+  width = 200,
+  height = 200,
+  interactive = true,
+  animation = 'idle'
+}: Avatar3DViewerProps) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const mountRef = useRef<HTMLDivElement>(null);
+  const [isHovered, setIsHovered] = useState(false);
+  const rendererRef = useRef<any>(null);
+  const sceneRef = useRef<any>(null);
+  const cameraRef = useRef<any>(null);
+  const characterGroupRef = useRef<any>(null);
+  const animationFrameRef = useRef<number | null>(null);
+  const mousePositionRef = useRef({ x: 0, y: 0 });
+  const rotationRef = useRef({ x: 0, y: 0 });
+
+  // Convert hex color to Three.js color
+  const hexToColor = (hex: string) => {
+    const num = parseInt(hex.replace('#', ''), 16);
+    return {
+      r: ((num >> 16) & 255) / 255,
+      g: ((num >> 8) & 255) / 255,
+      b: (num & 255) / 255
+    };
+  };
+
+  useEffect(() => {
+    if (!canvasRef.current) return;
+
+    let THREE: any;
+    let characterGroup: any;
+    let animationTime = 0;
+
+    // Dynamic import for Three.js
+    import('three').then((module) => {
+      THREE = module;
+
+      const canvas = canvasRef.current!;
+      const renderer = new THREE.WebGLRenderer({
+        canvas,
+        antialias: true,
+        alpha: true
+      });
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      renderer.setSize(width, height);
+      renderer.setClearColor(0x000000, 0);
+
+      const scene = new THREE.Scene();
+
+      // Camera setup - similar to Roblox avatar viewer
+      const camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 1000);
+      camera.position.set(0, 2, 6);
+      camera.lookAt(0, 1, 0);
+
+      // Lighting - soft ambient + directional
+      const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+      scene.add(ambientLight);
+
+      const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+      directionalLight.position.set(5, 10, 5);
+      directionalLight.castShadow = true;
+      scene.add(directionalLight);
+
+      const fillLight = new THREE.DirectionalLight(0xffffff, 0.3);
+      fillLight.position.set(-5, 5, -5);
+      scene.add(fillLight);
+
+      // Create character group
+      characterGroup = new THREE.Group();
+      scene.add(characterGroup);
+
+      // Colors
+      const headColor = hexToColor(skin.colors?.head || '#4a4f66');
+      const torsoColor = hexToColor(skin.colors?.torso || '#4d536f');
+      const armColor = hexToColor(skin.colors?.arm || '#3a3f56');
+      const legColor = hexToColor(skin.colors?.legs || '#3a3f56');
+
+      // Create materials
+      const headMaterial = new THREE.MeshStandardMaterial({
+        color: new THREE.Color(headColor.r, headColor.g, headColor.b),
+        roughness: 0.7,
+        metalness: 0.1
+      });
+      const torsoMaterial = new THREE.MeshStandardMaterial({
+        color: new THREE.Color(torsoColor.r, torsoColor.g, torsoColor.b),
+        roughness: 0.7,
+        metalness: 0.1
+      });
+      const armMaterial = new THREE.MeshStandardMaterial({
+        color: new THREE.Color(armColor.r, armColor.g, armColor.b),
+        roughness: 0.7,
+        metalness: 0.1
+      });
+      const legMaterial = new THREE.MeshStandardMaterial({
+        color: new THREE.Color(legColor.r, legColor.g, legColor.b),
+        roughness: 0.7,
+        metalness: 0.1
+      });
+
+      // Helper function to create Roblox-style rounded boxes
+      const createRoundedBox = (width: number, height: number, depth: number, radius: number = 0.1) => {
+        const geometry = new THREE.BoxGeometry(width, height, depth);
+        geometry.computeVertexNormals();
+        return geometry;
+      };
+
+      // Create Roblox-style blocky character with clean proportions
+      // Head - square block like Roblox
+      const headGeometry = createRoundedBox(1.2, 1.2, 1.2, 0.08);
+      const head = new THREE.Mesh(headGeometry, headMaterial);
+      head.position.set(0, 2.1, 0);
+      characterGroup.add(head);
+
+      // Torso - wider and taller like Roblox
+      const torsoGeometry = createRoundedBox(1.6, 1.8, 0.8, 0.1);
+      const torso = new THREE.Mesh(torsoGeometry, torsoMaterial);
+      torso.position.set(0, 0.9, 0);
+      characterGroup.add(torso);
+
+      // Left Arm
+      const leftArmGeometry = createRoundedBox(0.5, 1.8, 0.5, 0.06);
+      const leftArm = new THREE.Mesh(leftArmGeometry, armMaterial);
+      leftArm.position.set(-1.15, 0.9, 0);
+      characterGroup.add(leftArm);
+
+      // Right Arm
+      const rightArmGeometry = createRoundedBox(0.5, 1.8, 0.5, 0.06);
+      const rightArm = new THREE.Mesh(rightArmGeometry, armMaterial);
+      rightArm.position.set(1.15, 0.9, 0);
+      characterGroup.add(rightArm);
+
+      // Left Leg
+      const leftLegGeometry = createRoundedBox(0.6, 1.6, 0.6, 0.06);
+      const leftLeg = new THREE.Mesh(leftLegGeometry, legMaterial);
+      leftLeg.position.set(-0.4, -1.0, 0);
+      characterGroup.add(leftLeg);
+
+      // Right Leg
+      const rightLegGeometry = createRoundedBox(0.6, 1.6, 0.6, 0.06);
+      const rightLeg = new THREE.Mesh(rightLegGeometry, legMaterial);
+      rightLeg.position.set(0.4, -1.0, 0);
+      characterGroup.add(rightLeg);
+
+      // Store references for animation
+      const bodyParts = {
+        head,
+        torso,
+        leftArm,
+        rightArm,
+        leftLeg,
+        rightLeg
+      };
+
+      // Note: We don't rotate the character for accessories - they should be visible from the front
+
+      // Add accessories if available
+      if (skin.accessories && skin.accessories.length > 0) {
+        skin.accessories.forEach((accessory) => {
+          const accessoryColor = accessory.color
+            ? hexToColor(accessory.color)
+            : { r: 0.5, g: 0.5, b: 0.5 };
+
+          const accessoryMaterial = new THREE.MeshStandardMaterial({
+            color: new THREE.Color(accessoryColor.r, accessoryColor.g, accessoryColor.b),
+            roughness: 0.3,
+            metalness: 0.7
+          });
+
+          let accessoryMesh: any;
+
+          switch (accessory.type) {
+            case 'chain':
+              // Create necklace chain around neck - better design
+              const chainGroup = new THREE.Group();
+              const chainColor = hexToColor(accessory.color || '#FFD700');
+              const chainMat = new THREE.MeshStandardMaterial({
+                color: new THREE.Color(chainColor.r, chainColor.g, chainColor.b),
+                roughness: 0.2,
+                metalness: 0.9
+              });
+
+              // Create necklace chain - positioned around the neck area (Roblox style)
+              const numLinks = 16;
+              for (let i = 0; i < numLinks; i++) {
+                const angle = (i / numLinks) * Math.PI * 2;
+                const linkGeometry = new THREE.TorusGeometry(0.06, 0.025, 8, 16);
+                const link = new THREE.Mesh(linkGeometry, chainMat);
+                // Position in circular shape around neck (at y position 1.8, which is neck level)
+                const radius = 0.45;
+                link.position.set(
+                  Math.cos(angle) * radius,
+                  1.8, // Neck level - matches the head position (2.1) minus head radius
+                  Math.sin(angle) * radius * 0.6 // Slightly oval to fit neck shape
+                );
+                link.rotation.x = Math.PI / 2;
+                link.rotation.z = angle;
+                chainGroup.add(link);
+              }
+              // Add pendant in front (hanging down from chain)
+              const pendantGeometry = createRoundedBox(0.12, 0.18, 0.04, 0.02);
+              const pendant = new THREE.Mesh(pendantGeometry, chainMat);
+              pendant.position.set(0, 1.5, 0.4); // In front of chest, hanging down
+              chainGroup.add(pendant);
+              characterGroup.add(chainGroup);
+              accessoryMesh = chainGroup as any;
+              break;
+            case 'hat':
+              // Better Roblox-style cap with multiple colors
+              const hatGroup = new THREE.Group();
+              const hatColor = hexToColor(accessory.color || '#FF0000');
+              const hatMainMat = new THREE.MeshStandardMaterial({
+                color: new THREE.Color(hatColor.r, hatColor.g, hatColor.b),
+                roughness: 0.6,
+                metalness: 0.1
+              });
+
+              // Brim (bottom part)
+              const hatBrim = new THREE.CylinderGeometry(0.75, 0.75, 0.12, 16);
+              const hatBrimMesh = new THREE.Mesh(hatBrim, hatMainMat);
+              hatBrimMesh.position.set(0, 2.75, 0);
+              hatGroup.add(hatBrimMesh);
+
+              // Top part (crown)
+              const hatTop = new THREE.CylinderGeometry(0.5, 0.65, 0.35, 16);
+              const hatTopMesh = new THREE.Mesh(hatTop, hatMainMat);
+              hatTopMesh.position.set(0, 2.95, 0);
+              hatGroup.add(hatTopMesh);
+
+              // Visor (front part)
+              const visorColor = hexToColor(accessory.color || '#000000');
+              const visorMat = new THREE.MeshStandardMaterial({
+                color: new THREE.Color(visorColor.r * 0.5, visorColor.g * 0.5, visorColor.b * 0.5),
+                roughness: 0.4,
+                metalness: 0.2
+              });
+              const visorGeometry = createRoundedBox(0.8, 0.1, 0.3, 0.03);
+              const visor = new THREE.Mesh(visorGeometry, visorMat);
+              visor.rotation.x = -0.2;
+              visor.position.set(0, 2.7, 0.25);
+              hatGroup.add(visor);
+
+              characterGroup.add(hatGroup);
+              accessoryMesh = hatGroup as any;
+              break;
+            case 'glasses':
+              // Better sunglasses design with frame and lenses
+              const glassesGroup = new THREE.Group();
+              const frameColor = hexToColor(accessory.color || '#000000');
+              const frameMaterial = new THREE.MeshStandardMaterial({
+                color: new THREE.Color(frameColor.r, frameColor.g, frameColor.b),
+                roughness: 0.3,
+                metalness: 0.7
+              });
+
+              // Frame bridge (rounded)
+              const bridgeGeometry = createRoundedBox(0.15, 0.08, 0.06, 0.01);
+              const bridge = new THREE.Mesh(bridgeGeometry, frameMaterial);
+              bridge.position.set(0, 2.15, 0.62);
+              glassesGroup.add(bridge);
+
+              // Left frame (rounded)
+              const leftFrameGeometry = createRoundedBox(0.5, 0.35, 0.06, 0.02);
+              const leftFrame = new THREE.Mesh(leftFrameGeometry, frameMaterial);
+              leftFrame.position.set(-0.35, 2.15, 0.62);
+              glassesGroup.add(leftFrame);
+
+              // Right frame (rounded)
+              const rightFrameGeometry = createRoundedBox(0.5, 0.35, 0.06, 0.02);
+              const rightFrame = new THREE.Mesh(rightFrameGeometry, frameMaterial);
+              rightFrame.position.set(0.35, 2.15, 0.62);
+              glassesGroup.add(rightFrame);
+
+              // Temples (arms) (rounded)
+              const leftTemple = createRoundedBox(0.4, 0.06, 0.06, 0.01);
+              const leftTempleMesh = new THREE.Mesh(leftTemple, frameMaterial);
+              leftTempleMesh.rotation.y = -0.3;
+              leftTempleMesh.position.set(-0.65, 2.15, 0.5);
+              glassesGroup.add(leftTempleMesh);
+
+              const rightTemple = createRoundedBox(0.4, 0.06, 0.06, 0.01);
+              const rightTempleMesh = new THREE.Mesh(rightTemple, frameMaterial);
+              rightTempleMesh.rotation.y = 0.3;
+              rightTempleMesh.position.set(0.65, 2.15, 0.5);
+              glassesGroup.add(rightTempleMesh);
+
+              // Lenses with tint
+              const lensColor = hexToColor(accessory.color || '#1a1a2e');
+              const lensMaterial = new THREE.MeshStandardMaterial({
+                color: new THREE.Color(lensColor.r * 0.3, lensColor.g * 0.3, lensColor.b * 0.5),
+                transparent: true,
+                opacity: 0.4,
+                roughness: 0.1,
+                metalness: 0.9
+              });
+
+              const leftLens = createRoundedBox(0.45, 0.32, 0.04, 0.02);
+              const leftLensMesh = new THREE.Mesh(leftLens, lensMaterial);
+              leftLensMesh.position.set(-0.35, 2.15, 0.64);
+              glassesGroup.add(leftLensMesh);
+
+              const rightLens = createRoundedBox(0.45, 0.32, 0.04, 0.02);
+              const rightLensMesh = new THREE.Mesh(rightLens, lensMaterial);
+              rightLensMesh.position.set(0.35, 2.15, 0.64);
+              glassesGroup.add(rightLensMesh);
+
+              characterGroup.add(glassesGroup);
+              accessoryMesh = glassesGroup as any;
+              break;
+            case 'shirt':
+              // Better shirt design with sleeves and collar
+              const shirtGroup = new THREE.Group();
+              const shirtColor = hexToColor(accessory.color || '#FF0000');
+              const shirtMat = new THREE.MeshStandardMaterial({
+                color: new THREE.Color(shirtColor.r, shirtColor.g, shirtColor.b),
+                roughness: 0.7,
+                metalness: 0.1
+              });
+
+              // Main shirt body (rounded)
+              const shirtBody = createRoundedBox(1.7, 1.9, 0.9, 0.08);
+              const shirtBodyMesh = new THREE.Mesh(shirtBody, shirtMat);
+              shirtBodyMesh.position.set(0, 0.9, 0.06);
+              shirtGroup.add(shirtBodyMesh);
+
+              // Collar (rounded)
+              const collarColor = hexToColor(accessory.color || '#FFFFFF');
+              const collarMat = new THREE.MeshStandardMaterial({
+                color: new THREE.Color(collarColor.r * 1.2, collarColor.g * 1.2, collarColor.b * 1.2),
+                roughness: 0.6
+              });
+              const collarGeometry = createRoundedBox(0.4, 0.2, 0.1, 0.02);
+              const collar = new THREE.Mesh(collarGeometry, collarMat);
+              collar.position.set(0, 1.7, 0.5);
+              shirtGroup.add(collar);
+
+              // Sleeves (rounded)
+              const leftSleeve = createRoundedBox(0.6, 1.8, 0.6, 0.06);
+              const leftSleeveMesh = new THREE.Mesh(leftSleeve, shirtMat);
+              leftSleeveMesh.position.set(-1.2, 0.9, 0);
+              shirtGroup.add(leftSleeveMesh);
+
+              const rightSleeve = createRoundedBox(0.6, 1.8, 0.6, 0.06);
+              const rightSleeveMesh = new THREE.Mesh(rightSleeve, shirtMat);
+              rightSleeveMesh.position.set(1.2, 0.9, 0);
+              shirtGroup.add(rightSleeveMesh);
+
+              characterGroup.add(shirtGroup);
+              accessoryMesh = shirtGroup as any;
+              break;
+            case 'pants':
+              // Better pants design with belt and pockets
+              const pantsGroup = new THREE.Group();
+              const pantsColor = hexToColor(accessory.color || '#0000FF');
+              const pantsMat = new THREE.MeshStandardMaterial({
+                color: new THREE.Color(pantsColor.r, pantsColor.g, pantsColor.b),
+                roughness: 0.7,
+                metalness: 0.1
+              });
+
+              // Belt
+              const beltColor = hexToColor('#8B4513'); // Brown belt
+              const beltMat = new THREE.MeshStandardMaterial({
+                color: new THREE.Color(beltColor.r, beltColor.g, beltColor.b),
+                roughness: 0.5,
+                metalness: 0.3
+              });
+              const belt = createRoundedBox(1.8, 0.15, 0.1, 0.02);
+              const beltMesh = new THREE.Mesh(belt, beltMat);
+              beltMesh.position.set(0, -0.2, 0.1);
+              pantsGroup.add(beltMesh);
+
+              // Left pant leg (rounded)
+              const leftPant = createRoundedBox(0.7, 1.7, 0.7, 0.06);
+              const leftPantMesh = new THREE.Mesh(leftPant, pantsMat);
+              leftPantMesh.position.set(-0.4, -1.0, 0.06);
+              pantsGroup.add(leftPantMesh);
+
+              // Right pant leg (rounded)
+              const rightPant = createRoundedBox(0.7, 1.7, 0.7, 0.06);
+              const rightPantMesh = new THREE.Mesh(rightPant, pantsMat);
+              rightPantMesh.position.set(0.4, -1.0, 0.06);
+              pantsGroup.add(rightPantMesh);
+
+              characterGroup.add(pantsGroup);
+              accessoryMesh = pantsGroup as any;
+              break;
+            case 'shoes':
+              // Better shoe design with laces and sole - more visible
+              const shoesGroup = new THREE.Group();
+              const shoeColor = hexToColor(accessory.color || '#FFFFFF');
+              const shoeMat = new THREE.MeshStandardMaterial({
+                color: new THREE.Color(shoeColor.r, shoeColor.g, shoeColor.b),
+                roughness: 0.5,
+                metalness: 0.2
+              });
+
+              // Sole color (darker)
+              const soleColor = hexToColor('#333333');
+              const soleMat = new THREE.MeshStandardMaterial({
+                color: new THREE.Color(soleColor.r, soleColor.g, soleColor.b),
+                roughness: 0.8,
+                metalness: 0.1
+              });
+
+              // Left shoe (rounded) - positioned more forward and visible
+              const leftShoeBody = createRoundedBox(0.75, 0.4, 0.8, 0.05);
+              const leftShoeBodyMesh = new THREE.Mesh(leftShoeBody, shoeMat);
+              leftShoeBodyMesh.position.set(-0.4, -1.85, 0.25); // More forward (z increased)
+              shoesGroup.add(leftShoeBodyMesh);
+
+              const leftSole = createRoundedBox(0.8, 0.12, 0.85, 0.03);
+              const leftSoleMesh = new THREE.Mesh(leftSole, soleMat);
+              leftSoleMesh.position.set(-0.4, -2.0, 0.25);
+              shoesGroup.add(leftSoleMesh);
+
+              // Right shoe (rounded) - positioned more forward and visible
+              const rightShoeBody = createRoundedBox(0.75, 0.4, 0.8, 0.05);
+              const rightShoeBodyMesh = new THREE.Mesh(rightShoeBody, shoeMat);
+              rightShoeBodyMesh.position.set(0.4, -1.85, 0.25); // More forward (z increased)
+              shoesGroup.add(rightShoeBodyMesh);
+
+              const rightSole = createRoundedBox(0.8, 0.12, 0.85, 0.03);
+              const rightSoleMesh = new THREE.Mesh(rightSole, soleMat);
+              rightSoleMesh.position.set(0.4, -2.0, 0.25);
+              shoesGroup.add(rightSoleMesh);
+
+              characterGroup.add(shoesGroup);
+              accessoryMesh = shoesGroup as any;
+              break;
+            case 'backpack':
+              // Better backpack design with multiple colors
+              const backpackGroup = new THREE.Group();
+              const backpackColor = hexToColor(accessory.color || '#8B4513');
+              const backpackMat = new THREE.MeshStandardMaterial({
+                color: new THREE.Color(backpackColor.r, backpackColor.g, backpackColor.b),
+                roughness: 0.6,
+                metalness: 0.2
+              });
+
+              // Main backpack body (rounded) - positioned on back but visible from side
+              const backpackBody = createRoundedBox(0.85, 1.3, 0.45, 0.06);
+              const backpackBodyMesh = new THREE.Mesh(backpackBody, backpackMat);
+              backpackBodyMesh.position.set(0, 0.9, -0.4); // Slightly forward so it's visible
+              backpackGroup.add(backpackBodyMesh);
+
+              // Front pocket (different color, rounded)
+              const pocketColor = hexToColor(accessory.color || '#654321');
+              const pocketMat = new THREE.MeshStandardMaterial({
+                color: new THREE.Color(pocketColor.r * 0.7, pocketColor.g * 0.7, pocketColor.b * 0.7),
+                roughness: 0.5
+              });
+              const pocket = createRoundedBox(0.7, 0.5, 0.05, 0.03);
+              const pocketMesh = new THREE.Mesh(pocket, pocketMat);
+              pocketMesh.position.set(0, 1.1, -0.25);
+              backpackGroup.add(pocketMesh);
+
+              // Straps (black, rounded)
+              const strapMat = new THREE.MeshStandardMaterial({
+                color: new THREE.Color(0.1, 0.1, 0.1),
+                roughness: 0.8
+              });
+              const leftStrap = createRoundedBox(0.18, 1.1, 0.12, 0.02);
+              const leftStrapMesh = new THREE.Mesh(leftStrap, strapMat);
+              leftStrapMesh.position.set(-0.35, 0.9, -0.2);
+              backpackGroup.add(leftStrapMesh);
+
+              const rightStrap = createRoundedBox(0.18, 1.1, 0.12, 0.02);
+              const rightStrapMesh = new THREE.Mesh(rightStrap, strapMat);
+              rightStrapMesh.position.set(0.35, 0.9, -0.2);
+              backpackGroup.add(rightStrapMesh);
+
+              characterGroup.add(backpackGroup);
+              accessoryMesh = backpackGroup as any;
+              break;
+            case 'wings':
+              // Better wings design with feathers
+              const wingsGroup = new THREE.Group();
+              const wingColor = hexToColor(accessory.color || '#FFFFFF');
+              const wingMat = new THREE.MeshStandardMaterial({
+                color: new THREE.Color(wingColor.r, wingColor.g, wingColor.b),
+                roughness: 0.4,
+                metalness: 0.1
+              });
+
+              // Left wing - multiple feathers (positioned to be visible from side)
+              for (let i = 0; i < 4; i++) {
+                const featherSize = 0.25 + i * 0.1;
+                const featherGeometry = new THREE.ConeGeometry(0.15, featherSize, 8);
+                const feather = new THREE.Mesh(featherGeometry, wingMat);
+                feather.rotation.z = Math.PI / 4 + i * 0.2;
+                feather.rotation.x = -0.3;
+                feather.position.set(-0.6 - i * 0.2, 0.7 + i * 0.15, -0.2 - i * 0.1); // More forward
+                wingsGroup.add(feather);
+              }
+
+              // Right wing - multiple feathers (positioned to be visible from side)
+              for (let i = 0; i < 4; i++) {
+                const featherSize = 0.25 + i * 0.1;
+                const featherGeometry = new THREE.ConeGeometry(0.15, featherSize, 8);
+                const feather = new THREE.Mesh(featherGeometry, wingMat);
+                feather.rotation.z = -Math.PI / 4 - i * 0.2;
+                feather.rotation.x = -0.3;
+                feather.position.set(0.6 + i * 0.2, 0.7 + i * 0.15, -0.2 - i * 0.1); // More forward
+                wingsGroup.add(feather);
+              }
+
+              characterGroup.add(wingsGroup);
+              accessoryMesh = wingsGroup as any;
+              break;
+            case 'pet':
+              // Roblox-style blocky pet on the ground - Cat or Robot design
+              const petGroup = new THREE.Group();
+              const petColor = hexToColor(accessory.color || '#8B4513');
+              const isRobot = accessory.name?.toLowerCase().includes('robot') || accessory.id?.includes('robot');
+              const isCat = accessory.name?.toLowerCase().includes('cat') || accessory.id?.includes('cat');
+
+              if (isRobot) {
+                // ROBOT PET - Bigger, metallic, blocky robot design
+                const robotMat = new THREE.MeshStandardMaterial({
+                  color: new THREE.Color(petColor.r, petColor.g, petColor.b),
+                  roughness: 0.3,
+                  metalness: 0.8
+                });
+
+                // Robot body - larger block
+                const robotBody = createRoundedBox(0.6, 0.5, 0.5, 0.08);
+                const robotBodyMesh = new THREE.Mesh(robotBody, robotMat);
+                robotBodyMesh.position.set(0, 0.3, 0);
+                petGroup.add(robotBodyMesh);
+
+                // Robot head - square block
+                const robotHead = createRoundedBox(0.4, 0.4, 0.4, 0.06);
+                const robotHeadMesh = new THREE.Mesh(robotHead, robotMat);
+                robotHeadMesh.position.set(0, 0.65, 0.1);
+                petGroup.add(robotHeadMesh);
+
+                // Robot eyes - glowing
+                const eyeMat = new THREE.MeshStandardMaterial({
+                  color: new THREE.Color(0, 1, 1), // Cyan
+                  emissive: new THREE.Color(0, 0.5, 0.5),
+                  roughness: 0.1,
+                  metalness: 0.9
+                });
+                const leftEye = createRoundedBox(0.08, 0.08, 0.05, 0.02);
+                const leftEyeMesh = new THREE.Mesh(leftEye, eyeMat);
+                leftEyeMesh.position.set(-0.1, 0.65, 0.25);
+                petGroup.add(leftEyeMesh);
+
+                const rightEye = createRoundedBox(0.08, 0.08, 0.05, 0.02);
+                const rightEyeMesh = new THREE.Mesh(rightEye, eyeMat);
+                rightEyeMesh.position.set(0.1, 0.65, 0.25);
+                petGroup.add(rightEyeMesh);
+
+                // Robot antenna
+                const antenna = createRoundedBox(0.05, 0.15, 0.05, 0.02);
+                const antennaMesh = new THREE.Mesh(antenna, robotMat);
+                antennaMesh.position.set(0, 0.9, 0);
+                petGroup.add(antennaMesh);
+
+                // Robot arms
+                const armGeometry = createRoundedBox(0.15, 0.4, 0.15, 0.04);
+                const leftArm = new THREE.Mesh(armGeometry, robotMat);
+                leftArm.position.set(-0.35, 0.3, 0);
+                petGroup.add(leftArm);
+
+                const rightArm = new THREE.Mesh(armGeometry, robotMat);
+                rightArm.position.set(0.35, 0.3, 0);
+                petGroup.add(rightArm);
+
+                // Robot legs
+                const legGeometry = createRoundedBox(0.15, 0.35, 0.15, 0.04);
+                const leftLeg = new THREE.Mesh(legGeometry, robotMat);
+                leftLeg.position.set(-0.2, -0.05, 0);
+                petGroup.add(leftLeg);
+
+                const rightLeg = new THREE.Mesh(legGeometry, robotMat);
+                rightLeg.position.set(0.2, -0.05, 0);
+                petGroup.add(rightLeg);
+
+                // Position robot pet on ground behind character
+                petGroup.position.set(0, -1.6, -1.5);
+                petGroup.userData.isPet = true;
+                characterGroup.add(petGroup);
+                accessoryMesh = petGroup as any;
+              } else {
+                // CAT PET - Bigger, cat-like design
+                const catMat = new THREE.MeshStandardMaterial({
+                  color: new THREE.Color(petColor.r, petColor.g, petColor.b),
+                  roughness: 0.6,
+                  metalness: 0.1
+                });
+
+                // Cat body - larger, more cat-like proportions
+                const catBody = createRoundedBox(0.5, 0.35, 0.6, 0.08);
+                const catBodyMesh = new THREE.Mesh(catBody, catMat);
+                catBodyMesh.position.set(0, 0.25, 0);
+                petGroup.add(catBodyMesh);
+
+                // Cat head - rounder, bigger
+                const catHead = createRoundedBox(0.35, 0.35, 0.35, 0.06);
+                const catHeadMesh = new THREE.Mesh(catHead, catMat);
+                catHeadMesh.position.set(0, 0.55, 0.25);
+                petGroup.add(catHeadMesh);
+
+                // Cat ears - pointed triangles (made with boxes)
+                const earGeometry = createRoundedBox(0.12, 0.15, 0.05, 0.02);
+                const leftEar = new THREE.Mesh(earGeometry, catMat);
+                leftEar.rotation.z = -0.4;
+                leftEar.rotation.x = -0.2;
+                leftEar.position.set(-0.15, 0.7, 0.2);
+                petGroup.add(leftEar);
+
+                const rightEar = new THREE.Mesh(earGeometry, catMat);
+                rightEar.rotation.z = 0.4;
+                rightEar.rotation.x = -0.2;
+                rightEar.position.set(0.15, 0.7, 0.2);
+                petGroup.add(rightEar);
+
+                // Cat eyes
+                const eyeMat = new THREE.MeshStandardMaterial({
+                  color: new THREE.Color(0.2, 0.8, 0.2), // Green
+                  emissive: new THREE.Color(0, 0.2, 0),
+                  roughness: 0.3
+                });
+                const leftEye = createRoundedBox(0.1, 0.08, 0.05, 0.02);
+                const leftEyeMesh = new THREE.Mesh(leftEye, eyeMat);
+                leftEyeMesh.position.set(-0.1, 0.55, 0.4);
+                petGroup.add(leftEyeMesh);
+
+                const rightEye = createRoundedBox(0.1, 0.08, 0.05, 0.02);
+                const rightEyeMesh = new THREE.Mesh(rightEye, eyeMat);
+                rightEyeMesh.position.set(0.1, 0.55, 0.4);
+                petGroup.add(rightEyeMesh);
+
+                // Cat nose
+                const noseMat = new THREE.MeshStandardMaterial({
+                  color: new THREE.Color(1, 0.5, 0.8), // Pink
+                  roughness: 0.5
+                });
+                const nose = createRoundedBox(0.06, 0.04, 0.04, 0.01);
+                const noseMesh = new THREE.Mesh(nose, noseMat);
+                noseMesh.position.set(0, 0.5, 0.42);
+                petGroup.add(noseMesh);
+
+                // Cat legs - 4 legs
+                const legGeometry = createRoundedBox(0.12, 0.3, 0.12, 0.03);
+                const legMat = new THREE.MeshStandardMaterial({
+                  color: new THREE.Color(petColor.r * 0.7, petColor.g * 0.7, petColor.b * 0.7),
+                  roughness: 0.6
+                });
+
+                const frontLeftLeg = new THREE.Mesh(legGeometry, legMat);
+                frontLeftLeg.position.set(-0.18, 0.05, 0.2);
+                petGroup.add(frontLeftLeg);
+
+                const frontRightLeg = new THREE.Mesh(legGeometry, legMat);
+                frontRightLeg.position.set(0.18, 0.05, 0.2);
+                petGroup.add(frontRightLeg);
+
+                const backLeftLeg = new THREE.Mesh(legGeometry, legMat);
+                backLeftLeg.position.set(-0.18, 0.05, -0.2);
+                petGroup.add(backLeftLeg);
+
+                const backRightLeg = new THREE.Mesh(legGeometry, legMat);
+                backRightLeg.position.set(0.18, 0.05, -0.2);
+                petGroup.add(backRightLeg);
+
+                // Cat tail - longer, curved
+                const tailGeometry = createRoundedBox(0.08, 0.25, 0.08, 0.03);
+                const tail = new THREE.Mesh(tailGeometry, catMat);
+                tail.rotation.x = Math.PI / 3;
+                tail.rotation.z = 0.3;
+                tail.position.set(0, 0.3, -0.35);
+                tail.userData.isTail = true;
+                petGroup.add(tail);
+
+                // Position cat pet on ground behind character
+                petGroup.position.set(0, -1.6, -1.5);
+                petGroup.userData.isPet = true;
+                characterGroup.add(petGroup);
+                accessoryMesh = petGroup as any;
+              }
+              break;
+            default:
+              const defaultGeometry = new THREE.BoxGeometry(0.3, 0.3, 0.3);
+              accessoryMesh = new THREE.Mesh(defaultGeometry, accessoryMaterial);
+              if (accessory.position) {
+                accessoryMesh.position.set(
+                  accessory.position.x,
+                  accessory.position.y,
+                  accessory.position.z
+                );
+              }
+              characterGroup.add(accessoryMesh);
+          }
+        });
+      }
+
+      rendererRef.current = renderer;
+      sceneRef.current = scene;
+      cameraRef.current = camera;
+      characterGroupRef.current = characterGroup;
+
+      // Animation function
+      const animate = () => {
+        animationFrameRef.current = requestAnimationFrame(animate);
+        animationTime += 0.016; // ~60fps
+
+        // Apply rotation based on mouse position
+        if (interactive && isHovered) {
+          const targetRotationY = mousePositionRef.current.x * Math.PI;
+          const targetRotationX = mousePositionRef.current.y * 0.3;
+
+          rotationRef.current.y += (targetRotationY - rotationRef.current.y) * 0.1;
+          rotationRef.current.x += (targetRotationX - rotationRef.current.x) * 0.1;
+
+          characterGroup.rotation.y = rotationRef.current.y;
+          characterGroup.rotation.x = rotationRef.current.x;
+        } else {
+          // Smooth return to center - no automatic rotation for accessories
+          rotationRef.current.y *= 0.95;
+          rotationRef.current.x *= 0.95;
+          characterGroup.rotation.y = rotationRef.current.y;
+          characterGroup.rotation.x = rotationRef.current.x;
+        }
+
+        // Animate pets (walking/following animation on ground)
+        characterGroup.children.forEach((child: any) => {
+          if (child.userData?.isPet) {
+            // Slight bobbing motion as if walking on ground
+            child.position.y = -1.8 + Math.sin(animationTime * 4) * 0.05;
+            // Tail wagging
+            child.children.forEach((petPart: any) => {
+              if (petPart.userData?.isTail) {
+                petPart.rotation.x = Math.PI / 3 + Math.sin(animationTime * 6) * 0.3;
+              }
+            });
+            // Slight head movement
+            const head = child.children.find((c: any) => c.position.y > 0.3 && c.position.z > 0.2);
+            if (head) {
+              head.rotation.y = Math.sin(animationTime * 2) * 0.1;
+            }
+          }
+        });
+
+        // Apply animations
+        if (animation === 'idle') {
+          // Gentle idle animation
+          head.position.y = 2.1 + Math.sin(animationTime * 2) * 0.02;
+          leftArm.rotation.x = Math.sin(animationTime * 1.5) * 0.1;
+          rightArm.rotation.x = -Math.sin(animationTime * 1.5) * 0.1;
+          // Reset other parts
+          leftLeg.rotation.x = 0;
+          rightLeg.rotation.x = 0;
+          rightArm.rotation.z = 0;
+          characterGroup.position.y = 0;
+        } else if (animation === 'walk') {
+          // Walking animation
+          leftLeg.rotation.x = Math.sin(animationTime * 4) * 0.3;
+          rightLeg.rotation.x = -Math.sin(animationTime * 4) * 0.3;
+          leftArm.rotation.x = -Math.sin(animationTime * 4) * 0.3;
+          rightArm.rotation.x = Math.sin(animationTime * 4) * 0.3;
+          characterGroup.position.y = Math.abs(Math.sin(animationTime * 4)) * 0.1;
+          // Reset head
+          head.position.y = 2.1;
+          rightArm.rotation.z = 0;
+        } else if (animation === 'wave') {
+          // Waving animation
+          rightArm.rotation.x = -Math.PI / 2 + Math.sin(animationTime * 3) * 0.5;
+          rightArm.rotation.z = Math.sin(animationTime * 3) * 0.3;
+          // Reset other parts
+          head.position.y = 2.1;
+          leftArm.rotation.x = 0;
+          leftLeg.rotation.x = 0;
+          rightLeg.rotation.x = 0;
+          characterGroup.position.y = 0;
+        } else {
+          // Default: reset all
+          head.position.y = 2.1;
+          leftArm.rotation.x = 0;
+          rightArm.rotation.x = 0;
+          rightArm.rotation.z = 0;
+          leftLeg.rotation.x = 0;
+          rightLeg.rotation.x = 0;
+          characterGroup.position.y = 0;
+        }
+
+        renderer.render(scene, camera);
+      };
+
+      animate();
+    });
+
+    return () => {
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+      }
+      if (rendererRef.current) {
+        rendererRef.current.dispose();
+      }
+    };
+  }, [skin, width, height, interactive, animation, isHovered]);
+
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!interactive || !mountRef.current) return;
+
+    const rect = mountRef.current.getBoundingClientRect();
+    const x = (e.clientX - rect.left) / rect.width;
+    const y = (e.clientY - rect.top) / rect.height;
+
+    // Map to -1 to 1 range, centered
+    mousePositionRef.current = {
+      x: (x - 0.5) * 2,
+      y: (y - 0.5) * 2
+    };
+  };
+
+  const handleMouseEnter = () => {
+    setIsHovered(true);
+  };
+
+  const handleMouseLeave = () => {
+    setIsHovered(false);
+    mousePositionRef.current = { x: 0, y: 0 };
+  };
+
+  return (
+    <div
+      ref={mountRef}
+      onMouseMove={handleMouseMove}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
+      style={{
+        width: `${width}px`,
+        height: `${height}px`,
+        position: 'relative',
+        cursor: interactive ? 'grab' : 'default',
+        userSelect: 'none'
+      }}
+    >
+      <canvas
+        ref={canvasRef}
+        style={{
+          width: '100%',
+          height: '100%',
+          display: 'block'
+        }}
+      />
+    </div>
+  );
+}
