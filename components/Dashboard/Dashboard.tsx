@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { TabType, User } from '@/types';
 import { getInitials } from '@/lib/utils';
 import { getPublished, savePublished } from '@/lib/storage';
@@ -13,6 +13,12 @@ import CoinsTab from '../Tabs/CoinsTab';
 import ServersTab from '../Tabs/ServersTab';
 import FriendsTab from '../Tabs/FriendsTab';
 import SettingsTab from '../Tabs/SettingsTab';
+import DonationTab from '../Tabs/DonationTab';
+import AICoderTab from '../Tabs/AICoderTab';
+import GamesTab from '../Tabs/GamesTab';
+import AdminPanelTab from '../Tabs/AdminPanelTab';
+import ReportTab from '../Tabs/ReportTab';
+import Image from 'next/image';
 
 interface DashboardProps {
   user: User;
@@ -21,6 +27,20 @@ interface DashboardProps {
 export default function Dashboard({ user }: DashboardProps) {
   const [currentTab, setCurrentTab] = useState<TabType>('home');
   const [editMode, setEditMode] = useState(false);
+
+  // Handle hash-based navigation
+  useEffect(() => {
+    const handleHashChange = () => {
+      const hash = window.location.hash.slice(1);
+      if (hash && ['home', 'discover', 'games', 'avatarShop', 'createGame', 'studio', 'coins', 'friends', 'settings', 'donation', 'aiCoder', 'adminPanel', 'report'].includes(hash)) {
+        setCurrentTab(hash as TabType);
+      }
+    };
+    
+    handleHashChange();
+    window.addEventListener('hashchange', handleHashChange);
+    return () => window.removeEventListener('hashchange', handleHashChange);
+  }, []);
 
   const handleResetPublished = () => {
     if (user.role !== 'admin') return;
@@ -56,6 +76,14 @@ export default function Dashboard({ user }: DashboardProps) {
             onResetPublished={handleResetPublished}
           />
         );
+      case 'donation':
+        return <DonationTab user={user} editMode={editMode} />;
+      case 'aiCoder':
+        return <AICoderTab user={user} editMode={editMode} />;
+      case 'adminPanel':
+        return <AdminPanelTab user={user} editMode={editMode} />;
+      case 'report':
+        return <ReportTab user={user} editMode={editMode} />;
       default:
         return <div>Unknown tab</div>;
     }
@@ -65,7 +93,10 @@ export default function Dashboard({ user }: DashboardProps) {
     <div id="dashboard">
       <TopBar
         currentTab={currentTab}
-        onTabChange={setCurrentTab}
+        onTabChange={(tab) => {
+          setCurrentTab(tab);
+          window.location.hash = tab;
+        }}
         username={user.username}
         role={user.role}
         avatarInitials={getInitials(user.username)}
@@ -76,7 +107,35 @@ export default function Dashboard({ user }: DashboardProps) {
           <section className="main-card">{renderTabContent()}</section>
         </div>
       </div>
-      <footer>© 2025 Pixel Place | All Rights Reserved</footer>
+      <footer>
+        <div style={{ marginBottom: '8px' }}>
+          <a 
+            href="https://creativecommons.org/licenses/by-nd-nc/4.0/" 
+            target="_blank" 
+            rel="noopener noreferrer"
+            style={{ 
+              color: 'var(--text-dim)', 
+              textDecoration: 'none',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px'
+            }}
+          >
+            <span style={{ fontSize: '18px' }}>©</span>
+            <span>Creative Commons BY-ND-NC 4.0</span>
+          </a>
+        </div>
+        <div style={{ fontSize: '12px', color: 'var(--text-dim)', opacity: 0.7, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+          <Image
+            src="/logo.png"
+            alt="Pixel Place Logo"
+            width={16}
+            height={16}
+            style={{ objectFit: 'contain' }}
+          />
+          <span>Pixel Place by Mainline Studios 2025</span>
+        </div>
+      </footer>
     </div>
   );
 }

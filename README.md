@@ -1,194 +1,262 @@
-# Pixel Place
+# 🎮 Pixel Place
 
-A modern web application built with Next.js, TypeScript, and Tailwind CSS. Pixel Place is a social gaming platform where users can create avatars, build 3D worlds, publish games, and interact with a community of creators.
+**Pixel Place** is an immersive web-based gaming platform and creative studio developed by **Mainline Studios**. Build games, play with friends, customize your avatar, and explore a vibrant community of creators.
+**THE GAME IS NOT OPEN TO THE PUBLIC. A PASSWORD WILL BE REQUIRED.**
+![Pixel Place](https://img.shields.io/badge/Version-Unreleased-red)
+![Next.js](https://img.shields.io/badge/Next.js-14.2.5-black)
+![React](https://img.shields.io/badge/React-18.3.1-61dafb)
+![TypeScript](https://img.shields.io/badge/TypeScript-5.5.4-3178c6)
 
-## 🚀 Features
+---
 
-- **User Authentication** - Create accounts and sign in with role-based access (admin/user)
-- **Avatar System** - Customize your avatar with skins of different rarities (common, rare, legendary)
-- **3D Studio** - Build interactive 3D worlds using Three.js with a visual editor
-- **Game Publishing** - Create and publish games that appear in the Discover section
-- **Pixel Coins** - Virtual currency system for purchasing avatar skins
-- **Admin Tools** - Special admin features for content management and publishing
-- **Responsive Design** - Beautiful dark-themed UI with modern styling
+## ✨ Features
 
-## 🛠️ Tech Stack
+### 🎯 Core Features
 
-- **Framework**: Next.js 14 (App Router)
-- **Language**: TypeScript
-- **Styling**: Tailwind CSS + Custom CSS
-- **3D Engine**: Three.js
-- **State Management**: React Context API
-- **Storage**: LocalStorage (can be migrated to Firebase)
-- **Firebase**: Configured and ready for integration
+- **🎨 Avatar Customization** - Create and customize your unique avatar with skins and accessories
+- **🎮 Game Collection** - Play a variety of built-in games including 3D adventures and classic arcade games
+- **🏗️ Game Studio** - Build your own games using the built-in game creation tools
+- **👥 Social Features** - Connect with friends, discover community creations, and share your games
+- **💰 Pixel Coins** - Earn and spend coins on avatar items and features
+- **🤖 AI Coder** - Get AI-powered assistance for coding and game development
+- **🔒 Secure Access** - Password-protected entry for enhanced security
 
-## 📋 Prerequisites
+### 🎮 Available Games
 
-Before you can run this project, you need to install Node.js (which includes npm).
+1. **3D Avatar Runner** 🏃
+   - Run with your avatar in a 3D world
+   - Collect gold coins and avoid red obstacles
+   - Your purchased avatar appears in-game
 
-- Download and install Node.js from [nodejs.org](https://nodejs.org/) (LTS version recommended)
-- Node.js v18 or higher is required
+2. **3D Avatar Collector** 💎
+   - Control your avatar in a 3D environment
+   - Collect colorful gems scattered throughout the world
+   - Navigate using W/A/S/D or Arrow Keys
 
-## 🏃 Getting Started
+3. **Tag Game** 🏃
+   - Play tag with friends or CPU opponents
+   - **2D Mode**: Classic top-down tag game (up to 6 players)
+   - **3D Mode**: Fullscreen 3D tag game (up to 5 players)
+   - Wait in lobby for 3+ players or start immediately with CPU
+   - The "IT" player is clearly marked in red
+
+4. **Snake Game** 🐍
+   - Classic snake game with modern controls
+   - Eat food to grow and score points
+   - Use arrow keys to move, space to pause
+
+5. **Tic-Tac-Toe** ⭕
+   - Classic X and O game
+   - Track scores across multiple rounds
+   - Play against a friend or practice solo
+
+6. **Memory Game** 🧠
+   - Test your memory with emoji matching
+   - Flip cards to find matching pairs
+   - Challenge yourself with increasing difficulty
+
+---
+
+## 🚀 Getting Started
+
+### Prerequisites
+
+- **Node.js** (v18 or higher) - [Download here](https://nodejs.org/)
+- **npm** (comes with Node.js)
 
 ### Installation
-**make sure Git is installed**
 
-1. Clone the repository:
+1. **Clone the repository**
+   ```bash
+   git clone https://github.com/boehmlaird0/Pixel-Place.git
+   cd Pixel-Place
+   ```
+
+2. **Install dependencies**
+   ```bash
+   npm install
+   ```
+
+3. **Set up environment variables**
+   - Create a `.env.local` file in the root directory
+   - Add your Firebase configuration (if using Firebase features)
+
+4. **Start the development server**
+   ```bash
+   npm run dev
+   ```
+
+5. **Open your browser**
+   - Navigate to `http://localhost:3000`
+
+### Building for Production
+
 ```bash
-git clone <your-repo-url>
-cd Pixel-Place
+npm run build
+npm start
 ```
 
-2. Install dependencies:
-```bash
-npm install
-```
+---
 
-3. Run the development server:
-```bash
-npm run dev
-```
+## 🎮 How to Play
 
-4. Open [http://localhost:3000](http://localhost:3000) in your browser
+### First Time Setup
 
-### Quick Start (Windows)
+1. **Create Account**: Sign up or log in to create your profile
+2. **Customize Avatar**: Visit the Avatar Shop to personalize your character
+3. **Start Playing**: Explore games, create content, or connect with friends!
 
-Double-click `start-server.bat` to automatically check for Node.js, install dependencies, and start the server.
+### Game Controls
+
+- **W/A/S/D** or **Arrow Keys**: Movement in most games
+- **Space**: Pause/Resume (in supported games)
+- **Mouse**: Click to interact with UI elements
+
+### Navigation
+
+Use the top navigation bar to access different sections:
+- **Home**: Your dashboard and overview
+- **Discover**: Browse community-created games
+- **Games**: Play built-in games
+- **Avatar Shop**: Customize your avatar
+- **Create**: Start building your own games
+- **Studio**: Advanced game creation tools
+- **AI Coder**: Get AI coding assistance
+- **Pixel Coins**: Manage your virtual currency
+- **Friends**: Connect with other players
+- **Settings**: Configure your account
+- **Donate**: Support the project
+
+---
+
+## 🛠️ Technology Stack
+
+- **Framework**: Next.js 14.2.5
+- **UI Library**: React 18.3.1
+- **Language**: TypeScript 5.5.4
+- **3D Graphics**: Three.js 0.168.0
+- **Styling**: Tailwind CSS 3.4.7
+- **Database**: Firebase 10.13.2
+- **Build Tool**: Next.js built-in bundler
+
+---
 
 ## 📁 Project Structure
 
 ```
 Pixel-Place/
-├── app/                    # Next.js App Router
-│   ├── layout.tsx          # Root layout with UserProvider
-│   ├── page.tsx            # Main entry point
-│   └── globals.css         # Global styles
+├── app/                    # Next.js app directory
+│   ├── layout.tsx          # Root layout
+│   ├── page.tsx            # Home page
+│   └── globals.css          # Global styles
 ├── components/             # React components
-│   ├── Dashboard/          # Dashboard layout components
-│   ├── Tabs/               # Tab components (Home, Studio, Shop, etc.)
-│   ├── Login.tsx           # Login/registration screen
-│   └── Modal.tsx           # Modal component
-├── contexts/               # React Context providers
-│   └── UserContext.tsx     # User state management
-├── lib/                    # Utility functions
-│   ├── firebase.ts         # Firebase initialization
-│   ├── firebaseConfig.ts   # Firebase configuration
-│   ├── storage.ts          # LocalStorage management
-│   └── utils.ts            # Helper functions
-├── types/                  # TypeScript type definitions
-│   └── index.ts            # Shared types and interfaces
-└── package.json           # Dependencies and scripts
+│   ├── Dashboard/          # Dashboard components
+│   ├── Games/              # Game components
+│   │   ├── TagGame.tsx     # Tag game (2D & 3D)
+│   │   ├── SnakeGame.tsx   # Snake game
+│   │   ├── TicTacToe.tsx  # Tic-tac-toe
+│   │   ├── MemoryGame.tsx # Memory game
+│   │   └── ...            # 3D games
+│   ├── Tabs/              # Tab components
+│   └── ...                # Other components
+├── lib/                   # Utility libraries
+│   ├── firebase.ts        # Firebase config
+│   ├── storage.ts         # Local storage utilities
+│   └── utils.ts           # Helper functions
+├── types/                 # TypeScript type definitions
+├── contexts/             # React contexts
+└── public/               # Static assets
 ```
-
-## 🎮 Usage
-
-### Creating an Account
-
-1. Enter a username, password, and select a gender
-2. Click "Create Account"
-3. New users start with 250 Pixel Coins
-
-### Admin Accounts
-
-Admins have:
-- 99,999 starting coins
-- Ability to publish games instantly
-- Edit mode for content management
-- Access to admin tools
-
-### Avatar Shop
-
-- Browse and purchase avatar skins
-- Rarer skins (rare, legendary) cost more coins
-- Equip purchased skins to customize your avatar
-- Free "Starter Classic" skin included
-
-### 3D Studio
-
-- Add 3D objects (cubes, spheres, lights)
-- Position objects using X/Y/Z coordinates
-- Save and load scenes
-- Create game drafts
-- Admins can publish games directly
-
-### Publishing Games
-
-1. Go to Studio tab
-2. Add objects to your scene
-3. Fill in game title, description, and creator name
-4. Save draft
-5. Admins can publish instantly; regular users can save drafts
-
-## 🔧 Available Scripts
-
-- `npm run dev` - Start development server on http://localhost:3000
-- `npm run build` - Build for production
-- `npm start` - Start production server
-- `npm run lint` - Run ESLint
-
-## 🔥 Firebase Integration
-
-Firebase is configured and ready to use. The configuration is in `lib/firebaseConfig.ts`. To enable Firebase:
-
-1. Update Firestore rules in Firebase Console
-2. Replace LocalStorage functions with Firestore calls
-3. Enable Firebase Authentication if desired
-
-Current setup uses LocalStorage for data persistence, but can be easily migrated to Firebase.
-
-## 🎨 Features in Detail
-
-### Tabs
-
-- **Home** - User dashboard and account overview
-- **Discover** - Browse published games from creators
-- **Avatar Shop** - Purchase and equip avatar skins
-- **Create** - Start building new games
-- **Studio** - 3D world editor with Three.js
-- **Pixel Coins** - Purchase virtual currency
-- **Friends** - Social features (coming soon)
-- **Settings** - Account management and admin tools
-
-## 🐛 Troubleshooting
-
-### "node is not recognized"
-- Install Node.js from nodejs.org
-- Restart your computer after installation
-- Open a new terminal window
-
-### "ERR_CONNECTION_REFUSED"
-- Make sure the dev server is running (`npm run dev`)
-- Check that port 3000 is not in use
-- Try a different port: `npm run dev -- -p 3001`
-
-### PowerShell Script Execution Error
-- Run: `Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser`
-- Or use `start-server.bat` instead
-
-## 📝 License
-
-This project is private and all rights reserved.
-
-## 👨‍💻 Development
-
-Built with:
-- React 18
-- Next.js 14
-- TypeScript 5
-- Three.js
-- Tailwind CSS
-- Firebase (configured)
-
-## 🔮 Future Enhancements
-
-- Firebase integration for cloud storage
-- Real-time multiplayer features
-- Enhanced 3D editor capabilities
-- Social features (friends, messaging)
-- Game analytics and statistics
-- Payment integration for Pixel Coins
 
 ---
 
-**Note**: This is a development version. Data may not transfer correctly to the full version.
+## 🎨 Key Features Explained
+
+### Tag Game - 3D Mode
+
+The Tag Game features an innovative 3D fullscreen mode:
+- **Fullscreen Experience**: Immersive 3D gameplay
+- **Up to 5 Players**: Play with friends or CPU opponents
+- **Visual Clarity**: The "IT" player is clearly marked in bright red
+- **Smart CPU**: AI opponents that chase when "it" and run away when not
+- **Smooth Controls**: Responsive movement with W/A/S/D keys
+
+### Avatar System
+
+- Customize your avatar with unique skins
+- Purchase accessories from the Avatar Shop
+- Your avatar appears in 3D games
+- Earn coins to unlock new customization options
+
+### Game Studio
+
+- Create your own games using the built-in tools
+- Publish games for the community to discover
+- Use pre-built templates to get started quickly
+- Share your creations with friends
+
+---
+
+## 🔒 Security
+
+- Password-protected entry point
+- Secure user authentication
+- Local storage for game data
+- Firebase integration for cloud features
+
+---
+
+## 🤝 Contributing
+
+We welcome contributions! Here's how you can help:
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+---
+
+## 📝 License
+
+This project is private and proprietary. Some rights reserved by Mainline Studios.
+
+---
+
+## 🙏 Acknowledgments
+
+- **Mainline Studios** - Development team
+- **Three.js** - 3D graphics library
+- **Next.js** - React framework
+- **Firebase** - Backend services
+
+---
+
+## 📞 Support
+
+For issues, questions, or suggestions:
+- Check the `START_HERE.md` file for setup instructions
+- Review the `DEPENDENCY_CHECK.md` for dependency information
+- Open an issue on GitHub
+- Contact
+   ```
+     bdawgsaweaome@icloud.com
+ for further help.
+
+---
+
+## 🎯 Roadmap
+
+- [ ] Multiplayer support for Tag Game
+- [ ] More 3D games
+- [ ] Enhanced avatar customization
+- [ ] Mobile app version
+- [ ] Leaderboards and achievements
+- [ ] Social features expansion
+
+---
+
+**Made with ❤️ by Mainline Studios**
+
+*Pixel Place - Where creativity meets gaming*

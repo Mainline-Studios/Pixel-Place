@@ -2,12 +2,12 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { User } from '@/types';
-import { initializeStorage, getUsers, saveUsers, ADMIN_ACCOUNTS_LIST } from '@/lib/storage';
+import { initializeStorage, getUsers, saveUsers, ADMIN_ACCOUNTS_LIST, isUserBanned, getBanForUser } from '@/lib/storage';
 
 interface UserContextType {
   user: User | null;
   setUser: (user: User | null) => void;
-  login: (username: string, password: string) => Promise<{ success: boolean; message: string }>;
+  login: (username: string, password: string) => Promise<{ success: boolean; message: string; ban?: any }>;
   createAccount: (username: string, password: string, gender: string) => Promise<{ success: boolean; message: string }>;
   updateUser: (updates: Partial<User>) => void;
 }
@@ -26,7 +26,14 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       return { success: false, message: 'Enter username and password.' };
     }
 
-    let users = getUsers();
+    // Check if user is banned
+    const isBanned = await isUserBanned(username);
+    if (isBanned) {
+      const ban = await getBanForUser(username);
+      return { success: false, message: 'This account has been banned. Please contact an administrator.', ban: ban || undefined };
+    }
+
+    let users = await getUsers();
     let found = users.find(x => x.username === username);
 
     // Auto-create admin if not found but matches admin list
@@ -40,10 +47,13 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
           role: 'admin',
           coins: 99999,
           ownedSkins: ['starter_classic'],
-          equippedSkin: 'starter_classic'
+          equippedSkin: 'starter_classic',
+          isDonor: false,
+          ownedAccessories: [],
+          equippedAccessories: {}
         };
         users.push(found);
-        saveUsers(users);
+        await saveUsers(users);
       }
     }
 
@@ -64,7 +74,13 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       return { success: false, message: 'Username and password are required.' };
     }
 
-    const users = getUsers();
+    // Check if username is banned
+    const isBanned = await isUserBanned(username);
+    if (isBanned) {
+      return { success: false, message: 'This username is banned and cannot be used.' };
+    }
+
+    const users = await getUsers();
     if (users.find(x => x.username === username)) {
       return { success: false, message: 'Username already exists.' };
     }
@@ -80,27 +96,30 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       role,
       coins,
       ownedSkins: ['starter_classic'],
-      equippedSkin: 'starter_classic'
+      equippedSkin: 'starter_classic',
+      isDonor: false,
+      ownedAccessories: [],
+      equippedAccessories: {}
     };
 
     users.push(newUser);
-    saveUsers(users);
+    await saveUsers(users);
     setUser(newUser);
 
     return { success: true, message: 'Account created! You can sign in now.' };
   };
 
-  const updateUser = (updates: Partial<User>) => {
+  const updateUser = async (updates: Partial<User>) => {
     if (!user) return;
 
     const updatedUser = { ...user, ...updates };
     setUser(updatedUser);
 
-    const users = getUsers();
+    const users = await getUsers();
     const index = users.findIndex(u => u.username === user.username);
     if (index !== -1) {
       users[index] = { ...users[index], ...updates };
-      saveUsers(users);
+      await saveUsers(users);
     }
   };
 
