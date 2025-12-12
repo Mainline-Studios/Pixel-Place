@@ -1,7 +1,8 @@
 'use client';
 
-import { Accessory } from '@/types';
-import { getSkins , findSkin } from '@/lib/storage';
+import { useState, useEffect } from 'react';
+import { Accessory, Skin } from '@/types';
+import { getSkins, findSkin } from '@/lib/storage';
 import Avatar3DViewer from '@/components/Avatar3DViewer';
 
 interface Accessory3DThumbnailProps {
@@ -11,8 +12,17 @@ interface Accessory3DThumbnailProps {
 }
 
 export default function Accessory3DThumbnail({ accessory, width = 80, height = 80 }: Accessory3DThumbnailProps) {
+  const [skins, setSkins] = useState<Skin[]>([]);
+
+  useEffect(() => {
+    const loadSkins = async () => {
+      const skinsData = await getSkins();
+      setSkins(skinsData);
+    };
+    loadSkins();
+  }, []);
+
   // Get default skin to show character wearing the accessory
-  const skins = getSkins();
   const defaultSkin = findSkin(skins, 'starter_classic');
   
   // Create a skin object with just this accessory for preview

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { User, PublishedGame } from '@/types';
+import { User, PublishedGame, Skin } from '@/types';
 import { getSkins, getPublished, getUsers, findSkin } from '@/lib/storage';
 import { escapeHTML } from '@/lib/utils';
 import GamePlayer from '@/components/GamePlayer';
@@ -17,14 +17,19 @@ export default function HomeTab({ user, editMode, onResetPublished }: HomeTabPro
   const [selectedGame, setSelectedGame] = useState<PublishedGame | null>(null);
   const [published, setPublished] = useState<PublishedGame[]>([]);
   const [users, setUsers] = useState<User[]>([]);
-  const [skins, setSkins] = useState(getSkins());
+  const [skins, setSkins] = useState<Skin[]>([]);
 
   // Refresh data
   useEffect(() => {
-    const refreshData = () => {
-      setPublished(getPublished());
-      setUsers(getUsers());
-      setSkins(getSkins());
+    const refreshData = async () => {
+      const [publishedData, usersData, skinsData] = await Promise.all([
+        getPublished(),
+        getUsers(),
+        getSkins()
+      ]);
+      setPublished(publishedData);
+      setUsers(usersData);
+      setSkins(skinsData);
     };
     refreshData();
     // Refresh every 2 seconds to catch updates
