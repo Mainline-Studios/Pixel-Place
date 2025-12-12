@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { User, Skin, TabContent } from '@/types';
-import { getSkins, getTabContent , findSkin } from '@/lib/storage';
+import { getSkins, getTabContent, findSkin } from '@/lib/storage';
 import { escapeHTML } from '@/lib/utils';
 
 interface SettingsTabProps {

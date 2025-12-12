@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { User, Skin, Accessory } from '@/types';
-import { getSkins, saveSkins, getAccessories, saveAccessories , findSkin } from '@/lib/storage';
+import { getSkins, saveSkins, getAccessories, saveAccessories, findSkin } from '@/lib/storage';
 import { escapeHTML } from '@/lib/utils';
 import { useUser } from '@/contexts/UserContext';
 import Avatar3DViewer from '@/components/Avatar3DViewer';
