@@ -1,7 +1,7 @@
 'use client';
 
 import { Accessory } from '@/types';
-import { getSkins } from '@/lib/storage', findSkin;
+import { getSkins , findSkin } from '@/lib/storage';
 import Avatar3DViewer from '@/components/Avatar3DViewer';
 
 interface Accessory3DThumbnailProps {
