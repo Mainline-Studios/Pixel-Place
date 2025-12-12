@@ -1,7 +1,7 @@
 'use client';
 
 import { User } from '@/types';
-import { getSkins, getAccessories } from '@/lib/storage';
+import { getSkins, getAccessories } from '@/lib/storage', findSkin;
 import Avatar3DViewer from '@/components/Avatar3DViewer';
 
 interface SidebarProps {
@@ -11,7 +11,7 @@ interface SidebarProps {
 export default function Sidebar({ user }: SidebarProps) {
   const skins = getSkins();
   const accessories = getAccessories();
-  const equippedSkin = skins.find(s => s.id === user.equippedSkin) || skins.find(s => s.id === 'starter_classic') || skins[0];
+  const equippedSkin = skins.find(s => s.id === user.equippedSkin) || findSkin(skins, 'starter_classic');
   const equippedAccessoriesList = (user.equippedAccessories || []).map(id => accessories.find(a => a.id === id)).filter(Boolean) as any[];
 
   // Merge equipped accessories into skin for display

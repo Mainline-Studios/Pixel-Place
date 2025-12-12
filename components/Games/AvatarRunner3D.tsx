@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { User } from '@/types';
-import { getSkins, getAccessories } from '@/lib/storage';
+import { getSkins, getAccessories } from '@/lib/storage', findSkin;
 
 interface AvatarRunner3DProps {
   user: User;

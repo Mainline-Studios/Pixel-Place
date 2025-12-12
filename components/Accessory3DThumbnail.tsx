@@ -1,7 +1,7 @@
 'use client';
 
 import { Accessory } from '@/types';
-import { getSkins } from '@/lib/storage';
+import { getSkins } from '@/lib/storage', findSkin;
 import Avatar3DViewer from '@/components/Avatar3DViewer';
 
 interface Accessory3DThumbnailProps {
@@ -13,7 +13,7 @@ interface Accessory3DThumbnailProps {
 export default function Accessory3DThumbnail({ accessory, width = 80, height = 80 }: Accessory3DThumbnailProps) {
   // Get default skin to show character wearing the accessory
   const skins = getSkins();
-  const defaultSkin = skins.find(s => s.id === 'starter_classic') || skins[0];
+  const defaultSkin = findSkin(skins, 'starter_classic');
   
   // Create a skin object with just this accessory for preview
   const previewSkin = defaultSkin ? {
