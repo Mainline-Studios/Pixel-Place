@@ -709,13 +709,14 @@ export async function saveSkins(skins: Skin[]): Promise<void> {
 }
 
 // Helper function to find a skin by ID with fallback
-export function findSkin(skins: Skin[], skinId?: string | null): Skin | null {
-  if (!skins || skins.length === 0) return null;
+export function findSkin(skins: Skin[] | any, skinId?: string | null): Skin | null {
+  // Handle non-array inputs (Promises, null, undefined, etc.)
+  if (!skins || !Array.isArray(skins) || skins.length === 0) return null;
   if (!skinId) {
     // Fallback to starter_classic or first skin
-    return skins.find(s => s.id === 'starter_classic') || skins[0] || null;
+    return skins.find((s: Skin) => s.id === 'starter_classic') || skins[0] || null;
   }
-  return skins.find(s => s.id === skinId) || skins.find(s => s.id === 'starter_classic') || skins[0] || null;
+  return skins.find((s: Skin) => s.id === skinId) || skins.find((s: Skin) => s.id === 'starter_classic') || skins[0] || null;
 }
 
 // Tab content functions - Now using API

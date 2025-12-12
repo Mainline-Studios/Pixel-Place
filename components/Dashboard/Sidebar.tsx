@@ -1,6 +1,7 @@
 'use client';
 
-import { User } from '@/types';
+import { useState, useEffect } from 'react';
+import { User, Skin } from '@/types';
 import { getSkins, getAccessories, findSkin } from '@/lib/storage';
 import Avatar3DViewer from '@/components/Avatar3DViewer';
 
@@ -9,8 +10,17 @@ interface SidebarProps {
 }
 
 export default function Sidebar({ user }: SidebarProps) {
-  const skins = getSkins();
+  const [skins, setSkins] = useState<Skin[]>([]);
   const accessories = getAccessories();
+
+  useEffect(() => {
+    const loadSkins = async () => {
+      const skinsData = await getSkins();
+      setSkins(skinsData);
+    };
+    loadSkins();
+  }, []);
+
   const equippedSkin = findSkin(skins, user.equippedSkin);
   const equippedAccessoriesList = (user.equippedAccessories || []).map(id => accessories.find(a => a.id === id)).filter(Boolean) as any[];
 
