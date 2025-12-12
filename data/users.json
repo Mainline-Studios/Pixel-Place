@@ -51,5 +51,44 @@
     "isDonor": false,
     "ownedAccessories": [],
     "equippedAccessories": {}
+  },
+  {
+    "username": "d",
+    "password": "d",
+    "gender": "Male",
+    "role": "user",
+    "coins": 250,
+    "ownedSkins": [
+      "starter_classic"
+    ],
+    "equippedSkin": "starter_classic"
+  },
+  {
+    "username": "Mario",
+    "password": "SUPAMARIOBROS",
+    "gender": "Male",
+    "role": "user",
+    "coins": 0,
+    "ownedSkins": [
+      "starter_classic"
+    ],
+    "equippedSkin": "starter_classic",
+    "isDonor": false,
+    "ownedAccessories": [],
+    "equippedAccessories": {}
+  },
+  {
+    "username": "Marioguyw",
+    "password": "qwer",
+    "gender": "Female",
+    "role": "user",
+    "coins": 0,
+    "ownedSkins": [
+      "starter_classic"
+    ],
+    "equippedSkin": "starter_classic",
+    "isDonor": false,
+    "ownedAccessories": [],
+    "equippedAccessories": {}
   }
 ]
