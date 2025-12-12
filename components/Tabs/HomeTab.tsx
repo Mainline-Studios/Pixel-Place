@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { User, PublishedGame } from '@/types';
-import { getSkins, getPublished, getUsers } from '@/lib/storage';
+import { getSkins, getPublished, getUsers } from '@/lib/storage', findSkin;
 import { escapeHTML } from '@/lib/utils';
 import GamePlayer from '@/components/GamePlayer';
 import Avatar3DViewer from '@/components/Avatar3DViewer';
@@ -103,7 +103,7 @@ export default function HomeTab({ user, editMode, onResetPublished }: HomeTabPro
           }}>
             {friendUsers.map((friend) => {
               if (!friend || !friend.username) return null;
-              const friendSkin = skins.find(s => s && s.id === friend.equippedSkin) || (skins.length > 0 ? skins[0] : null);
+              const friendSkin = findSkin(skins, friend.equippedSkin);
               if (!friendSkin) return null;
 
               return (

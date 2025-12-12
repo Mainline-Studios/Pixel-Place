@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { User, Skin, TabContent } from '@/types';
-import { getSkins, getTabContent } from '@/lib/storage';
+import { getSkins, getTabContent } from '@/lib/storage', findSkin;
 import { escapeHTML } from '@/lib/utils';
 
 interface SettingsTabProps {
@@ -26,7 +26,7 @@ export default function SettingsTab({ user, editMode, onToggleEditMode, onResetP
     loadData();
   }, []);
 
-  const equippedSkin = skins.find((s) => s.id === user.equippedSkin);
+  const equippedSkin = findSkin(skins, user.equippedSkin);
   const equippedSkinName = equippedSkin ? equippedSkin.name : 'None';
 
   return (

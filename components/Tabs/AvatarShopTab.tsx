@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { User, Skin, Accessory } from '@/types';
-import { getSkins, saveSkins, getAccessories, saveAccessories } from '@/lib/storage';
+import { getSkins, saveSkins, getAccessories, saveAccessories } from '@/lib/storage', findSkin;
 import { escapeHTML } from '@/lib/utils';
 import { useUser } from '@/contexts/UserContext';
 import Avatar3DViewer from '@/components/Avatar3DViewer';
@@ -107,7 +107,7 @@ export default function AvatarShopTab({ user, editMode }: AvatarShopTabProps) {
   }, []);
   const ownedSkins = skins.filter((s) => user.ownedSkins?.includes(s.id));
   const ownedAccessories = accessories.filter((a) => user.ownedAccessories?.includes(a.id));
-  const equippedSkin = skins.find((s) => s.id === user.equippedSkin) || skins[0];
+  const equippedSkin = findSkin(skins, user.equippedSkin);
   const equippedSkinName = equippedSkin ? equippedSkin.name : 'None';
 
   const handlePurchase = (skin: Skin) => {
