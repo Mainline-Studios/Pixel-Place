@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { User, PublishedGame } from '@/types';
-import { getSkins, getPublished, getUsers , findSkin } from '@/lib/storage';
+import { getSkins, getPublished, getUsers, findSkin } from '@/lib/storage';
 import { escapeHTML } from '@/lib/utils';
 import GamePlayer from '@/components/GamePlayer';
 import Avatar3DViewer from '@/components/Avatar3DViewer';
