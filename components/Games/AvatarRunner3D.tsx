@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { User } from '@/types';
-import { getSkins, getAccessories } from '@/lib/storage', findSkin;
+import { getSkins, getAccessories, findSkin } from '@/lib/storage';
 
 interface AvatarRunner3DProps {
   user: User;
@@ -110,7 +110,7 @@ export default function AvatarRunner3D({ user, onClose }: AvatarRunner3DProps) {
       // Create avatar
       const skins = await getSkins();
       const accessories = await getAccessories();
-      const equippedSkin = skins.find(s => s.id === user.equippedSkin) || skins[0];
+      const equippedSkin = findSkin(skins, user.equippedSkin);
       const equippedAccessories = (user.equippedAccessories || {});
       const equippedAccessoriesList = Object.values(equippedAccessories).map(id => 
         accessories.find(a => a.id === id)
