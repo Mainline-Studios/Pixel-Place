@@ -22,7 +22,11 @@ export default function Sidebar({ user }: SidebarProps) {
   }, []);
 
   const equippedSkin = findSkin(skins, user.equippedSkin);
-  const equippedAccessoriesList = (user.equippedAccessories || []).map(id => accessories.find(a => a.id === id)).filter(Boolean) as any[];
+  // Handle equippedAccessories as object (e.g., { chain: 'acc_gold_chain', hat: 'acc_red_cap' })
+  const equippedAccessoriesObj = user.equippedAccessories || {};
+  const equippedAccessoriesList = Array.isArray(equippedAccessoriesObj) 
+    ? equippedAccessoriesObj.map(id => accessories.find(a => a.id === id)).filter(Boolean)
+    : Object.values(equippedAccessoriesObj).map(id => accessories.find(a => a.id === id)).filter(Boolean) as any[];
 
   // Merge equipped accessories into skin for display
   const skinWithAccessories = equippedSkin ? {
