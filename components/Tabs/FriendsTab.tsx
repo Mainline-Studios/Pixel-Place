@@ -28,18 +28,26 @@ export default function FriendsTab({ user, editMode }: FriendsTabProps) {
       try {
         const [usersData, messagesData] = await Promise.all([
           getUsers(),
-          getMessages(user.username)
+          user?.username ? getMessages(user.username) : Promise.resolve([])
         ]);
         setUsers(usersData);
         setMessages(messagesData);
       } catch (error) {
         console.error('Error loading friends data:', error);
+        // Set empty arrays on error to prevent infinite loading
+        setUsers([]);
+        setMessages([]);
       } finally {
         setLoading(false);
       }
     };
-    loadData();
-  }, [user.username]);
+    if (user?.username) {
+      loadData();
+    } else {
+      // If no user, just set loading to false
+      setLoading(false);
+    }
+  }, [user?.username]);
 
   // Reload messages when selectedFriend changes
   useEffect(() => {

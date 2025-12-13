@@ -65,6 +65,28 @@ export default function SettingsTab({ user, editMode, onToggleEditMode, onResetP
         <div className="ai-label">Settings Info</div>
         <div className="ai-output">{tabContent.settings || ''}</div>
       </div>
+      <div className="ai-box" style={{ marginTop: '16px' }}>
+        <div className="ai-label">🔐 Secret Area</div>
+        <div className="ai-output">
+          Want to access the secret area? Type the following sequence anywhere in the app:
+          <br />
+          <code style={{ 
+            background: 'var(--panel-soft)', 
+            padding: '4px 8px', 
+            borderRadius: '4px',
+            fontSize: '14px',
+            fontFamily: 'monospace',
+            marginTop: '8px',
+            display: 'inline-block'
+          }}>
+            qwertyuiopasdfghjklzxcvbnm
+          </code>
+          <br />
+          <div style={{ marginTop: '8px', fontSize: '12px', color: 'var(--text-dim)' }}>
+            (Type it quickly - you have 2 seconds between each key press)
+          </div>
+        </div>
+      </div>
     </>
   );
 }
