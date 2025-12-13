@@ -132,7 +132,7 @@ export default function AvatarShopTab({ user, editMode }: AvatarShopTabProps) {
 
   const handleEquip = (skinId: string) => {
     if (!user.ownedSkins?.includes(skinId)) {
-      toast.error('You don't own that skin."');
+      toast.error('You don\'t own that skin.');
       return;
     }
     updateUser({ equippedSkin: skinId });
@@ -160,7 +160,7 @@ export default function AvatarShopTab({ user, editMode }: AvatarShopTabProps) {
 
   const handleEquipAccessory = (accessoryId: string, type: string) => {
     if (!user.ownedAccessories?.includes(accessoryId)) {
-      toast.error('You don't own that accessory."');
+      toast.error('You don\'t own that accessory.');
       return;
     }
     const newEquipped = { ...(user.equippedAccessories || {}) };
