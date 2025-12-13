@@ -118,7 +118,7 @@ export default function AvatarShopTab({ user, editMode }: AvatarShopTabProps) {
     }
 
     if ((user.coins || 0) < skin.price) {
-      toast.info('You don't have enough Pixel Coins to buy ${skin.name}.');
+      toast.error(`You don't have enough Pixel Coins to buy ${skin.name}`);
       return;
     }
 
@@ -145,7 +145,7 @@ export default function AvatarShopTab({ user, editMode }: AvatarShopTabProps) {
     }
 
     if ((user.coins || 0) < accessory.price) {
-      toast.info('You don't have enough Pixel Coins to buy ${accessory.name}.');
+      toast.error(`You don't have enough Pixel Coins to buy ${accessory.name}`);
       return;
     }
 

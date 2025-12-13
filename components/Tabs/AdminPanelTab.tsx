@@ -124,7 +124,7 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
     await deleteGameSubmission(submission.id);
     
     await loadData();
-    toast.info('Game "${submission.title}" has been published to the Games tab!');
+    toast.info(`Game "${submission.title}" has been published to the Games tab!`);
   };
 
   const handleRejectSubmission = async (submission: GameSubmission) => {
@@ -137,7 +137,7 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
     
     await deleteGameSubmission(submission.id);
     await loadData();
-    toast.info('Game submission "${submission.title}" has been rejected.');
+    toast.info(`Game submission "${submission.title}" has been rejected.`);
   };
 
   const handleBan = async () => {
@@ -186,14 +186,14 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
     if (confirm(`Unban user "${username}"?`)) {
       await unbanUser(username);
       await loadData();
-      toast.info('User "${username}" has been unbanned.');
+      toast.info(`User "${username}" has been unbanned.`);
     }
   };
 
   const handleReportAction = async (reportId: string, action: 'resolved' | 'dismissed', notes?: string) => {
     await updateReportStatus(reportId, action, user.username, notes);
     await loadData();
-    toast.info('Report marked as ${action}.');
+    toast.info(`Report marked as ${action}.`);
   };
 
   const loadChatMessages = async (bannedUsername: string) => {
@@ -809,7 +809,7 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
                                 if (confirm(`Approve appeal from "${appeal.username}" and unban them?`)) {
                                   await updateBanAppealStatus(appeal.id, 'approved', user.username, 'Appeal approved', true);
                                   await loadData();
-                                  toast.info('Appeal approved. User "${appeal.username}" has been unbanned.');
+                                  toast.info(`Appeal approved. User "${appeal.username}" has been unbanned.`);
                                 }
                               }}
                               style={{ background: '#2ecc71', fontSize: '12px', padding: '6px 12px' }}
