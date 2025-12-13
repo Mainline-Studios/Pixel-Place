@@ -35,6 +35,8 @@ export default function GamePlayer({ game, onClose }: GamePlayerProps) {
   const [error, setError] = useState<string | null>(null);
   const [showSafetyPopup, setShowSafetyPopup] = useState(true);
   const [isLoading, setIsLoading] = useState(true);
+  const [loadingStage, setLoadingStage] = useState<'engine' | 'assets' | 'world'>('engine');
+  const [loadingProgress, setLoadingProgress] = useState(0);
   const serverId = game.serverId;
   const isOnlineMode = game.multiplayer && !!serverId;
   const [isOnline, setIsOnline] = useState(isOnlineMode);
@@ -155,6 +157,38 @@ export default function GamePlayer({ game, onClose }: GamePlayerProps) {
       }
     };
   }, [isOnline, serverId, game.ts, game.multiplayer]);
+
+  // Loading sequence: 5s engine, 3s assets, 10s world (18s total)
+  useEffect(() => {
+    if (!isLoading) return;
+    
+    setLoadingStage('engine');
+    setLoadingProgress(0);
+    
+    const totalTime = 18000; // 18 seconds total
+    const engineTime = 5000; // 5 seconds
+    const assetsTime = 3000; // 3 seconds
+    const worldTime = 10000; // 10 seconds
+    
+    let startTime = Date.now();
+    const interval = setInterval(() => {
+      const elapsed = Date.now() - startTime;
+      const progress = Math.min(100, (elapsed / totalTime) * 100);
+      setLoadingProgress(progress);
+      
+      if (elapsed < engineTime) {
+        setLoadingStage('engine');
+      } else if (elapsed < engineTime + assetsTime) {
+        setLoadingStage('assets');
+      } else if (elapsed < totalTime) {
+        setLoadingStage('world');
+      } else {
+        clearInterval(interval);
+      }
+    }, 50); // Update every 50ms for smooth progress
+    
+    return () => clearInterval(interval);
+  }, [isLoading]);
 
   useEffect(() => {
     if (!containerRef.current || !game.gameCode) return;
@@ -491,6 +525,10 @@ export default function GamePlayer({ game, onClose }: GamePlayerProps) {
           if (typeof cleanup === 'function') {
             cleanupRef.current = cleanup;
           }
+          // Wait for loading sequence to complete (18 seconds total)
+          await new Promise(resolve => setTimeout(resolve, 18000));
+          
+          setLoadingProgress(100);
           setIsLoading(false);
         } else {
           throw new Error('Game code must export a createGame function');
@@ -613,7 +651,7 @@ export default function GamePlayer({ game, onClose }: GamePlayerProps) {
           <button
             onClick={() => setShowSafetyPopup(false)}
             style={{
-              width: '100%',
+              width: `${loadingProgress}%`,
               marginTop: '24px',
               padding: '14px 28px',
               fontSize: '18px',
@@ -711,7 +749,7 @@ export default function GamePlayer({ game, onClose }: GamePlayerProps) {
             {/* Progress Bar Background */}
             <div
               style={{
-                width: '100%',
+                width: `${loadingProgress}%`,
                 height: '8px',
                 background: '#2a2a2a',
                 borderRadius: '4px',
@@ -720,15 +758,15 @@ export default function GamePlayer({ game, onClose }: GamePlayerProps) {
                 boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.5)'
               }}
             >
-              {/* Animated Progress Fill */}
+              {/* Actual Progress Fill */}
               <div
                 style={{
-                  width: '100%',
+                  width: `${loadingProgress}%`,
                   height: '100%',
                   background: 'linear-gradient(90deg, #00A2FF 0%, #00D4FF 50%, #00A2FF 100%)',
                   backgroundSize: '200% 100%',
                   borderRadius: '4px',
-                  animation: 'robloxLoading 1.5s linear infinite',
+                  transition: 'width 0.1s linear',
                   boxShadow: '0 0 10px rgba(0, 162, 255, 0.5)'
                 }}
               />
@@ -742,9 +780,23 @@ export default function GamePlayer({ game, onClose }: GamePlayerProps) {
               textAlign: 'center',
               fontWeight: 300
             }}>
-              <div style={{ marginBottom: '8px' }}>Initializing game engine...</div>
-              <div style={{ marginBottom: '8px' }}>Loading assets...</div>
-              <div>Preparing world...</div>
+              <div style={{ 
+                marginBottom: '8px',
+                color: loadingStage === 'engine' ? '#00A2FF' : '#666'
+              }}>
+                {loadingProgress > 27.8 ? '✓' : loadingStage === 'engine' ? '○' : '○'} Initializing game engine...
+              </div>
+              <div style={{ 
+                marginBottom: '8px',
+                color: loadingStage === 'assets' ? '#00A2FF' : loadingProgress > 44.4 ? '#999' : '#666'
+              }}>
+                {loadingProgress > 44.4 ? '✓' : loadingStage === 'assets' ? '○' : '○'} Loading assets...
+              </div>
+              <div style={{
+                color: loadingStage === 'world' ? '#00A2FF' : loadingProgress === 100 ? '#999' : '#666'
+              }}>
+                {loadingProgress === 100 ? '✓' : loadingStage === 'world' ? '○' : '○'} Preparing world...
+              </div>
             </div>
           </div>
           
@@ -772,7 +824,7 @@ export default function GamePlayer({ game, onClose }: GamePlayerProps) {
         ref={containerRef}
         style={{
           flex: 1,
-          width: '100%',
+          width: `${loadingProgress}%`,
           height: '100%',
           overflow: 'hidden',
           opacity: isLoading ? 0 : 1,
