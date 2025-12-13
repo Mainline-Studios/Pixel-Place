@@ -719,6 +719,23 @@ export function findSkin(skins: Skin[] | any, skinId?: string | null): Skin | nu
   return skins.find((s: Skin) => s.id === skinId) || skins.find((s: Skin) => s.id === 'starter_classic') || skins[0] || null;
 }
 
+// Helper function to find a user by username with fallback
+export function findUser(users: User[] | any, username?: string | null): User | null {
+  // Handle non-array inputs (Promises, null, undefined, etc.)
+  if (!users || !Array.isArray(users) || users.length === 0) return null;
+  if (!username) return null;
+  return users.find((u: User) => u.username.toLowerCase() === username.toLowerCase()) || null;
+}
+
+// Helper function to find a user by username with fallback
+export function findUser(users: User[] | any, username?: string | null): User | null {
+  // Handle non-array inputs (Promises, null, undefined, etc.)
+  if (!users || !Array.isArray(users) || users.length === 0) return null;
+  if (!username) return null;
+  return users.find((u: User) => u.username.toLowerCase() === username.toLowerCase()) || null;
+}
+
+
 // Tab content functions - Now using API
 export async function getTabContent(): Promise<TabContent> {
   if (typeof window === 'undefined') return {} as TabContent;
