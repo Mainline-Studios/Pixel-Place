@@ -37,11 +37,11 @@ export default function CoinsTab({ user, editMode }: CoinsTabProps) {
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     if (urlParams.get('success') === 'true') {
-      toast.info('Payment successful! Your coins have been added to your account.'');
+      toast.info('Payment successful! Your coins have been added to your account.');
       // Refresh user data
       window.location.search = '';
     } else if (urlParams.get('canceled') === 'true') {
-      toast.info('Payment was canceled.'');
+      toast.info('Payment was canceled.');
       window.location.search = '';
     }
   }, []);
@@ -88,7 +88,7 @@ export default function CoinsTab({ user, editMode }: CoinsTabProps) {
       }
     } catch (error: any) {
       console.error('Checkout error:', error);
-      alert(`Payment error: ${error.message || 'Something went wrong'}`);
+      toast.info('Payment error: ${error.message || 'Something went wrong'}');
       setLoading(null);
     }
   };

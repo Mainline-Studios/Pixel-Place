@@ -107,7 +107,7 @@ export default function GamesTab({ user, editMode }: GamesTabProps) {
     await deleteUserMadeGame(gameId);
     const games = await getUserMadeGames();
     setUserMadeGames(games);
-    alert(`Game "${gameTitle}" has been deleted.`);
+    toast.info('Game "${gameTitle}" has been deleted.');
   };
 
   const selectedGameInfo = games.find(g => g.id === selectedGame);

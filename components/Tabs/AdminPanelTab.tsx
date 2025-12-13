@@ -35,7 +35,7 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
     // Try to load data, with error handling
     loadData().catch((error) => {
       console.error('Error loading admin panel data:', error);
-      toast.error('Error loading admin panel data. Please refresh the page.'');
+      toast.error('Error loading admin panel data. Please refresh the page.');
     });
   }, []);
 
@@ -95,7 +95,7 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
       setReports(reportsData);
     } catch (error) {
       console.error('Error in loadData:', error);
-      toast.error('Error loading data. Please check the browser console.'');
+      toast.error('Error loading data. Please check the browser console.');
     }
   };
 
@@ -124,7 +124,7 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
     await deleteGameSubmission(submission.id);
     
     await loadData();
-    alert(`Game "${submission.title}" has been published to the Games tab!`);
+    toast.info('Game "${submission.title}" has been published to the Games tab!');
   };
 
   const handleRejectSubmission = async (submission: GameSubmission) => {
@@ -137,16 +137,16 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
     
     await deleteGameSubmission(submission.id);
     await loadData();
-    alert(`Game submission "${submission.title}" has been rejected.`);
+    toast.info('Game submission "${submission.title}" has been rejected.');
   };
 
   const handleBan = async () => {
     if (!banUsername.trim()) {
-      toast.info('Please enter a username to ban.'');
+      toast.info('Please enter a username to ban.');
       return;
     }
     if (!banReason.trim()) {
-      toast.info('Please enter a reason for the ban.'');
+      toast.info('Please enter a reason for the ban.');
       return;
     }
 
@@ -155,7 +155,7 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
     // Check if user is an admin (only check if user exists in system)
     const targetUser = allUsers.find(u => u.username.toLowerCase() === usernameToBan);
     if (targetUser && targetUser.role === 'admin') {
-      toast.error('Cannot ban administrators. Admins are protected from bans.'');
+      toast.error('Cannot ban administrators. Admins are protected from bans.');
       return;
     }
 
@@ -175,10 +175,10 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
         await loadData();
         alert(`User "${usernameToBanFinal}" has been ${banPermanent ? 'permanently' : `temporarily (${banDays} days)`} banned.`);
       } else {
-        toast.error('Error: Ban was not saved properly. Please try again.'');
+        toast.error('Error: Ban was not saved properly. Please try again.');
       }
     } else {
-      toast.error('Cannot ban administrators. Admins are protected from bans.'');
+      toast.error('Cannot ban administrators. Admins are protected from bans.');
     }
   };
 
@@ -186,14 +186,14 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
     if (confirm(`Unban user "${username}"?`)) {
       await unbanUser(username);
       await loadData();
-      alert(`User "${username}" has been unbanned.`);
+      toast.info('User "${username}" has been unbanned.');
     }
   };
 
   const handleReportAction = async (reportId: string, action: 'resolved' | 'dismissed', notes?: string) => {
     await updateReportStatus(reportId, action, user.username, notes);
     await loadData();
-    alert(`Report marked as ${action}.`);
+    toast.info('Report marked as ${action}.');
   };
 
   const loadChatMessages = async (bannedUsername: string) => {
@@ -210,7 +210,7 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
       await loadChatMessages(toUsername);
     } catch (error) {
       console.error('Error sending message:', error);
-      toast.error('Error sending message. Please try again.'');
+      toast.error('Error sending message. Please try again.');
     } finally {
       setSendingChatMessage(false);
     }
@@ -694,7 +694,7 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
                                 const isAdminAccount = ADMIN_ACCOUNTS_LIST.some(a => a.username.toLowerCase() === report.reportedUsername.toLowerCase());
                                 
                                 if (reportedUser?.role === 'admin' || isAdminAccount) {
-                                  toast.error('Cannot ban administrators. Admins are protected from bans.'');
+                                  toast.error('Cannot ban administrators. Admins are protected from bans.');
                                   return;
                                 }
                                 
@@ -706,7 +706,7 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
                                       await handleReportAction(report.id, 'resolved', `User banned based on report`);
                                       await loadData();
                                     } else {
-                                      toast.error('Cannot ban administrators. Admins are protected from bans.'');
+                                      toast.error('Cannot ban administrators. Admins are protected from bans.');
                                     }
                                   }
                                 }
@@ -809,7 +809,7 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
                                 if (confirm(`Approve appeal from "${appeal.username}" and unban them?`)) {
                                   await updateBanAppealStatus(appeal.id, 'approved', user.username, 'Appeal approved', true);
                                   await loadData();
-                                  alert(`Appeal approved. User "${appeal.username}" has been unbanned.`);
+                                  toast.info('Appeal approved. User "${appeal.username}" has been unbanned.');
                                 }
                               }}
                               style={{ background: '#2ecc71', fontSize: '12px', padding: '6px 12px' }}
@@ -822,7 +822,7 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
                                 const notes = prompt('Add notes (optional):');
                                 await updateBanAppealStatus(appeal.id, 'denied', user.username, notes || undefined, false);
                                 await loadData();
-                                toast.info('Appeal denied.'');
+                                toast.info('Appeal denied.');
                               }}
                               style={{ background: '#ff4d4d', fontSize: '12px', padding: '6px 12px' }}
                             >

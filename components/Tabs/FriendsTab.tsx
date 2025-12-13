@@ -37,28 +37,28 @@ export default function FriendsTab({ user, editMode }: FriendsTabProps) {
 
   const handleSendFriendRequest = () => {
     if (!friendUsername.trim()) {
-      toast.info('Please enter a username'');
+      toast.info('Please enter a username');
       return;
     }
 
     if (friendUsername.toLowerCase() === user.username.toLowerCase()) {
-      toast.info('You cannot add yourself as a friend'');
+      toast.info('You cannot add yourself as a friend');
       return;
     }
 
     const targetUser = users.find(u => u.username.toLowerCase() === friendUsername.toLowerCase());
     if (!targetUser) {
-      toast.info('User not found'');
+      toast.info('User not found');
       return;
     }
 
     if (friends.includes(targetUser.username)) {
-      toast.info('You are already friends with this user'');
+      toast.info('You are already friends with this user');
       return;
     }
 
     if (outgoingRequests.includes(targetUser.username)) {
-      toast.info('You already sent a friend request to this user'');
+      toast.info('You already sent a friend request to this user');
       return;
     }
 
@@ -94,7 +94,7 @@ export default function FriendsTab({ user, editMode }: FriendsTabProps) {
     updateUser({ sentFriendRequests: updatedSentRequests });
 
     setFriendUsername('');
-    alert(`Friend request sent to ${targetUser.username}`);
+    toast.info('Friend request sent to ${targetUser.username}');
   };
 
   const handleAcceptRequest = (request: FriendRequest) => {
@@ -123,7 +123,7 @@ export default function FriendsTab({ user, editMode }: FriendsTabProps) {
     const newFriends = [...friends, request.from];
     updateUser({ friends: newFriends });
 
-    alert(`You are now friends with ${request.from}!`);
+    toast.info('You are now friends with ${request.from}!');
   };
 
   const handleDeclineRequest = (request: FriendRequest) => {
@@ -133,7 +133,7 @@ export default function FriendsTab({ user, editMode }: FriendsTabProps) {
         : req
     );
     saveFriendRequests(updatedRequests);
-    alert(`Friend request from ${request.from} declined`);
+    toast.info('Friend request from ${request.from} declined');
   };
 
   const handleRemoveFriend = (friendUsername: string) => {
@@ -152,12 +152,12 @@ export default function FriendsTab({ user, editMode }: FriendsTabProps) {
 
     const newFriends = friends.filter(f => f !== friendUsername);
     updateUser({ friends: newFriends });
-    alert(`${friendUsername} removed from friends`);
+    toast.info('${friendUsername} removed from friends');
   };
 
   const handleSendMessage = () => {
     if (!selectedFriend || !messageText.trim()) {
-      toast.info('Please select a friend and enter a message'');
+      toast.info('Please select a friend and enter a message');
       return;
     }
 
@@ -173,7 +173,7 @@ export default function FriendsTab({ user, editMode }: FriendsTabProps) {
     const updatedMessages = [...messages, newMessage];
     saveMessages(updatedMessages);
     setMessageText('');
-    toast.info('Message sent!'');
+    toast.info('Message sent!');
   };
 
   const handleMarkAsRead = (messageId: string) => {
@@ -575,7 +575,7 @@ export default function FriendsTab({ user, editMode }: FriendsTabProps) {
                   className="btn"
                   style={{ fontSize: '12px', padding: '6px 12px' }}
                   onClick={() => {
-                    alert(`Party invite sent to ${friend.username}! (This would connect to your game server in a full implementation)`);
+                    toast.info('Party invite sent to ${friend.username}! (This would connect to your game server in a full implementation)');
                   }}
                 >
                   Invite to Party

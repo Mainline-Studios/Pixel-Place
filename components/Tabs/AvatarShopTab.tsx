@@ -113,12 +113,12 @@ export default function AvatarShopTab({ user, editMode }: AvatarShopTabProps) {
 
   const handlePurchase = (skin: Skin) => {
     if (user.ownedSkins?.includes(skin.id)) {
-      toast.error('You already own this skin.'');
+      toast.error('You already own this skin.');
       return;
     }
 
     if ((user.coins || 0) < skin.price) {
-      alert(`You don't have enough Pixel Coins to buy ${skin.name}.`);
+      toast.info('You don't have enough Pixel Coins to buy ${skin.name}.');
       return;
     }
 
@@ -126,7 +126,7 @@ export default function AvatarShopTab({ user, editMode }: AvatarShopTabProps) {
       const newCoins = (user.coins || 0) - skin.price;
       const newOwnedSkins = [...(user.ownedSkins || []), skin.id];
       updateUser({ coins: newCoins, ownedSkins: newOwnedSkins });
-      alert(`Purchased ${skin.name}!`);
+      toast.info('Purchased ${skin.name}!');
     }
   };
 
@@ -140,12 +140,12 @@ export default function AvatarShopTab({ user, editMode }: AvatarShopTabProps) {
 
   const handlePurchaseAccessory = (accessory: Accessory) => {
     if (user.ownedAccessories?.includes(accessory.id)) {
-      toast.error('You already own this accessory.'');
+      toast.error('You already own this accessory.');
       return;
     }
 
     if ((user.coins || 0) < accessory.price) {
-      alert(`You don't have enough Pixel Coins to buy ${accessory.name}.`);
+      toast.info('You don't have enough Pixel Coins to buy ${accessory.name}.');
       return;
     }
 
@@ -153,7 +153,7 @@ export default function AvatarShopTab({ user, editMode }: AvatarShopTabProps) {
       const newCoins = (user.coins || 0) - accessory.price;
       const newOwnedAccessories = [...(user.ownedAccessories || []), accessory.id];
       updateUser({ coins: newCoins, ownedAccessories: newOwnedAccessories });
-      alert(`Purchased ${accessory.name}!`);
+      toast.info('Purchased ${accessory.name}!');
       setAccessories([...accessories]);
     }
   };
@@ -176,7 +176,7 @@ export default function AvatarShopTab({ user, editMode }: AvatarShopTabProps) {
 
   const handleAddSkin = async () => {
     if (user.role !== 'admin') {
-      toast.error('Admin only'');
+      toast.error('Admin only');
       return;
     }
 
@@ -230,12 +230,12 @@ export default function AvatarShopTab({ user, editMode }: AvatarShopTabProps) {
     const updatedSkins = [...skins, newSkin];
     await saveSkins(updatedSkins);
     setSkins(updatedSkins);
-    toast.info('Skin added.'');
+    toast.info('Skin added.');
   };
 
   const handleDeleteSkin = (skin: Skin) => {
     if (user.role !== 'admin') {
-      toast.error('Admin only'');
+      toast.error('Admin only');
       return;
     }
 
@@ -243,7 +243,7 @@ export default function AvatarShopTab({ user, editMode }: AvatarShopTabProps) {
       const updatedSkins = skins.filter((s) => s.id !== skin.id);
       saveSkins(updatedSkins);
       setSkins(updatedSkins);
-      alert(`Skin "${skin.name}" deleted.`);
+      toast.info('Skin "${skin.name}" deleted.');
     }
   };
 
