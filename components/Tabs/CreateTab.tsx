@@ -149,7 +149,7 @@ export function createGame(container: HTMLElement) {
     };
     pub.push(publishedGame);
     savePublished(pub);
-    toast.info("Published '" + draft.title + "' to Home instantly!"');
+    toast.success(`Published "${draft.title}" to Home instantly!`);
   };
 
   return (
