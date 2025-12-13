@@ -727,13 +727,6 @@ export function findUser(users: User[] | any, username?: string | null): User | 
   return users.find((u: User) => u.username.toLowerCase() === username.toLowerCase()) || null;
 }
 
-// Helper function to find a user by username with fallback
-export function findUser(users: User[] | any, username?: string | null): User | null {
-  // Handle non-array inputs (Promises, null, undefined, etc.)
-  if (!users || !Array.isArray(users) || users.length === 0) return null;
-  if (!username) return null;
-  return users.find((u: User) => u.username.toLowerCase() === username.toLowerCase()) || null;
-}
 
 
 // Tab content functions - Now using API
