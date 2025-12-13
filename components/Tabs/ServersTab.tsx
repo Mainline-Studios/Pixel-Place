@@ -22,7 +22,7 @@ export default function ServersTab({ user, editMode }: ServersTabProps) {
   const userServers = servers.filter(s => s.purchasedBy === user.username);
   const availableServers = servers.filter(s => !s.purchased);
 
-  const handlePurchaseServer = (plan: ServerPlan, gameId?: string) => {
+  const handlePurchaseServer = async (plan: ServerPlan, gameId?: string) => {
     if (!gameId) {
       toast.info('Please select a game first');
       return;
@@ -61,7 +61,7 @@ export default function ServersTab({ user, editMode }: ServersTabProps) {
       setServers(updatedServers);
 
       // Deduct coins
-      const users = getUsers();
+      const users = await getUsers();
       const userIndex = users.findIndex(u => u.username === user.username);
       if (userIndex !== -1) {
         users[userIndex].coins = (users[userIndex].coins || 0) - plan.price;

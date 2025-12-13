@@ -18,10 +18,45 @@ export default function FriendsTab({ user, editMode }: FriendsTabProps) {
   const [friendUsername, setFriendUsername] = useState('');
   const [messageText, setMessageText] = useState('');
   const [selectedFriend, setSelectedFriend] = useState<string | null>(null);
+  const [users, setUsers] = useState<User[]>([]);
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const users = getUsers();
+  // Load data on mount
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        const [usersData, messagesData] = await Promise.all([
+          getUsers(),
+          getMessages(user.username)
+        ]);
+        setUsers(usersData);
+        setMessages(messagesData);
+      } catch (error) {
+        console.error('Error loading friends data:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadData();
+  }, [user.username]);
+
+  // Reload messages when selectedFriend changes
+  useEffect(() => {
+    const reloadMessages = async () => {
+      if (user.username && selectedFriend) {
+        try {
+          const messagesData = await getMessages(user.username);
+          setMessages(messagesData);
+        } catch (error) {
+          console.error('Error reloading messages:', error);
+        }
+      }
+    };
+    reloadMessages();
+  }, [selectedFriend, user.username]);
+
   const friendRequests = getFriendRequests();
-  const messages = getMessages();
 
   const currentUser = findUser(users, user.username) || user;
   const friends = currentUser.friends || [];
@@ -35,7 +70,7 @@ export default function FriendsTab({ user, editMode }: FriendsTabProps) {
     m => m.to === user.username && !m.read
   );
 
-  const handleSendFriendRequest = () => {
+  const handleSendFriendRequest = async () => {
     if (!friendUsername.trim()) {
       toast.info('Please enter a username');
       return;
@@ -46,7 +81,11 @@ export default function FriendsTab({ user, editMode }: FriendsTabProps) {
       return;
     }
 
-    const targetUser = findUser(users, friendUsername.toLowerCase());
+    // Reload users to ensure we have the latest data
+    const currentUsers = await getUsers();
+    setUsers(currentUsers);
+    
+    const targetUser = findUser(currentUsers, friendUsername.toLowerCase());
     if (!targetUser) {
       toast.info('User not found');
       return;
@@ -85,19 +124,20 @@ export default function FriendsTab({ user, editMode }: FriendsTabProps) {
     saveFriendRequests(updatedRequests);
 
     const updatedSentRequests = [...outgoingRequests, targetUser.username];
-    const updatedUsers = users.map(u =>
+    const updatedUsers = currentUsers.map(u =>
       u.username === user.username
         ? { ...u, sentFriendRequests: updatedSentRequests }
         : u
     );
-    saveUsers(updatedUsers);
+    await saveUsers(updatedUsers);
+    setUsers(updatedUsers);
     updateUser({ sentFriendRequests: updatedSentRequests });
 
     setFriendUsername('');
     toast.info(`Friend request sent to ${targetUser.username}`);
   };
 
-  const handleAcceptRequest = (request: FriendRequest) => {
+  const handleAcceptRequest = async (request: FriendRequest) => {
     const updatedRequests = friendRequests.map(req =>
       req.from === request.from && req.to === request.to
         ? { ...req, status: 'accepted' as const }
@@ -105,8 +145,11 @@ export default function FriendsTab({ user, editMode }: FriendsTabProps) {
     );
     saveFriendRequests(updatedRequests);
 
+    // Reload users to ensure we have the latest data
+    const currentUsers = await getUsers();
+    
     // Add to both users' friend lists
-    const updatedUsers = users.map(u => {
+    const updatedUsers = currentUsers.map(u => {
       if (u.username === user.username) {
         const newFriends = [...(u.friends || []), request.from];
         return { ...u, friends: newFriends };
@@ -136,10 +179,13 @@ export default function FriendsTab({ user, editMode }: FriendsTabProps) {
     toast.info(`Friend request from ${request.from} declined`);
   };
 
-  const handleRemoveFriend = (friendUsername: string) => {
+  const handleRemoveFriend = async (friendUsername: string) => {
     if (!confirm(`Remove ${friendUsername} from your friends list?`)) return;
 
-    const updatedUsers = users.map(u => {
+    // Reload users to ensure we have the latest data
+    const currentUsers = await getUsers();
+    
+    const updatedUsers = currentUsers.map(u => {
       if (u.username === user.username) {
         return { ...u, friends: (u.friends || []).filter(f => f !== friendUsername) };
       }
@@ -155,7 +201,7 @@ export default function FriendsTab({ user, editMode }: FriendsTabProps) {
     toast.info(`${friendUsername} removed from friends`);
   };
 
-  const handleSendMessage = () => {
+  const handleSendMessage = async () => {
     if (!selectedFriend || !messageText.trim()) {
       toast.info('Please select a friend and enter a message');
       return;
@@ -172,15 +218,21 @@ export default function FriendsTab({ user, editMode }: FriendsTabProps) {
 
     const updatedMessages = [...messages, newMessage];
     saveMessages(updatedMessages);
+    // Reload messages
+    const messagesData = await getMessages(user.username);
+    setMessages(messagesData);
     setMessageText('');
     toast.info('Message sent!');
   };
 
-  const handleMarkAsRead = (messageId: string) => {
+  const handleMarkAsRead = async (messageId: string) => {
     const updatedMessages = messages.map(m =>
       m.id === messageId ? { ...m, read: true } : m
     );
     saveMessages(updatedMessages);
+    // Reload messages
+    const messagesData = await getMessages(user.username);
+    setMessages(messagesData);
   };
 
   const conversationMessages = selectedFriend
@@ -190,6 +242,17 @@ export default function FriendsTab({ user, editMode }: FriendsTabProps) {
         (m.from === selectedFriend && m.to === user.username)
     ).sort((a, b) => a.timestamp - b.timestamp)
     : [];
+
+  if (loading) {
+    return (
+      <>
+        <h2 className="section-title">Friends</h2>
+        <div className="ai-box">
+          <div className="smalltext">Loading...</div>
+        </div>
+      </>
+    );
+  }
 
   return (
     <>
