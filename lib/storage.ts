@@ -1,5 +1,5 @@
 import { User, Skin, PublishedGame, DraftGame, SceneData, TabContent, GameServer, ServerPlan, FriendRequest, Message, Accessory, PrebuiltGame } from '@/types';
-import { TIC_TAC_TOE_PRELOADED_GAME, CAPTURE_DE_FLAG_PRELOADED_GAME } from '@/lib/preloadedGames';
+import { TIC_TAC_TOE_PRELOADED_GAME, CAPTURE_THE_FLAG_PRELOADED_GAME } from '@/lib/preloadedGames';
 
 const ADMIN_ACCOUNTS = [
   { username: "admin", password: "456" },
@@ -422,9 +422,9 @@ export function initializeStorage() {
     // Initialize published games - NEVER delete existing games, preserve all user data
     let existingGames = JSON.parse(localStorage.getItem("publishedGames") || "[]");
   
-    // Remove ALL Tic Ti Toe duplicates (both old and new versions) - be aggressive
+    // Remove ALL Tic Tac Toe duplicates (both old and new versions) - be aggressive
     existingGames = existingGames.filter((g: PublishedGame) => 
-      !(g.title === 'Tic Ti Toe' && g.owner === 'System')
+      !(g.title === 'Tic Tac Toe' && g.owner === 'System')
     );
   
     // Also remove any "Tic Tac Toe" variants (with different spelling)
@@ -432,15 +432,15 @@ export function initializeStorage() {
       !(g.title === 'Tic Tac Toe' && g.owner === 'System')
     );
   
-    // Add Tic Ti Toe (only one, latest version)
+    // Add Tic Tac Toe (only one, latest version)
     existingGames.push(TIC_TAC_TOE_PRELOADED_GAME);
   
-    // Add Capture de Flag if it doesn't exist
+    // Add Capture the Flag if it doesn't exist
     const hasCaptureDeFlag = existingGames.some((g: PublishedGame) => 
-      g.title === 'Capture de Flag' && g.owner === 'System'
+      g.title === 'Capture the Flag' && g.owner === 'System'
     );
     if (!hasCaptureDeFlag) {
-      existingGames.push(CAPTURE_DE_FLAG_PRELOADED_GAME);
+      existingGames.push(CAPTURE_THE_FLAG_PRELOADED_GAME);
     }
   
     localStorage.setItem("publishedGames", JSON.stringify(existingGames));
@@ -848,22 +848,22 @@ export async function getPublished(): Promise<PublishedGame[]> {
     }
   });
   
-  // Convert back to array and remove any Tic Ti Toe duplicates
+  // Convert back to array and remove any Tic Tac Toe duplicates
   const uniqueGames = Array.from(seen.values());
   
-  // Remove ALL Tic Ti Toe and Tic Tac Toe duplicates (any spelling)
+  // Remove ALL Tic Tac Toe and Tic Tac Toe duplicates (any spelling)
   const ticTacToeGames = uniqueGames.filter(g => 
-    (g.title === 'Tic Ti Toe' || g.title === 'Tic Tac Toe') && g.owner === 'System'
+    (g.title === 'Tic Tac Toe' || g.title === 'Tic Tac Toe') && g.owner === 'System'
   );
   
   if (ticTacToeGames.length > 0) {
-    // Always prefer "Tic Ti Toe" over "Tic Tac Toe" (correct spelling)
-    const ticTiToeGames = ticTacToeGames.filter(g => g.title === 'Tic Ti Toe');
+    // Always prefer "Tic Tac Toe" over "Tic Tac Toe" (correct spelling)
+    const ticTiToeGames = ticTacToeGames.filter(g => g.title === 'Tic Tac Toe');
     const ticTacToeVariants = ticTacToeGames.filter(g => g.title === 'Tic Tac Toe');
     
     let latest;
     if (ticTiToeGames.length > 0) {
-      // If we have "Tic Ti Toe", use the most recent one
+      // If we have "Tic Tac Toe", use the most recent one
       ticTiToeGames.sort((a, b) => (b.ts || 0) - (a.ts || 0));
       latest = ticTiToeGames[0];
     } else if (ticTacToeVariants.length > 0) {
@@ -873,11 +873,11 @@ export async function getPublished(): Promise<PublishedGame[]> {
     }
     
     if (latest) {
-      // Remove all Tic Ti Toe/Tic Tac Toe games
+      // Remove all Tic Tac Toe/Tic Tac Toe games
       const filtered = uniqueGames.filter(g => 
-        !((g.title === 'Tic Ti Toe' || g.title === 'Tic Tac Toe') && g.owner === 'System')
+        !((g.title === 'Tic Tac Toe' || g.title === 'Tic Tac Toe') && g.owner === 'System')
       );
-      // Add back only the latest one (preferring "Tic Ti Toe")
+      // Add back only the latest one (preferring "Tic Tac Toe")
       filtered.push(latest);
       
       // Save the cleaned list back to localStorage
