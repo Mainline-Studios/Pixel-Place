@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { User, ServerPlan, GameServer, PublishedGame } from '@/types';
-import { getServerPlans, getServers, saveServers, getPublished, getUsers, saveUsers } from '@/lib/storage';
+import { getServerPlans, getServers, saveServers, getPublished, getUsers, saveUsers , findUser} from '@/lib/storage';
 import { useUser } from '@/contexts/UserContext';
 import { escapeHTML } from '@/lib/utils';
 
