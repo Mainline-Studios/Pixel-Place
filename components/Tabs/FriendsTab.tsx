@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { User, FriendRequest, Message } from '@/types';
-import { getUsers, saveUsers, getFriendRequests, saveFriendRequests, getMessages, saveMessages } from '@/lib/storage';
+import { getUsers, saveUsers, getFriendRequests, saveFriendRequests, getMessages, saveMessages , findUser} from '@/lib/storage';
 import { escapeHTML } from '@/lib/utils';
 import { useUser } from '@/contexts/UserContext';
 
@@ -23,7 +23,7 @@ export default function FriendsTab({ user, editMode }: FriendsTabProps) {
   const friendRequests = getFriendRequests();
   const messages = getMessages();
 
-  const currentUser = users.find(u => u.username === user.username) || user;
+  const currentUser = findUser(users, user.username) || user;
   const friends = currentUser.friends || [];
   const incomingRequests = friendRequests.filter(
     req => req.to === user.username && req.status === 'pending'
@@ -46,7 +46,7 @@ export default function FriendsTab({ user, editMode }: FriendsTabProps) {
       return;
     }
 
-    const targetUser = users.find(u => u.username.toLowerCase() === friendUsername.toLowerCase());
+    const targetUser = findUser(users, friendUsername.toLowerCase());
     if (!targetUser) {
       toast.info('User not found');
       return;
