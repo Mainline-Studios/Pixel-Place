@@ -1085,8 +1085,8 @@ export const SCHOOL_ADVENTURE_PRELOADED_GAME: PublishedGame = {
   multiplayer: false
 };
 
-// Tic Ti Toe Game - Realistic 3D with proper textures
-export const TIC_TAC_TOE_GAME_CODE = `// Realistic 3D Tic Ti Toe Game
+// Tic Tac Toe Game - Realistic 3D with proper textures
+export const TIC_TAC_TOE_GAME_CODE = `// Realistic 3D Tic Tac Toe Game
 // THREE is provided by the game engine
 
 function createGame(container) {
@@ -2147,8 +2147,8 @@ function createGame(container) {
 }`;
 
 export const TIC_TAC_TOE_PRELOADED_GAME: PublishedGame = {
-  title: 'Tic Ti Toe',
-  desc: 'Enhanced 3D Tic Ti Toe! Play against an AI opponent on a beautifully textured wooden board. You play as Blue (O), NPC plays as Red (X).',
+  title: 'Tic Tac Toe',
+  desc: 'Enhanced 3D Tic Tac Toe! Play against an AI opponent on a beautifully textured wooden board. You play as Blue (O), NPC plays as Red (X).',
   owner: 'System',
   ts: Date.now() + 1000, // Ensure it's always the latest
   gameCode: TIC_TAC_TOE_GAME_CODE,
@@ -2157,8 +2157,8 @@ export const TIC_TAC_TOE_PRELOADED_GAME: PublishedGame = {
   multiplayer: false
 };
 
-// Capture de Flag Game - 4 Team Layout
-export const CAPTURE_DE_FLAG_GAME_CODE = `// 4 Team Capture the Flag - Real Layout
+// Capture the Flag Game - 4 Team Layout
+export const CAPTURE_THE_FLAG_GAME_CODE = `// 4 Team Capture the Flag - Real Layout
 // THREE is provided by the game engine
 
 function createGame(container) {
@@ -2777,12 +2777,12 @@ function createGame(container) {
   };
 }`;
 
-export const CAPTURE_DE_FLAG_PRELOADED_GAME: PublishedGame = {
-  title: 'Capture de Flag',
+export const CAPTURE_THE_FLAG_PRELOADED_GAME: PublishedGame = {
+  title: 'Capture the Flag',
   desc: '4 Team Capture the Flag! You are Blue team (top-left). Capture flags from Red, Green, and Yellow teams and bring them to your base. Mouse look + WASD movement!',
   owner: 'System',
   ts: Date.now() + 2000,
-  gameCode: CAPTURE_DE_FLAG_GAME_CODE,
+  gameCode: CAPTURE_THE_FLAG_GAME_CODE,
   thumbnail: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjQwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iNDAwIiBoZWlnaHQ9IjQwMCIgZmlsbD0iIzJkNTAxNiIvPjxyZWN0IHg9IjUwIiB5PSI1MCIgd2lkdGg9IjMwMCIgaGVpZ2h0PSIzMDAiIGZpbGw9IiNEMkI0OEMiLz48bGluZSB4MT0iMjAwIiB5MT0iNTAiIHgyPSIyMDAiIHkyPSIzNTAiIHN0cm9rZT0iIzAwMCIgc3Ryb2tlLXdpZHRoPSIzIi8+PGxpbmUgeDE9IjUwIiB5MT0iMjAwIiB4Mj0iMzUwIiB5Mj0iMjAwIiBzdHJva2U9IiMwMDAiIHN0cm9rZS13aWR0aD0iMyIvPjxjaXJjbGUgY3g9IjEwMCIgY3k9IjEwMCIgcj0iOCIgZmlsbD0iIzIxOTZGMiIvPjxjaXJjbGUgY3g9IjMwMCIgY3k9IjEwMCIgcj0iOCIgZmlsbD0iI0ZGMDAwMCIvPjxjaXJjbGUgY3g9IjMwMCIgY3k9IjMwMCIgcj0iOCIgZmlsbD0iIzRDQUY1MCIvPjxjaXJjbGUgY3g9IjEwMCIgY3k9IjMwMCIgcj0iOCIgZmlsbD0iI0ZGRUIzQiIvPjwvc3ZnPg==',
   playable: true,
   multiplayer: false

@@ -293,14 +293,39 @@ export default function TagGame({ onClose }: TagGameProps) {
         z: newZ,
         direction: newDirection,
       };
-    } else {
-      // 2D logic
-      if (player.isIt) {
-        const target = allPlayers.find(p => !p.isIt && !p.isCPU) || allPlayers.find(p => !p.isIt);
-        if (target) {
-          const dx = target.x - player.x;
-          const dy = target.y - player.y;
+} else {
+      // 2D logic with improved AI
+      // 30% chance to move randomly (add unpredictability)
+      const shouldMoveRandomly = Math.random() < 0.3;
+      
+      if (shouldMoveRandomly) {
+        // Random movement
+        newDirection.x = (Math.random() - 0.5) * 2;
+        newDirection.y = (Math.random() - 0.5) * 2;
+      } else if (player.isIt) {
+        // CPU is "it" - chase the closest non-it player
+        const targets = allPlayers.filter(p => !p.isIt);
+        if (targets.length > 0) {
+          // Find closest target
+          let closestTarget = targets[0];
+          let closestDistance = Math.sqrt(
+            Math.pow(targets[0].x - player.x, 2) + Math.pow(targets[0].y - player.y, 2)
+          );
+          
+          for (const target of targets) {
+            const distance = Math.sqrt(
+              Math.pow(target.x - player.x, 2) + Math.pow(target.y - player.y, 2)
+            );
+            if (distance < closestDistance) {
+              closestDistance = distance;
+              closestTarget = target;
+            }
+          }
+          
+          const dx = closestTarget.x - player.x;
+          const dy = closestTarget.y - player.y;
           const distance = Math.sqrt(dx * dx + dy * dy);
+          
           if (distance > 5) {
             newDirection.x = dx / distance;
             newDirection.y = dy / distance;
@@ -466,10 +491,10 @@ export default function TagGame({ onClose }: TagGameProps) {
         });
 
         // Update CPU players
-        updatedPlayers = updatedPlayers.map(player => updateCPUPlayer(player, updatedPlayers, gameMode));
+        updatedPlayers = updatedPlayers.map(player => updateCPUPlayer(player, updatedPlayers));
 
         // Check for tags
-        updatedPlayers = checkTag(updatedPlayers, gameMode);
+        updatedPlayers = checkTag(updatedPlayers);
 
         // Update 3D meshes
         if (gameMode === '3d' && threeSceneRef.current) {
