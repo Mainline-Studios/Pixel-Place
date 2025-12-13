@@ -126,7 +126,7 @@ export default function AvatarShopTab({ user, editMode }: AvatarShopTabProps) {
       const newCoins = (user.coins || 0) - skin.price;
       const newOwnedSkins = [...(user.ownedSkins || []), skin.id];
       updateUser({ coins: newCoins, ownedSkins: newOwnedSkins });
-      toast.info('Purchased ${skin.name}!');
+      toast.info(`Purchased ${skin.name}!`);
     }
   };
 
@@ -153,7 +153,7 @@ export default function AvatarShopTab({ user, editMode }: AvatarShopTabProps) {
       const newCoins = (user.coins || 0) - accessory.price;
       const newOwnedAccessories = [...(user.ownedAccessories || []), accessory.id];
       updateUser({ coins: newCoins, ownedAccessories: newOwnedAccessories });
-      toast.info('Purchased ${accessory.name}!');
+      toast.info(`Purchased ${accessory.name}!`);
       setAccessories([...accessories]);
     }
   };
@@ -243,7 +243,7 @@ export default function AvatarShopTab({ user, editMode }: AvatarShopTabProps) {
       const updatedSkins = skins.filter((s) => s.id !== skin.id);
       saveSkins(updatedSkins);
       setSkins(updatedSkins);
-      toast.info('Skin "${skin.name}" deleted.');
+      toast.info(`Skin "${skin.name}" deleted.`);
     }
   };
 

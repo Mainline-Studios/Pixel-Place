@@ -88,7 +88,7 @@ export default function CoinsTab({ user, editMode }: CoinsTabProps) {
       }
     } catch (error: any) {
       console.error('Checkout error:', error);
-      toast.info('Payment error: ${error.message || 'Something went wrong'}');
+      toast.info(`Payment error: ${error.message || 'Something went wrong'}`);
       setLoading(null);
     }
   };
