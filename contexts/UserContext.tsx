@@ -25,6 +25,33 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  // Auto-login on mount if credentials are saved
+  useEffect(() => {
+    const attemptAutoLogin = async () => {
+      if (typeof window === 'undefined' || user) return;
+      
+      const savedUsername = localStorage.getItem('pixelPlaceSavedUsername');
+      const savedPassword = localStorage.getItem('pixelPlaceSavedPassword');
+      
+      if (savedUsername && savedPassword) {
+        try {
+          const result = await login(savedUsername, savedPassword);
+          if (!result.success) {
+            // If auto-login fails, clear saved credentials
+            localStorage.removeItem('pixelPlaceSavedUsername');
+            localStorage.removeItem('pixelPlaceSavedPassword');
+          }
+        } catch (error) {
+          // Clear saved credentials on error
+          localStorage.removeItem('pixelPlaceSavedUsername');
+          localStorage.removeItem('pixelPlaceSavedPassword');
+        }
+      }
+    };
+
+    attemptAutoLogin();
+  }, []); // Only run once on mount
+
   const login = async (username: string, password: string): Promise<{ success: boolean; message: string }> => {
     if (!username || !password) {
       return { success: false, message: 'Enter username and password.' };
@@ -38,7 +65,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     }
 
     let users = await getUsers();
-    let found = users.find(x => x.username === username);
+    let found = findUser(users, username);
 
     // Auto-create admin if not found but matches admin list
     if (!found) {
@@ -70,6 +97,13 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     }
 
     setUser(found);
+    
+    // Save credentials for persistent login
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('pixelPlaceSavedUsername', username);
+      localStorage.setItem('pixelPlaceSavedPassword', password);
+    }
+    
     return { success: true, message: '' };
   };
 
@@ -127,8 +161,17 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const logout = () => {
+    setUser(null);
+    // Clear saved credentials
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('pixelPlaceSavedUsername');
+      localStorage.removeItem('pixelPlaceSavedPassword');
+    }
+  };
+
   return (
-    <UserContext.Provider value={{ user, setUser, login, createAccount, updateUser }}>
+    <UserContext.Provider value={{ user, setUser, login, createAccount, updateUser, logout }}>
       {children}
     </UserContext.Provider>
   );
