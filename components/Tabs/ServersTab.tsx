@@ -35,7 +35,7 @@ export default function ServersTab({ user, editMode }: ServersTabProps) {
     }
 
     if ((user.coins || 0) < plan.price) {
-      toast.info('You don't have enough coins. Need ${plan.price}, have ${user.coins || 0}');
+      toast.error(`You don't have enough coins. Need ${plan.price}, have ${user.coins || 0}`);
       return;
     }
 
