@@ -12,6 +12,7 @@ import AvatarCollector3D from '../Games/AvatarCollector3D';
 import TagGame from '../Games/TagGame';
 import AIExperimentTest from '../Games/AIExperimentTest';
 
+import { toast } from '@/lib/toast';
 interface GamesTabProps {
   user: User;
   editMode: boolean;

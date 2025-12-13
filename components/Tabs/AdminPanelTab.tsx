@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { User, Report, Ban, GameSubmission, UserMadeGame } from '@/types';
 import { getUsers, getBannedUsers, getReports, banUser, unbanUser, updateReportStatus, saveBannedUsers, ADMIN_ACCOUNTS_LIST, getBanAppeals, updateBanAppealStatus, getMessages, sendMessage, getGameSubmissions, saveUserMadeGame, deleteGameSubmission } from '@/lib/storage';
 
+import { toast } from '@/lib/toast';
 interface AdminPanelTabProps {
   user: User;
   editMode: boolean;
@@ -34,7 +35,7 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
     // Try to load data, with error handling
     loadData().catch((error) => {
       console.error('Error loading admin panel data:', error);
-      alert('Error loading admin panel data. Please refresh the page.');
+      toast.error('Error loading admin panel data. Please refresh the page.'');
     });
   }, []);
 
@@ -94,7 +95,7 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
       setReports(reportsData);
     } catch (error) {
       console.error('Error in loadData:', error);
-      alert('Error loading data. Please check the browser console.');
+      toast.error('Error loading data. Please check the browser console.'');
     }
   };
 
@@ -141,11 +142,11 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
 
   const handleBan = async () => {
     if (!banUsername.trim()) {
-      alert('Please enter a username to ban.');
+      toast.info('Please enter a username to ban.'');
       return;
     }
     if (!banReason.trim()) {
-      alert('Please enter a reason for the ban.');
+      toast.info('Please enter a reason for the ban.'');
       return;
     }
 
@@ -154,7 +155,7 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
     // Check if user is an admin (only check if user exists in system)
     const targetUser = allUsers.find(u => u.username.toLowerCase() === usernameToBan);
     if (targetUser && targetUser.role === 'admin') {
-      alert('Cannot ban administrators. Admins are protected from bans.');
+      toast.error('Cannot ban administrators. Admins are protected from bans.'');
       return;
     }
 
@@ -174,10 +175,10 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
         await loadData();
         alert(`User "${usernameToBanFinal}" has been ${banPermanent ? 'permanently' : `temporarily (${banDays} days)`} banned.`);
       } else {
-        alert('Error: Ban was not saved properly. Please try again.');
+        toast.error('Error: Ban was not saved properly. Please try again.'');
       }
     } else {
-      alert('Cannot ban administrators. Admins are protected from bans.');
+      toast.error('Cannot ban administrators. Admins are protected from bans.'');
     }
   };
 
@@ -209,7 +210,7 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
       await loadChatMessages(toUsername);
     } catch (error) {
       console.error('Error sending message:', error);
-      alert('Error sending message. Please try again.');
+      toast.error('Error sending message. Please try again.'');
     } finally {
       setSendingChatMessage(false);
     }
@@ -693,7 +694,7 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
                                 const isAdminAccount = ADMIN_ACCOUNTS_LIST.some(a => a.username.toLowerCase() === report.reportedUsername.toLowerCase());
                                 
                                 if (reportedUser?.role === 'admin' || isAdminAccount) {
-                                  alert('Cannot ban administrators. Admins are protected from bans.');
+                                  toast.error('Cannot ban administrators. Admins are protected from bans.'');
                                   return;
                                 }
                                 
@@ -705,7 +706,7 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
                                       await handleReportAction(report.id, 'resolved', `User banned based on report`);
                                       await loadData();
                                     } else {
-                                      alert('Cannot ban administrators. Admins are protected from bans.');
+                                      toast.error('Cannot ban administrators. Admins are protected from bans.'');
                                     }
                                   }
                                 }
@@ -821,7 +822,7 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
                                 const notes = prompt('Add notes (optional):');
                                 await updateBanAppealStatus(appeal.id, 'denied', user.username, notes || undefined, false);
                                 await loadData();
-                                alert('Appeal denied.');
+                                toast.info('Appeal denied.'');
                               }}
                               style={{ background: '#ff4d4d', fontSize: '12px', padding: '6px 12px' }}
                             >

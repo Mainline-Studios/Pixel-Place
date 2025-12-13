@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { User } from '@/types';
 import { useUser } from '@/contexts/UserContext';
 
+import { toast } from '@/lib/toast';
 interface DonationTabProps {
   user: User;
   editMode: boolean;

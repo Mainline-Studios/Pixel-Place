@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { User, CoinPack } from '@/types';
 import { getTabContent } from '@/lib/storage';
 import { useUser } from '@/contexts/UserContext';
+import { toast } from '@/lib/toast';
 // Optional Stripe - install @stripe/stripe-js to enable
 // For now, Stripe is disabled to allow build without the package
 let loadStripe: any = null;
@@ -36,11 +37,11 @@ export default function CoinsTab({ user, editMode }: CoinsTabProps) {
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     if (urlParams.get('success') === 'true') {
-      alert('Payment successful! Your coins have been added to your account.');
+      toast.info('Payment successful! Your coins have been added to your account.'');
       // Refresh user data
       window.location.search = '';
     } else if (urlParams.get('canceled') === 'true') {
-      alert('Payment was canceled.');
+      toast.info('Payment was canceled.'');
       window.location.search = '';
     }
   }, []);

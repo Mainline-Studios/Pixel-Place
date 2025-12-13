@@ -29,6 +29,7 @@ export default function CreateTab({ user, editMode }: CreateTabProps) {
 
 import * as THREE from 'three';
 
+import { toast } from '@/lib/toast';
 export function createGame(container: HTMLElement) {
   // Scene setup
   const scene = new THREE.Scene();
@@ -89,7 +90,7 @@ export function createGame(container: HTMLElement) {
     if (!file) return;
 
     if (!file.type.startsWith('image/')) {
-      alert('Please upload an image file.');
+      toast.info('Please upload an image file.'');
       return;
     }
 
@@ -122,16 +123,16 @@ export function createGame(container: HTMLElement) {
     };
     saveDraft(updatedDraft);
     setDraft(updatedDraft);
-    alert('Draft saved.');
+    toast.info('Draft saved.'');
   };
 
   const publishDraftNow = () => {
     if (user.role !== 'admin') {
-      alert('Only admins can publish live.');
+      toast.info('Only admins can publish live.'');
       return;
     }
     if (!draft.title) {
-      alert('No draft to publish. Save draft first.');
+      toast.info('No draft to publish. Save draft first.'');
       return;
     }
     const pub = getPublished();
@@ -148,7 +149,7 @@ export function createGame(container: HTMLElement) {
     };
     pub.push(publishedGame);
     savePublished(pub);
-    alert("Published '" + draft.title + "' to Home instantly!");
+    toast.info("Published '" + draft.title + "' to Home instantly!"');
   };
 
   return (
@@ -221,19 +222,19 @@ export function createGame(container: HTMLElement) {
                 </button>
                 <button className="btn" onClick={() => {
                   navigator.clipboard.writeText(gameCode);
-                  alert('Code copied to clipboard!');
+                  toast.info('Code copied to clipboard!'');
                 }}>
                   📋 Copy Code
                 </button>
                 <button className="btn" onClick={() => {
                   const testCode = gameCode;
                   if (!testCode.trim()) {
-                    alert('No code to test!');
+                    toast.info('No code to test!'');
                     return;
                   }
                   // Save and test
                   saveDraftFromProps();
-                  alert('Code saved! You can test it by publishing.');
+                  toast.info('Code saved! You can test it by publishing.'');
                 }}>
                   💾 Save Code
                 </button>

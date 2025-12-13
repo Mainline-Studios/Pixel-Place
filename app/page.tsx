@@ -8,6 +8,7 @@ import Dashboard from '@/components/Dashboard/Dashboard';
 import SplashScreen from '@/components/SplashScreen';
 import PasswordGate from '@/components/PasswordGate';
 import ErrorBoundary from '@/components/ErrorBoundary';
+import ToastContainer from '@/components/Toast';
 
 function AppContent() {
   const [mounted, setMounted] = useState(false);
@@ -68,6 +69,7 @@ function AppContent() {
     <>
       {user ? <Dashboard user={user} /> : <Login />}
       <InstallPrompt />
+      <ToastContainer />
     </>
   );
 }
