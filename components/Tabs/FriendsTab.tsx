@@ -94,7 +94,7 @@ export default function FriendsTab({ user, editMode }: FriendsTabProps) {
     updateUser({ sentFriendRequests: updatedSentRequests });
 
     setFriendUsername('');
-    toast.info('Friend request sent to ${targetUser.username}');
+    toast.info(`Friend request sent to ${targetUser.username}`);
   };
 
   const handleAcceptRequest = (request: FriendRequest) => {
@@ -123,7 +123,7 @@ export default function FriendsTab({ user, editMode }: FriendsTabProps) {
     const newFriends = [...friends, request.from];
     updateUser({ friends: newFriends });
 
-    toast.info('You are now friends with ${request.from}!');
+    toast.info(`You are now friends with ${request.from}!`);
   };
 
   const handleDeclineRequest = (request: FriendRequest) => {
@@ -133,7 +133,7 @@ export default function FriendsTab({ user, editMode }: FriendsTabProps) {
         : req
     );
     saveFriendRequests(updatedRequests);
-    toast.info('Friend request from ${request.from} declined');
+    toast.info(`Friend request from ${request.from} declined`);
   };
 
   const handleRemoveFriend = (friendUsername: string) => {
@@ -152,7 +152,7 @@ export default function FriendsTab({ user, editMode }: FriendsTabProps) {
 
     const newFriends = friends.filter(f => f !== friendUsername);
     updateUser({ friends: newFriends });
-    toast.info('${friendUsername} removed from friends');
+    toast.info(`${friendUsername} removed from friends`);
   };
 
   const handleSendMessage = () => {
@@ -575,7 +575,7 @@ export default function FriendsTab({ user, editMode }: FriendsTabProps) {
                   className="btn"
                   style={{ fontSize: '12px', padding: '6px 12px' }}
                   onClick={() => {
-                    toast.info('Party invite sent to ${friend.username}! (This would connect to your game server in a full implementation)');
+                    toast.info(`Party invite sent to ${friend.username}! (This would connect to your game server in a full implementation)`);
                   }}
                 >
                   Invite to Party

@@ -80,7 +80,7 @@ export default function ServersTab({ user, editMode }: ServersTabProps) {
         require('@/lib/storage').savePublished(games);
       }
 
-      toast.info('Server purchased! Your game "${game.title}" is now online.');
+      toast.info(`Server purchased! Your game "${game.title}" is now online.`);
     }
   };
 
