@@ -55,7 +55,7 @@ export default function SecretPage({ onClose }: SecretPageProps) {
           {'\n\n'}
           teacher say 1 + 1 = 2... but me think teacher lie!! cuz me put one cat + one cat = ELEVEN BABY CAT!! proof!! 🐱🐱 = 🐱🐱🐱🐱🐱🐱🐱🐱🐱🐱🐱 science win!! me genius!! no wait me dumbest!! forget!! delete brain!!
           {'\n\n'}
-          me ask banana for help 🍌🍌... banana say "peel please" then slip away!! banana no help!! traitor fruit!!
+          me ask banana for help 🍌🍌... banana say &quot;peel please&quot; then slip away!! banana no help!! traitor fruit!!
           {'\n\n'}
           me give up!! 1 + 1 = fish!! 🐟 cuz why not!! everything fish if you squint and drool little!!
           {'\n\n'}
