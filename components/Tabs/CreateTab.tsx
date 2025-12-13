@@ -90,7 +90,7 @@ export function createGame(container: HTMLElement) {
     if (!file) return;
 
     if (!file.type.startsWith('image/')) {
-      toast.info('Please upload an image file.'');
+      toast.info('Please upload an image file.');
       return;
     }
 
@@ -123,16 +123,16 @@ export function createGame(container: HTMLElement) {
     };
     saveDraft(updatedDraft);
     setDraft(updatedDraft);
-    toast.info('Draft saved.'');
+    toast.info('Draft saved.');
   };
 
   const publishDraftNow = () => {
     if (user.role !== 'admin') {
-      toast.info('Only admins can publish live.'');
+      toast.info('Only admins can publish live.');
       return;
     }
     if (!draft.title) {
-      toast.info('No draft to publish. Save draft first.'');
+      toast.info('No draft to publish. Save draft first.');
       return;
     }
     const pub = getPublished();
@@ -222,19 +222,19 @@ export function createGame(container: HTMLElement) {
                 </button>
                 <button className="btn" onClick={() => {
                   navigator.clipboard.writeText(gameCode);
-                  toast.info('Code copied to clipboard!'');
+                  toast.info('Code copied to clipboard!');
                 }}>
                   📋 Copy Code
                 </button>
                 <button className="btn" onClick={() => {
                   const testCode = gameCode;
                   if (!testCode.trim()) {
-                    toast.info('No code to test!'');
+                    toast.info('No code to test!');
                     return;
                   }
                   // Save and test
                   saveDraftFromProps();
-                  toast.info('Code saved! You can test it by publishing.'');
+                  toast.info('Code saved! You can test it by publishing.');
                 }}>
                   💾 Save Code
                 </button>

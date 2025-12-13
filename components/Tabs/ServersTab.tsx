@@ -24,18 +24,18 @@ export default function ServersTab({ user, editMode }: ServersTabProps) {
 
   const handlePurchaseServer = (plan: ServerPlan, gameId?: string) => {
     if (!gameId) {
-      toast.info('Please select a game first'');
+      toast.info('Please select a game first');
       return;
     }
 
     const game = publishedGames.find(g => g.ts.toString() === gameId);
     if (!game) {
-      toast.info('Game not found'');
+      toast.info('Game not found');
       return;
     }
 
     if ((user.coins || 0) < plan.price) {
-      alert(`You don't have enough coins. Need ${plan.price}, have ${user.coins || 0}`);
+      toast.info('You don't have enough coins. Need ${plan.price}, have ${user.coins || 0}');
       return;
     }
 
@@ -80,13 +80,13 @@ export default function ServersTab({ user, editMode }: ServersTabProps) {
         require('@/lib/storage').savePublished(games);
       }
 
-      alert(`Server purchased! Your game "${game.title}" is now online.`);
+      toast.info('Server purchased! Your game "${game.title}" is now online.');
     }
   };
 
   const handleDeleteServer = (server: GameServer) => {
     if (server.purchasedBy !== user.username && user.role !== 'admin') {
-      toast.info('You can only delete your own servers'');
+      toast.info('You can only delete your own servers');
       return;
     }
 
@@ -94,7 +94,7 @@ export default function ServersTab({ user, editMode }: ServersTabProps) {
       const updatedServers = servers.filter(s => s.id !== server.id);
       saveServers(updatedServers);
       setServers(updatedServers);
-      toast.info('Server deleted.'');
+      toast.info('Server deleted.');
     }
   };
 

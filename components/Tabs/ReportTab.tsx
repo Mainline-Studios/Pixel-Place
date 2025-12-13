@@ -27,20 +27,20 @@ export default function ReportTab({ user }: ReportTabProps) {
 
   const handleSubmit = async () => {
     if (!reportedUsername.trim()) {
-      toast.info('Please enter the username you want to report.'');
+      toast.info('Please enter the username you want to report.');
       return;
     }
     if (!reason) {
-      toast.info('Please select a reason for the report.'');
+      toast.info('Please select a reason for the report.');
       return;
     }
     if (!description.trim()) {
-      toast.info('Please provide a description of the incident.'');
+      toast.info('Please provide a description of the incident.');
       return;
     }
 
     if (reportedUsername.toLowerCase() === user.username.toLowerCase()) {
-      toast.info('You cannot report yourself.'');
+      toast.info('You cannot report yourself.');
       return;
     }
 
@@ -52,10 +52,10 @@ export default function ReportTab({ user }: ReportTabProps) {
       setDescription('');
       
       setTimeout(() => setSubmitted(false), 3000);
-      toast.info('Report submitted successfully! An administrator will review it.'');
+      toast.info('Report submitted successfully! An administrator will review it.');
     } catch (error) {
       console.error('Error submitting report:', error);
-      toast.error('Error submitting report. Please try again.'');
+      toast.error('Error submitting report. Please try again.');
     }
   };
 

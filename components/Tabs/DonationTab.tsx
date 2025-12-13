@@ -37,7 +37,7 @@ export default function DonationTab({ user, editMode }: DonationTabProps) {
       
       setSelectedTier(tier.amount);
       setTimeout(() => {
-        alert(`Thank you for your ${tier.label} donation! You now have access to Full AI Coder and received ${tier.coins} coins.`);
+        toast.info('Thank you for your ${tier.label} donation! You now have access to Full AI Coder and received ${tier.coins} coins.');
         setSelectedTier(null);
       }, 100);
     }

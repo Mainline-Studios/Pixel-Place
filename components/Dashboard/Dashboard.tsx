@@ -46,7 +46,7 @@ export default function Dashboard({ user }: DashboardProps) {
   const handleResetPublished = () => {
     if (user.role !== 'admin') return;
     savePublished([]);
-    toast.info('All published games cleared.'');
+    toast.info('All published games cleared.');
     if (currentTab === 'home') {
       // Force re-render
       setCurrentTab('settings');
