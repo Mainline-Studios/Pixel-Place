@@ -6,6 +6,7 @@ import { getUsers, saveUsers, getFriendRequests, saveFriendRequests, getMessages
 import { escapeHTML } from '@/lib/utils';
 import { useUser } from '@/contexts/UserContext';
 
+import { toast } from '@/lib/toast';
 interface FriendsTabProps {
   user: User;
   editMode: boolean;
@@ -36,28 +37,28 @@ export default function FriendsTab({ user, editMode }: FriendsTabProps) {
 
   const handleSendFriendRequest = () => {
     if (!friendUsername.trim()) {
-      alert('Please enter a username');
+      toast.info('Please enter a username'');
       return;
     }
 
     if (friendUsername.toLowerCase() === user.username.toLowerCase()) {
-      alert('You cannot add yourself as a friend');
+      toast.info('You cannot add yourself as a friend'');
       return;
     }
 
     const targetUser = users.find(u => u.username.toLowerCase() === friendUsername.toLowerCase());
     if (!targetUser) {
-      alert('User not found');
+      toast.info('User not found'');
       return;
     }
 
     if (friends.includes(targetUser.username)) {
-      alert('You are already friends with this user');
+      toast.info('You are already friends with this user'');
       return;
     }
 
     if (outgoingRequests.includes(targetUser.username)) {
-      alert('You already sent a friend request to this user');
+      toast.info('You already sent a friend request to this user'');
       return;
     }
 
@@ -156,7 +157,7 @@ export default function FriendsTab({ user, editMode }: FriendsTabProps) {
 
   const handleSendMessage = () => {
     if (!selectedFriend || !messageText.trim()) {
-      alert('Please select a friend and enter a message');
+      toast.info('Please select a friend and enter a message'');
       return;
     }
 
@@ -172,7 +173,7 @@ export default function FriendsTab({ user, editMode }: FriendsTabProps) {
     const updatedMessages = [...messages, newMessage];
     saveMessages(updatedMessages);
     setMessageText('');
-    alert('Message sent!');
+    toast.info('Message sent!'');
   };
 
   const handleMarkAsRead = (messageId: string) => {

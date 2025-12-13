@@ -11,12 +11,14 @@
       "skin_1765489322010",
       "skin_1765489473084"
     ],
-    "equippedSkin": "skin_1765489473084",
+    "equippedSkin": "galaxy_guard",
     "isDonor": false,
     "ownedAccessories": [
       "hat_crown"
     ],
-    "equippedAccessories": {}
+    "equippedAccessories": {
+      "hat": "hat_crown"
+    }
   },
   {
     "username": "Marioguy",

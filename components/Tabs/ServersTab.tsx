@@ -6,6 +6,7 @@ import { getServerPlans, getServers, saveServers, getPublished, getUsers, saveUs
 import { useUser } from '@/contexts/UserContext';
 import { escapeHTML } from '@/lib/utils';
 
+import { toast } from '@/lib/toast';
 interface ServersTabProps {
   user: User;
   editMode: boolean;
@@ -23,13 +24,13 @@ export default function ServersTab({ user, editMode }: ServersTabProps) {
 
   const handlePurchaseServer = (plan: ServerPlan, gameId?: string) => {
     if (!gameId) {
-      alert('Please select a game first');
+      toast.info('Please select a game first'');
       return;
     }
 
     const game = publishedGames.find(g => g.ts.toString() === gameId);
     if (!game) {
-      alert('Game not found');
+      toast.info('Game not found'');
       return;
     }
 
@@ -85,7 +86,7 @@ export default function ServersTab({ user, editMode }: ServersTabProps) {
 
   const handleDeleteServer = (server: GameServer) => {
     if (server.purchasedBy !== user.username && user.role !== 'admin') {
-      alert('You can only delete your own servers');
+      toast.info('You can only delete your own servers'');
       return;
     }
 
@@ -93,7 +94,7 @@ export default function ServersTab({ user, editMode }: ServersTabProps) {
       const updatedServers = servers.filter(s => s.id !== server.id);
       saveServers(updatedServers);
       setServers(updatedServers);
-      alert('Server deleted.');
+      toast.info('Server deleted.'');
     }
   };
 

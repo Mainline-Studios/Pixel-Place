@@ -7,6 +7,7 @@ import { escapeHTML } from '@/lib/utils';
 import { useUser } from '@/contexts/UserContext';
 import Avatar3DViewer from '@/components/Avatar3DViewer';
 
+import { toast } from '@/lib/toast';
 interface AvatarShopTabProps {
   user: User;
   editMode: boolean;
@@ -112,7 +113,7 @@ export default function AvatarShopTab({ user, editMode }: AvatarShopTabProps) {
 
   const handlePurchase = (skin: Skin) => {
     if (user.ownedSkins?.includes(skin.id)) {
-      alert('You already own this skin.');
+      toast.error('You already own this skin.'');
       return;
     }
 
@@ -131,7 +132,7 @@ export default function AvatarShopTab({ user, editMode }: AvatarShopTabProps) {
 
   const handleEquip = (skinId: string) => {
     if (!user.ownedSkins?.includes(skinId)) {
-      alert("You don't own that skin.");
+      toast.error('You don't own that skin."');
       return;
     }
     updateUser({ equippedSkin: skinId });
@@ -139,7 +140,7 @@ export default function AvatarShopTab({ user, editMode }: AvatarShopTabProps) {
 
   const handlePurchaseAccessory = (accessory: Accessory) => {
     if (user.ownedAccessories?.includes(accessory.id)) {
-      alert('You already own this accessory.');
+      toast.error('You already own this accessory.'');
       return;
     }
 
@@ -159,7 +160,7 @@ export default function AvatarShopTab({ user, editMode }: AvatarShopTabProps) {
 
   const handleEquipAccessory = (accessoryId: string, type: string) => {
     if (!user.ownedAccessories?.includes(accessoryId)) {
-      alert("You don't own that accessory.");
+      toast.error('You don't own that accessory."');
       return;
     }
     const newEquipped = { ...(user.equippedAccessories || {}) };
@@ -175,7 +176,7 @@ export default function AvatarShopTab({ user, editMode }: AvatarShopTabProps) {
 
   const handleAddSkin = async () => {
     if (user.role !== 'admin') {
-      alert('Admin only');
+      toast.error('Admin only'');
       return;
     }
 
@@ -229,12 +230,12 @@ export default function AvatarShopTab({ user, editMode }: AvatarShopTabProps) {
     const updatedSkins = [...skins, newSkin];
     await saveSkins(updatedSkins);
     setSkins(updatedSkins);
-    alert('Skin added.');
+    toast.info('Skin added.'');
   };
 
   const handleDeleteSkin = (skin: Skin) => {
     if (user.role !== 'admin') {
-      alert('Admin only');
+      toast.error('Admin only'');
       return;
     }
 
