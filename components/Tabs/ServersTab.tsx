@@ -28,6 +28,8 @@ export default function ServersTab({ user, editMode }: ServersTabProps) {
         setPublishedGames(games);
       } catch (error) {
         console.error('Error loading published games:', error);
+        // Set empty array on error to prevent infinite loading
+        setPublishedGames([]);
       } finally {
         setLoading(false);
       }

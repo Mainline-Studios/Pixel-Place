@@ -4,7 +4,7 @@
     "password": "20Minecraft15",
     "gender": "N/A",
     "role": "admin",
-    "coins": 98157,
+    "coins": 95157,
     "ownedSkins": [
       "starter_classic",
       "galaxy_guard",
@@ -18,7 +18,10 @@
     ],
     "equippedAccessories": {
       "hat": "hat_crown"
-    }
+    },
+    "ownedServers": [
+      "server_1765586798107"
+    ]
   },
   {
     "username": "Marioguy",
