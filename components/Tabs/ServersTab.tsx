@@ -1,8 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { User, ServerPlan, GameServer, PublishedGame } from '@/types';
-import { getServerPlans, getServers, saveServers, getPublished, getUsers, saveUsers , findUser} from '@/lib/storage';
+import { getServerPlans, getServers, saveServers, getPublished, getUsers, saveUsers, savePublished, findUser} from '@/lib/storage';
 import { useUser } from '@/contexts/UserContext';
 import { escapeHTML } from '@/lib/utils';
 
@@ -16,8 +16,24 @@ export default function ServersTab({ user, editMode }: ServersTabProps) {
   const { updateUser } = useUser();
   const [serverPlans] = useState(getServerPlans());
   const [servers, setServers] = useState(getServers());
-  const [publishedGames] = useState(getPublished());
+  const [publishedGames, setPublishedGames] = useState<PublishedGame[]>([]);
   const [selectedGame, setSelectedGame] = useState<string>('');
+  const [loading, setLoading] = useState(true);
+
+  // Load published games on mount
+  useEffect(() => {
+    const loadGames = async () => {
+      try {
+        const games = await getPublished();
+        setPublishedGames(games);
+      } catch (error) {
+        console.error('Error loading published games:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadGames();
+  }, []);
 
   const userServers = servers.filter(s => s.purchasedBy === user.username);
   const availableServers = servers.filter(s => !s.purchased);
@@ -66,18 +82,19 @@ export default function ServersTab({ user, editMode }: ServersTabProps) {
       if (userIndex !== -1) {
         users[userIndex].coins = (users[userIndex].coins || 0) - plan.price;
         users[userIndex].ownedServers = [...(users[userIndex].ownedServers || []), newServer.id];
-        saveUsers(users);
+        await saveUsers(users);
         updateUser({ coins: users[userIndex].coins, ownedServers: users[userIndex].ownedServers });
       }
 
       // Update game to enable multiplayer
-      const games = getPublished();
+      const games = await getPublished();
       const gameIndex = games.findIndex(g => g.ts.toString() === gameId);
       if (gameIndex !== -1) {
         games[gameIndex].multiplayer = true;
         games[gameIndex].maxPlayers = plan.maxPlayers;
         games[gameIndex].serverId = newServer.id;
-        require('@/lib/storage').savePublished(games);
+        await savePublished(games);
+        setPublishedGames(games);
       }
 
       toast.info(`Server purchased! Your game "${game.title}" is now online.`);
@@ -99,6 +116,17 @@ export default function ServersTab({ user, editMode }: ServersTabProps) {
   };
 
   const multiplayerGames = publishedGames.filter(g => g.multiplayer);
+
+  if (loading) {
+    return (
+      <>
+        <h2 className="section-title">Game Servers</h2>
+        <div className="ai-box">
+          <div className="smalltext">Loading...</div>
+        </div>
+      </>
+    );
+  }
 
   return (
     <>

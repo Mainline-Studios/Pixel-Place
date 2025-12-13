@@ -91,12 +91,17 @@ export default function FriendsTab({ user, editMode }: FriendsTabProps) {
       return;
     }
 
-    if (friends.includes(targetUser.username)) {
+    // Recalculate current user data from updated users
+    const updatedCurrentUser = findUser(currentUsers, user.username) || user;
+    const updatedFriends = updatedCurrentUser.friends || [];
+    const updatedOutgoingRequests = updatedCurrentUser.sentFriendRequests || [];
+
+    if (updatedFriends.includes(targetUser.username)) {
       toast.info('You are already friends with this user');
       return;
     }
 
-    if (outgoingRequests.includes(targetUser.username)) {
+    if (updatedOutgoingRequests.includes(targetUser.username)) {
       toast.info('You already sent a friend request to this user');
       return;
     }
@@ -123,7 +128,7 @@ export default function FriendsTab({ user, editMode }: FriendsTabProps) {
     const updatedRequests = [...friendRequests, newRequest];
     saveFriendRequests(updatedRequests);
 
-    const updatedSentRequests = [...outgoingRequests, targetUser.username];
+    const updatedSentRequests = [...updatedOutgoingRequests, targetUser.username];
     const updatedUsers = currentUsers.map(u =>
       u.username === user.username
         ? { ...u, sentFriendRequests: updatedSentRequests }
