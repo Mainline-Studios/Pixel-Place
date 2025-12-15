@@ -34,16 +34,16 @@ export function initializeStorage() {
       return;
     }
 
-    // Always ensure the 6 original skins are present
+    // Always ensure the 7 original skins are present
     const originalSkinIds = [
       "starter_classic",
       "neon_runner",
       "crimson_bot",
       "galaxy_guard",
       "urban_shadow",
-      "desert_operative"
+      "desert_operative",
+      "banana_man"
     ];
-
     // Check existing skins - NEVER replace, only merge to preserve user data
     let existingSkins: Skin[] = [];
     let existingIds: string[] = [];
@@ -300,10 +300,54 @@ export function initializeStorage() {
               material: { type: 'leather', roughness: 0.7, metalness: 0.1 }
             }
           ]
+        },
+        {
+          id: "banana_man",
+          name: "Banana Man",
+          rarity: "rare",
+          price: 350,
+          img: "Banana",
+          use3d: true,
+          defaultAnimation: 'idle',
+          theme: "fruit",
+          colors: {
+            head: "#FFE135",
+            torso: "#FFE135",
+            arm: "#FFE135",
+            legs: "#FFE135"
+          },
+          materials: {
+            head: { type: 'plastic', roughness: 0.4, metalness: 0.0 },
+            torso: { type: 'plastic', roughness: 0.4, metalness: 0.0 },
+            arm: { type: 'plastic', roughness: 0.4, metalness: 0.0 },
+            legs: { type: 'plastic', roughness: 0.4, metalness: 0.0 }
+          },
+          textures: {
+            head: { base: 'dots' },
+            torso: { base: 'dots' },
+            arm: { base: 'dots' },
+            legs: { base: 'dots' }
+          },
+          highlights: {
+            head: "#FFF9C4",
+            torso: "#FFF9C4",
+            arm: "#FFF9C4",
+            legs: "#FFF9C4"
+          },
+          skinAccessories: [
+            {
+              type: 'goggles',
+              position: { x: 0, y: 0.1, z: 0.3 },
+              color: "#000000",
+              material: { type: 'plastic', roughness: 0.1, metalness: 0.8 },
+              texture: { base: 'grid' },
+              scale: { x: 1.2, y: 0.6, z: 0.1 }
+            }
+          ]
         }
       ];
 
-    // Always merge: preserve ALL existing skins, ensure 6 originals are present
+    // Always merge: preserve ALL existing skins, ensure 7 originals are present
     if (existingSkins.length === 0) {
       // First time - just set the originals
       localStorage.setItem("skinsCatalog", JSON.stringify(initialSkins));
@@ -318,9 +362,9 @@ export function initializeStorage() {
         "crimson_bot",
         "galaxy_guard",
         "urban_shadow",
-        "desert_operative"
+        "desert_operative",
+        "banana_man"
       ];
-
       // Use the same initialSkins array defined above
       const initialSkinsData: Skin[] = initialSkins;
 
