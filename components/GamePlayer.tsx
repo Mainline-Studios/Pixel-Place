@@ -216,6 +216,31 @@ export default function GamePlayer({ game, onClose }: GamePlayerProps) {
         const moduleExports: any = {};
         const moduleObj = { exports: moduleExports };
 
+        // Get user skin data for avatar rendering
+        let userSkinData = null;
+        if (contextUser) {
+          try {
+            const { getSkins, findSkin } = await import('@/lib/storage');
+            const skins = await getSkins();
+            const equippedSkin = findSkin(skins, contextUser.equippedSkin);
+            if (equippedSkin) {
+              userSkinData = {
+                colors: equippedSkin.colors || {
+                  head: '#FFDBB3',
+                  torso: '#2196F3',
+                  arm: '#2196F3',
+                  legs: '#2196F3'
+                }
+              };
+            }
+          } catch (err) {
+            console.warn('Could not load user skin:', err);
+          }
+        }
+        
+        // Pass user skin data to game
+        (window as any).__userSkinData = userSkinData;
+        
         // Add multiplayer support if online
         let multiplayerCode = '';
         if (isOnline && socketRef.current) {
@@ -604,13 +629,15 @@ export default function GamePlayer({ game, onClose }: GamePlayerProps) {
   // Safety/Rules Popup
   if (showSafetyPopup) {
     return (
-      <div
-        style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
+    <div
+      style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        width: '100vw',
+        height: '100vh',
           background: 'rgba(0, 0, 0, 0.9)',
           zIndex: 20000,
           display: 'flex',
@@ -663,7 +690,7 @@ export default function GamePlayer({ game, onClose }: GamePlayerProps) {
           <button
             onClick={() => setShowSafetyPopup(false)}
             style={{
-              width: `${loadingProgress}%`,
+              width: '100%',
               marginTop: '24px',
               padding: '14px 28px',
               fontSize: '18px',
@@ -765,6 +792,8 @@ export default function GamePlayer({ game, onClose }: GamePlayerProps) {
         left: 0,
         right: 0,
         bottom: 0,
+        width: '100vw',
+        height: '100vh',
         background: '#000',
         zIndex: 10000,
         display: 'flex',
@@ -911,7 +940,7 @@ export default function GamePlayer({ game, onClose }: GamePlayerProps) {
             {/* Progress Bar Background */}
             <div
               style={{
-                width: `${loadingProgress}%`,
+                width: '100%',
                 height: '8px',
                 background: '#2a2a2a',
                 borderRadius: '4px',
@@ -923,7 +952,7 @@ export default function GamePlayer({ game, onClose }: GamePlayerProps) {
               {/* Actual Progress Fill */}
               <div
                 style={{
-                  width: `${loadingProgress}%`,
+                  width: '100%',
                   height: '100%',
                   background: 'linear-gradient(90deg, #00A2FF 0%, #00D4FF 50%, #00A2FF 100%)',
                   backgroundSize: '200% 100%',
@@ -986,7 +1015,7 @@ export default function GamePlayer({ game, onClose }: GamePlayerProps) {
         ref={containerRef}
         style={{
           flex: 1,
-          width: `${loadingProgress}%`,
+          width: '100%',
           height: '100%',
           overflow: 'hidden',
           opacity: isLoading ? 0 : 1,
