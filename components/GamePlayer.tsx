@@ -704,6 +704,12 @@ export default function GamePlayer({ game, onClose }: GamePlayerProps) {
                     maxPlayers: game.maxPlayers || 10
                   })
                 });
+                
+                if (!response.ok) {
+                  const errorText = await response.text();
+                  throw new Error(`HTTP ${response.status}: ${errorText || 'Unknown error'}`);
+                }
+                
                 const data = await response.json();
                 if (data.success) {
                   setOnlineSession(data.session.id);
@@ -797,6 +803,12 @@ export default function GamePlayer({ game, onClose }: GamePlayerProps) {
                     maxPlayers: game.maxPlayers || 10
                   })
                 });
+                
+                if (!response.ok) {
+                  const errorText = await response.text();
+                  throw new Error(`HTTP ${response.status}: ${errorText || 'Unknown error'}`);
+                }
+                
                 const data = await response.json();
                 if (data.success) {
                   setOnlineSession(data.session.id);
