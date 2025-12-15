@@ -19,8 +19,21 @@ const gameSessions = new Map<string, {
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
+    let body;
+    try {
+      body = await request.json();
+    } catch (e) {
+      return NextResponse.json({ error: 'Invalid JSON in request body' }, { status: 400 });
+    }
+    
+    if (!body || typeof body !== 'object') {
+      return NextResponse.json({ error: 'Request body must be a valid object' }, { status: 400 });
+    }
     const { action, gameId, gameTitle, username, sessionId, maxPlayers = 10 } = body;
+    
+    if (!action) {
+      return NextResponse.json({ error: 'Action is required' }, { status: 400 });
+    }
 
     if (action === 'create') {
       const sessionId = `session-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
