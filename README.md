@@ -1,7 +1,10 @@
 # 🎮 Pixel Place
 
-**Pixel Place** is an immersive web-based gaming platform and creative studio developed by **Mainline Studios**. Build games, play with friends, customize your avatar, and explore a vibrant community of creators.
-**THE GAME IS NOT OPEN TO THE PUBLIC. A PASSWORD WILL BE REQUIRED.**
+**Pixel Place** is a cutting-edge web-based gaming platform and creative studio that brings together gaming, social interaction, and game development in one immersive experience. Developed by **Mainline Studios**, Pixel Place empowers players to play, create, customize, and share in a vibrant community-driven ecosystem.
+
+Experience fullscreen 3D adventures, compete in multiplayer matches, design your unique avatar with custom skins and accessories, and even build your own games using our intuitive studio tools. Whether you're a casual gamer, a creative developer, or looking to connect with friends, Pixel Place offers something for everyone.
+
+**🔒 IMPORTANT: This platform is currently in private beta. Password authentication is required for access.**
 ![Pixel Place](https://img.shields.io/badge/Version-Unreleased-red)
 ![Next.js](https://img.shields.io/badge/Next.js-14.2.5-black)
 ![React](https://img.shields.io/badge/React-18.3.1-61dafb)
@@ -54,6 +57,15 @@
    - Test your memory with emoji matching
    - Flip cards to find matching pairs
    - Challenge yourself with increasing difficulty
+
+
+7. **Capture the Flag** 🚩
+   - Epic 4-team multiplayer battle in fullscreen 3D
+   - Capture flags from Red, Green, and Yellow teams
+   - Advanced movement: sprint, jump, and zoom controls
+   - Play online with friends or against smart NPCs
+   - Real-time chat with preset messages
+   - Your customized avatar appears in-game
 
 ---
 
