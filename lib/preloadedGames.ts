@@ -2949,8 +2949,7 @@ function createGame(container) {
     }
     renderer.dispose();
   };
-}
-`;
+}`;
   container.appendChild(uiContainer);
   
   const scoreText = document.createElement('div');
