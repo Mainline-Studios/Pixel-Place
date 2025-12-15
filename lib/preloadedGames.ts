@@ -2158,18 +2158,24 @@ export const TIC_TAC_TOE_PRELOADED_GAME: PublishedGame = {
 };
 
 // Capture the Flag Game - 4 Team Layout
-export const CAPTURE_THE_FLAG_GAME_CODE = `// 4 Team Capture the Flag - Real Layout
+export const CAPTURE_THE_FLAG_GAME_CODE = `// 4 Team Capture the Flag - Enhanced Fullscreen Version
 // THREE is provided by the game engine
 
 function createGame(container) {
-  // Scene setup - Roblox style (bright, clear)
-  const scene = new THREE.Scene();
-  // Roblox-style sky gradient (light blue to white)
-  const skyColor = new THREE.Color(0x87CEEB); // Sky blue
-  scene.background = skyColor;
-  scene.fog = new THREE.Fog(skyColor, 50, 300); // Light fog for depth
+  // Check if online mode
+  const isOnline = window.gameSocket !== undefined;
+  const onlinePlayers = window.gamePlayers || [];
+  let useNPCs = !isOnline; // No NPCs in online mode by default
+  let waitingForPlayers = isOnline && onlinePlayers.length < 4;
+  let gameStarted = !waitingForPlayers;
   
-  // Camera setup - first person style
+  // Scene setup - Enhanced graphics
+  const scene = new THREE.Scene();
+  const skyColor = new THREE.Color(0x87CEEB);
+  scene.background = skyColor;
+  scene.fog = new THREE.Fog(skyColor, 50, 400);
+  
+  // Enhanced camera with zoom support
   const camera = new THREE.PerspectiveCamera(
     75,
     container.clientWidth / container.clientHeight,
@@ -2178,58 +2184,62 @@ function createGame(container) {
   );
   camera.position.set(0, 2, 0);
   
-  // Renderer - Roblox quality settings
+  // Enhanced renderer settings for better graphics
   const renderer = new THREE.WebGLRenderer({ 
     antialias: true,
-    powerPreference: 'high-performance'
+    powerPreference: 'high-performance',
+    stencil: false,
+    depth: true
   });
   renderer.setSize(container.clientWidth, container.clientHeight);
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 1.2;
+  renderer.toneMappingExposure = 1.3;
+  renderer.outputColorSpace = THREE.SRGBColorSpace;
   container.appendChild(renderer.domElement);
   
-  // Roblox-style Lighting (bright, clear, realistic shadows)
-  const ambientLight = new THREE.AmbientLight(0xffffff, 0.7); // Brighter ambient
+  // Enhanced lighting for better graphics
+  const ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
   scene.add(ambientLight);
   
-  // Main sun light - Roblox style
-  const sunLight = new THREE.DirectionalLight(0xffffff, 1.0);
-  sunLight.position.set(30, 100, 30);
+  const sunLight = new THREE.DirectionalLight(0xffffff, 1.2);
+  sunLight.position.set(30, 120, 30);
   sunLight.castShadow = true;
   sunLight.shadow.mapSize.width = 4096;
   sunLight.shadow.mapSize.height = 4096;
-  sunLight.shadow.camera.left = -150;
-  sunLight.shadow.camera.right = 150;
-  sunLight.shadow.camera.top = 150;
-  sunLight.shadow.camera.bottom = -150;
+  sunLight.shadow.camera.left = -200;
+  sunLight.shadow.camera.right = 200;
+  sunLight.shadow.camera.top = 200;
+  sunLight.shadow.camera.bottom = -200;
   sunLight.shadow.camera.near = 0.5;
-  sunLight.shadow.camera.far = 500;
+  sunLight.shadow.camera.far = 600;
   sunLight.shadow.bias = -0.0001;
+  sunLight.shadow.normalBias = 0.02;
   scene.add(sunLight);
   
-  // Fill light for softer shadows (Roblox style)
-  const fillLight = new THREE.DirectionalLight(0xffffff, 0.3);
-  fillLight.position.set(-30, 50, -30);
+  const fillLight = new THREE.DirectionalLight(0xffffff, 0.4);
+  fillLight.position.set(-30, 60, -30);
   scene.add(fillLight);
   
-  // Field - light brown/beige, divided into 4 quadrants (matching diagram)
-  const fieldSize = 200;
+  const rimLight = new THREE.DirectionalLight(0x88ccff, 0.3);
+  rimLight.position.set(0, 50, -50);
+  scene.add(rimLight);
   
-  // Create field with 4 distinct quadrants - using realistic grass texture
+  // Field setup with better geometry
+  const fieldSize = 200;
   const quadrantSize = fieldSize / 2;
   const quadrantMaterial = window.createRealisticMaterial('grass', { 
-    color: 0xD2B48C, // Light brown/beige
+    color: 0xD2B48C,
     roughness: 0.9,
     metalness: 0.0
   });
   
-  // Create 4 quadrants
   for (let i = 0; i < 2; i++) {
     for (let j = 0; j < 2; j++) {
       const quadrant = new THREE.Mesh(
-        new THREE.PlaneGeometry(quadrantSize, quadrantSize),
+        new THREE.PlaneGeometry(quadrantSize, quadrantSize, 32, 32),
         quadrantMaterial
       );
       quadrant.rotation.x = -Math.PI / 2;
@@ -2243,81 +2253,138 @@ function createGame(container) {
     }
   }
   
-  // Division lines - thick black lines separating quadrants (like diagram)
-  const lineMaterial = new THREE.LineBasicMaterial({ color: 0x000000, linewidth: 5 });
-  
-  // Vertical center line - thick and visible
-  const verticalPoints = [];
-  verticalPoints.push(new THREE.Vector3(0, 0.1, -fieldSize/2));
-  verticalPoints.push(new THREE.Vector3(0, 0.1, fieldSize/2));
-  const verticalGeometry = new THREE.BufferGeometry().setFromPoints(verticalPoints);
-  const verticalLine = new THREE.Line(verticalGeometry, lineMaterial);
-  scene.add(verticalLine);
-  
-  // Horizontal center line - thick and visible
-  const horizontalPoints = [];
-  horizontalPoints.push(new THREE.Vector3(-fieldSize/2, 0.1, 0));
-  horizontalPoints.push(new THREE.Vector3(fieldSize/2, 0.1, 0));
-  const horizontalGeometry = new THREE.BufferGeometry().setFromPoints(horizontalPoints);
-  const horizontalLine = new THREE.Line(horizontalGeometry, lineMaterial);
-  scene.add(horizontalLine);
-  
-  // Add thicker line geometry for better visibility
+  // Enhanced division lines
   const lineBox1 = new THREE.Mesh(
-    new THREE.BoxGeometry(0.3, 0.2, fieldSize),
-    new THREE.MeshStandardMaterial({ color: 0x000000 })
+    new THREE.BoxGeometry(0.4, 0.25, fieldSize),
+    new THREE.MeshStandardMaterial({ color: 0x000000, roughness: 0.8 })
   );
-  lineBox1.position.set(0, 0.1, 0);
+  lineBox1.position.set(0, 0.125, 0);
   scene.add(lineBox1);
   
   const lineBox2 = new THREE.Mesh(
-    new THREE.BoxGeometry(fieldSize, 0.2, 0.3),
-    new THREE.MeshStandardMaterial({ color: 0x000000 })
+    new THREE.BoxGeometry(fieldSize, 0.25, 0.4),
+    new THREE.MeshStandardMaterial({ color: 0x000000, roughness: 0.8 })
   );
-  lineBox2.position.set(0, 0.1, 0);
+  lineBox2.position.set(0, 0.125, 0);
   scene.add(lineBox2);
   
-  // Player - Blue team (top-left quadrant) - Roblox style
-  const playerGroup = new THREE.Group();
-  // Roblox-style body (smooth capsule)
-  const playerBody = new THREE.Mesh(
-    new THREE.CapsuleGeometry(0.5, 1.5, 16, 32),
-    new THREE.MeshStandardMaterial({ 
-      color: 0x2196F3, 
+  // Function to create avatar from user skin
+  function createPlayerAvatar(THREE, skinData) {
+    const avatarGroup = new THREE.Group();
+    const hexToColor = (hex) => new THREE.Color(hex);
+    
+    const colors = skinData?.colors || {
+      head: '#FFDBB3',
+      torso: '#2196F3',
+      arm: '#2196F3',
+      legs: '#2196F3'
+    };
+    
+    // Head
+    const headGeo = new THREE.BoxGeometry(0.6, 0.6, 0.6, 8, 8);
+    const headMat = new THREE.MeshStandardMaterial({ 
+      color: hexToColor(colors.head),
+      roughness: 0.5,
+      metalness: 0.1
+    });
+    const head = new THREE.Mesh(headGeo, headMat);
+    head.position.set(0, 1.5, 0);
+    head.castShadow = true;
+    avatarGroup.add(head);
+    
+    // Torso
+    const torsoGeo = new THREE.BoxGeometry(0.9, 0.9, 0.5, 8, 8);
+    const torsoMat = new THREE.MeshStandardMaterial({ 
+      color: hexToColor(colors.torso),
       roughness: 0.4,
       metalness: 0.1
-    })
-  );
-  playerBody.position.y = 1;
-  playerBody.castShadow = true;
-  playerGroup.add(playerBody);
+    });
+    const torso = new THREE.Mesh(torsoGeo, torsoMat);
+    torso.position.set(0, 0.5, 0);
+    torso.castShadow = true;
+    avatarGroup.add(torso);
+    
+    // Arms
+    const armGeo = new THREE.BoxGeometry(0.28, 0.7, 0.28, 4, 8);
+    const armMat = new THREE.MeshStandardMaterial({ 
+      color: hexToColor(colors.arm),
+      roughness: 0.4,
+      metalness: 0.1
+    });
+    const leftArm = new THREE.Mesh(armGeo, armMat);
+    leftArm.position.set(-0.59, 0.5, 0);
+    leftArm.castShadow = true;
+    avatarGroup.add(leftArm);
+    const rightArm = new THREE.Mesh(armGeo, armMat);
+    rightArm.position.set(0.59, 0.5, 0);
+    rightArm.castShadow = true;
+    avatarGroup.add(rightArm);
+    
+    // Legs
+    const legGeo = new THREE.BoxGeometry(0.4, 0.6, 0.4, 4, 8);
+    const legMat = new THREE.MeshStandardMaterial({ 
+      color: hexToColor(colors.legs),
+      roughness: 0.4,
+      metalness: 0.1
+    });
+    const leftLeg = new THREE.Mesh(legGeo, legMat);
+    leftLeg.position.set(-0.25, -0.3, 0);
+    leftLeg.castShadow = true;
+    avatarGroup.add(leftLeg);
+    const rightLeg = new THREE.Mesh(legGeo, legMat);
+    rightLeg.position.set(0.25, -0.3, 0);
+    rightLeg.castShadow = true;
+    avatarGroup.add(rightLeg);
+    
+    return avatarGroup;
+  }
   
-  // Roblox-style head (smooth sphere)
-  const playerHead = new THREE.Mesh(
-    new THREE.SphereGeometry(0.35, 32, 32),
-    new THREE.MeshStandardMaterial({ 
-      color: 0xFFDBB3, 
-      roughness: 0.5,
-      metalness: 0.0
-    })
-  );
-  playerHead.position.y = 2.2;
-  playerHead.castShadow = true;
-  playerGroup.add(playerHead);
+  // Get user skin data from window (passed from GamePlayer)
+  const userSkinData = window.__userSkinData || null;
   
-  // Start player in blue team area (top-left)
+  // Player - create with user avatar if available
+  const playerGroup = new THREE.Group();
+  if (userSkinData) {
+    const playerAvatar = createPlayerAvatar(THREE, userSkinData);
+    playerGroup.add(playerAvatar);
+  } else {
+    // Default blue player
+    const playerBody = new THREE.Mesh(
+      new THREE.CapsuleGeometry(0.5, 1.5, 16, 32),
+      new THREE.MeshStandardMaterial({ 
+        color: 0x2196F3,
+        roughness: 0.4,
+        metalness: 0.1
+      })
+    );
+    playerBody.position.y = 1;
+    playerBody.castShadow = true;
+    playerGroup.add(playerBody);
+    
+    const playerHead = new THREE.Mesh(
+      new THREE.SphereGeometry(0.35, 32, 32),
+      new THREE.MeshStandardMaterial({ 
+        color: 0xFFDBB3,
+        roughness: 0.5,
+        metalness: 0.0
+      })
+    );
+    playerHead.position.y = 2.2;
+    playerHead.castShadow = true;
+    playerGroup.add(playerHead);
+  }
+  
   playerGroup.position.set(-40, 0, 40);
   scene.add(playerGroup);
   
-  // Function to create a team base with flag
+  // Function to create team base
   function createTeamBase(color, position, flagCorner) {
     const baseGroup = new THREE.Group();
     
-    // Base platform - using realistic materials
     const base = new THREE.Mesh(
-      new THREE.BoxGeometry(12, 1, 12),
+      new THREE.BoxGeometry(12, 1, 12, 4, 1, 4),
       window.createRealisticMaterial('concrete', { 
-        color: color, 
+        color: color,
         roughness: 0.7,
         metalness: 0.0
       })
@@ -2327,11 +2394,10 @@ function createGame(container) {
     base.receiveShadow = true;
     baseGroup.add(base);
     
-    // Flag pole - using wood texture
     const flagPole = new THREE.Mesh(
       new THREE.CylinderGeometry(0.2, 0.2, 6, 32),
       window.createRealisticMaterial('wood', { 
-        color: 0x654321, 
+        color: 0x654321,
         roughness: 0.8,
         metalness: 0.0
       })
@@ -2340,15 +2406,14 @@ function createGame(container) {
     flagPole.castShadow = true;
     baseGroup.add(flagPole);
     
-    // Flag - striped pattern
     const flagGroup = new THREE.Group();
     for (let i = 0; i < 4; i++) {
       const stripe = new THREE.Mesh(
-        new THREE.PlaneGeometry(3, 0.5),
+        new THREE.PlaneGeometry(3, 0.5, 4, 1),
         new THREE.MeshStandardMaterial({ 
           color: i % 2 === 0 ? color : 0xFFFFFF,
           emissive: i % 2 === 0 ? color : 0x000000,
-          emissiveIntensity: 0.2
+          emissiveIntensity: 0.3
         })
       );
       stripe.position.set(0, -0.75 + i * 0.5, 1.5);
@@ -2363,105 +2428,78 @@ function createGame(container) {
     return { baseGroup, flagGroup, flagPole, flagPosition: new THREE.Vector3(position.x + flagCorner.x, 5.5, position.z + flagCorner.z) };
   }
   
-  // Blue Team - Top-Left
   const blueTeam = createTeamBase(0x2196F3, new THREE.Vector3(-80, 0, 80), new THREE.Vector3(-5, 0, 5));
-  
-  // Red Team - Top-Right
   const redTeam = createTeamBase(0xFF0000, new THREE.Vector3(80, 0, 80), new THREE.Vector3(5, 0, 5));
-  
-  // Green Team - Bottom-Right
   const greenTeam = createTeamBase(0x4CAF50, new THREE.Vector3(80, 0, -80), new THREE.Vector3(5, 0, -5));
-  
-  // Yellow Team - Bottom-Left
   const yellowTeam = createTeamBase(0xFFEB3B, new THREE.Vector3(-80, 0, -80), new THREE.Vector3(-5, 0, -5));
   
-  // NPC Players for each team (5 per team)
+  // NPCs (only if not online or useNPCs is true)
   const allNPCs = [];
   const teamColors = [0x2196F3, 0xFF0000, 0x4CAF50, 0xFFEB3B];
   const teamPositions = [
-    new THREE.Vector3(-80, 0, 80), // Blue
-    new THREE.Vector3(80, 0, 80),  // Red
-    new THREE.Vector3(80, 0, -80), // Green
-    new THREE.Vector3(-80, 0, -80) // Yellow
+    new THREE.Vector3(-80, 0, 80),
+    new THREE.Vector3(80, 0, 80),
+    new THREE.Vector3(80, 0, -80),
+    new THREE.Vector3(-80, 0, -80)
   ];
   
-  for (let team = 0; team < 4; team++) {
-    for (let i = 0; i < 5; i++) {
-      const npcGroup = new THREE.Group();
-      // Roblox-style NPC body (smooth, polished)
-      const npcBody = new THREE.Mesh(
-        new THREE.CapsuleGeometry(0.5, 1.5, 16, 32),
-        new THREE.MeshStandardMaterial({ 
-          color: teamColors[team], 
-          roughness: 0.4,
-          metalness: 0.1
-        })
-      );
-      npcBody.position.y = 1;
-      npcBody.castShadow = true;
-      npcGroup.add(npcBody);
-      
-      // Roblox-style NPC head (smooth sphere)
-      const npcHead = new THREE.Mesh(
-        new THREE.SphereGeometry(0.35, 32, 32),
-        new THREE.MeshStandardMaterial({ 
-          color: 0xFFDBB3, 
-          roughness: 0.5,
-          metalness: 0.0
-        })
-      );
-      npcHead.position.y = 2.2;
-      npcHead.castShadow = true;
-      npcGroup.add(npcHead);
-      
-      // Yellow team gets smiley faces
-      if (team === 3) {
-        const eye1 = new THREE.Mesh(
-          new THREE.SphereGeometry(0.05, 8, 8),
-          new THREE.MeshStandardMaterial({ color: 0x000000 })
+  function createNPCs() {
+    allNPCs.length = 0;
+    for (let team = 0; team < 4; team++) {
+      for (let i = 0; i < 5; i++) {
+        const npcGroup = new THREE.Group();
+        const npcBody = new THREE.Mesh(
+          new THREE.CapsuleGeometry(0.5, 1.5, 16, 32),
+          new THREE.MeshStandardMaterial({ 
+            color: teamColors[team],
+            roughness: 0.4,
+            metalness: 0.1
+          })
         );
-        eye1.position.set(-0.1, 2.3, 0.3);
-        npcGroup.add(eye1);
+        npcBody.position.y = 1;
+        npcBody.castShadow = true;
+        npcGroup.add(npcBody);
         
-        const eye2 = new THREE.Mesh(
-          new THREE.SphereGeometry(0.05, 8, 8),
-          new THREE.MeshStandardMaterial({ color: 0x000000 })
+        const npcHead = new THREE.Mesh(
+          new THREE.SphereGeometry(0.35, 32, 32),
+          new THREE.MeshStandardMaterial({ 
+            color: 0xFFDBB3,
+            roughness: 0.5,
+            metalness: 0.0
+          })
         );
-        eye2.position.set(0.1, 2.3, 0.3);
-        npcGroup.add(eye2);
+        npcHead.position.y = 2.2;
+        npcHead.castShadow = true;
+        npcGroup.add(npcHead);
         
-        const mouth = new THREE.Mesh(
-          new THREE.TorusGeometry(0.15, 0.02, 8, 16),
-          new THREE.MeshStandardMaterial({ color: 0x000000 })
+        const angle = (i / 5) * Math.PI * 2;
+        const radius = 8 + Math.random() * 5;
+        npcGroup.position.set(
+          teamPositions[team].x + Math.cos(angle) * radius,
+          0,
+          teamPositions[team].z + Math.sin(angle) * radius
         );
-        mouth.rotation.x = Math.PI / 2;
-        mouth.position.set(0, 2.1, 0.3);
-        npcGroup.add(mouth);
+        
+        scene.add(npcGroup);
+        allNPCs.push({
+          group: npcGroup,
+          team: team,
+          basePos: teamPositions[team],
+          angle: angle,
+          radius: radius,
+          speed: 0.01 + Math.random() * 0.01,
+          velocity: new THREE.Vector3(0, 0, 0),
+          chaseMode: false
+        });
       }
-      
-      // Position NPCs in their team area
-      const angle = (i / 5) * Math.PI * 2;
-      const radius = 8 + Math.random() * 5;
-      npcGroup.position.set(
-        teamPositions[team].x + Math.cos(angle) * radius,
-        0,
-        teamPositions[team].z + Math.sin(angle) * radius
-      );
-      
-      scene.add(npcGroup);
-      allNPCs.push({
-        group: npcGroup,
-        team: team,
-        basePos: teamPositions[team],
-        angle: angle,
-        radius: radius,
-        speed: 0.01 + Math.random() * 0.01
-      });
     }
   }
   
+  if (useNPCs) {
+    createNPCs();
+  }
+  
   // Game state
-  const capturedFlags = { red: false, green: false, yellow: false };
   const flags = {
     red: { team: redTeam, carried: false, atBase: true },
     green: { team: greenTeam, carried: false, atBase: true },
@@ -2470,14 +2508,23 @@ function createGame(container) {
   let score = 0;
   let health = 100;
   
-  // Mouse look controls - screen turning (THIS MUST WORK)
+  // Player physics
+  let playerYVelocity = 0;
+  let isGrounded = true;
+  let jumpCooldown = 0;
+  
+  // Camera zoom state
+  let cameraZoom = 1.0; // 1.0 = first person, higher = zoomed out
+  let cameraMode = 'firstPerson';
+  
+  // Mouse look
   let isPointerLocked = false;
   let pitch = 0;
   let yaw = 0;
   
   const onMouseMove = (e) => {
     if (isPointerLocked && e.movementX !== undefined && e.movementY !== undefined) {
-      const sensitivity = 0.005; // Higher sensitivity for better response
+      const sensitivity = 0.005;
       yaw -= e.movementX * sensitivity;
       pitch -= e.movementY * sensitivity;
       pitch = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, pitch));
@@ -2488,43 +2535,15 @@ function createGame(container) {
     isPointerLocked = document.pointerLockElement === container;
   };
   
-  // Also handle mouse move without pointer lock (fallback)
-  let lastMouseX = 0;
-  let lastMouseY = 0;
-  const onMouseMoveFallback = (e) => {
-    if (!isPointerLocked) {
-      const rect = container.getBoundingClientRect();
-      const mouseX = e.clientX - rect.left;
-      const mouseY = e.clientY - rect.top;
-      
-      if (lastMouseX !== 0 && lastMouseY !== 0) {
-        const deltaX = mouseX - lastMouseX;
-        const deltaY = mouseY - lastMouseY;
-        const sensitivity = 0.01;
-        yaw -= deltaX * sensitivity;
-        pitch -= deltaY * sensitivity;
-        pitch = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, pitch));
-      }
-      
-      lastMouseX = mouseX;
-      lastMouseY = mouseY;
-    }
-  };
-  
   document.addEventListener('mousemove', onMouseMove);
-  document.addEventListener('mousemove', onMouseMoveFallback);
   document.addEventListener('pointerlockchange', onPointerLockChange);
   
-  // Click to lock/unlock pointer
   container.addEventListener('click', () => {
     if (!isPointerLocked) {
-      container.requestPointerLock().catch(() => {
-        console.log('Pointer lock not available');
-      });
+      container.requestPointerLock().catch(() => {});
     }
   });
   
-  // Try to lock on start
   setTimeout(() => {
     container.requestPointerLock().catch(() => {});
   }, 1000);
@@ -2533,6 +2552,24 @@ function createGame(container) {
   const keys = {};
   const handleKeyDown = (e) => {
     keys[e.code] = true;
+    // Jump (Space)
+    if (e.code === 'Space' && isGrounded && jumpCooldown <= 0) {
+      playerYVelocity = 12;
+      isGrounded = false;
+      jumpCooldown = 0.3;
+      e.preventDefault();
+    }
+    // Zoom in (I)
+    if (e.code === 'KeyI') {
+      cameraZoom = Math.max(1.0, cameraZoom - 0.2);
+      if (cameraZoom > 1.0) cameraMode = 'thirdPerson';
+      else cameraMode = 'firstPerson';
+    }
+    // Zoom out (O)
+    if (e.code === 'KeyO') {
+      cameraZoom = Math.min(5.0, cameraZoom + 0.2);
+      if (cameraZoom > 1.0) cameraMode = 'thirdPerson';
+    }
   };
   const handleKeyUp = (e) => {
     keys[e.code] = false;
@@ -2551,11 +2588,369 @@ function createGame(container) {
     font-size: 16px;
     z-index: 100;
     text-shadow: 2px 2px 4px rgba(0,0,0,0.9);
-    background: rgba(0,0,0,0.7);
+    background: rgba(0,0,0,0.8);
     padding: 15px;
     border-radius: 10px;
     border: 2px solid rgba(255,255,255,0.3);
   \`;
+  container.appendChild(uiContainer);
+  
+  const scoreText = document.createElement('div');
+  scoreText.textContent = 'Score: 0';
+  scoreText.style.fontSize = '18px';
+  scoreText.style.fontWeight = 'bold';
+  scoreText.style.color = '#4CAF50';
+  uiContainer.appendChild(scoreText);
+  
+  const healthText = document.createElement('div');
+  healthText.textContent = 'Health: 100';
+  healthText.style.marginTop = '8px';
+  healthText.style.color = '#FF5252';
+  uiContainer.appendChild(healthText);
+  
+  const flagStatus = document.createElement('div');
+  flagStatus.textContent = waitingForPlayers ? 'Waiting for players... (4 needed)' : 'Capture flags from Red, Green, and Yellow teams!';
+  flagStatus.style.marginTop = '8px';
+  flagStatus.style.color = '#FFD700';
+  uiContainer.appendChild(flagStatus);
+  
+  const waitingText = document.createElement('div');
+  if (waitingForPlayers) {
+    waitingText.textContent = 'Players: ' + (onlinePlayers.length + 1) + '/4';
+    waitingText.style.marginTop = '8px';
+    waitingText.style.color = '#00A2FF';
+    uiContainer.appendChild(waitingText);
+    
+    const switchButton = document.createElement('button');
+    switchButton.textContent = 'Switch to NPC Game';
+    switchButton.style.cssText = 'margin-top: 12px; padding: 8px 16px; background: #4CAF50; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold;';
+    switchButton.onclick = () => {
+      useNPCs = true;
+      waitingForPlayers = false;
+      gameStarted = true;
+      waitingText.remove();
+      switchButton.remove();
+      flagStatus.textContent = 'Capture flags from Red, Green, and Yellow teams!';
+      createNPCs();
+    };
+    uiContainer.appendChild(switchButton);
+  }
+  
+  const instructions = document.createElement('div');
+  instructions.innerHTML = 'WASD: Move | Shift: Sprint | Space: Jump | I/O: Zoom | Click to lock mouse';
+  instructions.style.marginTop = '12px';
+  instructions.style.fontSize = '12px';
+  instructions.style.color = '#aaa';
+  uiContainer.appendChild(instructions);
+  
+  // Chat UI
+  const chatContainer = document.createElement('div');
+  chatContainer.style.cssText = \`
+    position: absolute;
+    bottom: 20px;
+    left: 20px;
+    width: 300px;
+    max-height: 200px;
+    background: rgba(0,0,0,0.7);
+    border-radius: 10px;
+    padding: 10px;
+    color: white;
+    font-family: Arial, sans-serif;
+    font-size: 14px;
+    z-index: 100;
+    overflow-y: auto;
+    display: none;
+  \`;
+  container.appendChild(chatContainer);
+  
+  const chatMessages = [];
+  const presetMessages = ['Hi!', 'Thanks!', 'I have the flag!'];
+  let chatVisible = false;
+  
+  // Chat button
+  const chatButton = document.createElement('button');
+  chatButton.textContent = 'Chat (C)';
+  chatButton.style.cssText = 'margin-top: 8px; padding: 6px 12px; background: #00A2FF; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 12px;';
+  chatButton.onclick = () => {
+    chatVisible = !chatVisible;
+    chatContainer.style.display = chatVisible ? 'block' : 'none';
+  };
+  uiContainer.appendChild(chatButton);
+  
+  // Chat message buttons
+  const chatButtonsContainer = document.createElement('div');
+  chatButtonsContainer.style.cssText = 'margin-top: 8px; display: flex; gap: 4px; flex-wrap: wrap;';
+  presetMessages.forEach((msg) => {
+    const btn = document.createElement('button');
+    btn.textContent = msg;
+    btn.style.cssText = 'padding: 4px 8px; background: rgba(255,255,255,0.2); color: white; border: 1px solid rgba(255,255,255,0.3); border-radius: 4px; cursor: pointer; font-size: 11px;';
+    btn.onclick = () => {
+      const chatMsg = document.createElement('div');
+      chatMsg.textContent = 'You: ' + msg;
+      chatMsg.style.marginBottom = '4px';
+      chatMessages.push(chatMsg);
+      chatContainer.appendChild(chatMsg);
+      chatContainer.scrollTop = chatContainer.scrollHeight;
+      if (window.gameSocket) {
+        window.gameSocket.emit('chat-message', { message: msg });
+      }
+    };
+    chatButtonsContainer.appendChild(btn);
+  });
+  uiContainer.appendChild(chatButtonsContainer);
+  
+  // Handle chat key (C)
+  const handleChatKey = (e) => {
+    if (e.code === 'KeyC' && !e.repeat) {
+      chatVisible = !chatVisible;
+      chatContainer.style.display = chatVisible ? 'block' : 'none';
+    }
+  };
+  document.addEventListener('keydown', handleChatKey);
+  
+  // Handle chat messages from other players
+  if (window.gameSocket) {
+    window.gameSocket.on('chat-message', (data) => {
+      const chatMsg = document.createElement('div');
+      chatMsg.textContent = (data.username || 'Player') + ': ' + data.message;
+      chatMsg.style.marginBottom = '4px';
+      chatMessages.push(chatMsg);
+      chatContainer.appendChild(chatMsg);
+      chatContainer.scrollTop = chatContainer.scrollHeight;
+    });
+    
+    window.gameSocket.on('players-updated', (data) => {
+      if (data.players && data.players.length >= 4 && waitingForPlayers) {
+        waitingForPlayers = false;
+        gameStarted = true;
+        if (waitingText.parentNode) waitingText.remove();
+        flagStatus.textContent = 'Capture flags from Red, Green, and Yellow teams!';
+      }
+    });
+  }
+  
+  // Movement
+  const baseMoveSpeed = 8.0;
+  const sprintMultiplier = 1.8;
+  const velocity = new THREE.Vector3();
+  let lastTime = performance.now();
+  
+  // Animation loop
+  function animate() {
+    requestAnimationFrame(animate);
+    
+    const currentTime = performance.now();
+    const deltaTime = Math.min((currentTime - lastTime) / 1000, 0.1);
+    lastTime = currentTime;
+    
+    // Camera rotation
+    camera.rotation.order = 'YXZ';
+    camera.rotation.y = yaw;
+    camera.rotation.x = pitch;
+    
+    // Movement
+    velocity.set(0, 0, 0);
+    const forward = new THREE.Vector3(0, 0, -1);
+    const right = new THREE.Vector3(1, 0, 0);
+    forward.applyAxisAngle(new THREE.Vector3(0, 1, 0), yaw);
+    right.applyAxisAngle(new THREE.Vector3(0, 1, 0), yaw);
+    
+    const isSprinting = keys['ShiftLeft'] || keys['ShiftRight'];
+    const currentMoveSpeed = baseMoveSpeed * (isSprinting ? sprintMultiplier : 1.0);
+    
+    if (keys['KeyW']) velocity.add(forward);
+    if (keys['KeyS']) velocity.sub(forward);
+    if (keys['KeyA']) velocity.sub(right);
+    if (keys['KeyD']) velocity.add(right);
+    
+    if (velocity.length() > 0) {
+      velocity.normalize();
+      velocity.multiplyScalar(currentMoveSpeed * deltaTime);
+      playerGroup.position.add(velocity);
+    }
+    
+    // Jump physics
+    playerYVelocity -= 30 * deltaTime; // Gravity
+    playerGroup.position.y += playerYVelocity * deltaTime;
+    
+    if (playerGroup.position.y <= 0) {
+      playerGroup.position.y = 0;
+      playerYVelocity = 0;
+      isGrounded = true;
+    }
+    
+    if (jumpCooldown > 0) jumpCooldown -= deltaTime;
+    
+    // Keep player in bounds
+    playerGroup.position.x = Math.max(-95, Math.min(95, playerGroup.position.x));
+    playerGroup.position.z = Math.max(-95, Math.min(95, playerGroup.position.z));
+    
+    // Camera positioning with zoom
+    if (cameraMode === 'firstPerson' || cameraZoom <= 1.0) {
+      camera.position.copy(playerGroup.position);
+      camera.position.y = 1.6;
+    } else {
+      // Third person view when zoomed out - see avatar
+      const zoomDistance = 3 + (cameraZoom - 1) * 2;
+      const cameraOffset = new THREE.Vector3(0, 1 + (cameraZoom - 1) * 0.5, zoomDistance);
+      cameraOffset.applyAxisAngle(new THREE.Vector3(0, 1, 0), yaw);
+      camera.position.copy(playerGroup.position).add(cameraOffset);
+      camera.lookAt(playerGroup.position.clone().add(new THREE.Vector3(0, 1, 0)));
+    }
+    
+    // Update NPCs with improved AI - chase when player near their base
+    if (useNPCs && gameStarted) {
+      allNPCs.forEach((npc) => {
+        const distToPlayer = playerGroup.position.distanceTo(npc.group.position);
+        const distToBase = npc.group.position.distanceTo(npc.basePos);
+        const playerNearBase = distToBase < 25; // Player within 25 units of NPC base
+        
+        // Enhanced AI: Chase if player near their base
+        if (playerNearBase && npc.team !== 0 && distToPlayer < 30) {
+          npc.chaseMode = true;
+          const direction = new THREE.Vector3().subVectors(playerGroup.position, npc.group.position).normalize();
+          npc.velocity.copy(direction.multiplyScalar(0.15));
+          npc.group.position.add(npc.velocity);
+          npc.group.lookAt(playerGroup.position);
+        } else {
+          npc.chaseMode = false;
+          // Patrol mode
+          npc.angle += npc.speed;
+          npc.group.position.x = npc.basePos.x + Math.cos(npc.angle) * npc.radius;
+          npc.group.position.z = npc.basePos.z + Math.sin(npc.angle) * npc.radius;
+        }
+        
+        // Keep NPCs on ground
+        npc.group.position.y = 0;
+        
+        // NPCs look at player if close
+        if (distToPlayer < 15) {
+          npc.group.lookAt(playerGroup.position);
+        }
+        
+        // Damage from enemy NPCs
+        if (npc.team !== 0 && distToPlayer < 4 && health > 0) {
+          health = Math.max(0, health - 0.3);
+          healthText.textContent = 'Health: ' + Math.floor(health);
+          healthText.style.color = health < 30 ? '#FF0000' : '#FF5252';
+        }
+      });
+    }
+    
+    // Flag collisions
+    if (gameStarted) {
+      Object.keys(flags).forEach(flagKey => {
+        const flag = flags[flagKey];
+        if (!flag.carried && flag.atBase) {
+          const flagBasePos = flag.team.baseGroup.position;
+          const distance = playerGroup.position.distanceTo(new THREE.Vector3(flagBasePos.x, 1, flagBasePos.z));
+          if (distance < 6) {
+            flag.carried = true;
+            flag.atBase = false;
+            flag.team.flagGroup.position.copy(playerGroup.position);
+            flag.team.flagGroup.position.y = 2.5;
+            flagStatus.textContent = flagKey.toUpperCase() + ' Flag: CARRIED! Return to blue base!';
+            flagStatus.style.color = '#FF6B00';
+          }
+        }
+      });
+      
+      // Return flag to blue base
+      const blueBasePos = blueTeam.baseGroup.position;
+      const distanceToBlueBase = playerGroup.position.distanceTo(new THREE.Vector3(blueBasePos.x, 1, blueBasePos.z));
+      if (distanceToBlueBase < 6) {
+        Object.keys(flags).forEach(flagKey => {
+          const flag = flags[flagKey];
+          if (flag.carried) {
+            flag.carried = false;
+            flag.atBase = true;
+            score++;
+            scoreText.textContent = 'Score: ' + score;
+            const flagBasePos = flag.team.baseGroup.position;
+            flag.team.flagGroup.position.set(flagBasePos.x + (flagKey === 'red' ? 5 : flagKey === 'green' ? 5 : -5), 5.5, flagBasePos.z + (flagKey === 'red' ? 5 : flagKey === 'green' ? -5 : -5));
+            flag.team.flagGroup.rotation.y = 0;
+            flagStatus.textContent = flagKey.toUpperCase() + ' FLAG CAPTURED! +1 Point';
+            flagStatus.style.color = '#00FF00';
+            setTimeout(() => {
+              const allCaptured = Object.values(flags).every(f => !f.carried);
+              flagStatus.textContent = allCaptured ? 'Capture flags from Red, Green, and Yellow teams!' : 'Capture more flags!';
+              flagStatus.style.color = '#FFD700';
+            }, 2000);
+          }
+        });
+      }
+    }
+    
+    // Update flag positions
+    Object.keys(flags).forEach(flagKey => {
+      const flag = flags[flagKey];
+      if (flag.carried) {
+        flag.team.flagGroup.position.x = playerGroup.position.x;
+        flag.team.flagGroup.position.z = playerGroup.position.z;
+        flag.team.flagGroup.rotation.y += 0.1;
+      } else if (flag.atBase) {
+        flag.team.flagGroup.rotation.y += 0.02;
+      }
+    });
+    
+    blueTeam.flagGroup.rotation.y += 0.02;
+    
+    // Game over
+    if (health <= 0) {
+      flagStatus.textContent = 'GAME OVER! Press R to restart';
+      flagStatus.style.color = '#FF0000';
+      if (keys['KeyR']) {
+        health = 100;
+        score = 0;
+        Object.keys(flags).forEach(flagKey => {
+          flags[flagKey].carried = false;
+          flags[flagKey].atBase = true;
+          const flagBasePos = flags[flagKey].team.baseGroup.position;
+          flags[flagKey].team.flagGroup.position.set(flagBasePos.x + (flagKey === 'red' ? 5 : flagKey === 'green' ? 5 : -5), 5.5, flagBasePos.z + (flagKey === 'red' ? 5 : flagKey === 'green' ? -5 : -5));
+        });
+        playerGroup.position.set(-40, 0, 40);
+        playerYVelocity = 0;
+        isGrounded = true;
+        healthText.textContent = 'Health: 100';
+        healthText.style.color = '#FF5252';
+        scoreText.textContent = 'Score: 0';
+        flagStatus.textContent = 'Capture flags from Red, Green, and Yellow teams!';
+        flagStatus.style.color = '#FFD700';
+      }
+    }
+    
+    renderer.render(scene, camera);
+  }
+  
+  function onWindowResize() {
+    camera.aspect = container.clientWidth / container.clientHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(container.clientWidth, container.clientHeight);
+  }
+  
+  window.addEventListener('resize', onWindowResize);
+  animate();
+  
+  return function cleanup() {
+    window.removeEventListener('resize', onWindowResize);
+    document.removeEventListener('keydown', handleKeyDown);
+    document.removeEventListener('keyup', handleKeyUp);
+    document.removeEventListener('keydown', handleChatKey);
+    document.removeEventListener('mousemove', onMouseMove);
+    document.removeEventListener('pointerlockchange', onPointerLockChange);
+    if (container.contains(renderer.domElement)) {
+      container.removeChild(renderer.domElement);
+    }
+    if (container.contains(uiContainer)) {
+      container.removeChild(uiContainer);
+    }
+    if (container.contains(chatContainer)) {
+      container.removeChild(chatContainer);
+    }
+    renderer.dispose();
+  };
+}
+`;
   container.appendChild(uiContainer);
   
   const scoreText = document.createElement('div');

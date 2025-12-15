@@ -89,6 +89,19 @@ io.on('connection', (socket) => {
     }
   });
 
+  socket.on('chat-message', ({ message }) => {
+    const roomId = Array.from(socket.rooms).find(r => r.startsWith('game-') || r.startsWith('session-'));
+    if (roomId && gameRooms.has(roomId)) {
+      const room = gameRooms.get(roomId);
+      const player = room.players.find(p => p.id === socket.id);
+      // Broadcast chat message to all players in room
+      io.to(roomId).emit('chat-message', {
+        username: player?.username || 'Player',
+        message: message
+      });
+    }
+  });
+
   socket.on('disconnect', () => {
     console.log('Player disconnected:', socket.id);
 
