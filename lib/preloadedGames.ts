@@ -1072,7 +1072,8 @@ function createGame(container) {
     }
     renderer.dispose();
   };
-}`;
+}
+`;
 
 export const SCHOOL_ADVENTURE_PRELOADED_GAME: PublishedGame = {
   title: 'School Adventure',
@@ -2144,7 +2145,8 @@ function createGame(container) {
     }
     renderer.dispose();
   };
-}`;
+}
+`;
 
 export const TIC_TAC_TOE_PRELOADED_GAME: PublishedGame = {
   title: 'Tic Tac Toe',
@@ -2949,227 +2951,7 @@ function createGame(container) {
     }
     renderer.dispose();
   };
-}`;
-  container.appendChild(uiContainer);
-  
-  const scoreText = document.createElement('div');
-  scoreText.textContent = 'Score: 0';
-  scoreText.style.fontSize = '18px';
-  scoreText.style.fontWeight = 'bold';
-  scoreText.style.color = '#4CAF50';
-  uiContainer.appendChild(scoreText);
-  
-  const healthText = document.createElement('div');
-  healthText.textContent = 'Health: 100';
-  healthText.style.marginTop = '8px';
-  healthText.style.color = '#FF5252';
-  uiContainer.appendChild(healthText);
-  
-  const flagStatus = document.createElement('div');
-  flagStatus.textContent = 'Capture flags from Red, Green, and Yellow teams!';
-  flagStatus.style.marginTop = '8px';
-  flagStatus.style.color = '#FFD700';
-  uiContainer.appendChild(flagStatus);
-  
-  const instructions = document.createElement('div');
-  instructions.textContent = 'Click to lock mouse | Move mouse to turn screen | WASD to move | You are Blue team (top-left)';
-  instructions.style.marginTop = '12px';
-  instructions.style.fontSize = '12px';
-  instructions.style.color = '#aaa';
-  uiContainer.appendChild(instructions);
-  
-  // Movement - proper FPS controls
-  const moveSpeed = 8.0; // Units per second
-  const velocity = new THREE.Vector3();
-  let lastTime = performance.now();
-  
-  // Animation loop
-  function animate() {
-    requestAnimationFrame(animate);
-    
-    const currentTime = performance.now();
-    const deltaTime = Math.min((currentTime - lastTime) / 1000, 0.1); // Cap delta, prevent huge jumps
-    lastTime = currentTime;
-    
-    // Camera rotation from mouse - screen turning (THIS IS THE KEY)
-    camera.rotation.order = 'YXZ';
-    camera.rotation.y = yaw;
-    camera.rotation.x = pitch;
-    
-    // Player movement - WASD relative to where camera is looking
-    velocity.set(0, 0, 0);
-    
-    // Get forward and right vectors from camera
-    const forward = new THREE.Vector3(0, 0, -1);
-    const right = new THREE.Vector3(1, 0, 0);
-    
-    // Apply camera rotation to direction vectors
-    forward.applyAxisAngle(new THREE.Vector3(0, 1, 0), yaw);
-    right.applyAxisAngle(new THREE.Vector3(0, 1, 0), yaw);
-    
-    // Calculate movement based on keys
-    if (keys['KeyW']) {
-      velocity.add(forward);
-    }
-    if (keys['KeyS']) {
-      velocity.sub(forward);
-    }
-    if (keys['KeyA']) {
-      velocity.sub(right);
-    }
-    if (keys['KeyD']) {
-      velocity.add(right);
-    }
-    
-    // Normalize and scale by speed and delta time
-    if (velocity.length() > 0) {
-      velocity.normalize();
-      velocity.multiplyScalar(moveSpeed * deltaTime);
-      playerGroup.position.add(velocity);
-    }
-    
-    // Keep player in bounds
-    playerGroup.position.x = Math.max(-95, Math.min(95, playerGroup.position.x));
-    playerGroup.position.z = Math.max(-95, Math.min(95, playerGroup.position.z));
-    
-    // Update camera position to follow player (first person view)
-    camera.position.copy(playerGroup.position);
-    camera.position.y = 1.6; // Eye height
-    
-    // Update NPCs - patrol their team areas
-    allNPCs.forEach((npc) => {
-      npc.angle += npc.speed;
-      npc.group.position.x = npc.basePos.x + Math.cos(npc.angle) * npc.radius;
-      npc.group.position.z = npc.basePos.z + Math.sin(npc.angle) * npc.radius;
-      
-      // NPCs look at player if close
-      const dist = playerGroup.position.distanceTo(npc.group.position);
-      if (dist < 15) {
-        npc.group.lookAt(playerGroup.position);
-        
-        // Take damage from enemy teams (not blue)
-        if (npc.team !== 0 && dist < 4 && health > 0) {
-          health = Math.max(0, health - 0.3);
-          healthText.textContent = 'Health: ' + Math.floor(health);
-          healthText.style.color = health < 30 ? '#FF0000' : '#FF5252';
-        }
-      }
-    });
-    
-    // Check collision with enemy flags
-    Object.keys(flags).forEach(flagKey => {
-      const flag = flags[flagKey];
-      if (!flag.carried && flag.atBase) {
-        const flagBasePos = flag.team.baseGroup.position;
-        const distance = playerGroup.position.distanceTo(new THREE.Vector3(flagBasePos.x, 1, flagBasePos.z));
-        
-        if (distance < 6) {
-          flag.carried = true;
-          flag.atBase = false;
-          flag.team.flagGroup.position.copy(playerGroup.position);
-          flag.team.flagGroup.position.y = 2.5;
-          flagStatus.textContent = flagKey.toUpperCase() + ' Flag: CARRIED! Return to blue base!';
-          flagStatus.style.color = '#FF6B00';
-        }
-      }
-    });
-    
-    // Check if player reached blue base with any flag
-    const blueBasePos = blueTeam.baseGroup.position;
-    const distanceToBlueBase = playerGroup.position.distanceTo(new THREE.Vector3(blueBasePos.x, 1, blueBasePos.z));
-    
-    if (distanceToBlueBase < 6) {
-      Object.keys(flags).forEach(flagKey => {
-        const flag = flags[flagKey];
-        if (flag.carried) {
-          flag.carried = false;
-          flag.atBase = true;
-          score++;
-          scoreText.textContent = 'Score: ' + score;
-          
-          // Reset flag to its base
-          const flagBasePos = flag.team.baseGroup.position;
-          flag.team.flagGroup.position.set(flagBasePos.x + (flagKey === 'red' ? 5 : flagKey === 'green' ? 5 : -5), 5.5, flagBasePos.z + (flagKey === 'red' ? 5 : flagKey === 'green' ? -5 : -5));
-          flag.team.flagGroup.rotation.y = 0;
-          
-          flagStatus.textContent = flagKey.toUpperCase() + ' FLAG CAPTURED! +1 Point';
-          flagStatus.style.color = '#00FF00';
-          setTimeout(() => {
-            const allCaptured = Object.values(flags).every(f => !f.carried);
-            flagStatus.textContent = allCaptured ? 'Capture flags from Red, Green, and Yellow teams!' : 'Capture more flags!';
-            flagStatus.style.color = '#FFD700';
-          }, 2000);
-        }
-      });
-    }
-    
-    // Update flag positions if carried
-    Object.keys(flags).forEach(flagKey => {
-      const flag = flags[flagKey];
-      if (flag.carried) {
-        flag.team.flagGroup.position.x = playerGroup.position.x;
-        flag.team.flagGroup.position.z = playerGroup.position.z;
-        flag.team.flagGroup.rotation.y += 0.1;
-      } else if (flag.atBase) {
-        flag.team.flagGroup.rotation.y += 0.02;
-      }
-    });
-    
-    // Rotate blue flag
-    blueTeam.flagGroup.rotation.y += 0.02;
-    
-    // Game over check
-    if (health <= 0) {
-      flagStatus.textContent = 'GAME OVER! Press R to restart';
-      flagStatus.style.color = '#FF0000';
-      if (keys['KeyR']) {
-        health = 100;
-        score = 0;
-        Object.keys(flags).forEach(flagKey => {
-          flags[flagKey].carried = false;
-          flags[flagKey].atBase = true;
-          const flagBasePos = flags[flagKey].team.baseGroup.position;
-          flags[flagKey].team.flagGroup.position.set(flagBasePos.x + (flagKey === 'red' ? 5 : flagKey === 'green' ? 5 : -5), 5.5, flagBasePos.z + (flagKey === 'red' ? 5 : flagKey === 'green' ? -5 : -5));
-        });
-        playerGroup.position.set(-40, 0, 40);
-        healthText.textContent = 'Health: 100';
-        healthText.style.color = '#FF5252';
-        scoreText.textContent = 'Score: 0';
-        flagStatus.textContent = 'Capture flags from Red, Green, and Yellow teams!';
-        flagStatus.style.color = '#FFD700';
-      }
-    }
-    
-    renderer.render(scene, camera);
-  }
-  
-  // Handle window resize
-  function onWindowResize() {
-    camera.aspect = container.clientWidth / container.clientHeight;
-    camera.updateProjectionMatrix();
-    renderer.setSize(container.clientWidth, container.clientHeight);
-  }
-  
-  window.addEventListener('resize', onWindowResize);
-  
-  animate();
-  
-  // Cleanup
-  return function cleanup() {
-    window.removeEventListener('resize', onWindowResize);
-    document.removeEventListener('keydown', handleKeyDown);
-    document.removeEventListener('keyup', handleKeyUp);
-    document.removeEventListener('mousemove', onMouseMove);
-    document.removeEventListener('pointerlockchange', onPointerLockChange);
-    if (container.contains(renderer.domElement)) {
-      container.removeChild(renderer.domElement);
-    }
-    if (container.contains(uiContainer)) {
-      container.removeChild(uiContainer);
-    }
-    renderer.dispose();
-  };
-}`;
+`;
 
 export const CAPTURE_THE_FLAG_PRELOADED_GAME: PublishedGame = {
   title: 'Capture the Flag',
