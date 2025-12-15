@@ -2561,16 +2561,19 @@ function createGame(container) {
       jumpCooldown = 0.3;
       e.preventDefault();
     }
-    // Zoom in (I)
+    // Zoom in (I) - closer view, first person
     if (e.code === 'KeyI') {
       cameraZoom = Math.max(1.0, cameraZoom - 0.2);
       if (cameraZoom > 1.0) cameraMode = 'thirdPerson';
       else cameraMode = 'firstPerson';
+      e.preventDefault();
     }
-    // Zoom out (O)
+    // Zoom out (O) - farther view, third person to see avatar
     if (e.code === 'KeyO') {
       cameraZoom = Math.min(5.0, cameraZoom + 0.2);
       if (cameraZoom > 1.0) cameraMode = 'thirdPerson';
+      else cameraMode = 'firstPerson';
+      e.preventDefault();
     }
   };
   const handleKeyUp = (e) => {
@@ -2676,12 +2679,13 @@ function createGame(container) {
   chatButton.onclick = () => {
     chatVisible = !chatVisible;
     chatContainer.style.display = chatVisible ? 'block' : 'none';
+    chatButtonsContainer.style.display = chatVisible ? 'flex' : 'none';
   };
   uiContainer.appendChild(chatButton);
   
   // Chat message buttons
   const chatButtonsContainer = document.createElement('div');
-  chatButtonsContainer.style.cssText = 'margin-top: 8px; display: flex; gap: 4px; flex-wrap: wrap;';
+  chatButtonsContainer.style.cssText = 'margin-top: 8px; display: none; gap: 4px; flex-wrap: wrap;';
   presetMessages.forEach((msg) => {
     const btn = document.createElement('button');
     btn.textContent = msg;
@@ -2706,6 +2710,7 @@ function createGame(container) {
     if (e.code === 'KeyC' && !e.repeat) {
       chatVisible = !chatVisible;
       chatContainer.style.display = chatVisible ? 'block' : 'none';
+      chatButtonsContainer.style.display = chatVisible ? 'flex' : 'none';
     }
   };
   document.addEventListener('keydown', handleChatKey);
