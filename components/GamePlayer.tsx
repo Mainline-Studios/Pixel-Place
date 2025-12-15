@@ -1,7 +1,8 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { PublishedGame, GameServer } from '@/types';
+import { useUser } from '@/contexts/UserContext';
+import { PublishedGame, GameServer, User } from '@/types';
 import { getServers } from '@/lib/storage';
 // Optional socket.io - completely optional, app works without it
 // Note: To enable socket.io, install: npm install socket.io-client
@@ -9,11 +10,17 @@ import { getServers } from '@/lib/storage';
 let io: any = null;
 let Socket: any = null;
 
-// Socket.io loading is disabled - install socket.io-client to enable
+// Load socket.io-client dynamically
 const loadSocketIO = async () => {
-  // Socket.io is optional - install the package to enable multiplayer
-  // For now, we'll run in offline mode
-  return Promise.resolve();
+  try {
+    const socketModule = await import('socket.io-client');
+    io = socketModule.io;
+    Socket = socketModule.Socket;
+    return Promise.resolve();
+  } catch (err) {
+    console.warn('Socket.io-client not available:', err);
+    return Promise.resolve();
+  }
 };
 
 interface GamePlayerProps {
@@ -42,10 +49,14 @@ export default function GamePlayer({ game, onClose }: GamePlayerProps) {
   const [isOnline, setIsOnline] = useState(isOnlineMode);
   const [players, setPlayers] = useState<Player[]>([]);
   const [server, setServer] = useState<GameServer | null>(null);
+  const { user: contextUser } = useUser();
+  const [onlineSession, setOnlineSession] = useState<string | null>(null);
+  const [isCreatingSession, setIsCreatingSession] = useState(false);
+  const [availableSessions, setAvailableSessions] = useState<any[]>([]);
 
   // Initialize server and socket for online mode
   useEffect(() => {
-    if (isOnline && serverId && game.multiplayer) {
+    if (isOnline && (serverId || onlineSession) && (game.multiplayer || onlineSession)) {
       const servers = getServers();
       const foundServer = servers.find(s => s.id === serverId);
       if (foundServer) {
@@ -76,7 +87,8 @@ export default function GamePlayer({ game, onClose }: GamePlayerProps) {
               socket.emit('join-game', {
                 serverId: serverId,
                 gameId: game.ts.toString(),
-                username: 'Player'
+                username: contextUser?.username || 'Player',
+                sessionId: onlineSession || undefined
               });
 
               // Update server player count
@@ -156,7 +168,7 @@ export default function GamePlayer({ game, onClose }: GamePlayerProps) {
         socketRef.current = null;
       }
     };
-  }, [isOnline, serverId, game.ts, game.multiplayer]);
+  }, [isOnline, serverId, game.ts, game.multiplayer, onlineSession, contextUser]);
 
   // Loading sequence: 5s engine, 3s assets, 10s world (18s total)
   useEffect(() => {
@@ -673,6 +685,67 @@ export default function GamePlayer({ game, onClose }: GamePlayerProps) {
           >
             I Understand - Start Game
           </button>
+          <button
+            onClick={async () => {
+              if (!contextUser) {
+                alert('Please log in to play online');
+                return;
+              }
+              setIsCreatingSession(true);
+              try {
+                const response = await fetch('/api/game-sessions', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    action: 'create',
+                    gameId: game.ts.toString(),
+                    gameTitle: game.title,
+                    username: contextUser.username,
+                    maxPlayers: game.maxPlayers || 10
+                  })
+                });
+                const data = await response.json();
+                if (data.success) {
+                  setOnlineSession(data.session.id);
+                  setIsOnline(true);
+                  setShowSafetyPopup(false);
+                  setIsLoading(true);
+                } else {
+                  alert('Failed to create session: ' + (data.error || 'Unknown error'));
+                }
+              } catch (err: any) {
+                alert('Error creating session: ' + err.message);
+              } finally {
+                setIsCreatingSession(false);
+              }
+            }}
+            disabled={isCreatingSession}
+            style={{
+              marginTop: '12px',
+              width: '100%',
+              padding: '14px 28px',
+              fontSize: '18px',
+              fontWeight: 'bold',
+              background: 'linear-gradient(135deg, #00A2FF 0%, #00D4FF 100%)',
+              color: 'white',
+              border: 'none',
+              borderRadius: '10px',
+              cursor: isCreatingSession ? 'not-allowed' : 'pointer',
+              boxShadow: '0 4px 12px rgba(0, 162, 255, 0.4)',
+              transition: 'transform 0.2s',
+              opacity: isCreatingSession ? 0.7 : 1
+            }}
+            onMouseEnter={(e) => {
+              if (!isCreatingSession) {
+                e.currentTarget.style.transform = 'translateY(-2px)';
+              }
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = 'translateY(0)';
+            }}
+          >
+            {isCreatingSession ? 'Creating Session...' : '🎮 Play Online'}
+          </button>
         </div>
       </div>
     );
@@ -692,6 +765,83 @@ export default function GamePlayer({ game, onClose }: GamePlayerProps) {
         flexDirection: 'column'
       }}
     >
+            {/* Play Online Button */}
+      {showSafetyPopup === false && !onlineSession && !isLoading && (
+        <div
+          style={{
+            position: 'absolute',
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            zIndex: 20000,
+            textAlign: 'center'
+          }}
+        >
+          <button
+            onClick={async () => {
+              if (!contextUser) {
+                alert('Please log in to play online');
+                return;
+              }
+              setIsCreatingSession(true);
+              try {
+                // Create or find a session
+                const response = await fetch('/api/game-sessions', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    action: 'create',
+                    gameId: game.ts.toString(),
+                    gameTitle: game.title,
+                    username: contextUser.username,
+                    maxPlayers: game.maxPlayers || 10
+                  })
+                });
+                const data = await response.json();
+                if (data.success) {
+                  setOnlineSession(data.session.id);
+                  setIsOnline(true);
+                  setIsLoading(true);
+                } else {
+                  alert('Failed to create session: ' + (data.error || 'Unknown error'));
+                }
+              } catch (err: any) {
+                alert('Error creating session: ' + err.message);
+              } finally {
+                setIsCreatingSession(false);
+              }
+            }}
+            disabled={isCreatingSession}
+            style={{
+              padding: '16px 32px',
+              fontSize: '20px',
+              fontWeight: 'bold',
+              background: 'linear-gradient(135deg, #00A2FF 0%, #00D4FF 100%)',
+              color: 'white',
+              border: 'none',
+              borderRadius: '12px',
+              cursor: isCreatingSession ? 'not-allowed' : 'pointer',
+              boxShadow: '0 4px 20px rgba(0, 162, 255, 0.4)',
+              transition: 'transform 0.2s',
+              opacity: isCreatingSession ? 0.7 : 1
+            }}
+            onMouseEnter={(e) => {
+              if (!isCreatingSession) {
+                e.currentTarget.style.transform = 'translateY(-2px)';
+              }
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = 'translateY(0)';
+            }}
+          >
+            {isCreatingSession ? 'Creating Session...' : '🎮 Play Online'}
+          </button>
+          <div style={{ marginTop: '16px', color: '#999', fontSize: '14px' }}>
+            Play with other players in real-time
+          </div>
+        </div>
+      )}
+
       {/* Roblox-style Loading Screen */}
       {isLoading && (
         <div
