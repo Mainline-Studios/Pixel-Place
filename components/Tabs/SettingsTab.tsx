@@ -120,23 +120,15 @@ export default function SettingsTab({ user, editMode, onToggleEditMode, onResetP
               </a>
             </div>
             <div style={{ marginTop: '8px', fontSize: '12px', color: 'var(--text-dim)' }}>
-              💡 <strong>Build Instructions:</strong> To create desktop builds, run:
+              💡 <strong>Quick Build:</strong> Run <code style={{ background: 'var(--panel-soft)', padding: '2px 6px', borderRadius: '4px', fontSize: '11px' }}>npm run build:desktop</code> to automatically build and prepare downloads.
+              <br /><br />
+              <strong>Or download from GitHub Releases:</strong>
               <br />
-              <code style={{ 
-                background: 'var(--panel-soft)', 
-                padding: '4px 8px', 
-                borderRadius: '4px',
-                fontSize: '11px',
-                fontFamily: 'monospace',
-                display: 'block',
-                marginTop: '4px'
-              }}>
-                npm run electron:build:win   (Windows)<br />
-                npm run electron:build:mac   (macOS)<br />
-                npm run electron:build:linux (Linux)
-              </code>
-              <br />
-              Built files will be in the <code>dist-electron</code> folder. Upload them to your server's <code>public/downloads</code> directory.
+              <a href="https://github.com/boehmlaird0/Pixel-Place/releases" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--accent)', textDecoration: 'underline' }}>
+                View All Releases →
+              </a>
+              <br /><br />
+              Built files will be in <code>dist-electron/</code> and automatically copied to <code>public/downloads/</code> for web downloads.
             </div>
           </div>
         </div>

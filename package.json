@@ -16,7 +16,8 @@
         "electron:build:win": "npm run build && electron-builder --win",
         "electron:build:mac": "npm run build && electron-builder --mac",
         "electron:build:linux": "npm run build && electron-builder --linux",
-        "electron:build:all": "npm run build && electron-builder --win --mac --linux"
+        "electron:build:all": "npm run build && electron-builder --win --mac --linux",
+        "build:desktop": "node scripts/build-desktop.js || bash scripts/build-and-upload.sh || scripts/build-and-upload.bat"
     },
     "dependencies": {
         "@stripe/stripe-js": "^2.4.0",
