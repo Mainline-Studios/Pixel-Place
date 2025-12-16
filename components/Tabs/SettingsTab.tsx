@@ -90,13 +90,13 @@ export default function SettingsTab({ user, editMode, onToggleEditMode, onResetP
                 📥 Download for Windows
               </a>
               <a 
-                href="/downloads/Pixel-Place-macOS.dmg" 
+                href="/downloads/Pixel Place-0.1.0.dmg" 
                 download
                 className="btn"
                 style={{ textDecoration: 'none', display: 'inline-block' }}
                 onClick={async (e) => {
                   try {
-                    const response = await fetch('/downloads/Pixel-Place-macOS.dmg', { method: 'HEAD' });
+                    const response = await fetch('/downloads/Pixel Place-0.1.0.dmg', { method: 'HEAD' });
                     if (!response.ok) throw new Error('File not found');
                   } catch {
                     e.preventDefault();
@@ -104,8 +104,24 @@ export default function SettingsTab({ user, editMode, onToggleEditMode, onResetP
                   }
                 }}
               >
-                📥 Download for macOS
+                📥 Download for macOS (Intel)
               </a>
+              <a 
+                href="/downloads/Pixel Place-0.1.0-arm64.dmg" 
+                download
+                className="btn"
+                style={{ textDecoration: 'none', display: 'inline-block' }}
+                onClick={async (e) => {
+                  try {
+                    const response = await fetch('/downloads/Pixel Place-0.1.0-arm64.dmg', { method: 'HEAD' });
+                    if (!response.ok) throw new Error('File not found');
+                  } catch {
+                    e.preventDefault();
+                    alert('macOS (Apple Silicon) installer will be available soon! Check back later or visit GitHub Releases.');
+                  }
+                }}
+              >
+                📥 Download for macOS (Apple Silicon)
               <a 
                 href="/downloads/Pixel-Place-Linux.AppImage" 
                 download
