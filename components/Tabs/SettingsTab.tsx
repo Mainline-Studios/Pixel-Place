@@ -77,13 +77,14 @@ export default function SettingsTab({ user, editMode, onToggleEditMode, onResetP
                 download
                 className="btn"
                 style={{ textDecoration: 'none', display: 'inline-block' }}
-                onClick={(e) => {
-                  // If file doesn't exist, show instructions
-                  fetch('/downloads/Pixel-Place-Setup-Windows.exe', { method: 'HEAD' })
-                    .catch(() => {
-                      e.preventDefault();
-                      alert('Desktop builds are not yet available. To build:\n\n1. Run: npm run electron:build:win (Windows)\n2. Run: npm run electron:build:mac (macOS)\n3. Run: npm run electron:build:linux (Linux)\n\nBuilt files will be in the dist-electron folder.');
-                    });
+                onClick={async (e) => {
+                  try {
+                    const response = await fetch('/downloads/Pixel-Place-Setup-Windows.exe', { method: 'HEAD' });
+                    if (!response.ok) throw new Error('File not found');
+                  } catch {
+                    e.preventDefault();
+                    alert('Windows installer will be available soon! Check back later or visit GitHub Releases.');
+                  }
                 }}
               >
                 📥 Download for Windows
@@ -93,12 +94,14 @@ export default function SettingsTab({ user, editMode, onToggleEditMode, onResetP
                 download
                 className="btn"
                 style={{ textDecoration: 'none', display: 'inline-block' }}
-                onClick={(e) => {
-                  fetch('/downloads/Pixel-Place-macOS.dmg', { method: 'HEAD' })
-                    .catch(() => {
-                      e.preventDefault();
-                      alert('Desktop builds are not yet available. To build:\n\n1. Run: npm run electron:build:win (Windows)\n2. Run: npm run electron:build:mac (macOS)\n3. Run: npm run electron:build:linux (Linux)\n\nBuilt files will be in the dist-electron folder.');
-                    });
+                onClick={async (e) => {
+                  try {
+                    const response = await fetch('/downloads/Pixel-Place-macOS.dmg', { method: 'HEAD' });
+                    if (!response.ok) throw new Error('File not found');
+                  } catch {
+                    e.preventDefault();
+                    alert('macOS installer will be available soon! Check back later or visit GitHub Releases.');
+                  }
                 }}
               >
                 📥 Download for macOS
@@ -108,27 +111,25 @@ export default function SettingsTab({ user, editMode, onToggleEditMode, onResetP
                 download
                 className="btn"
                 style={{ textDecoration: 'none', display: 'inline-block' }}
-                onClick={(e) => {
-                  fetch('/downloads/Pixel-Place-Linux.AppImage', { method: 'HEAD' })
-                    .catch(() => {
-                      e.preventDefault();
-                      alert('Desktop builds are not yet available. To build:\n\n1. Run: npm run electron:build:win (Windows)\n2. Run: npm run electron:build:mac (macOS)\n3. Run: npm run electron:build:linux (Linux)\n\nBuilt files will be in the dist-electron folder.');
-                    });
+                onClick={async (e) => {
+                  try {
+                    const response = await fetch('/downloads/Pixel-Place-Linux.AppImage', { method: 'HEAD' });
+                    if (!response.ok) throw new Error('File not found');
+                  } catch {
+                    e.preventDefault();
+                    alert('Linux installer will be available soon! Check back later or visit GitHub Releases.');
+                  }
                 }}
               >
                 📥 Download for Linux
               </a>
             </div>
             <div style={{ marginTop: '8px', fontSize: '12px', color: 'var(--text-dim)' }}>
-              💡 <strong>Quick Build:</strong> Run <code style={{ background: 'var(--panel-soft)', padding: '2px 6px', borderRadius: '4px', fontSize: '11px' }}>npm run build:desktop</code> to automatically build and prepare downloads.
-              <br /><br />
-              <strong>Or download from GitHub Releases:</strong>
+              💡 <strong>Note:</strong> Desktop builds are automatically created and will be available here once ready.
               <br />
-              <a href="https://github.com/boehmlaird0/Pixel-Place/releases" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--accent)', textDecoration: 'underline' }}>
-                View All Releases →
+              <a href="https://github.com/boehmlaird0/Pixel-Place/releases" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--accent)', textDecoration: 'underline', marginTop: '4px', display: 'inline-block' }}>
+                Or download from GitHub Releases →
               </a>
-              <br /><br />
-              Built files will be in <code>dist-electron/</code> and automatically copied to <code>public/downloads/</code> for web downloads.
             </div>
           </div>
         </div>
