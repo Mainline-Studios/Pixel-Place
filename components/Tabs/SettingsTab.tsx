@@ -66,6 +66,83 @@ export default function SettingsTab({ user, editMode, onToggleEditMode, onResetP
         <div className="ai-output">{tabContent.settings || ''}</div>
       </div>
       <div className="ai-box" style={{ marginTop: '16px' }}>
+        <div className="ai-label">💻 Desktop App</div>
+        <div className="ai-output">
+          Download Pixel Place as a desktop application for Windows, macOS, or Linux!
+          <br />
+          <div style={{ marginTop: '12px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+              <a 
+                href="/downloads/Pixel-Place-Setup-Windows.exe" 
+                download
+                className="btn"
+                style={{ textDecoration: 'none', display: 'inline-block' }}
+                onClick={(e) => {
+                  // If file doesn't exist, show instructions
+                  fetch('/downloads/Pixel-Place-Setup-Windows.exe', { method: 'HEAD' })
+                    .catch(() => {
+                      e.preventDefault();
+                      alert('Desktop builds are not yet available. To build:\n\n1. Run: npm run electron:build:win (Windows)\n2. Run: npm run electron:build:mac (macOS)\n3. Run: npm run electron:build:linux (Linux)\n\nBuilt files will be in the dist-electron folder.');
+                    });
+                }}
+              >
+                📥 Download for Windows
+              </a>
+              <a 
+                href="/downloads/Pixel-Place-macOS.dmg" 
+                download
+                className="btn"
+                style={{ textDecoration: 'none', display: 'inline-block' }}
+                onClick={(e) => {
+                  fetch('/downloads/Pixel-Place-macOS.dmg', { method: 'HEAD' })
+                    .catch(() => {
+                      e.preventDefault();
+                      alert('Desktop builds are not yet available. To build:\n\n1. Run: npm run electron:build:win (Windows)\n2. Run: npm run electron:build:mac (macOS)\n3. Run: npm run electron:build:linux (Linux)\n\nBuilt files will be in the dist-electron folder.');
+                    });
+                }}
+              >
+                📥 Download for macOS
+              </a>
+              <a 
+                href="/downloads/Pixel-Place-Linux.AppImage" 
+                download
+                className="btn"
+                style={{ textDecoration: 'none', display: 'inline-block' }}
+                onClick={(e) => {
+                  fetch('/downloads/Pixel-Place-Linux.AppImage', { method: 'HEAD' })
+                    .catch(() => {
+                      e.preventDefault();
+                      alert('Desktop builds are not yet available. To build:\n\n1. Run: npm run electron:build:win (Windows)\n2. Run: npm run electron:build:mac (macOS)\n3. Run: npm run electron:build:linux (Linux)\n\nBuilt files will be in the dist-electron folder.');
+                    });
+                }}
+              >
+                📥 Download for Linux
+              </a>
+            </div>
+            <div style={{ marginTop: '8px', fontSize: '12px', color: 'var(--text-dim)' }}>
+              💡 <strong>Build Instructions:</strong> To create desktop builds, run:
+              <br />
+              <code style={{ 
+                background: 'var(--panel-soft)', 
+                padding: '4px 8px', 
+                borderRadius: '4px',
+                fontSize: '11px',
+                fontFamily: 'monospace',
+                display: 'block',
+                marginTop: '4px'
+              }}>
+                npm run electron:build:win   (Windows)<br />
+                npm run electron:build:mac   (macOS)<br />
+                npm run electron:build:linux (Linux)
+              </code>
+              <br />
+              Built files will be in the <code>dist-electron</code> folder. Upload them to your server's <code>public/downloads</code> directory.
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="ai-box" style={{ marginTop: '16px' }}>
         <div className="ai-label">🔐 Secret Area</div>
         <div className="ai-output">
           Want to access the secret area? Type the following sequence anywhere in the app:

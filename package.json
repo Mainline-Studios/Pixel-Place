@@ -11,7 +11,12 @@
         "deploy:auto": "npm install -g vercel && npm install && npm run build && vercel login && vercel --prod",
         "electron": "electron .",
         "electron:build": "electron-builder",
-        "electron:dist": "npm run build && electron-builder"
+        "electron:dist": "npm run build && electron-builder",
+        "electron:dev": "concurrently \"npm run dev\" \"wait-on http://localhost:3000 && electron .\"",
+        "electron:build:win": "npm run build && electron-builder --win",
+        "electron:build:mac": "npm run build && electron-builder --mac",
+        "electron:build:linux": "npm run build && electron-builder --linux",
+        "electron:build:all": "npm run build && electron-builder --win --mac --linux"
     },
     "dependencies": {
         "@stripe/stripe-js": "^2.4.0",
@@ -42,19 +47,80 @@
         "appId": "com.pixelplace.app",
         "productName": "Pixel Place",
         "directories": {
-            "output": "dist-electron"
+            "output": "dist-electron",
+            "buildResources": "build"
         },
+        "files": [
+            "electron-main.js",
+            "next.config.js",
+            "package.json",
+            ".next/**/*",
+            "public/**/*",
+            "node_modules/**/*"
+        ],
         "win": {
             "target": [
-                "nsis"
+                {
+                    "target": "nsis",
+                    "arch": [
+                        "x64",
+                        "ia32"
+                    ]
+                },
+                {
+                    "target": "portable",
+                    "arch": [
+                        "x64"
+                    ]
+                }
             ],
             "icon": "public/icon-512x512.png"
+        },
+        "mac": {
+            "target": [
+                {
+                    "target": "dmg",
+                    "arch": [
+                        "x64",
+                        "arm64"
+                    ]
+                },
+                {
+                    "target": "zip",
+                    "arch": [
+                        "x64",
+                        "arm64"
+                    ]
+                }
+            ],
+            "icon": "public/icon-512x512.png",
+            "category": "public.app-category.games"
+        },
+        "linux": {
+            "target": [
+                {
+                    "target": "AppImage",
+                    "arch": [
+                        "x64"
+                    ]
+                },
+                {
+                    "target": "deb",
+                    "arch": [
+                        "x64"
+                    ]
+                }
+            ],
+            "icon": "public/icon-512x512.png",
+            "category": "Game"
         },
         "nsis": {
             "oneClick": false,
             "allowToChangeInstallationDirectory": true,
             "createDesktopShortcut": true,
-            "createStartMenuShortcut": true
+            "createStartMenuShortcut": true,
+            "installerIcon": "public/icon-512x512.png",
+            "uninstallerIcon": "public/icon-512x512.png"
         }
     }
 }
