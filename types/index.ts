@@ -264,3 +264,28 @@ export interface BanAppeal {
   reviewedBy?: string;
   adminNotes?: string;
 }
+
+export interface PrebuiltGame {
+  title: string;
+  desc: string;
+  owner: string;
+  ts: number;
+  thumbnail?: string;
+  gameCode?: string;
+  playable?: boolean;
+  sceneData?: SceneData;
+  multiplayer?: boolean;
+  maxPlayers?: number;
+}
+
+export interface Report {
+  id: string;
+  reportedUser: string;
+  reportedBy: string;
+  reason: string;
+  description?: string;
+  timestamp: number;
+  status: 'pending' | 'reviewed' | 'resolved';
+  reviewedBy?: string;
+  adminNotes?: string;
+}

@@ -55,7 +55,7 @@ export async function POST(request: NextRequest) {
 
   // Handle the checkout.session.completed event
   if (event.type === 'checkout.session.completed') {
-    const session = event.data.object as Stripe.Checkout.Session;
+    const session = event.data.object as any;
 
     try {
       const userId = session.metadata?.userId;
@@ -67,7 +67,7 @@ export async function POST(request: NextRequest) {
       }
 
       // Update user's coin balance
-      const users = getUsers();
+      const users = await getUsers();
       const userIndex = users.findIndex((u) => u.username === userId);
 
       if (userIndex !== -1) {
