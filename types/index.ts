@@ -245,3 +245,22 @@ export interface GameSubmission {
   reviewedBy?: string;
   adminNotes?: string;
 }
+
+export interface Ban {
+  username: string;
+  bannedBy: string;
+  reason: string;
+  timestamp: number;
+  permanent: boolean;
+}
+
+export interface BanAppeal {
+  id: string;
+  username: string;
+  ban: Ban;
+  appealMessage: string;
+  timestamp: number;
+  status: 'pending' | 'approved' | 'rejected';
+  reviewedBy?: string;
+  adminNotes?: string;
+}
