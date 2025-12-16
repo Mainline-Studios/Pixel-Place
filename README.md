@@ -4,7 +4,7 @@
 
 Experience fullscreen 3D adventures, compete in multiplayer matches, design your unique avatar with custom skins and accessories, and even build your own games using our intuitive studio tools. Whether you're a casual gamer, a creative developer, or looking to connect with friends, Pixel Place offers something for everyone.
 
-**🔒 IMPORTANT: This platform is currently in private beta. Password authentication is required for access.**
+**🔒 IMPORTANT: This platform is currently in private alpha. Password authentication is required for access.**
 ![Pixel Place](https://img.shields.io/badge/Version-Unreleased-red)
 ![Next.js](https://img.shields.io/badge/Next.js-14.2.5-black)
 ![React](https://img.shields.io/badge/React-18.3.1-61dafb)
