@@ -95,7 +95,11 @@
                 }
             ],
             "icon": "public/logo.png",
-            "category": "public.app-category.games"
+            "category": "public.app-category.games",
+            "gatekeeperAssess": false,
+            "hardenedRuntime": false,
+            "entitlements": null,
+            "entitlementsInherit": null
         },
         "linux": {
             "target": [
