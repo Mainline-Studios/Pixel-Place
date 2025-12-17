@@ -104,11 +104,18 @@ export default function TicTacToe({ onClose }: TicTacToeProps) {
     }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
         <h3 style={{ margin: 0, fontSize: '20px', fontWeight: 700 }}>⭕ Tic-Tac-Toe</h3>
-        {onClose && (
-          <button className="btn" onClick={onClose} style={{ padding: '6px 12px', fontSize: '12px' }}>
-            Close
-          </button>
-        )}
+        <button 
+          className="btn" 
+          onClick={onClose || (() => window.history.back())} 
+          style={{ 
+            padding: '6px 12px', 
+            fontSize: '12px',
+            background: 'var(--danger)',
+            borderColor: 'var(--danger)'
+          }}
+        >
+          Exit
+        </button>
       </div>
 
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '16px', gap: '16px' }}>
