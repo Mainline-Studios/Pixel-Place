@@ -28,5 +28,8 @@
 dist-electron/
 next-env.d.ts
 npm-debug.log*
+public/downloads/*.AppImage
+public/downloads/*.dmg
+public/downloads/*.exe
 yarn-debug.log*
 yarn-error.log*
