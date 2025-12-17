@@ -15,7 +15,7 @@ function createWindow() {
       enableRemoteModule: false,
       webSecurity: true
     },
-    icon: path.join(__dirname, 'public', 'icon-512x512.png'),
+    icon: path.join(__dirname, 'public', 'logo.png'),
     titleBarStyle: 'default',
     backgroundColor: '#0d1019',
     show: false // Don't show until ready

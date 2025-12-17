@@ -75,7 +75,7 @@
                     ]
                 }
             ],
-            "icon": "public/icon-512x512.png"
+            "icon": "public/logo.png"
         },
         "mac": {
             "target": [
@@ -94,7 +94,7 @@
                     ]
                 }
             ],
-            "icon": "public/icon-512x512.png",
+            "icon": "public/logo.png",
             "category": "public.app-category.games"
         },
         "linux": {
@@ -112,7 +112,7 @@
                     ]
                 }
             ],
-            "icon": "public/icon-512x512.png",
+            "icon": "public/logo.png",
             "category": "Game"
         },
         "nsis": {
