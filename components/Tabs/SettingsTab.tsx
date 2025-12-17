@@ -88,45 +88,25 @@ export default function SettingsTab({ user, editMode, onToggleEditMode, onResetP
                 📥 Download for Windows
               </a>
               <a 
-                href="https://github.com/boehmlaird0/Pixel-Place/releases/latest/download/Pixel-Place-0.2.0.dmg"
-                download
-                className="btn"
-                style={{ textDecoration: 'none', display: 'inline-block' }}
-                onClick={(e) => {
-                  fetch(e.target.href, { method: 'HEAD' }).catch(() => {
-                    e.preventDefault();
-                    window.open('https://github.com/boehmlaird0/Pixel-Place/releases/latest', '_blank');
-                  });
-                }}
-              >
-                📥 Download for macOS
-              </a>
-              <a 
-                href="https://github.com/boehmlaird0/Pixel-Place/releases/latest/download/Pixel-Place-0.2.0.AppImage"
-                download
-                className="btn"
-                style={{ textDecoration: 'none', display: 'inline-block' }}
-                onClick={(e) => {
-                  fetch(e.target.href, { method: 'HEAD' }).catch(() => {
-                    e.preventDefault();
-                    window.open('https://github.com/boehmlaird0/Pixel-Place/releases/latest', '_blank');
-                  });
-                }}
-              >
-                📥 Download for Linux
-              </a>
-              <a 
                 href="https://github.com/boehmlaird0/Pixel-Place/releases/latest" 
                 target="_blank"
                 rel="noopener noreferrer"
                 className="btn"
-                style={{ textDecoration: 'none', display: 'inline-block', background: 'var(--panel-soft)' }}
+                style={{ textDecoration: 'none', display: 'inline-block' }}
+                onClick={(e) => {
+                  e.preventDefault();
+                  window.open('https://github.com/boehmlaird0/Pixel-Place/releases/latest', '_blank');
+                }}
               >
-                🔗 View All Releases
+                📥 Download Desktop App
+              </a>
+              View All Releases
               </a>
             </div>
             <div style={{ marginTop: '8px', fontSize: '12px', color: 'var(--text-dim)' }}>
-              💡 Click a download button above to get the installer for your platform. If the file isn't ready yet, it will open the releases page.
+              💡 Click the button above to open the latest release page where you can download installers for Windows, macOS, or Linux.
+              <br />
+              <strong>Note:</strong> Installers are automatically built when a release is created. If builds are still in progress, check back in a few minutes.
             </div>
           </div>
         </div>
