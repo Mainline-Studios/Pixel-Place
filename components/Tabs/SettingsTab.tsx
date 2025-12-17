@@ -30,7 +30,8 @@ export default function SettingsTab({ user, editMode, onToggleEditMode, onResetP
   const equippedSkinName = equippedSkin ? equippedSkin.name : 'None';
 
   return (
-    <>
+    <div>
+      <div>
       <h2 className="section-title">Settings</h2>
       <div className="ai-box">
         <div className="ai-label">Account</div>
@@ -117,7 +118,7 @@ export default function SettingsTab({ user, editMode, onToggleEditMode, onResetP
           </div>
         </div>
       </div>
-    </>
+      </div>
   );
 }
 
