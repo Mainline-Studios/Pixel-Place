@@ -65,7 +65,7 @@ export default function SettingsTab({ user, editMode, onToggleEditMode, onResetP
         <div className="ai-label">Settings Info</div>
         <div className="ai-output">{tabContent.settings || ''}</div>
       </div>
-            <div className="ai-box" style={{ marginTop: '16px' }}>
+                  <div className="ai-box" style={{ marginTop: '16px' }}>
         <div className="ai-label">💻 Desktop App</div>
         <div className="ai-output">
           Download Pixel Place as a desktop application!
@@ -73,26 +73,66 @@ export default function SettingsTab({ user, editMode, onToggleEditMode, onResetP
           <div style={{ marginTop: '12px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
             <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
               <a 
+                href="https://github.com/boehmlaird0/Pixel-Place/releases/latest/download/Pixel-Place-Setup-0.2.0.exe"
+                download
+                className="btn"
+                style={{ textDecoration: 'none', display: 'inline-block' }}
+                onClick={(e) => {
+                  // Try to download, if fails open release page
+                  fetch(e.target.href, { method: 'HEAD' }).catch(() => {
+                    e.preventDefault();
+                    window.open('https://github.com/boehmlaird0/Pixel-Place/releases/latest', '_blank');
+                  });
+                }}
+              >
+                📥 Download for Windows
+              </a>
+              <a 
+                href="https://github.com/boehmlaird0/Pixel-Place/releases/latest/download/Pixel-Place-0.2.0.dmg"
+                download
+                className="btn"
+                style={{ textDecoration: 'none', display: 'inline-block' }}
+                onClick={(e) => {
+                  fetch(e.target.href, { method: 'HEAD' }).catch(() => {
+                    e.preventDefault();
+                    window.open('https://github.com/boehmlaird0/Pixel-Place/releases/latest', '_blank');
+                  });
+                }}
+              >
+                📥 Download for macOS
+              </a>
+              <a 
+                href="https://github.com/boehmlaird0/Pixel-Place/releases/latest/download/Pixel-Place-0.2.0.AppImage"
+                download
+                className="btn"
+                style={{ textDecoration: 'none', display: 'inline-block' }}
+                onClick={(e) => {
+                  fetch(e.target.href, { method: 'HEAD' }).catch(() => {
+                    e.preventDefault();
+                    window.open('https://github.com/boehmlaird0/Pixel-Place/releases/latest', '_blank');
+                  });
+                }}
+              >
+                📥 Download for Linux
+              </a>
+              <a 
                 href="https://github.com/boehmlaird0/Pixel-Place/releases/latest" 
                 target="_blank"
                 rel="noopener noreferrer"
                 className="btn"
-                style={{ textDecoration: 'none', display: 'inline-block' }}
+                style={{ textDecoration: 'none', display: 'inline-block', background: 'var(--panel-soft)' }}
               >
-                📥 Download Latest Release
+                🔗 View All Releases
               </a>
             </div>
             <div style={{ marginTop: '8px', fontSize: '12px', color: 'var(--text-dim)' }}>
-              💡 Desktop installers are available on GitHub Releases. Click the button above to download for Windows, macOS, or Linux.
-              <br />
-              <strong>Note:</strong> Installers are automatically built and published when you create a GitHub release.
+              💡 Click a download button above to get the installer for your platform. If the file isn't ready yet, it will open the releases page.
             </div>
           </div>
         </div>
       </div>
 
-      <div className="ai-box" style={{ marginTop: '16px' }}>
-        <div className="ai-label">🔐 Secret Area</div>
+      
         <div className="ai-output">
           Want to access the secret area? Type the following sequence anywhere in the app:
           <br />
