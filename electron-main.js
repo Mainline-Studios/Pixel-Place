@@ -63,70 +63,8 @@ function createWindow() {
         nextServer.on('error', (err) => {
           console.error('Failed to start Next.js server:', err);
           // Fallback to deployed URL
-                    // TODO: Deploy to Vercel and update this URL
-          // Run: npx vercel login && npx vercel --prod
-          // Then replace this with your actual Vercel URL
-          console.error('No deployment URL configured. Please deploy to Vercel first.');
-          mainWindow.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(`
-            <!DOCTYPE html>
-            <html>
-              <head>
-                <title>Pixel Place - Configuration Required</title>
-                <style>
-                  body {
-                    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    height: 100vh;
-                    margin: 0;
-                    background: #0d1019;
-                    color: #fff;
-                    text-align: center;
-                    padding: 20px;
-                  }
-                  .container {
-                    max-width: 600px;
-                  }
-                  h1 { color: #4a9eff; }
-                  code {
-                    background: #1a1f2e;
-                    padding: 2px 6px;
-                    border-radius: 4px;
-                    font-family: monospace;
-                  }
-                  .steps {
-                    text-align: left;
-                    margin: 20px 0;
-                  }
-                  .steps li {
-                    margin: 10px 0;
-                  }
-                </style>
-              </head>
-              <body>
-                <div class="container">
-                  <h1>🚀 Pixel Place Desktop App</h1>
-                  <p>This app needs to be configured with your Vercel deployment URL.</p>
-                  <div class="steps">
-                    <h3>To fix this:</h3>
-                    <ol>
-                      <li>Deploy your app to Vercel:<br>
-                        <code>npx vercel login && npx vercel --prod</code>
-                      </li>
-                      <li>Copy your Vercel URL (e.g., <code>https://your-app.vercel.app</code>)</li>
-                      <li>Open <code>electron-main.js</code> in the project</li>
-                      <li>Replace all instances of this error page with your Vercel URL</li>
-                      <li>Rebuild the app: <code>npm run electron:build:mac</code></li>
-                    </ol>
-                  </div>
-                  <p style="margin-top: 30px; color: #888;">
-                    Or use the web version at your deployed URL.
-                  </p>
-                </div>
-              </body>
-            </html>
-          `));
+          appUrl = process.env.APP_URL || 'https://pixel-place-game-app.vercel.app';
+          mainWindow.loadURL(appUrl);
           mainWindow.webContents.once('did-finish-load', () => {
             mainWindow.show();
             // Temporarily open DevTools for debugging
@@ -146,70 +84,8 @@ function createWindow() {
           mainWindow.webContents.once('did-fail-load', (event, errorCode, errorDescription) => {
             console.error('Failed to load:', errorCode, errorDescription);
             // Fallback
-                      // TODO: Deploy to Vercel and update this URL
-          // Run: npx vercel login && npx vercel --prod
-          // Then replace this with your actual Vercel URL
-          console.error('No deployment URL configured. Please deploy to Vercel first.');
-          mainWindow.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(`
-            <!DOCTYPE html>
-            <html>
-              <head>
-                <title>Pixel Place - Configuration Required</title>
-                <style>
-                  body {
-                    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    height: 100vh;
-                    margin: 0;
-                    background: #0d1019;
-                    color: #fff;
-                    text-align: center;
-                    padding: 20px;
-                  }
-                  .container {
-                    max-width: 600px;
-                  }
-                  h1 { color: #4a9eff; }
-                  code {
-                    background: #1a1f2e;
-                    padding: 2px 6px;
-                    border-radius: 4px;
-                    font-family: monospace;
-                  }
-                  .steps {
-                    text-align: left;
-                    margin: 20px 0;
-                  }
-                  .steps li {
-                    margin: 10px 0;
-                  }
-                </style>
-              </head>
-              <body>
-                <div class="container">
-                  <h1>🚀 Pixel Place Desktop App</h1>
-                  <p>This app needs to be configured with your Vercel deployment URL.</p>
-                  <div class="steps">
-                    <h3>To fix this:</h3>
-                    <ol>
-                      <li>Deploy your app to Vercel:<br>
-                        <code>npx vercel login && npx vercel --prod</code>
-                      </li>
-                      <li>Copy your Vercel URL (e.g., <code>https://your-app.vercel.app</code>)</li>
-                      <li>Open <code>electron-main.js</code> in the project</li>
-                      <li>Replace all instances of this error page with your Vercel URL</li>
-                      <li>Rebuild the app: <code>npm run electron:build:mac</code></li>
-                    </ol>
-                  </div>
-                  <p style="margin-top: 30px; color: #888;">
-                    Or use the web version at your deployed URL.
-                  </p>
-                </div>
-              </body>
-            </html>
-          `));
+            appUrl = process.env.APP_URL || 'https://pixel-place-game-app.vercel.app';
+            mainWindow.loadURL(appUrl);
             mainWindow.webContents.once('did-finish-load', () => {
               mainWindow.show();
             });
@@ -217,140 +93,16 @@ function createWindow() {
         }, 5000);
       } catch (err) {
         console.error('Error starting server:', err);
-                  // TODO: Deploy to Vercel and update this URL
-          // Run: npx vercel login && npx vercel --prod
-          // Then replace this with your actual Vercel URL
-          console.error('No deployment URL configured. Please deploy to Vercel first.');
-          mainWindow.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(`
-            <!DOCTYPE html>
-            <html>
-              <head>
-                <title>Pixel Place - Configuration Required</title>
-                <style>
-                  body {
-                    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    height: 100vh;
-                    margin: 0;
-                    background: #0d1019;
-                    color: #fff;
-                    text-align: center;
-                    padding: 20px;
-                  }
-                  .container {
-                    max-width: 600px;
-                  }
-                  h1 { color: #4a9eff; }
-                  code {
-                    background: #1a1f2e;
-                    padding: 2px 6px;
-                    border-radius: 4px;
-                    font-family: monospace;
-                  }
-                  .steps {
-                    text-align: left;
-                    margin: 20px 0;
-                  }
-                  .steps li {
-                    margin: 10px 0;
-                  }
-                </style>
-              </head>
-              <body>
-                <div class="container">
-                  <h1>🚀 Pixel Place Desktop App</h1>
-                  <p>This app needs to be configured with your Vercel deployment URL.</p>
-                  <div class="steps">
-                    <h3>To fix this:</h3>
-                    <ol>
-                      <li>Deploy your app to Vercel:<br>
-                        <code>npx vercel login && npx vercel --prod</code>
-                      </li>
-                      <li>Copy your Vercel URL (e.g., <code>https://your-app.vercel.app</code>)</li>
-                      <li>Open <code>electron-main.js</code> in the project</li>
-                      <li>Replace all instances of this error page with your Vercel URL</li>
-                      <li>Rebuild the app: <code>npm run electron:build:mac</code></li>
-                    </ol>
-                  </div>
-                  <p style="margin-top: 30px; color: #888;">
-                    Or use the web version at your deployed URL.
-                  </p>
-                </div>
-              </body>
-            </html>
-          `));
+        appUrl = process.env.APP_URL || 'https://pixel-place-game-app.vercel.app';
+        mainWindow.loadURL(appUrl);
         mainWindow.webContents.once('did-finish-load', () => {
           mainWindow.show();
         });
       }
     } else {
       // Fallback to deployed URL
-                // TODO: Deploy to Vercel and update this URL
-          // Run: npx vercel login && npx vercel --prod
-          // Then replace this with your actual Vercel URL
-          console.error('No deployment URL configured. Please deploy to Vercel first.');
-          mainWindow.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(`
-            <!DOCTYPE html>
-            <html>
-              <head>
-                <title>Pixel Place - Configuration Required</title>
-                <style>
-                  body {
-                    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    height: 100vh;
-                    margin: 0;
-                    background: #0d1019;
-                    color: #fff;
-                    text-align: center;
-                    padding: 20px;
-                  }
-                  .container {
-                    max-width: 600px;
-                  }
-                  h1 { color: #4a9eff; }
-                  code {
-                    background: #1a1f2e;
-                    padding: 2px 6px;
-                    border-radius: 4px;
-                    font-family: monospace;
-                  }
-                  .steps {
-                    text-align: left;
-                    margin: 20px 0;
-                  }
-                  .steps li {
-                    margin: 10px 0;
-                  }
-                </style>
-              </head>
-              <body>
-                <div class="container">
-                  <h1>🚀 Pixel Place Desktop App</h1>
-                  <p>This app needs to be configured with your Vercel deployment URL.</p>
-                  <div class="steps">
-                    <h3>To fix this:</h3>
-                    <ol>
-                      <li>Deploy your app to Vercel:<br>
-                        <code>npx vercel login && npx vercel --prod</code>
-                      </li>
-                      <li>Copy your Vercel URL (e.g., <code>https://your-app.vercel.app</code>)</li>
-                      <li>Open <code>electron-main.js</code> in the project</li>
-                      <li>Replace all instances of this error page with your Vercel URL</li>
-                      <li>Rebuild the app: <code>npm run electron:build:mac</code></li>
-                    </ol>
-                  </div>
-                  <p style="margin-top: 30px; color: #888;">
-                    Or use the web version at your deployed URL.
-                  </p>
-                </div>
-              </body>
-            </html>
-          `));
+      appUrl = process.env.APP_URL || 'https://pixel-place-game-app.vercel.app';
+      mainWindow.loadURL(appUrl);
       mainWindow.webContents.once('did-finish-load', () => {
         mainWindow.show();
         // Temporarily open DevTools for debugging
