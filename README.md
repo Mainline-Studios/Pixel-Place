@@ -5,7 +5,8 @@
 Experience fullscreen 3D adventures, compete in multiplayer matches, design your unique avatar with custom skins and accessories, and even build your own games using our intuitive studio tools. Whether you're a casual gamer, a creative developer, or looking to connect with friends, Pixel Place offers something for everyone.
 
 **🔒 IMPORTANT: This platform is currently in private alpha. Password authentication is required for access.**
-![Pixel Place](https://img.shields.io/badge/Version-Unreleased-red)
+![Pixel Place](https://img.shields.io/badge/Version-v0.2.2-blue)
+![Desktop App](https://img.shields.io/badge/Desktop%20App-Available-success)
 ![Next.js](https://img.shields.io/badge/Next.js-14.2.5-black)
 ![React](https://img.shields.io/badge/React-18.3.1-61dafb)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.5.4-3178c6)
@@ -107,6 +108,37 @@ Experience fullscreen 3D adventures, compete in multiplayer matches, design your
 npm run build
 npm start
 ```
+
+---
+
+
+
+## 💻 Desktop App
+
+**Pixel Place is now available as a desktop application!** Download and install the app for Windows, macOS, or Linux.
+
+### Download
+
+Get the latest release from [GitHub Releases](https://github.com/boehmlaird0/Pixel-Place/releases/latest).
+
+- **macOS**: Download the `.dmg` file (Apple Silicon or Intel)
+- **Windows**: Download the `.exe` installer
+- **Linux**: Download the `.AppImage` or `.deb` file
+
+### Features
+
+- ✅ Native desktop experience
+- ✅ Auto-updates with web app changes
+- ✅ Works offline (with local Next.js build)
+- ✅ Custom Pixel Place logo icon
+
+### Installation
+
+1. Download the installer for your platform
+2. Run the installer
+3. Launch Pixel Place from your Applications folder (or Start menu on Windows)
+
+**Note for macOS users**: If you see a "damaged" error, right-click the app and select "Open", or run the included fix script.
 
 ---
 
