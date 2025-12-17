@@ -11,6 +11,7 @@ import AvatarRunner3D from '../Games/AvatarRunner3D';
 import AvatarCollector3D from '../Games/AvatarCollector3D';
 import TagGame from '../Games/TagGame';
 import AIExperimentTest from '../Games/AIExperimentTest';
+import CaptureTheFlag from '../Games/CaptureTheFlag';
 
 import { toast } from '@/lib/toast';
 interface GamesTabProps {
@@ -78,6 +79,15 @@ const games: GameInfo[] = [
     icon: '🏃',
     category: 'Action',
     component: TagGame,
+  },
+  {
+    id: 'captureTheFlag',
+    name: 'Capture the Flag',
+    description: '4-team multiplayer battle! Capture flags from Red, Green, and Yellow teams',
+    icon: '🚩',
+    category: '3D Action',
+    is3D: true,
+    component: CaptureTheFlag,
   },
   {
     id: 'aiExperiment',

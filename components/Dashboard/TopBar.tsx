@@ -16,6 +16,7 @@ const tabs: { key: TabType; label: string; adminOnly?: boolean }[] = [
   { key: 'home', label: 'Home' },
   { key: 'avatarShop', label: 'Avatar Shop' },
   { key: 'createGame', label: 'Create' },
+  { key: 'gameStudio', label: 'Game Studio' },
   { key: 'coins', label: 'Pixel Coins' },
   { key: 'servers', label: 'Servers' },
   { key: 'friends', label: 'Friends' },
