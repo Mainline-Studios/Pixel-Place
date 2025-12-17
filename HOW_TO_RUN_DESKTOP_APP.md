@@ -43,3 +43,34 @@ If the app doesn't open:
 1. Make sure you've run `npm run build` first
 2. Check that `dist-electron/Pixel Place.app` exists
 3. Try running from terminal: `open "dist-electron/Pixel Place.app"`
+
+## Troubleshooting Blank Screen (Navy Blue Screen)
+
+If you see just a navy blue screen when opening the app:
+
+1. **Check the Console (DevTools):**
+   - The app should automatically open DevTools
+   - Look for error messages in the Console tab
+   - Common issues:
+     - "Failed to load" - The Next.js server didn't start
+     - "ERR_CONNECTION_REFUSED" - Server not running
+     - Network errors - Check internet connection
+
+2. **The app tries to:**
+   - First: Start a local Next.js server from the `.next` folder
+   - If that fails: Load from the deployed Vercel URL (https://pixel-place.vercel.app)
+
+3. **If you have a deployed Vercel URL:**
+   - Update `electron-main.js` line 66, 83, 92, and 100
+   - Replace `'https://pixel-place.vercel.app'` with your actual Vercel URL
+   - Rebuild the app: `npm run electron:build:mac`
+
+4. **Quick Fix - Use Deployed URL:**
+   - Deploy your app to Vercel first: `npm run deploy`
+   - Copy your Vercel URL
+   - Update `electron-main.js` with your URL
+   - Rebuild: `npm run electron:build:mac`
+
+5. **Check if Next.js build exists:**
+   - The app needs a `.next` folder in the packaged app
+   - Make sure you ran `npm run build` before building the Electron app
