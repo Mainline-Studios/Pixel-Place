@@ -86,8 +86,6 @@ export default function SettingsTab({ user, editMode, onToggleEditMode, onResetP
               >
                 📥 Download Desktop App
               </a>
-              View All Releases
-              </a>
             </div>
             <div style={{ marginTop: '8px', fontSize: '12px', color: 'var(--text-dim)' }}>
               💡 Click the button above to open the latest release page where you can download installers for Windows, macOS, or Linux.
