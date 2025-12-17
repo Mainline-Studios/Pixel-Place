@@ -65,87 +65,27 @@ export default function SettingsTab({ user, editMode, onToggleEditMode, onResetP
         <div className="ai-label">Settings Info</div>
         <div className="ai-output">{tabContent.settings || ''}</div>
       </div>
-      <div className="ai-box" style={{ marginTop: '16px' }}>
+            <div className="ai-box" style={{ marginTop: '16px' }}>
         <div className="ai-label">💻 Desktop App</div>
         <div className="ai-output">
-          Download Pixel Place as a desktop application for Windows, macOS, or Linux!
+          Download Pixel Place as a desktop application!
           <br />
           <div style={{ marginTop: '12px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
             <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
               <a 
-                href="/downloads/Pixel-Place-Setup-Windows.exe" 
-                download
+                href="https://github.com/boehmlaird0/Pixel-Place/releases/latest" 
+                target="_blank"
+                rel="noopener noreferrer"
                 className="btn"
                 style={{ textDecoration: 'none', display: 'inline-block' }}
-                onClick={async (e) => {
-                  try {
-                    const response = await fetch('/downloads/Pixel-Place-Setup-Windows.exe', { method: 'HEAD' });
-                    if (!response.ok) throw new Error('File not found');
-                  } catch {
-                    e.preventDefault();
-                    alert('Windows installer will be available soon! Check back later or visit GitHub Releases.');
-                  }
-                }}
               >
-                📥 Download for Windows
-              </a>
-              <a 
-                href="/downloads/Pixel Place-0.1.0.dmg" 
-                download
-                className="btn"
-                style={{ textDecoration: 'none', display: 'inline-block' }}
-                onClick={async (e) => {
-                  try {
-                    const response = await fetch('/downloads/Pixel Place-0.1.0.dmg', { method: 'HEAD' });
-                    if (!response.ok) throw new Error('File not found');
-                  } catch {
-                    e.preventDefault();
-                    alert('macOS installer will be available soon! Check back later or visit GitHub Releases.');
-                  }
-                }}
-              >
-                📥 Download for macOS (Intel)
-              </a>
-              <a 
-                href="/downloads/Pixel Place-0.1.0-arm64.dmg" 
-                download
-                className="btn"
-                style={{ textDecoration: 'none', display: 'inline-block' }}
-                onClick={async (e) => {
-                  try {
-                    const response = await fetch('/downloads/Pixel Place-0.1.0-arm64.dmg', { method: 'HEAD' });
-                    if (!response.ok) throw new Error('File not found');
-                  } catch {
-                    e.preventDefault();
-                    alert('macOS (Apple Silicon) installer will be available soon! Check back later or visit GitHub Releases.');
-                  }
-                }}
-              >
-                📥 Download for macOS (Apple Silicon)
-              <a 
-                href="/downloads/Pixel-Place-Linux.AppImage" 
-                download
-                className="btn"
-                style={{ textDecoration: 'none', display: 'inline-block' }}
-                onClick={async (e) => {
-                  try {
-                    const response = await fetch('/downloads/Pixel-Place-Linux.AppImage', { method: 'HEAD' });
-                    if (!response.ok) throw new Error('File not found');
-                  } catch {
-                    e.preventDefault();
-                    alert('Linux installer will be available soon! Check back later or visit GitHub Releases.');
-                  }
-                }}
-              >
-                📥 Download for Linux
+                📥 Download Latest Release
               </a>
             </div>
             <div style={{ marginTop: '8px', fontSize: '12px', color: 'var(--text-dim)' }}>
-              💡 <strong>Note:</strong> Desktop builds are automatically created and will be available here once ready.
+              💡 Desktop installers are available on GitHub Releases. Click the button above to download for Windows, macOS, or Linux.
               <br />
-              <a href="https://github.com/boehmlaird0/Pixel-Place/releases" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--accent)', textDecoration: 'underline', marginTop: '4px', display: 'inline-block' }}>
-                Or download from GitHub Releases →
-              </a>
+              <strong>Note:</strong> Installers are automatically built and published when you create a GitHub release.
             </div>
           </div>
         </div>
