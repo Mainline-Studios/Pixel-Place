@@ -73,19 +73,18 @@ export default function SettingsTab({ user, editMode, onToggleEditMode, onResetP
           <div style={{ marginTop: '12px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
             <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
               <a 
-                href="https://github.com/boehmlaird0/Pixel-Place/releases/latest/download/Pixel-Place-Setup-0.2.0.exe"
-                download
+              <a 
+                href="https://github.com/boehmlaird0/Pixel-Place/releases/latest" 
+                target="_blank"
+                rel="noopener noreferrer"
                 className="btn"
                 style={{ textDecoration: 'none', display: 'inline-block' }}
                 onClick={(e) => {
-                  // Try to download, if fails open release page
-                  fetch(e.target.href, { method: 'HEAD' }).catch(() => {
-                    e.preventDefault();
-                    window.open('https://github.com/boehmlaird0/Pixel-Place/releases/latest', '_blank');
-                  });
+                  e.preventDefault();
+                  window.open('https://github.com/boehmlaird0/Pixel-Place/releases/latest', '_blank');
                 }}
               >
-                📥 Download for Windows
+                📥 Download Desktop App
               </a>
               <a 
                 href="https://github.com/boehmlaird0/Pixel-Place/releases/latest" 
