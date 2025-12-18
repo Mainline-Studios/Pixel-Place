@@ -248,26 +248,49 @@ export default function GamePlayer({ game, onClose }: GamePlayerProps) {
           (window as any).__gameSocket = socketRef.current;
           multiplayerCode = `
           // Multiplayer support
-          window.gameSocket = {
-            emit: function(event, data) {
-              const socket = window.__gameSocket;
-              if (socket && socket.emit) {
-                socket.emit(event, data);
+          if (window.__gameSocket) {
+            window.gameSocket = {
+              emit: function(event, data) {
+                try {
+                  const socket = window.__gameSocket;
+                  if (socket && socket.emit) {
+                    socket.emit(event, data);
+                  }
+                } catch (e) {
+                  console.warn('Socket emit error:', e);
+                }
+              },
+              on: function(event, callback) {
+                try {
+                  const socket = window.__gameSocket;
+                  if (socket && socket.on) {
+                    socket.on(event, callback);
+                  }
+                } catch (e) {
+                  console.warn('Socket on error:', e);
+                }
+              },
+              off: function(event, callback) {
+                try {
+                  const socket = window.__gameSocket;
+                  if (socket && socket.off) {
+                    socket.off(event, callback);
+                  }
+                } catch (e) {
+                  console.warn('Socket off error:', e);
+                }
               }
-            },
-            on: function(event, callback) {
-              const socket = window.__gameSocket;
-              if (socket && socket.on) {
-                socket.on(event, callback);
+            };
+            window.gamePlayers = ${JSON.stringify(players)};
+            window.updatePlayerPosition = function(pos, rot) {
+              if (window.gameSocket && window.gameSocket.emit) {
+                window.gameSocket.emit('player-update', { position: pos, rotation: rot });
               }
-            }
-          };
-          window.gamePlayers = ${JSON.stringify(players)};
-          window.updatePlayerPosition = function(pos, rot) {
-            if (window.gameSocket && window.gameSocket.emit) {
-              window.gameSocket.emit('player-update', { position: pos, rotation: rot });
-            }
-          };
+            };
+          } else {
+            window.gameSocket = undefined;
+            window.gamePlayers = [];
+          }
         `;
         }
 
