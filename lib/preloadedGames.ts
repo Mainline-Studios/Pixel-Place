@@ -2165,7 +2165,7 @@ export const CAPTURE_THE_FLAG_GAME_CODE = `// 4 Team Capture the Flag - Enhanced
 
 function createGame(container) {
   // Check if online mode
-  const isOnline = window.gameSocket !== undefined;
+  const isOnline = typeof window !== 'undefined' && window.gameSocket !== undefined && window.gameSocket !== null;
   const onlinePlayers = window.gamePlayers || [];
   let useNPCs = !isOnline; // No NPCs in online mode by default
   let waitingForPlayers = isOnline && onlinePlayers.length < 4;
@@ -2697,7 +2697,7 @@ function createGame(container) {
       chatMessages.push(chatMsg);
       chatContainer.appendChild(chatMsg);
       chatContainer.scrollTop = chatContainer.scrollHeight;
-      if (window.gameSocket) {
+      if (window.gameSocket && typeof window.gameSocket.emit === 'function') {
         window.gameSocket.emit('chat-message', { message: msg });
       }
     };
@@ -2716,7 +2716,7 @@ function createGame(container) {
   document.addEventListener('keydown', handleChatKey);
   
   // Handle chat messages from other players
-  if (window.gameSocket) {
+  if (window.gameSocket && typeof window.gameSocket.on === 'function') {
     window.gameSocket.on('chat-message', (data) => {
       const chatMsg = document.createElement('div');
       chatMsg.textContent = (data.username || 'Player') + ': ' + data.message;
