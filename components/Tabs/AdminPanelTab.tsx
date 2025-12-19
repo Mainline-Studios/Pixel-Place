@@ -60,7 +60,7 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
       .filter(admin => !existingUsernames.has(admin.username.toLowerCase()))
       .map(admin => ({
         username: admin.username,
-        password: admin.password,
+        password: '', // Never expose passwords - they're stored securely in the database
         gender: 'N/A',
         role: 'admin' as const,
         coins: 99999,
@@ -259,9 +259,9 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
       <h2 className="section-title">🛡️ Admin Panel</h2>
       
       <div className="ai-box" style={{ marginBottom: '20px', background: 'rgba(46, 204, 113, 0.1)', border: '1px solid #2ecc71' }}>
-        <div className="ai-label">✅ Shared Storage</div>
+        <div className="ai-label">🔒 Secure Backend</div>
         <div className="ai-output" style={{ fontSize: '13px' }}>
-          <strong>Data is now shared across all browsers!</strong> All accounts, bans, reports, and appeals are stored in the <code>/data</code> folder and work in Chrome, Safari, and Cursor.
+          <strong>All data is securely stored in the backend database!</strong> User accounts, bans, reports, and appeals are protected with encrypted passwords and JWT authentication. The <code>/data</code> folder is not accessible to clients.
         </div>
       </div>
 
