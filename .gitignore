@@ -1,11 +1,10 @@
 !/data/.gitkeep
-# Data folder (contains user accounts, bans, reports, appeals)
-# All data files are ignored - only .gitkeep is tracked
+# Data folder - ignore real data files, but allow example files
 /data/*
 !/data/.gitkeep
+!/data/*.example.json
 
-# Specifically ignore sensitive JSON files
-/data/*.json
+# Specifically ignore sensitive JSON files (real data)
 /data/users.json
 /data/bans.json
 /data/reports.json
@@ -14,7 +13,13 @@
 /data/published.json
 /data/scene.json
 
-# Database files
+# But allow example files
+!/data/users.example.json
+!/data/bans.example.json
+!/data/reports.example.json
+!/data/appeals.example.json
+
+# Database files (never commit these)
 /data/*.db
 /data/*.db-wal
 /data/*.db-shm
