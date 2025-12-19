@@ -646,8 +646,6 @@ export async function getUsers(): Promise<User[]> {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(user)
-    // Sanitize passwords - never return them
-    apiUsers.forEach((u: User) => { u.password = ''; });
               }).catch(() => {});
             }
             // Remove from localStorage after successful migration
