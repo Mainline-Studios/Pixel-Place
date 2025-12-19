@@ -48,9 +48,7 @@ async function syncToDatabase(games: PublishedGame[]): Promise<void> {
         game.thumbnail || null,
         game.gameCode || null,
         game.sceneData ? JSON.stringify(game.sceneData) : null,
-        game.playable ? 1 : 0,
-        game.multiplayer ? 1 
-
+        game.multiplayer ? 1 : 0,
 // Enrich games with gameCode from preloadedGames if missing
 function enrichGamesWithCode(games: PublishedGame[]): PublishedGame[] {
   const preloadedGames = {
@@ -74,7 +72,6 @@ function enrichGamesWithCode(games: PublishedGame[]): PublishedGame[] {
     return game;
   });
 }
-: 0,
         game.maxPlayers || null,
         game.serverId || null
       );
