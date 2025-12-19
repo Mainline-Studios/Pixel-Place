@@ -17,12 +17,120 @@ const io = new Server(server, {
 const gameRooms = new Map();
 const gameSessions = new Map();
 
+// Preset chat messages for different games
+const PRESET_MESSAGES = {
+  'tic-tac-toe': {
+    waitingRoom: [
+      'Ready to play!',
+      'Good luck!',
+      'Let's go!',
+      'X or O?',
+      'Best of 3?'
+    ],
+    gameChat: [
+      'Nice move!',
+      'Good game!',
+      'Your turn',
+      'I see what you did there',
+      'Well played!'
+    ]
+  },
+  'capture-the-flag': {
+    waitingRoom: [
+      'Ready for battle!',
+      'Let's capture some flags!',
+      'Team up!',
+      'Protect the base!',
+      'Time to dominate!'
+    ],
+    gameChat: [
+      'Flag captured!',
+      'Need backup!',
+      'Enemy spotted!',
+      'Returning to base',
+      'Great teamwork!'
+    ]
+  },
+  'hide-and-seek': {
+    waitingRoom: [
+      'Ready to hide!',
+      'Who's the seeker?',
+      'Find a good spot!',
+      'Don't find me!',
+      'Let's play!'
+    ],
+    gameChat: [
+      'Found you!',
+      'Still hiding',
+      'Almost found me',
+      'Good hiding spot',
+      'Seeker coming!'
+    ]
+  }
+};
+
+// Waiting room management
+const waitingRooms = new Map();
+
+function getGameType(gameId) {
+  // Determine game type from gameId or title
+  if (gameId.includes('tic') || gameId.includes('Tic')) return 'tic-tac-toe';
+  if (gameId.includes('flag') || gameId.includes('Flag')) return 'capture-the-flag';
+  if (gameId.includes('hide') || gameId.includes('Hide')) return 'hide-and-seek';
+  return 'default';
+}
+
+function getMinPlayers(gameType) {
+  switch (gameType) {
+    case 'tic-tac-toe': return 2;
+    case 'capture-the-flag': return 4;
+    case 'hide-and-seek': return 3;
+    default: return 2;
+  }
+}
+
+
 io.on('connection', (socket) => {
   console.log('Player connected:', socket.id);
 
   socket.on('join-game', ({ serverId, gameId, username, sessionId }) => {
     const roomId = sessionId || `game-${gameId}-${serverId || 'default'}`;
+    const gameType = getGameType(gameId);
+    const minPlayers = getMinPlayers(gameType);
+    
     socket.join(roomId);
+    
+    // Initialize waiting room if needed
+    if (!waitingRooms.has(roomId)) {
+      waitingRooms.set(roomId, {
+        players: [],
+        gameId,
+        gameType,
+        minPlayers,
+        maxPlayers: 16,
+        status: 'waiting', // 'waiting' or 'playing'
+        presets: PRESET_MESSAGES[gameType] || PRESET_MESSAGES['default']
+      });
+    }
+    
+    const waitingRoom = waitingRooms.get(roomId);
+    const player = {
+      id: socket.id,
+      username: username || 'Player',
+    };
+    
+    // Add player to waiting room
+    if (!waitingRoom.players.find(p => p.username === player.username)) {
+      waitingRoom.players.push(player);
+      io.to(roomId).emit('player-joined-waiting', { username: player.username });
+      io.to(roomId).emit('waiting-room-update', {
+        players: waitingRoom.players.map(p => p.username),
+        currentPlayers: waitingRoom.players.length,
+        minPlayers: waitingRoom.minPlayers,
+        maxPlayers: waitingRoom.maxPlayers,
+        canStart: waitingRoom.players.length >= waitingRoom.minPlayers
+      });
+    }
 
     // Initialize room if needed
     if (!gameRooms.has(roomId)) {
@@ -102,7 +210,44 @@ io.on('connection', (socket) => {
     }
   });
 
-  socket.on('disconnect', () => {
+  
+  
+  socket.on('waiting-room-chat', ({ roomId, username, message }) => {
+    const waitingRoom = waitingRooms.get(roomId);
+    if (waitingRoom && waitingRoom.status === 'waiting') {
+      io.to(roomId).emit('waiting-room-chat', { username, message });
+    }
+  });
+  
+  socket.on('start-game', ({ roomId }) => {
+    const waitingRoom = waitingRooms.get(roomId);
+    if (waitingRoom && waitingRoom.status === 'waiting') {
+      if (waitingRoom.players.length >= waitingRoom.minPlayers) {
+        waitingRoom.status = 'playing';
+        io.to(roomId).emit('game-start', {
+          players: waitingRoom.players,
+          gameType: waitingRoom.gameType
+        });
+        
+        // Assign roles for hide and seek
+        if (waitingRoom.gameType === 'hide-and-seek') {
+          const seekerIndex = Math.floor(Math.random() * waitingRoom.players.length);
+          waitingRoom.players.forEach((player, idx) => {
+            const role = idx === seekerIndex ? 'seeker' : 'hider';
+            io.to(player.id).emit('role-assigned', { role });
+          });
+        }
+      }
+    }
+  });
+  
+  socket.on('game-chat', ({ roomId, username, message }) => {
+    const waitingRoom = waitingRooms.get(roomId);
+    if (waitingRoom && waitingRoom.status === 'playing') {
+      io.to(roomId).emit('game-chat', { username, message });
+    }
+  });
+socket.on('disconnect', () => {
     console.log('Player disconnected:', socket.id);
 
     // Remove from all rooms

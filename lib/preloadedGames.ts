@@ -2968,3 +2968,134 @@ export const CAPTURE_THE_FLAG_PRELOADED_GAME: PublishedGame = {
   playable: true,
   multiplayer: false
 };
+
+// Hide and Seek Game - Online Multiplayer Only
+export const HIDE_AND_SEEK_GAME_CODE = \`// Hide and Seek - Online Multiplayer
+// THREE is provided by the game engine
+
+function createGame(container) {
+  const isOnline = typeof window !== 'undefined' && window.gameSocket !== undefined && window.gameSocket !== null;
+  
+  if (!isOnline) {
+    container.innerHTML = '<div style="color: white; padding: 20px; text-align: center;"><h2>Hide and Seek</h2><p>This game requires online multiplayer. Click "Play Online" to start.</p></div>';
+    return;
+  }
+  
+  // Scene setup
+  const scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x87CEEB);
+  scene.fog = new THREE.Fog(0x87CEEB, 10, 100);
+  
+  const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+  camera.position.set(0, 5, 10);
+  
+  const renderer = new THREE.WebGLRenderer({ antialias: true });
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.shadowMap.enabled = true;
+  container.appendChild(renderer.domElement);
+  
+  // Lighting
+  const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+  scene.add(ambientLight);
+  
+  const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+  directionalLight.position.set(10, 10, 5);
+  directionalLight.castShadow = true;
+  scene.add(directionalLight);
+  
+  // Ground
+  const groundGeometry = new THREE.PlaneGeometry(100, 100);
+  const groundMaterial = new THREE.MeshStandardMaterial({ color: 0x90EE90 });
+  const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+  ground.rotation.x = -Math.PI / 2;
+  ground.receiveShadow = true;
+  scene.add(ground);
+  
+  // Hiding spots (boxes)
+  const hidingSpots = [];
+  for (let i = 0; i < 20; i++) {
+    const box = new THREE.Mesh(
+      new THREE.BoxGeometry(2, 2, 2),
+      new THREE.MeshStandardMaterial({ color: Math.random() * 0xffffff })
+    );
+    box.position.set(
+      (Math.random() - 0.5) * 80,
+      1,
+      (Math.random() - 0.5) * 80
+    );
+    box.castShadow = true;
+    scene.add(box);
+    hidingSpots.push(box);
+  }
+  
+  // Player
+  const playerGeometry = new THREE.CapsuleGeometry(0.5, 1.5, 4, 8);
+  const playerMaterial = new THREE.MeshStandardMaterial({ color: 0x4A9EFF });
+  const player = new THREE.Mesh(playerGeometry, playerMaterial);
+  player.position.set(0, 1, 0);
+  player.castShadow = true;
+  scene.add(player);
+  
+  // Controls
+  const keys: { [key: string]: boolean } = {};
+  window.addEventListener('keydown', (e) => { keys[e.key.toLowerCase()] = true; });
+  window.addEventListener('keyup', (e) => { keys[e.key.toLowerCase()] = false; });
+  
+  // Game state
+  let isSeeker = false;
+  let gameStarted = false;
+  let countdown = 0;
+  
+  // Multiplayer setup
+  if (window.gameSocket) {
+    window.gameSocket.on('game-start', () => {
+      gameStarted = true;
+      countdown = 10;
+    });
+    
+    window.gameSocket.on('role-assigned', (data: { role: string }) => {
+      isSeeker = data.role === 'seeker';
+    });
+  }
+  
+  // Game loop
+  const animate = () => {
+    requestAnimationFrame(animate);
+    
+    if (gameStarted) {
+      // Movement
+      const speed = 0.1;
+      if (keys['w'] || keys['arrowup']) player.position.z -= speed;
+      if (keys['s'] || keys['arrowdown']) player.position.z += speed;
+      if (keys['a'] || keys['arrowleft']) player.position.x -= speed;
+      if (keys['d'] || keys['arrowright']) player.position.x += speed;
+      
+      // Update position
+      if (window.gameSocket && window.updatePlayerPosition) {
+        window.updatePlayerPosition(player.position, { x: 0, y: 0, z: 0 });
+      }
+    }
+    
+    renderer.render(scene, camera);
+  };
+  
+  animate();
+  
+  // Cleanup
+  return () => {
+    container.removeChild(renderer.domElement);
+  };
+}\`;
+
+export const HIDE_AND_SEEK_PRELOADED_GAME: PublishedGame = {
+  title: 'Hide and Seek',
+  desc: 'Classic hide and seek! One seeker, multiple hiders. Online multiplayer only - requires 3+ players.',
+  owner: 'System',
+  ts: Date.now() + 3000,
+  gameCode: HIDE_AND_SEEK_GAME_CODE,
+  thumbnail: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAwIiBoZWlnaHQ9IjQwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iNDAwIiBoZWlnaHQ9IjQwMCIgZmlsbD0iIzg3Q0VFQiIvPjxjaXJjbGUgY3g9IjIwMCIgY3k9IjE1MCIgcj0iNDAiIGZpbGw9IiNGRkZGRkYiLz48Y2lyY2xlIGN4PSIxODAiIGN5PSIxNDAiIHI9IjgiIGZpbGw9IiMwMDAiLz48Y2lyY2xlIGN4PSIyMjAiIGN5PSIxNDAiIHI9IjgiIGZpbGw9IiMwMDAiLz48cGF0aCBkPSJNIDE4MCAxNzAgUSAyMDAgMTkwIDIyMCAxNzAiIHN0cm9rZT0iIzAwMCIgc3Ryb2tlLXdpZHRoPSIzIiBmaWxsPSJub25lIi8+PC9zdmc+',
+  playable: true,
+  multiplayer: true,
+  maxPlayers: 8
+};
+

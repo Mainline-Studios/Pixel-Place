@@ -36,6 +36,36 @@ export default function HomeTab({ user, editMode, onResetPublished }: HomeTabPro
     const interval = setInterval(refreshData, 2000);
     return () => clearInterval(interval);
   }, [user]);
+  // Auto-initialize published games if none exist
+  useEffect(() => {
+    const initGames = async () => {
+      if (published.length === 0 && user.role === 'admin') {
+        try {
+          const response = await fetch('/api/published/init', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${localStorage.getItem('pixelPlaceAuthToken') || ''}`
+            }
+          });
+          
+          if (response.ok) {
+            const data = await response.json();
+            if (data.success) {
+              // Refresh published games
+              const updated = await getPublished();
+              setPublished(updated);
+            }
+          }
+        } catch (error) {
+          console.error('Error initializing games:', error);
+        }
+      }
+    };
+    
+    initGames();
+  }, [published.length, user.role]);
+
 
   // Sort published games
   const sortedGames = published.slice().sort((a, b) => b.ts - a.ts);

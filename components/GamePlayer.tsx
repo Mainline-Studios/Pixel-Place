@@ -1,4 +1,5 @@
 'use client';
+import WaitingRoom from './WaitingRoom';
 
 import { useEffect, useRef, useState } from 'react';
 import { useUser } from '@/contexts/UserContext';
@@ -53,6 +54,13 @@ export default function GamePlayer({ game, onClose }: GamePlayerProps) {
   const [onlineSession, setOnlineSession] = useState<string | null>(null);
   const [isCreatingSession, setIsCreatingSession] = useState(false);
   const [availableSessions, setAvailableSessions] = useState<any[]>([]);
+  const [showWaitingRoom, setShowWaitingRoom] = useState(false);
+  const [waitingRoomPlayers, setWaitingRoomPlayers] = useState<string[]>([]);
+  const [waitingRoomPresets, setWaitingRoomPresets] = useState<string[]>([]);
+  const [gameChatPresets, setGameChatPresets] = useState<string[]>([]);
+  const [waitingRoomMessages, setWaitingRoomMessages] = useState<Array<{ username: string; message: string; timestamp: number }>>([]);
+  const [waitingRoomInput, setWaitingRoomInput] = useState('');
+
 
   // Initialize server and socket for online mode
   useEffect(() => {
@@ -133,7 +141,24 @@ export default function GamePlayer({ game, onClose }: GamePlayerProps) {
               setPlayers(prev => prev.map(p => p.id === player.id ? player : p));
             });
 
-            socket.on('disconnect', () => {
+            
+            
+            socket.on('waiting-room-update', (data: { players: string[]; currentPlayers: number; minPlayers: number; maxPlayers: number; canStart: boolean }) => {
+              setWaitingRoomPlayers(data.players);
+              if (data.currentPlayers >= data.minPlayers && game.multiplayer) {
+                setShowWaitingRoom(true);
+              }
+            });
+            
+            socket.on('waiting-room-chat', (data: { username: string; message: string }) => {
+              setWaitingRoomMessages(prev => [...prev, { ...data, timestamp: Date.now() }]);
+            });
+            
+            socket.on('game-start', () => {
+              setShowWaitingRoom(false);
+              setIsLoading(false);
+            });
+socket.on('disconnect', () => {
               console.log('Disconnected from game server');
               setIsOnline(false);
             });
@@ -651,7 +676,42 @@ export default function GamePlayer({ game, onClose }: GamePlayerProps) {
 
   // Safety/Rules Popup
   if (showSafetyPopup) {
+      // Show waiting room for multiplayer games
+  if (showWaitingRoom && socketRef.current && game.multiplayer) {
+    const minPlayers = game.title.toLowerCase().includes('tic') ? 2 : 
+                       game.title.toLowerCase().includes('flag') ? 4 : 
+                       game.title.toLowerCase().includes('hide') ? 3 : 2;
+    
     return (
+      <WaitingRoom
+        gameTitle={game.title}
+        minPlayers={minPlayers}
+        maxPlayers={game.maxPlayers || 16}
+        currentPlayers={waitingRoomPlayers.length}
+        players={waitingRoomPlayers}
+        onStartGame={() => {
+          setShowWaitingRoom(false);
+          setIsLoading(false);
+        }}
+        onLeave={() => {
+          setShowWaitingRoom(false);
+          setIsOnline(false);
+          if (socketRef.current) {
+            socketRef.current.disconnect();
+            socketRef.current = null;
+          }
+          onClose();
+        }}
+        waitingRoomPresets={waitingRoomPresets}
+        gameChatPresets={gameChatPresets}
+        socket={socketRef.current}
+        roomId={onlineSession || `game-${game.ts}`}
+        username={contextUser?.username || 'Player'}
+      />
+    );
+  }
+
+return (
     <div
       style={{
         position: 'fixed',

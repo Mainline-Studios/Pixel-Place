@@ -2,48 +2,34 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth, requireAdmin } from '@/lib/middleware';
 import { getDb } from '@/lib/db';
 import { PublishedGame } from '@/types';
+import { promises as fs } from 'fs';
+import path from 'path';
 
-// Get all published games (public)
-export async function GET() {
+const DATA_DIR = path.join(process.cwd(), 'data');
+const PUBLISHED_FILE = path.join(DATA_DIR, 'published.json');
+
+// Read published games from JSON file (primary source)
+async function readPublishedFromFile(): Promise<PublishedGame[]> {
   try {
-    const db = getDb();
-    const stmt = db.prepare('SELECT * FROM published_games ORDER BY ts DESC');
-    const rows = stmt.all() as any[];
-    
-    const games: PublishedGame[] = rows.map((row: any) => ({
-      title: row.title,
-      desc: row.description || '',
-      owner: row.owner,
-      ts: row.ts,
-      thumbnail: row.thumbnail || undefined,
-      gameCode: row.game_code || undefined,
-      sceneData: row.scene_data ? JSON.parse(row.scene_data) : undefined,
-      playable: row.playable === 1,
-      multiplayer: row.multiplayer === 1,
-      maxPlayers: row.max_players || undefined,
-      serverId: row.server_id || undefined,
-    }));
-    
-    return NextResponse.json(games);
+    const data = await fs.readFile(PUBLISHED_FILE, 'utf-8');
+    return JSON.parse(data);
   } catch (error) {
-    console.error('Error reading published games:', error);
-    return NextResponse.json({ error: 'Failed to read published games' }, { status: 500 });
+    return [];
   }
 }
 
-// Save published games (admin only)
-export async function POST(request: NextRequest) {
-  const authResult = requireAdmin(request);
-  if (authResult.error) return authResult.error;
-  
+// Write published games to JSON file (primary storage)
+async function writePublishedToFile(games: PublishedGame[]): Promise<void> {
+  await fs.mkdir(DATA_DIR, { recursive: true });
+  await fs.writeFile(PUBLISHED_FILE, JSON.stringify(games, null, 2), 'utf-8');
+}
+
+// Sync to database (backup)
+async function syncToDatabase(games: PublishedGame[]): Promise<void> {
   try {
-    const games: PublishedGame[] = await request.json();
     const db = getDb();
-    
-    // Clear existing games
     db.prepare('DELETE FROM published_games').run();
     
-    // Insert new games
     const stmt = db.prepare(`
       INSERT INTO published_games (title, description, owner, ts, thumbnail, game_code, scene_data, playable, multiplayer, max_players, server_id)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -64,6 +50,58 @@ export async function POST(request: NextRequest) {
         game.serverId || null
       );
     }
+  } catch (e) {
+    // Database sync is optional
+  }
+}
+
+// Get all published games (public)
+export async function GET() {
+  try {
+    // Read from JSON file (primary source)
+    let games = await readPublishedFromFile();
+    
+    // If JSON is empty, try database
+    if (games.length === 0) {
+      const db = getDb();
+      const stmt = db.prepare('SELECT * FROM published_games ORDER BY ts DESC');
+      const rows = stmt.all() as any[];
+      
+      games = rows.map((row: any) => ({
+        title: row.title,
+        desc: row.description || '',
+        owner: row.owner,
+        ts: row.ts,
+        thumbnail: row.thumbnail || undefined,
+        gameCode: row.game_code || undefined,
+        sceneData: row.scene_data ? JSON.parse(row.scene_data) : undefined,
+        playable: row.playable === 1,
+        multiplayer: row.multiplayer === 1,
+        maxPlayers: row.max_players || undefined,
+        serverId: row.server_id || undefined,
+      }));
+    }
+    
+    return NextResponse.json(games);
+  } catch (error) {
+    console.error('Error reading published games:', error);
+    return NextResponse.json({ error: 'Failed to read published games' }, { status: 500 });
+  }
+}
+
+// Save published games (admin only)
+export async function POST(request: NextRequest) {
+  const authResult = requireAdmin(request);
+  if (authResult.error) return authResult.error;
+  
+  try {
+    const games: PublishedGame[] = await request.json();
+    
+    // Write to JSON file (primary storage)
+    await writePublishedToFile(games);
+    
+    // Sync to database (backup)
+    await syncToDatabase(games);
     
     return NextResponse.json(games);
   } catch (error: any) {
