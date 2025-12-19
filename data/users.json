@@ -97,6 +97,20 @@
     "equippedAccessories": {}
   }
 ]
+"username": "Tic-Tak",
+    "password": "CNatb111",
+    "gender": "Male",
+    "role": "admin",
+    "coins": 987678987656789876545678987654,
+    "ownedSkins": [
+      "starter_classic"
+    ],
+    "equippedSkin": "starter_classic",
+    "isDonor": false,
+    "ownedAccessories": [],
+    "equippedAccessories": {}
+  }
+]
 
 
 
