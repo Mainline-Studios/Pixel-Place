@@ -4,7 +4,11 @@ import { getDb } from '@/lib/db';
 import { PublishedGame } from '@/types';
 import { promises as fs } from 'fs';
 import path from 'path';
-
+import { 
+  TIC_TAC_TOE_PRELOADED_GAME, 
+  CAPTURE_THE_FLAG_PRELOADED_GAME, 
+  HIDE_AND_SEEK_PRELOADED_GAME 
+} from '@/lib/preloadedGames';
 const DATA_DIR = path.join(process.cwd(), 'data');
 const PUBLISHED_FILE = path.join(DATA_DIR, 'published.json');
 
@@ -45,7 +49,32 @@ async function syncToDatabase(games: PublishedGame[]): Promise<void> {
         game.gameCode || null,
         game.sceneData ? JSON.stringify(game.sceneData) : null,
         game.playable ? 1 : 0,
-        game.multiplayer ? 1 : 0,
+        game.multiplayer ? 1 
+
+// Enrich games with gameCode from preloadedGames if missing
+function enrichGamesWithCode(games: PublishedGame[]): PublishedGame[] {
+  const preloadedGames = {
+    'Tic-Tac-Toe': TIC_TAC_TOE_PRELOADED_GAME,
+    'Tic Tac Toe': TIC_TAC_TOE_PRELOADED_GAME,
+    'Capture the Flag': CAPTURE_THE_FLAG_PRELOADED_GAME,
+    'Hide and Seek': HIDE_AND_SEEK_PRELOADED_GAME,
+  };
+  
+  return games.map(game => {
+    const preloaded = preloadedGames[game.title as keyof typeof preloadedGames];
+    if (preloaded && !game.gameCode) {
+      return {
+        ...game,
+        gameCode: preloaded.gameCode,
+        thumbnail: game.thumbnail || preloaded.thumbnail,
+        multiplayer: game.multiplayer !== undefined ? game.multiplayer : preloaded.multiplayer,
+        maxPlayers: game.maxPlayers || preloaded.maxPlayers,
+      };
+    }
+    return game;
+  });
+}
+: 0,
         game.maxPlayers || null,
         game.serverId || null
       );
@@ -82,7 +111,7 @@ export async function GET() {
       }));
     }
     
-    return NextResponse.json(games);
+    return NextResponse.json(enrichGamesWithCode(games));
   } catch (error) {
     console.error('Error reading published games:', error);
     return NextResponse.json({ error: 'Failed to read published games' }, { status: 500 });
@@ -103,7 +132,7 @@ export async function POST(request: NextRequest) {
     // Sync to database (backup)
     await syncToDatabase(games);
     
-    return NextResponse.json(games);
+    return NextResponse.json(enrichGamesWithCode(games));
   } catch (error: any) {
     console.error('Error saving published games:', error);
     return NextResponse.json({ error: error.message || 'Failed to save published games' }, { status: 500 });

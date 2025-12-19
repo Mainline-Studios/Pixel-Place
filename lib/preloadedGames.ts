@@ -2970,7 +2970,7 @@ export const CAPTURE_THE_FLAG_PRELOADED_GAME: PublishedGame = {
 };
 
 // Hide and Seek Game - Online Multiplayer Only
-export const HIDE_AND_SEEK_GAME_CODE = \`// Hide and Seek - Online Multiplayer
+export const HIDE_AND_SEEK_GAME_CODE = `// Hide and Seek - Online Multiplayer
 // THREE is provided by the game engine
 
 function createGame(container) {
@@ -3085,7 +3085,7 @@ function createGame(container) {
   return () => {
     container.removeChild(renderer.domElement);
   };
-}\`;
+}`;
 
 export const HIDE_AND_SEEK_PRELOADED_GAME: PublishedGame = {
   title: 'Hide and Seek',
