@@ -3,6 +3,7 @@
 /data/*
 !/data/.gitkeep
 !/data/*.example.json
+!/data/README.md
 
 # Specifically ignore sensitive JSON files (real data)
 /data/users.json
