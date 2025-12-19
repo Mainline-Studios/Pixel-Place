@@ -1,5 +1,6 @@
 import { User, Skin, PublishedGame, DraftGame, SceneData, TabContent, GameServer, ServerPlan, FriendRequest, Message, Accessory, PrebuiltGame, UserMadeGame } from '@/types';
 import { TIC_TAC_TOE_PRELOADED_GAME, CAPTURE_THE_FLAG_PRELOADED_GAME } from '@/lib/preloadedGames';
+import { authenticatedFetch } from './api';
 
 const ADMIN_ACCOUNTS = [
   { username: "admin", password: "456" },
@@ -624,7 +625,7 @@ export function initializeStorage() {
 export async function getUsers(): Promise<User[]> {
   if (typeof window === 'undefined') return [];
   try {
-    const response = await fetch('/api/users');
+    const response = await authenticatedFetch('/api/users');
     if (!response.ok) throw new Error('Failed to fetch users');
     const apiUsers = await response.json();
     
@@ -689,7 +690,7 @@ export async function saveUsers(users: User[]): Promise<void> {
   try {
     // Save each user (API handles updates if user exists)
     for (const user of users) {
-      await fetch('/api/users', {
+      await authenticatedFetch('/api/users', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(user)
@@ -881,7 +882,7 @@ export async function saveDraft(draft: DraftGame): Promise<void> {
 export async function getPublished(): Promise<PublishedGame[]> {
   if (typeof window === 'undefined') return [];
   try {
-    const response = await fetch('/api/published');
+    const response = await fetch('/api/published'); // Public endpoint, no auth needed
     if (!response.ok) {
       throw new Error('Failed to fetch published games');
     }
@@ -955,7 +956,7 @@ export async function savePublished(games: PublishedGame[]): Promise<void> {
 export async function getSceneData(): Promise<SceneData> {
   if (typeof window === 'undefined') return { objects: [] };
   try {
-    const response = await fetch('/api/scene');
+    const response = await authenticatedFetch('/api/scene');
     if (!response.ok) throw new Error('Failed to fetch scene');
     const apiScene = await response.json();
     
@@ -1223,7 +1224,7 @@ export async function getGameSubmissions(): Promise<any[]> {
 export async function saveUserMadeGame(game: any): Promise<void> {
   if (typeof window === 'undefined') return;
   try {
-    const response = await fetch('/api/games', {
+    const response = await authenticatedFetch('/api/games', {
       method: game.id && game.id.startsWith('game_') ? 'PUT' : 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(game),
@@ -1239,7 +1240,7 @@ export async function saveUserMadeGame(game: any): Promise<void> {
 export async function getUserMadeGames(): Promise<UserMadeGame[]> {
   if (typeof window === 'undefined') return [];
   try {
-    const response = await fetch('/api/games');
+    const response = await authenticatedFetch('/api/games');
     if (!response.ok) {
       throw new Error('Failed to fetch games');
     }
@@ -1253,7 +1254,7 @@ export async function getUserMadeGames(): Promise<UserMadeGame[]> {
 export async function deleteUserMadeGame(gameId: string): Promise<void> {
   if (typeof window === 'undefined') return;
   try {
-    const response = await fetch(`/api/games?id=${gameId}`, {
+    const response = await authenticatedFetch(`/api/games?id=${gameId}`, {
       method: 'DELETE',
     });
     if (!response.ok) {

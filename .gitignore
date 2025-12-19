@@ -33,3 +33,9 @@ public/downloads/*.dmg
 public/downloads/*.exe
 yarn-debug.log*
 yarn-error.log*
+
+# Database and environment files
+data/database.db
+data/database.db-wal
+data/database.db-shm
+.env.local
