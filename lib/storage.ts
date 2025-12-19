@@ -682,6 +682,8 @@ export async function getUsers(): Promise<User[]> {
             }).catch(() => {});
           }
         }
+        // Sanitize passwords before returning
+        users.forEach((u: User) => { u.password = ''; });
         return users;
       }
     } catch {}
