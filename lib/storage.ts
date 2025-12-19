@@ -662,6 +662,8 @@ export async function getUsers(): Promise<User[]> {
       console.error('Error migrating users:', migrationError);
     }
     
+    // Sanitize passwords - never return them to frontend
+    apiUsers.forEach((u: User) => { u.password = ''; });
     return apiUsers;
   } catch (e) {
     console.error('Error reading users from API:', e);
