@@ -13,6 +13,34 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'Username and password required' }, { status: 400 });
       }
       
+      // Check if this is an admin account that needs to be created
+      const { ADMIN_ACCOUNTS_LIST } = await import('@/lib/storage');
+      const isAdmin = ADMIN_ACCOUNTS_LIST.some(a => a.username === username && a.password === password);
+      
+      if (isAdmin) {
+        const existing = getUserFromDb(username);
+        if (!existing) {
+          // Auto-create admin account
+          const adminUser: User = {
+            username,
+            password: '',
+            gender: 'N/A',
+            role: 'admin',
+            coins: 99999,
+            ownedSkins: ['starter_classic'],
+            equippedSkin: 'starter_classic',
+            ownedAccessories: [],
+            equippedAccessories: [],
+            ownedServers: [],
+            friends: [],
+            friendRequests: [],
+            sentFriendRequests: [],
+            isDonor: false,
+          };
+          await createOrUpdateUser(adminUser, password);
+        }
+      }
+      
       const result = await authenticateUser(username, password);
       if (!result) {
         return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });
