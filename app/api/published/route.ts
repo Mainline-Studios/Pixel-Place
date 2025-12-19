@@ -9,6 +9,7 @@ import {
   CAPTURE_THE_FLAG_PRELOADED_GAME, 
   HIDE_AND_SEEK_PRELOADED_GAME 
 } from '@/lib/preloadedGames';
+
 const DATA_DIR = path.join(process.cwd(), 'data');
 const PUBLISHED_FILE = path.join(DATA_DIR, 'published.json');
 
@@ -48,7 +49,17 @@ async function syncToDatabase(games: PublishedGame[]): Promise<void> {
         game.thumbnail || null,
         game.gameCode || null,
         game.sceneData ? JSON.stringify(game.sceneData) : null,
+        game.playable ? 1 : 0,
         game.multiplayer ? 1 : 0,
+        game.maxPlayers || null,
+        game.serverId || null
+      );
+    }
+  } catch (e) {
+    // Database sync is optional
+  }
+}
+
 // Enrich games with gameCode from preloadedGames if missing
 function enrichGamesWithCode(games: PublishedGame[]): PublishedGame[] {
   const preloadedGames = {
@@ -71,14 +82,6 @@ function enrichGamesWithCode(games: PublishedGame[]): PublishedGame[] {
     }
     return game;
   });
-}
-        game.maxPlayers || null,
-        game.serverId || null
-      );
-    }
-  } catch (e) {
-    // Database sync is optional
-  }
 }
 
 // Get all published games (public)
