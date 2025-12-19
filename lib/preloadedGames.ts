@@ -2697,7 +2697,7 @@ function createGame(container) {
       chatMessages.push(chatMsg);
       chatContainer.appendChild(chatMsg);
       chatContainer.scrollTop = chatContainer.scrollHeight;
-      if (window.gameSocket && typeof window.gameSocket.emit === 'function') {
+      if (typeof window !== 'undefined' && window.gameSocket && typeof window.gameSocket.emit === 'function') {
         window.gameSocket.emit('chat-message', { message: msg });
       }
     };
@@ -2716,7 +2716,7 @@ function createGame(container) {
   document.addEventListener('keydown', handleChatKey);
   
   // Handle chat messages from other players
-  if (window.gameSocket && typeof window.gameSocket.on === 'function') {
+  if (typeof window !== 'undefined' && window.gameSocket && typeof window.gameSocket.on === 'function') {
     window.gameSocket.on('chat-message', (data) => {
       const chatMsg = document.createElement('div');
       chatMsg.textContent = (data.username || 'Player') + ': ' + data.message;
