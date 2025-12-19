@@ -129,7 +129,7 @@ io.on('connection', (socket) => {
   });
 });
 
-const PORT = process.env.SOCKET_PORT || 3001;
+const PORT = process.env.PORT || process.env.SOCKET_PORT || 3001;
 server.listen(PORT, () => {
   console.log(`🎮 Socket.io Game Server running on port ${PORT}`);
   console.log(`Connect from: ${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}`);
