@@ -232,6 +232,8 @@ export interface UserMadeGame {
   ts: number;
   sceneData: SceneData;
   publishedBy?: string; // Admin who published it
+  presetMessages?: string[]; // Preset chat messages
+  controls?: { forward: string; back: string; left: string; right: string; jump: string }; // Control scheme
 }
 
 export interface GameSubmission {
