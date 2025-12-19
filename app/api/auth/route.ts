@@ -1,9 +1,29 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { promises as fs } from 'fs';
+import path from 'path';
 import { authenticateUser, createOrUpdateUser, getUserFromDb } from '@/lib/auth';
 import { getDb } from '@/lib/db';
 import { User } from '@/types';
 
 // Login endpoint
+
+const DATA_DIR = path.join(process.cwd(), 'data');
+const USERS_FILE = path.join(DATA_DIR, 'users.json');
+
+async function readUsersFromFile(): Promise<User[]> {
+  try {
+    const data = await fs.readFile(USERS_FILE, 'utf-8');
+    return JSON.parse(data);
+  } catch (error) {
+    return [];
+  }
+}
+
+async function findUserInFile(username: string): Promise<User | null> {
+  const users = await readUsersFromFile();
+  return users.find(u => u.username.toLowerCase() === username.toLowerCase()) || null;
+}
+
 export async function POST(request: NextRequest) {
   try {
     const { username, password, action } = await request.json();
@@ -13,12 +33,15 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'Username and password required' }, { status: 400 });
       }
       
+      // Check JSON file first, then database
+      let userFromFile = await findUserInFile(username);
+      
       // Check if this is an admin account that needs to be created
       const { ADMIN_ACCOUNTS_LIST } = await import('@/lib/storage');
       const isAdmin = ADMIN_ACCOUNTS_LIST.some(a => a.username === username && a.password === password);
       
       if (isAdmin) {
-        const existing = getUserFromDb(username);
+        const existing = userFromFile || getUserFromDb(username);
         if (!existing) {
           // Auto-create admin account
           const adminUser: User = {
@@ -41,6 +64,35 @@ export async function POST(request: NextRequest) {
         }
       }
       
+      // Check JSON file first
+      if (userFromFile) {
+        // Verify password from JSON file
+        if (userFromFile.password === password) {
+          // Password matches, create token
+          const { generateToken } = await import('@/lib/auth');
+          const authUser = {
+            id: 0,
+            username: userFromFile.username,
+            role: userFromFile.role,
+            coins: userFromFile.coins,
+            equippedSkin: userFromFile.equippedSkin,
+            ownedSkins: userFromFile.ownedSkins,
+            ownedAccessories: userFromFile.ownedAccessories || [],
+            equippedAccessories: userFromFile.equippedAccessories || [],
+            ownedServers: userFromFile.ownedServers || [],
+            friends: userFromFile.friends || [],
+            isDonor: userFromFile.isDonor || false,
+          };
+          const token = generateToken(authUser);
+          return NextResponse.json({
+            success: true,
+            user: { ...userFromFile, password: '' },
+            token: token,
+          });
+        }
+      }
+      
+      // Fallback to database authentication
       const result = await authenticateUser(username, password);
       if (!result) {
         return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });
