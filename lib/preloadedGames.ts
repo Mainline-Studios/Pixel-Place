@@ -968,7 +968,7 @@ function createGame(container) {
   scene.add(player);
   
   // Controls
-  const keys: { [key: string]: boolean } = {};
+  const keys = {};
   
   const handleKeyDown = (e: KeyboardEvent) => {
     keys[e.code] = true;
@@ -3037,7 +3037,7 @@ function createGame(container) {
   scene.add(player);
   
   // Controls
-  const keys: { [key: string]: boolean } = {};
+  const keys = {};
   window.addEventListener('keydown', (e) => { keys[e.key.toLowerCase()] = true; });
   window.addEventListener('keyup', (e) => { keys[e.key.toLowerCase()] = false; });
   
@@ -3053,7 +3053,7 @@ function createGame(container) {
       countdown = 10;
     });
     
-    window.gameSocket.on('role-assigned', (data: { role: string }) => {
+    window.gameSocket.on('role-assigned', (data) => {
       isSeeker = data.role === 'seeker';
     });
   }
