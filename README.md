@@ -6,7 +6,7 @@ Experience fullscreen 3D adventures, compete in multiplayer matches, design your
 
 **🔒 IMPORTANT: This platform is currently in private alpha. Password authentication is required for access.**
 ![Pixel Place](https://img.shields.io/badge/Version-v0.2.2-blue)
-![Desktop App](https://img.shields.io/badge/Desktop%20App-Available-success)
+![Desktop App](https://img.shields.io/badge/Desktop%20App-Under-Construction-yellow-red)
 ![Next.js](https://img.shields.io/badge/Next.js-14.2.5-black)
 ![React](https://img.shields.io/badge/React-18.3.1-61dafb)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.5.4-3178c6)
