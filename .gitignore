@@ -1,6 +1,27 @@
-
 !/data/.gitkeep
 # Data folder (contains user accounts, bans, reports, appeals)
+# All data files are ignored - only .gitkeep is tracked
+/data/*
+!/data/.gitkeep
+
+# Specifically ignore sensitive JSON files
+/data/*.json
+/data/users.json
+/data/bans.json
+/data/reports.json
+/data/appeals.json
+/data/games/*.json
+/data/published.json
+/data/scene.json
+
+# Database files
+/data/*.db
+/data/*.db-wal
+/data/*.db-shm
+/data/database.db
+/data/database.db-wal
+/data/database.db-shm
+
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 # debug
 # dependencies
@@ -22,7 +43,6 @@
 /.pnp
 /build
 /coverage
-/data/*.json
 /node_modules
 /out/
 dist-electron/
@@ -35,7 +55,4 @@ yarn-debug.log*
 yarn-error.log*
 
 # Database and environment files
-data/database.db
-data/database.db-wal
-data/database.db-shm
 .env.local
