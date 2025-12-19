@@ -1,4 +1,4 @@
-import { User, Skin, PublishedGame, DraftGame, SceneData, TabContent, GameServer, ServerPlan, FriendRequest, Message, Accessory, PrebuiltGame } from '@/types';
+import { User, Skin, PublishedGame, DraftGame, SceneData, TabContent, GameServer, ServerPlan, FriendRequest, Message, Accessory, PrebuiltGame, UserMadeGame } from '@/types';
 import { TIC_TAC_TOE_PRELOADED_GAME, CAPTURE_THE_FLAG_PRELOADED_GAME } from '@/lib/preloadedGames';
 
 const ADMIN_ACCOUNTS = [
@@ -880,57 +880,62 @@ export async function saveDraft(draft: DraftGame): Promise<void> {
 // Published games functions - Now using API
 export async function getPublished(): Promise<PublishedGame[]> {
   if (typeof window === 'undefined') return [];
-  // Get all games from localStorage
-  let games = JSON.parse(localStorage.getItem("publishedGames") || "[]");
-  
-  // Remove duplicates - keep only the most recent version of each System game
-  const seen = new Map<string, PublishedGame>();
-  games.forEach((game: PublishedGame) => {
-    const key = `${game.title}_${game.owner}`;
-    if (!seen.has(key) || (seen.get(key)?.ts || 0) < (game.ts || 0)) {
-      seen.set(key, game);
+  try {
+    const response = await fetch('/api/published');
+    if (!response.ok) {
+      throw new Error('Failed to fetch published games');
     }
-  });
-  
-  // Convert back to array and remove any Tic Tac Toe duplicates
-  const uniqueGames = Array.from(seen.values());
-  
-  // Remove ALL Tic Tac Toe and Tic Tac Toe duplicates (any spelling)
-  const ticTacToeGames = uniqueGames.filter(g => 
-    (g.title === 'Tic Tac Toe' || g.title === 'Tic Tac Toe') && g.owner === 'System'
-  );
-  
-  if (ticTacToeGames.length > 0) {
-    // Always prefer "Tic Tac Toe" over "Tic Tac Toe" (correct spelling)
-    const ticTiToeGames = ticTacToeGames.filter(g => g.title === 'Tic Tac Toe');
-    const ticTacToeVariants = ticTacToeGames.filter(g => g.title === 'Tic Tac Toe');
+    let games = await response.json();
     
-    let latest;
-    if (ticTiToeGames.length > 0) {
-      // If we have "Tic Tac Toe", use the most recent one
-      ticTiToeGames.sort((a, b) => (b.ts || 0) - (a.ts || 0));
-      latest = ticTiToeGames[0];
-    } else if (ticTacToeVariants.length > 0) {
-      // Otherwise use the most recent "Tic Tac Toe" variant
-      ticTacToeVariants.sort((a, b) => (b.ts || 0) - (a.ts || 0));
-      latest = ticTacToeVariants[0];
-    }
+    // Remove duplicates - keep only the most recent version of each System game
+    const seen = new Map<string, PublishedGame>();
+    games.forEach((game: PublishedGame) => {
+      const key = `${game.title}_${game.owner}`;
+      if (!seen.has(key) || (seen.get(key)?.ts || 0) < (game.ts || 0)) {
+        seen.set(key, game);
+      }
+    });
     
-    if (latest) {
-      // Remove all Tic Tac Toe/Tic Tac Toe games
-      const filtered = uniqueGames.filter(g => 
-        !((g.title === 'Tic Tac Toe' || g.title === 'Tic Tac Toe') && g.owner === 'System')
-      );
-      // Add back only the latest one (preferring "Tic Tac Toe")
-      filtered.push(latest);
+    // Convert back to array and remove any Tic Tac Toe duplicates
+    const uniqueGames = Array.from(seen.values());
+    
+    // Remove ALL Tic Tac Toe and Tic Tac Toe duplicates (any spelling)
+    const ticTacToeGames = uniqueGames.filter(g => 
+      (g.title === 'Tic Tac Toe' || g.title === 'Tic Tac Toe') && g.owner === 'System'
+    );
+    
+    if (ticTacToeGames.length > 0) {
+      // Always prefer "Tic Tac Toe" over "Tic Tac Toe" (correct spelling)
+      const ticTiToeGames = ticTacToeGames.filter(g => g.title === 'Tic Tac Toe');
+      const ticTacToeVariants = ticTacToeGames.filter(g => g.title === 'Tic Tac Toe');
       
-      // Save the cleaned list back to localStorage
-      localStorage.setItem("publishedGames", JSON.stringify(filtered));
-      return filtered;
+      let latest;
+      if (ticTiToeGames.length > 0) {
+        // If we have "Tic Tac Toe", use the most recent one
+        ticTiToeGames.sort((a, b) => (b.ts || 0) - (a.ts || 0));
+        latest = ticTiToeGames[0];
+      } else if (ticTacToeVariants.length > 0) {
+        // Otherwise use the most recent "Tic Tac Toe" variant
+        ticTacToeVariants.sort((a, b) => (b.ts || 0) - (a.ts || 0));
+        latest = ticTacToeVariants[0];
+      }
+      
+      if (latest) {
+        // Remove all Tic Tac Toe/Tic Tac Toe games
+        const filtered = uniqueGames.filter(g => 
+          !((g.title === 'Tic Tac Toe' || g.title === 'Tic Tac Toe') && g.owner === 'System')
+        );
+        // Add back only the latest one (preferring "Tic Tac Toe")
+        filtered.push(latest);
+        return filtered;
+      }
     }
+    
+    return uniqueGames;
+  } catch (e) {
+    console.error('Error fetching published games:', e);
+    return [];
   }
-  
-  return uniqueGames;
 }
 
 export async function savePublished(games: PublishedGame[]): Promise<void> {
@@ -1218,18 +1223,48 @@ export async function getGameSubmissions(): Promise<any[]> {
 export async function saveUserMadeGame(game: any): Promise<void> {
   if (typeof window === 'undefined') return;
   try {
-    const games = JSON.parse(localStorage.getItem("userMadeGames") || "[]");
-    const index = games.findIndex((g: any) => g.id === game.id);
-    if (index >= 0) {
-      games[index] = game;
-    } else {
-      games.push(game);
+    const response = await fetch('/api/games', {
+      method: game.id && game.id.startsWith('game_') ? 'PUT' : 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(game),
+    });
+    if (!response.ok) {
+      throw new Error('Failed to save game');
     }
-    localStorage.setItem("userMadeGames", JSON.stringify(games));
   } catch (e) {
     console.error('Error saving user made game:', e);
+    throw e;
   }
 }
+export async function getUserMadeGames(): Promise<UserMadeGame[]> {
+  if (typeof window === 'undefined') return [];
+  try {
+    const response = await fetch('/api/games');
+    if (!response.ok) {
+      throw new Error('Failed to fetch games');
+    }
+    return await response.json();
+  } catch (e) {
+    console.error('Error fetching user made games:', e);
+    return [];
+  }
+}
+
+export async function deleteUserMadeGame(gameId: string): Promise<void> {
+  if (typeof window === 'undefined') return;
+  try {
+    const response = await fetch(`/api/games?id=${gameId}`, {
+      method: 'DELETE',
+    });
+    if (!response.ok) {
+      throw new Error('Failed to delete game');
+    }
+  } catch (e) {
+    console.error('Error deleting user made game:', e);
+    throw e;
+  }
+}
+
 
 export async function deleteGameSubmission(submissionId: string): Promise<void> {
   if (typeof window === 'undefined') return;
