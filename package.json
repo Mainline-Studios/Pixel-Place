@@ -5,7 +5,7 @@
     "scripts": {
         "dev": "next dev",
         "build": "next build",
-        "start": "next start",
+        "start": "next start -p ${PORT:-3000}",
         "lint": "next lint",
         "deploy": "npm run build && vercel --prod",
         "deploy:auto": "npm install -g vercel && npm install && npm run build && vercel login && vercel --prod",
