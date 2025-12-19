@@ -1,29 +1,40 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { promises as fs } from 'fs';
-import path from 'path';
+import { requireAuth } from '@/lib/middleware';
+import { createOrUpdateUser, getUserFromDb, getUserByIdFromDb } from '@/lib/auth';
+import { getDb } from '@/lib/db';
 import { User } from '@/types';
 
-const DATA_DIR = path.join(process.cwd(), 'data');
-const USERS_FILE = path.join(DATA_DIR, 'users.json');
-
-async function readUsers(): Promise<User[]> {
-  try {
-    const data = await fs.readFile(USERS_FILE, 'utf-8');
-    return JSON.parse(data);
-  } catch (error) {
-    // File doesn't exist, return empty array
-    return [];
+// Get all users (admin only)
+export async function GET(request: NextRequest) {
+  const authResult = requireAuth(request);
+  if (authResult.error) return authResult.error;
+  
+  if (authResult.user.role !== 'admin') {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
-}
-
-async function writeUsers(users: User[]): Promise<void> {
-  await fs.mkdir(DATA_DIR, { recursive: true });
-  await fs.writeFile(USERS_FILE, JSON.stringify(users, null, 2), 'utf-8');
-}
-
-export async function GET() {
+  
   try {
-    const users = await readUsers();
+    const db = getDb();
+    const stmt = db.prepare('SELECT * FROM users');
+    const rows = stmt.all() as any[];
+    
+    const users = rows.map(row => ({
+      username: row.username,
+      password: '', // Never return passwords
+      gender: row.gender || '',
+      role: row.role || 'user',
+      coins: row.coins || 0,
+      ownedSkins: JSON.parse(row.owned_skins || '[]'),
+      equippedSkin: row.equipped_skin || '',
+      ownedAccessories: JSON.parse(row.owned_accessories || '[]'),
+      equippedAccessories: JSON.parse(row.equipped_accessories || '[]'),
+      ownedServers: JSON.parse(row.owned_servers || '[]'),
+      friends: JSON.parse(row.friends || '[]'),
+      friendRequests: JSON.parse(row.friend_requests || '[]'),
+      sentFriendRequests: JSON.parse(row.sent_friend_requests || '[]'),
+      isDonor: row.is_donor === 1,
+    }));
+    
     return NextResponse.json(users);
   } catch (error) {
     console.error('Error reading users:', error);
@@ -31,53 +42,52 @@ export async function GET() {
   }
 }
 
+// Create or update user (requires auth)
 export async function POST(request: NextRequest) {
+  const authResult = requireAuth(request);
+  if (authResult.error) return authResult.error;
+  
   try {
-    const users = await readUsers();
-    const newUser: User = await request.json();
+    const userData: User = await request.json();
     
-    // Check if user already exists - if so, update it
-    const existingIndex = users.findIndex(u => u.username.toLowerCase() === newUser.username.toLowerCase());
-    if (existingIndex !== -1) {
-      users[existingIndex] = newUser;
-    } else {
-      users.push(newUser);
+    // Users can only update themselves unless admin
+    if (authResult.user.username !== userData.username && authResult.user.role !== 'admin') {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
     
-    await writeUsers(users);
-    return NextResponse.json(newUser);
-  } catch (error) {
+    await createOrUpdateUser(userData);
+    const user = getUserFromDb(userData.username);
+    
+    return NextResponse.json(user);
+  } catch (error: any) {
     console.error('Error creating/updating user:', error);
-    return NextResponse.json({ error: 'Failed to create/update user' }, { status: 500 });
+    return NextResponse.json({ error: error.message || 'Failed to create/update user' }, { status: 500 });
   }
 }
 
+// Update user (requires auth)
 export async function PUT(request: NextRequest) {
+  const authResult = requireAuth(request);
+  if (authResult.error) return authResult.error;
+  
   try {
-    const users = await readUsers();
     const updatedUser: User = await request.json();
     
-    const index = users.findIndex(u => u.username.toLowerCase() === updatedUser.username.toLowerCase());
-    if (index === -1) {
+    // Users can only update themselves unless admin
+    if (authResult.user.username !== updatedUser.username && authResult.user.role !== 'admin') {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+    
+    await createOrUpdateUser(updatedUser);
+    const user = getUserFromDb(updatedUser.username);
+    
+    if (!user) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
     
-    users[index] = updatedUser;
-    await writeUsers(users);
-    return NextResponse.json(updatedUser);
-  } catch (error) {
+    return NextResponse.json(user);
+  } catch (error: any) {
     console.error('Error updating user:', error);
-    return NextResponse.json({ error: 'Failed to update user' }, { status: 500 });
+    return NextResponse.json({ error: error.message || 'Failed to update user' }, { status: 500 });
   }
 }
-
-
-
-
-
-
-
-
-
-
-

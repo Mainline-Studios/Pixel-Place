@@ -1,42 +1,62 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { promises as fs } from 'fs';
-import path from 'path';
+import { requireAuth } from '@/lib/middleware';
+import { getDb } from '@/lib/db';
 import { SceneData } from '@/types';
 
-const DATA_DIR = path.join(process.cwd(), 'data');
-const SCENE_FILE = path.join(DATA_DIR, 'scene.json');
-
-async function readScene(): Promise<SceneData> {
+// Get scene data (requires auth)
+export async function GET(request: NextRequest) {
+  const authResult = requireAuth(request);
+  if (authResult.error) return authResult.error;
+  
   try {
-    const data = await fs.readFile(SCENE_FILE, 'utf-8');
-    return JSON.parse(data);
-  } catch (error) {
-    return { objects: [] };
-  }
-}
-
-async function writeScene(scene: SceneData): Promise<void> {
-  await fs.mkdir(DATA_DIR, { recursive: true });
-  await fs.writeFile(SCENE_FILE, JSON.stringify(scene, null, 2), 'utf-8');
-}
-
-export async function GET() {
-  try {
-    const scene = await readScene();
-    return NextResponse.json(scene);
+    const db = getDb();
+    const stmt = db.prepare('SELECT scene_data FROM scenes WHERE user_id = ? ORDER BY updated_at DESC LIMIT 1');
+    const row = stmt.get(authResult.user.username) as any;
+    
+    if (!row || !row.scene_data) {
+      return NextResponse.json({ objects: [] });
+    }
+    
+    const sceneData: SceneData = JSON.parse(row.scene_data);
+    return NextResponse.json(sceneData);
   } catch (error) {
     console.error('Error reading scene:', error);
     return NextResponse.json({ error: 'Failed to read scene' }, { status: 500 });
   }
 }
 
+// Save scene data (requires auth)
 export async function POST(request: NextRequest) {
+  const authResult = requireAuth(request);
+  if (authResult.error) return authResult.error;
+  
   try {
     const scene: SceneData = await request.json();
-    await writeScene(scene);
+    const db = getDb();
+    
+    // Check if scene exists
+    const checkStmt = db.prepare('SELECT id FROM scenes WHERE user_id = ?');
+    const existing = checkStmt.get(authResult.user.username) as any;
+    
+    if (existing) {
+      // Update existing
+      const updateStmt = db.prepare(`
+        UPDATE scenes SET scene_data = ?, updated_at = strftime('%s', 'now')
+        WHERE user_id = ?
+      `);
+      updateStmt.run(JSON.stringify(scene), authResult.user.username);
+    } else {
+      // Insert new
+      const insertStmt = db.prepare(`
+        INSERT INTO scenes (user_id, scene_data)
+        VALUES (?, ?)
+      `);
+      insertStmt.run(authResult.user.username, JSON.stringify(scene));
+    }
+    
     return NextResponse.json(scene);
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error saving scene:', error);
-    return NextResponse.json({ error: 'Failed to save scene' }, { status: 500 });
+    return NextResponse.json({ error: error.message || 'Failed to save scene' }, { status: 500 });
   }
 }
