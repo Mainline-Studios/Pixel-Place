@@ -1,0 +1,28 @@
+services:
+  - type: web
+    name: pixel-place
+    env: node
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_EXPIRES_IN
+        value: 7d
+    disk:
+      name: pixel-place-data
+      mountPath: /opt/render/project/src/data
+      sizeGB: 1
+
+  - type: worker
+    name: socket-server
+    env: node
+    buildCommand: npm install
+    startCommand: node server.js
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 3001
