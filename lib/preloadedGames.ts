@@ -2983,7 +2983,29 @@ export const HIDE_AND_SEEK_GAME_CODE = `// Hide and Seek - Online Multiplayer
 // THREE is provided by the game engine
 
 function createGame(container) {
-  // Wait for socket to be available (it connects asynchronously)
+  
+  // Check if socket is already available - if not, show Play Online button
+  const initialSocketCheck = typeof window !== 'undefined' && (
+    (window.gameSocket !== undefined && window.gameSocket !== null) ||
+    (window.__gameSocket !== undefined && window.__gameSocket !== null) ||
+    (window.__gameSocket && window.__gameSocket.connected === true)
+  );
+  
+  if (!initialSocketCheck) {
+    container.innerHTML = '<div style="color: white; padding: 20px; text-align: center;"><h2>Hide and Seek</h2><p>This game requires online multiplayer. Click "Play Online" to start.</p><button id="hide-seek-play-online-initial" style="margin-top: 15px; padding: 10px 20px; background: #4A9EFF; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 16px; font-weight: bold;">Play Online</button></div>';
+    
+    const playBtnInitial = container.querySelector('#hide-seek-play-online-initial');
+    if (playBtnInitial) {
+      playBtnInitial.addEventListener('click', () => {
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('hide-seek-request-online'));
+        }
+        container.innerHTML = '<div style="color: white; padding: 20px; text-align: center;"><h2>Hide and Seek</h2><p>Connecting to server...</p></div>';
+      });
+    }
+  }
+  
+// Wait for socket to be available (it connects asynchronously)
   let checkCount = 0;
   const maxChecks = 50; // Wait up to 5 seconds (50 * 100ms)
   
@@ -3003,7 +3025,17 @@ function createGame(container) {
     } else if (checkCount >= maxChecks) {
       // Give up after max checks
       clearInterval(checkSocket);
-      container.innerHTML = '<div style="color: white; padding: 20px; text-align: center;"><h2>Hide and Seek</h2><p>This game requires online multiplayer. Click "Play Online" to start.</p><p style="font-size: 12px; margin-top: 10px;">Connection timeout. Please ensure the socket server is running.</p></div>';
+      container.innerHTML = '<div style="color: white; padding: 20px; text-align: center;"><h2>Hide and Seek</h2><p>This game requires online multiplayer. Click "Play Online" to start.</p><button id="hide-seek-play-online-timeout" style="margin-top: 15px; padding: 10px 20px; background: #4A9EFF; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 16px; font-weight: bold;">Play Online</button><p style="font-size: 12px; margin-top: 15px; color: #FF6B6B;">Connection timeout. Please ensure the socket server is running.</p></div>';
+      const playBtnTimeout = container.querySelector('#hide-seek-play-online-timeout');
+      if (playBtnTimeout) {
+        playBtnTimeout.addEventListener('click', () => {
+          if (typeof window !== 'undefined') {
+            window.dispatchEvent(new CustomEvent('hide-seek-request-online'));
+          }
+          checkCount = 0; // Reset to keep checking
+          container.innerHTML = '<div style="color: white; padding: 20px; text-align: center;"><h2>Hide and Seek</h2><p>Retrying connection...</p></div>';
+        });
+      }
     } else if (checkCount % 10 === 0) {
       // Show progress every second
       container.innerHTML = '<div style="color: white; padding: 20px; text-align: center;"><h2>Hide and Seek</h2><p>Waiting for connection... (' + Math.ceil((maxChecks - checkCount) / 10) + 's)</p></div>';
