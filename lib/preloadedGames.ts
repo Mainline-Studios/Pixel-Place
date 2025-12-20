@@ -3264,7 +3264,7 @@ function createGame(container) {
     document.exitPointerLock();
   };
 }
-}`;
+`;
 export const HIDE_AND_SEEK_PRELOADED_GAME: PublishedGame = {
   title: 'Hide and Seek',
   desc: 'Classic hide and seek! One seeker, multiple hiders. Online multiplayer only - requires 3+ players.',
