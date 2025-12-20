@@ -2165,7 +2165,11 @@ export const CAPTURE_THE_FLAG_GAME_CODE = `// 4 Team Capture the Flag - Enhanced
 
 function createGame(container) {
   // Check if online mode
-  const isOnline = typeof window !== 'undefined' && window.gameSocket !== undefined && window.gameSocket !== null;
+  // Check for socket - also check __gameSocket which is set before gameSocket wrapper
+  const isOnline = typeof window !== 'undefined' && (
+    (window.gameSocket !== undefined && window.gameSocket !== null) ||
+    (window.__gameSocket !== undefined && window.__gameSocket !== null)
+  );
   const onlinePlayers = window.gamePlayers || [];
   let useNPCs = !isOnline; // No NPCs in online mode by default
   let waitingForPlayers = isOnline && onlinePlayers.length < 4;
@@ -2975,7 +2979,11 @@ export const HIDE_AND_SEEK_GAME_CODE = `// Hide and Seek - Online Multiplayer
 // THREE is provided by the game engine
 
 function createGame(container) {
-  const isOnline = typeof window !== 'undefined' && window.gameSocket !== undefined && window.gameSocket !== null;
+  // Check for socket - also check __gameSocket which is set before gameSocket wrapper
+  const isOnline = typeof window !== 'undefined' && (
+    (window.gameSocket !== undefined && window.gameSocket !== null) ||
+    (window.__gameSocket !== undefined && window.__gameSocket !== null)
+  );
   
   if (!isOnline) {
     container.innerHTML = '<div style="color: white; padding: 20px; text-align: center;"><h2>Hide and Seek</h2><p>This game requires online multiplayer. Click "Play Online" to start.</p></div>';
