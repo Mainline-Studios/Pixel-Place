@@ -2937,6 +2937,7 @@ function createGame(container) {
   
   window.addEventListener('resize', onWindowResize);
   animate();
+  }
   
   return function cleanup() {
     window.removeEventListener('resize', onWindowResize);
