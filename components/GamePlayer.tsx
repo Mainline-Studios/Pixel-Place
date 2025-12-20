@@ -92,6 +92,40 @@ export default function GamePlayer({ game, onClose }: GamePlayerProps) {
 
             socket.on('connect', () => {
               console.log('Connected to game server');
+              // Set socket reference globally for game code
+              (window as any).__gameSocket = socket;
+              // Also set up the gameSocket wrapper immediately
+              if (!(window as any).gameSocket) {
+                (window as any).gameSocket = {
+                  emit: function(event: string, data: any) {
+                    try {
+                      if (socket && socket.emit) {
+                        socket.emit(event, data);
+                      }
+                    } catch (e) {
+                      console.warn('Socket emit error:', e);
+                    }
+                  },
+                  on: function(event: string, callback: Function) {
+                    try {
+                      if (socket && socket.on) {
+                        socket.on(event, callback);
+                      }
+                    } catch (e) {
+                      console.warn('Socket on error:', e);
+                    }
+                  },
+                  off: function(event: string, callback: Function) {
+                    try {
+                      if (socket && socket.off) {
+                        socket.off(event, callback);
+                      }
+                    } catch (e) {
+                      console.warn('Socket off error:', e);
+                    }
+                  }
+                };
+              }
               socket.emit('join-game', {
                 serverId: serverId,
                 gameId: game.ts.toString(),
