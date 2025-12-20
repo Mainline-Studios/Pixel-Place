@@ -3132,10 +3132,6 @@ function createGame(container) {
       container.innerHTML = '<div style="color: white; padding: 20px; text-align: center;"><h2>Hide and Seek</h2><p>Waiting for connection... (' + Math.ceil((maxChecks - checkCount) / 10) + 's)</p></div>';
     }
 
-    } else if (checkCount % 10 === 0) {
-      // Show progress every second
-      container.innerHTML = '<div style="color: white; padding: 20px; text-align: center;"><h2>Hide and Seek</h2><p>Waiting for connection... (' + Math.ceil((maxChecks - checkCount) / 10) + 's)</p></div>';
-    }
   }, 100);
   
   function setupGame() {
