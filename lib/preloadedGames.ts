@@ -3005,6 +3005,106 @@ function createGame(container) {
     }
   }
   
+
+  function attachTimeoutButtons(container, checkSocket, checkCount, maxChecks) {
+    const playBtnTimeout = container.querySelector('#hide-seek-play-online-timeout, #hide-seek-play-online-timeout-retry');
+    if (playBtnTimeout) {
+      playBtnTimeout.replaceWith(playBtnTimeout.cloneNode(true));
+      const newPlayBtn = container.querySelector('#hide-seek-play-online-timeout, #hide-seek-play-online-timeout-retry');
+      newPlayBtn.addEventListener('click', () => {
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('hide-seek-request-online'));
+        }
+        checkCount = 0;
+        container.innerHTML = '<div style="color: white; padding: 20px; text-align: center;"><h2>Hide and Seek</h2><p>Retrying connection...</p></div>';
+      });
+    }
+    
+    const startServerBtn = container.querySelector('#hide-seek-start-server, #hide-seek-start-server-retry');
+    if (startServerBtn) {
+      startServerBtn.replaceWith(startServerBtn.cloneNode(true));
+      const newStartBtn = container.querySelector('#hide-seek-start-server, #hide-seek-start-server-retry');
+      newStartBtn.addEventListener('click', async () => {
+        newStartBtn.disabled = true;
+        newStartBtn.textContent = 'Starting...';
+        try {
+          const response = await fetch('/api/socket-server/start', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+          });
+          const data = await response.json();
+          if (data.success) {
+            newStartBtn.textContent = 'Server Started!';
+            newStartBtn.style.background = '#10B981';
+            checkCount = 0;
+            container.innerHTML = '<div style="color: white; padding: 20px; text-align: center;"><h2>Hide and Seek</h2><p>Socket server started! Connecting...</p></div>';
+            const newInterval = setInterval(() => {
+              checkCount++;
+              const hasSocket = typeof window !== 'undefined' && (
+                (window.gameSocket !== undefined && window.gameSocket !== null) ||
+                (window.__gameSocket !== undefined && window.__gameSocket !== null) ||
+                (window.__gameSocket && window.__gameSocket.connected === true)
+              );
+              if (hasSocket) {
+                clearInterval(newInterval);
+                setupGame();
+              } else if (checkCount >= maxChecks) {
+                clearInterval(newInterval);
+                const timeoutHtml = '<div style="color: white; padding: 20px; text-align: center;"><h2>Hide and Seek</h2><p>This game requires online multiplayer. Click "Play Online" to start.</p><div style="display: flex; flex-direction: column; gap: 10px; align-items: center; margin-top: 15px;"><button id="hide-seek-play-online-timeout-retry" style="padding: 10px 20px; background: #4A9EFF; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 16px; font-weight: bold; width: 200px;">Play Online</button><button id="hide-seek-start-server-retry" style="padding: 10px 20px; background: #10B981; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 16px; font-weight: bold; width: 200px;">Start Socket Server</button><button id="hide-seek-keep-trying-retry" style="padding: 10px 20px; background: #F59E0B; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 16px; font-weight: bold; width: 200px;">Keep Trying</button></div><p style="font-size: 12px; margin-top: 15px; color: #FF6B6B;">Connection timeout. Please ensure the socket server is running.</p></div>';
+                container.innerHTML = timeoutHtml;
+                attachTimeoutButtons(container, newInterval, checkCount, maxChecks);
+              }
+            }, 100);
+          } else {
+            newStartBtn.textContent = 'Failed: ' + (data.error || 'Unknown error');
+            newStartBtn.style.background = '#EF4444';
+            setTimeout(() => {
+              newStartBtn.disabled = false;
+              newStartBtn.textContent = 'Start Socket Server';
+              newStartBtn.style.background = '#10B981';
+            }, 3000);
+          }
+        } catch (error) {
+          newStartBtn.textContent = 'Error: ' + error.message;
+          newStartBtn.style.background = '#EF4444';
+          setTimeout(() => {
+            newStartBtn.disabled = false;
+            newStartBtn.textContent = 'Start Socket Server';
+            newStartBtn.style.background = '#10B981';
+          }, 3000);
+        }
+      });
+    }
+    
+    const keepTryingBtn = container.querySelector('#hide-seek-keep-trying, #hide-seek-keep-trying-retry');
+    if (keepTryingBtn) {
+      keepTryingBtn.replaceWith(keepTryingBtn.cloneNode(true));
+      const newKeepBtn = container.querySelector('#hide-seek-keep-trying, #hide-seek-keep-trying-retry');
+      newKeepBtn.addEventListener('click', () => {
+        checkCount = 0;
+        if (checkSocket) clearInterval(checkSocket);
+        container.innerHTML = '<div style="color: white; padding: 20px; text-align: center;"><h2>Hide and Seek</h2><p>Retrying connection...</p></div>';
+        const newInterval = setInterval(() => {
+          checkCount++;
+          const hasSocket = typeof window !== 'undefined' && (
+            (window.gameSocket !== undefined && window.gameSocket !== null) ||
+            (window.__gameSocket !== undefined && window.__gameSocket !== null) ||
+            (window.__gameSocket && window.__gameSocket.connected === true)
+          );
+          if (hasSocket) {
+            clearInterval(newInterval);
+            setupGame();
+          } else if (checkCount >= maxChecks) {
+            clearInterval(newInterval);
+            const timeoutHtml = '<div style="color: white; padding: 20px; text-align: center;"><h2>Hide and Seek</h2><p>This game requires online multiplayer. Click "Play Online" to start.</p><div style="display: flex; flex-direction: column; gap: 10px; align-items: center; margin-top: 15px;"><button id="hide-seek-play-online-timeout-retry" style="padding: 10px 20px; background: #4A9EFF; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 16px; font-weight: bold; width: 200px;">Play Online</button><button id="hide-seek-start-server-retry" style="padding: 10px 20px; background: #10B981; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 16px; font-weight: bold; width: 200px;">Start Socket Server</button><button id="hide-seek-keep-trying-retry" style="padding: 10px 20px; background: #F59E0B; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 16px; font-weight: bold; width: 200px;">Keep Trying</button></div><p style="font-size: 12px; margin-top: 15px; color: #FF6B6B;">Connection timeout. Please ensure the socket server is running.</p></div>';
+            container.innerHTML = timeoutHtml;
+            attachTimeoutButtons(container, newInterval, checkCount, maxChecks);
+          }
+        }, 100);
+      });
+    }
+  }
+
 // Wait for socket to be available (it connects asynchronously)
   let checkCount = 0;
   const maxChecks = 50; // Wait up to 5 seconds (50 * 100ms)
@@ -3025,13 +3125,15 @@ function createGame(container) {
     } else if (checkCount >= maxChecks) {
       // Give up after max checks
       clearInterval(checkSocket);
-      container.innerHTML = '<div style="color: white; padding: 20px; text-align: center;"><h2>Hide and Seek</h2><p>This game requires online multiplayer. Click "Play Online" to start.</p><button id="hide-seek-play-online-timeout" style="margin-top: 15px; padding: 10px 20px; background: #4A9EFF; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 16px; font-weight: bold;">Play Online</button><p style="font-size: 12px; margin-top: 15px; color: #FF6B6B;">Connection timeout. Please ensure the socket server is running.</p></div>';
-      const playBtnTimeout = container.querySelector('#hide-seek-play-online-timeout');
-      if (playBtnTimeout) {
-        playBtnTimeout.addEventListener('click', () => {
-          if (typeof window !== 'undefined') {
-            window.dispatchEvent(new CustomEvent('hide-seek-request-online'));
-          }
+      container.innerHTML = '<div style="color: white; padding: 20px; text-align: center;"><h2>Hide and Seek</h2><p>This game requires online multiplayer. Click "Play Online" to start.</p><div style="display: flex; flex-direction: column; gap: 10px; align-items: center; margin-top: 15px;"><button id="hide-seek-play-online-timeout" style="padding: 10px 20px; background: #4A9EFF; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 16px; font-weight: bold; width: 200px;">Play Online</button><button id="hide-seek-start-server" style="padding: 10px 20px; background: #10B981; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 16px; font-weight: bold; width: 200px;">Start Socket Server</button><button id="hide-seek-keep-trying" style="padding: 10px 20px; background: #F59E0B; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 16px; font-weight: bold; width: 200px;">Keep Trying</button></div><p style="font-size: 12px; margin-top: 15px; color: #FF6B6B;">Connection timeout. Please ensure the socket server is running.</p></div>';
+      attachTimeoutButtons(container, checkSocket, checkCount, maxChecks);
+    } (checkCount >= maxChecks) {
+              clearInterval(newInterval);
+              container.innerHTML = '<div style="color: white; padding: 20px; text-align: center;"><h2>Hide and Seek</h2><p>This game requires online multiplayer. Click "Play Online" to start.</p><div style="display: flex; flex-direction: column; gap: 10px; align-items: center; margin-top: 15px;"><button id="hide-seek-play-online-timeout-retry" style="padding: 10px 20px; background: #4A9EFF; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 16px; font-weight: bold; width: 200px;">Play Online</button><button id="hide-seek-start-server-retry" style="padding: 10px 20px; background: #10B981; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 16px; font-weight: bold; width: 200px;">Start Socket Server</button><button id="hide-seek-keep-trying-retry" style="padding: 10px 20px; background: #F59E0B; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 16px; font-weight: bold; width: 200px;">Keep Trying</button></div><p style="font-size: 12px; margin-top: 15px; color: #FF6B6B;">Connection timeout. Please ensure the socket server is running.</p></div>';
+            }
+          }, 100);
+        });
+      }
           checkCount = 0; // Reset to keep checking
           container.innerHTML = '<div style="color: white; padding: 20px; text-align: center;"><h2>Hide and Seek</h2><p>Retrying connection...</p></div>';
         });
