@@ -47,6 +47,16 @@ export default function GamePlayer({ game, onClose }: GamePlayerProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [loadingStage, setLoadingStage] = useState<'engine' | 'assets' | 'world'>('engine');
   const [loadingProgress, setLoadingProgress] = useState(0);
+  const [particlePositions] = useState(() => 
+    Array.from({ length: 20 }, () => ({
+      size: Math.random() * 4 + 2,
+      left: Math.random() * 100,
+      top: Math.random() * 100,
+      duration: 3 + Math.random() * 2,
+      delay: Math.random() * 2,
+      type: Math.floor(Math.random() * 3)
+    }))
+  );
   const serverId = game.serverId;
   const isOnlineMode = game.multiplayer && !!serverId;
   const [isOnline, setIsOnline] = useState(isOnlineMode);
@@ -1080,19 +1090,19 @@ return (
             overflow: 'hidden',
             opacity: 0.3
           }}>
-            {[...Array(20)].map((_, i) => (
+            {particlePositions.map((particle, i) => (
               <div
                 key={i}
                 style={{
                   position: 'absolute',
-                  width: `${Math.random() * 4 + 2}px`,
-                  height: `${Math.random() * 4 + 2}px`,
+                  width: `${particle.size}px`,
+                  height: `${particle.size}px`,
                   background: '#fff',
                   borderRadius: '50%',
-                  left: `${Math.random() * 100}%`,
-                  top: `${Math.random() * 100}%`,
-                  animation: `float${i % 3} ${3 + Math.random() * 2}s ease-in-out infinite`,
-                  animationDelay: `${Math.random() * 2}s`
+                  left: `${particle.left}%`,
+                  top: `${particle.top}%`,
+                  animation: `float${particle.type} ${particle.duration}s ease-in-out infinite`,
+                  animationDelay: `${particle.delay}s`
                 }}
               />
             ))}
