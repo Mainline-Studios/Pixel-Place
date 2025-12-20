@@ -143,7 +143,7 @@ io.on('connection', (socket) => {
     }
 
     const room = gameRooms.get(roomId);
-    const player = {
+    const gamePlayer = {
       id: socket.id,
       username: username || 'Player',
       position: { x: 0, y: 0, z: 0 },
@@ -151,11 +151,11 @@ io.on('connection', (socket) => {
     };
 
     // Check if player already exists
-    const existingPlayerIndex = room.players.findIndex(p => p.username === player.username);
+    const existingPlayerIndex = room.players.findIndex(p => p.username === gamePlayer.username);
     if (existingPlayerIndex !== -1) {
-      room.players[existingPlayerIndex] = player;
+      room.players[existingPlayerIndex] = gamePlayer;
     } else {
-      room.players.push(player);
+      room.players.push(gamePlayer);
     }
 
     // Notify others
