@@ -23,7 +23,7 @@ const PRESET_MESSAGES = {
     waitingRoom: [
       'Ready to play!',
       'Good luck!',
-      'Let's go!',
+      "Let's go!",
       'X or O?',
       'Best of 3?'
     ],
@@ -38,7 +38,7 @@ const PRESET_MESSAGES = {
   'capture-the-flag': {
     waitingRoom: [
       'Ready for battle!',
-      'Let's capture some flags!',
+      "Let's capture some flags!",
       'Team up!',
       'Protect the base!',
       'Time to dominate!'
@@ -54,10 +54,10 @@ const PRESET_MESSAGES = {
   'hide-and-seek': {
     waitingRoom: [
       'Ready to hide!',
-      'Who's the seeker?',
+      "Who's the seeker?",
       'Find a good spot!',
-      'Don't find me!',
-      'Let's play!'
+      "Don't find me!",
+      "Let's play!"
     ],
     gameChat: [
       'Found you!',
