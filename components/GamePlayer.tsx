@@ -244,15 +244,18 @@ socket.on('disconnect', () => {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
+            action: 'create',
             gameId: game.ts.toString(),
-            serverId: serverId || undefined
+            gameTitle: game.title,
+            username: contextUser.username,
+            maxPlayers: game.maxPlayers || 10
           })
         })
           .then(res => res.json())
           .then(data => {
             setIsCreatingSession(false);
-            if (data.success && data.sessionId) {
-              setOnlineSession(data.sessionId);
+            if (data.success && data.session?.id) {
+              setOnlineSession(data.session.id);
               setIsOnline(true);
               setIsLoading(true);
             } else {
