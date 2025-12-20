@@ -106,6 +106,11 @@ export default function GamePlayer({ game, onClose }: GamePlayerProps) {
               console.log('Connected to game server');
               // Set socket reference globally for game code
               (window as any).__gameSocket = socket;
+              // Update loading progress when socket connects
+              if (game.multiplayer && isLoading) {
+                setLoadingProgress(10);
+                setLoadingStage('engine');
+              }
               // Also set up the gameSocket wrapper immediately
               if (!(window as any).gameSocket) {
                 (window as any).gameSocket = {
@@ -288,37 +293,19 @@ socket.on('disconnect', () => {
   }, [isOnline, game.multiplayer, contextUser, serverId, game.ts]);
 
 
-  // Loading sequence: 5s engine, 3s assets, 10s world (18s total)
+  // Real-time loading progress tracking
   useEffect(() => {
     if (!isLoading) return;
     
-    setLoadingStage('engine');
-    setLoadingProgress(0);
-    
-    const totalTime = 18000; // 18 seconds total
-    const engineTime = 5000; // 5 seconds
-    const assetsTime = 3000; // 3 seconds
-    const worldTime = 10000; // 10 seconds
-    
-    let startTime = Date.now();
-    const interval = setInterval(() => {
-      const elapsed = Date.now() - startTime;
-      const progress = Math.min(100, (elapsed / totalTime) * 100);
-      setLoadingProgress(progress);
-      
-      if (elapsed < engineTime) {
-        setLoadingStage('engine');
-      } else if (elapsed < engineTime + assetsTime) {
-        setLoadingStage('assets');
-      } else if (elapsed < totalTime) {
-        setLoadingStage('world');
-      } else {
-        clearInterval(interval);
-      }
-    }, 16); // Update every ~16ms (60fps) for ultra-smooth progress
-    
-    return () => clearInterval(interval);
-  }, [isLoading]);
+    // Start with socket stage for multiplayer games
+    if (game.multiplayer && isOnline) {
+      setLoadingStage('socket');
+      setLoadingProgress(0);
+    } else {
+      setLoadingStage('engine');
+      setLoadingProgress(5);
+    }
+  }, [isLoading, game.multiplayer, isOnline]);
 
   useEffect(() => {
     if (!containerRef.current || !game.gameCode) return;
@@ -329,11 +316,14 @@ socket.on('disconnect', () => {
       try {
         // Import Three.js dynamically
         const THREE = await import('three');
+        setLoadingStage('engine');
+        setLoadingProgress(10);
 
         // Create a module-like environment
         const moduleExports: any = {};
         const moduleObj = { exports: moduleExports };
 
+        setLoadingProgress(20);
         // Get user skin data for avatar rendering
         let userSkinData = null;
         if (contextUser) {
@@ -359,6 +349,7 @@ socket.on('disconnect', () => {
         // Pass user skin data to game
         (window as any).__userSkinData = userSkinData;
         
+        setLoadingProgress(30);
         // Add multiplayer support if online
         let multiplayerCode = '';
         if (isOnline && socketRef.current) {
@@ -414,6 +405,8 @@ socket.on('disconnect', () => {
 
         // Wrap the game code in a function that has access to THREE
         // Ensure code is treated as plain script, not module
+        setLoadingStage('assets');
+        setLoadingProgress(40);
         const gameCodeStr = String(game.gameCode || '').trim();
 
         // Remove any potential import/export statements that might cause issues
@@ -695,17 +688,35 @@ socket.on('disconnect', () => {
           '}';
 
         // Execute in function scope with THREE and exports as parameters
+        setLoadingProgress(60);
         const gameFunction = new Function('THREE', 'exports', fullCode);
 
+        setLoadingProgress(70);
         gameFunction(THREE, moduleExports);
 
+        setLoadingStage('world');
+        setLoadingProgress(80);
         if (moduleExports.createGame && typeof moduleExports.createGame === 'function') {
           const cleanup = moduleExports.createGame(containerRef.current!);
           if (typeof cleanup === 'function') {
             cleanupRef.current = cleanup;
           }
           // Wait for loading sequence to complete (18 seconds total)
-          await new Promise(resolve => setTimeout(resolve, 18000));
+          // Gradually increase progress during game initialization
+        const startProgress = 80;
+        const endProgress = 95;
+        const duration = 15000; // 15 seconds
+        const startTime = Date.now();
+        const progressInterval = setInterval(() => {
+          const elapsed = Date.now() - startTime;
+          const progress = Math.min(endProgress, startProgress + (elapsed / duration) * (endProgress - startProgress));
+          setLoadingProgress(progress);
+          if (progress >= endProgress) {
+            clearInterval(progressInterval);
+          }
+        }, 50);
+        await new Promise(resolve => setTimeout(resolve, duration));
+        clearInterval(progressInterval);
           
           setLoadingProgress(100);
           setIsLoading(false);
@@ -820,7 +831,7 @@ return (
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          color: '#fff',
+          color: '#9fa4b8',
           fontFamily: 'Arial, sans-serif'
         }}
       >
@@ -1069,15 +1080,13 @@ return (
             left: 0,
             width: '100%',
             height: '100%',
-            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%)',
-            backgroundSize: '400% 400%',
-            animation: 'gradientShift 8s ease infinite',
+            background: '#0f1117',
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
             justifyContent: 'center',
             zIndex: 15000,
-            color: '#fff',
+            color: '#9fa4b8',
             fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
             overflow: 'hidden'
           }}
@@ -1088,7 +1097,7 @@ return (
             width: '100%',
             height: '100%',
             overflow: 'hidden',
-            opacity: 0.3
+            opacity: 0.15
           }}>
             {particlePositions.map((particle, i) => (
               <div
@@ -1097,12 +1106,13 @@ return (
                   position: 'absolute',
                   width: `${particle.size}px`,
                   height: `${particle.size}px`,
-                  background: '#fff',
+                  background: '#9fa4b8',
                   borderRadius: '50%',
                   left: `${particle.left}%`,
                   top: `${particle.top}%`,
                   animation: `float${particle.type} ${particle.duration}s ease-in-out infinite`,
-                  animationDelay: `${particle.delay}s`
+                  animationDelay: `${particle.delay}s`,
+                  boxShadow: '0 0 8px rgba(159, 164, 184, 0.3)'
                 }}
               />
             ))}
@@ -1122,14 +1132,8 @@ return (
               marginBottom: '20px',
               letterSpacing: '3px',
               textTransform: 'uppercase',
-              background: 'linear-gradient(90deg, #fff 0%, #f0f0f0 50%, #fff 100%)',
-              backgroundSize: '200% 100%',
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent',
-              backgroundClip: 'text',
-              animation: 'shimmer 3s linear infinite',
-              textShadow: '0 0 30px rgba(255, 255, 255, 0.5)',
-              filter: 'drop-shadow(0 0 10px rgba(255, 255, 255, 0.3))'
+              color: '#f2f2f5',
+              textShadow: '0 0 20px rgba(159, 164, 184, 0.2)'
             }}>
               {game.title}
             </div>
@@ -1139,8 +1143,8 @@ return (
               fontSize: '48px',
               fontWeight: 700,
               marginBottom: '30px',
-              color: '#fff',
-              textShadow: '0 0 20px rgba(255, 255, 255, 0.5)',
+              color: '#9fa4b8',
+              
               fontVariantNumeric: 'tabular-nums',
               letterSpacing: '2px'
             }}>
@@ -1151,12 +1155,12 @@ return (
             <div
               style={{
                 width: '100%',
-                height: '16px',
-                background: 'rgba(255, 255, 255, 0.2)',
-                borderRadius: '10px',
+                height: '12px',
+                background: '#1a1d29',
+                borderRadius: '8px',
                 overflow: 'hidden',
-                border: '2px solid rgba(255, 255, 255, 0.3)',
-                boxShadow: '0 4px 20px rgba(0, 0, 0, 0.3), inset 0 2px 4px rgba(255, 255, 255, 0.1)',
+                border: '1px solid #3a3f57',
+                boxShadow: 'inset 0 2px 4px rgba(0, 0, 0, 0.3)',
                 marginBottom: '40px',
                 position: 'relative'
               }}
@@ -1166,12 +1170,11 @@ return (
                 style={{
                   width: `${loadingProgress}%`,
                   height: '100%',
-                  background: 'linear-gradient(90deg, #fff 0%, #f0f0f0 50%, #fff 100%)',
+                  background: 'linear-gradient(90deg, #9fa4b8 0%, #c9cde0 50%, #9fa4b8 100%)',
                   backgroundSize: '200% 100%',
-                  borderRadius: '8px',
-                  transition: 'width 0.05s linear',
-                  boxShadow: '0 0 20px rgba(255, 255, 255, 0.6), inset 0 2px 4px rgba(255, 255, 255, 0.3)',
-                  animation: 'progressShine 2s linear infinite',
+                  borderRadius: '7px',
+                  transition: 'width 0.1s ease-out',
+                  boxShadow: '0 0 10px rgba(159, 164, 184, 0.3)',
                   position: 'relative',
                   overflow: 'hidden'
                 }}
@@ -1183,8 +1186,8 @@ return (
                   left: '-100%',
                   width: '100%',
                   height: '100%',
-                  background: 'linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4), transparent)',
-                  animation: 'shimmerMove 1.5s ease-in-out infinite'
+                  background: 'linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.15), transparent)',
+                  animation: 'shimmerMove 2s ease-in-out infinite'
                 }} />
               </div>
               
@@ -1195,7 +1198,7 @@ return (
                 left: `${loadingProgress}%`,
                 width: '4px',
                 height: '100%',
-                background: '#fff',
+                background: '#9fa4b8',
                 boxShadow: '0 0 15px rgba(255, 255, 255, 0.8), 0 0 30px rgba(255, 255, 255, 0.4)',
                 borderRadius: '2px',
                 transition: 'left 0.05s linear'
@@ -1209,15 +1212,37 @@ return (
               textAlign: 'left',
               fontWeight: 500
             }}>
+              {game.multiplayer && isOnline && (
+                <div style={{ 
+                  marginBottom: '16px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '12px',
+                  color: loadingStage === 'socket' ? '#f2f2f5' : loadingProgress > 10 ? '#9fa4b8' : '#8b90a8',
+                  transition: 'all 0.3s ease',
+                  transform: loadingStage === 'socket' ? 'scale(1.05)' : 'scale(1)',
+                  textShadow: loadingStage === 'socket' ? '0 0 8px rgba(159, 164, 184, 0.3)' : 'none'
+                }}>
+                  <span style={{ fontSize: '20px', width: '24px', textAlign: 'center' }}>
+                    {loadingProgress > 10 ? '✓' : loadingStage === 'socket' ? '⟳' : '○'}
+                  </span>
+                  <span>Starting socket server...</span>
+                  {loadingStage === 'socket' && (
+                    <span style={{ marginLeft: 'auto', fontSize: '12px', opacity: 0.7 }}>
+                      {Math.round((loadingProgress / 10) * 100)}%
+                    </span>
+                  )}
+                </div>
+              )}
               <div style={{ 
                 marginBottom: '16px',
                 display: 'flex',
                 alignItems: 'center',
                 gap: '12px',
-                color: loadingStage === 'engine' ? '#fff' : loadingProgress > 27.8 ? 'rgba(255, 255, 255, 0.6)' : 'rgba(255, 255, 255, 0.4)',
+                color: loadingStage === 'engine' ? '#f2f2f5' : loadingProgress > 27.8 ? '#9fa4b8' : '#8b90a8',
                 transition: 'all 0.3s ease',
                 transform: loadingStage === 'engine' ? 'scale(1.05)' : 'scale(1)',
-                textShadow: loadingStage === 'engine' ? '0 0 10px rgba(255, 255, 255, 0.5)' : 'none'
+                textShadow: loadingStage === 'engine' ? '0 0 8px rgba(159, 164, 184, 0.3)' : 'none'
               }}>
                 <span style={{ fontSize: '20px', width: '24px', textAlign: 'center' }}>
                   {loadingProgress > 27.8 ? '✓' : loadingStage === 'engine' ? '⟳' : '○'}
@@ -1234,10 +1259,10 @@ return (
                 display: 'flex',
                 alignItems: 'center',
                 gap: '12px',
-                color: loadingStage === 'assets' ? '#fff' : loadingProgress > 44.4 ? 'rgba(255, 255, 255, 0.6)' : 'rgba(255, 255, 255, 0.4)',
+                color: loadingStage === 'assets' ? '#f2f2f5' : loadingProgress > 44.4 ? '#9fa4b8' : '#8b90a8',
                 transition: 'all 0.3s ease',
                 transform: loadingStage === 'assets' ? 'scale(1.05)' : 'scale(1)',
-                textShadow: loadingStage === 'assets' ? '0 0 10px rgba(255, 255, 255, 0.5)' : 'none'
+                textShadow: loadingStage === 'assets' ? '0 0 8px rgba(159, 164, 184, 0.3)' : 'none'
               }}>
                 <span style={{ fontSize: '20px', width: '24px', textAlign: 'center' }}>
                   {loadingProgress > 44.4 ? '✓' : loadingStage === 'assets' ? '⟳' : '○'}
@@ -1253,10 +1278,10 @@ return (
                 display: 'flex',
                 alignItems: 'center',
                 gap: '12px',
-                color: loadingStage === 'world' ? '#fff' : loadingProgress === 100 ? 'rgba(255, 255, 255, 0.6)' : 'rgba(255, 255, 255, 0.4)',
+                color: loadingStage === 'world' ? '#f2f2f5' : loadingProgress === 100 ? '#9fa4b8' : '#8b90a8',
                 transition: 'all 0.3s ease',
                 transform: loadingStage === 'world' ? 'scale(1.05)' : 'scale(1)',
-                textShadow: loadingStage === 'world' ? '0 0 10px rgba(255, 255, 255, 0.5)' : 'none'
+                textShadow: loadingStage === 'world' ? '0 0 8px rgba(159, 164, 184, 0.3)' : 'none'
               }}>
                 <span style={{ fontSize: '20px', width: '24px', textAlign: 'center' }}>
                   {loadingProgress === 100 ? '✓' : loadingStage === 'world' ? '⟳' : '○'}
@@ -1274,10 +1299,11 @@ return (
             <div style={{
               marginTop: '40px',
               fontSize: '14px',
-              color: 'rgba(255, 255, 255, 0.7)',
+              color: '#8b90a8',
               fontWeight: 300,
               letterSpacing: '1px'
             }}>
+              {loadingStage === 'socket' && '🔌 Starting socket server...'}
               {loadingStage === 'engine' && '⚙️ Setting up game engine...'}
               {loadingStage === 'assets' && '📦 Loading game assets...'}
               {loadingStage === 'world' && '🌍 Building game world...'}
@@ -1303,15 +1329,15 @@ return (
               100% { left: 100%; }
             }
             @keyframes float0 {
-              0%, 100% { transform: translateY(0px) translateX(0px); opacity: 0.3; }
+              0%, 100% { transform: translateY(0px) translateX(0px); opacity: 0.15; }
               50% { transform: translateY(-20px) translateX(10px); opacity: 0.6; }
             }
             @keyframes float1 {
-              0%, 100% { transform: translateY(0px) translateX(0px); opacity: 0.3; }
+              0%, 100% { transform: translateY(0px) translateX(0px); opacity: 0.15; }
               50% { transform: translateY(-15px) translateX(-10px); opacity: 0.5; }
             }
             @keyframes float2 {
-              0%, 100% { transform: translateY(0px) translateX(0px); opacity: 0.3; }
+              0%, 100% { transform: translateY(0px) translateX(0px); opacity: 0.15; }
               50% { transform: translateY(-25px) translateX(15px); opacity: 0.7; }
             }
           `}</style>
@@ -1339,7 +1365,7 @@ return (
                 left: '50%',
                 transform: 'translate(-50%, -50%)',
                 background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                color: '#fff',
+                color: '#9fa4b8',
                 padding: '32px',
                 borderRadius: '20px',
                 textAlign: 'center',
@@ -1354,7 +1380,7 @@ return (
                 <button
                   onClick={onClose}
                   style={{
-                    background: '#fff',
+                    background: '#9fa4b8',
                     border: 'none',
                     color: '#ff4d4d',
                     padding: '12px 24px',
@@ -1374,7 +1400,7 @@ return (
                   style={{
                     background: 'rgba(255, 255, 255, 0.2)',
                     border: '2px solid #fff',
-                    color: '#fff',
+                    color: '#9fa4b8',
                     padding: '12px 24px',
                     borderRadius: '10px',
                     cursor: 'pointer',
@@ -1397,7 +1423,7 @@ return (
                 left: '50%',
                 transform: 'translate(-50%, -50%)',
                 background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
-                color: '#fff',
+                color: '#9fa4b8',
                 padding: '32px',
                 borderRadius: '20px',
                 textAlign: 'center',
@@ -1416,7 +1442,7 @@ return (
                   style={{
                     background: 'rgba(255, 255, 255, 0.2)',
                     border: '2px solid #fff',
-                    color: '#fff',
+                    color: '#9fa4b8',
                     padding: '12px 24px',
                     borderRadius: '10px',
                     cursor: 'pointer',
@@ -1436,7 +1462,7 @@ return (
                     setError(null);
                   }}
                   style={{
-                    background: '#fff',
+                    background: '#9fa4b8',
                     border: 'none',
                     color: '#f5576c',
                     padding: '12px 24px',
