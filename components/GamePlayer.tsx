@@ -41,6 +41,8 @@ export default function GamePlayer({ game, onClose }: GamePlayerProps) {
   const cleanupRef = useRef<(() => void) | null>(null);
   const socketRef = useRef<Socket | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [showErrorWarning, setShowErrorWarning] = useState(false);
+  const [errorBypassed, setErrorBypassed] = useState(false);
   const [showSafetyPopup, setShowSafetyPopup] = useState(true);
   const [isLoading, setIsLoading] = useState(true);
   const [loadingStage, setLoadingStage] = useState<'engine' | 'assets' | 'world'>('engine');
@@ -1187,39 +1189,132 @@ return (
           transition: 'opacity 0.5s'
         }}
       />
-      {error && (
-        <div
-          style={{
-            position: 'absolute',
-            top: '50%',
-            left: '50%',
-            transform: 'translate(-50%, -50%)',
-            background: 'rgba(255, 77, 77, 0.9)',
-            color: '#fff',
-            padding: '24px',
-            borderRadius: '8px',
-            textAlign: 'center',
-            maxWidth: '500px'
-          }}
-        >
-          <h3 style={{ margin: '0 0 12px 0' }}>Game Error</h3>
-          <p style={{ margin: 0 }}>{error}</p>
-          <button
-            onClick={onClose}
-            style={{
-              marginTop: '16px',
-              background: '#fff',
-              border: 'none',
-              color: '#ff4d4d',
-              padding: '8px 16px',
-              borderRadius: '8px',
-              cursor: 'pointer',
-              fontWeight: 600
-            }}
-          >
-            Close
-          </button>
-        </div>
+      {error && !errorBypassed && (
+        <>
+          {!showErrorWarning ? (
+            <div
+              style={{
+                position: 'absolute',
+                top: '50%',
+                left: '50%',
+                transform: 'translate(-50%, -50%)',
+                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                color: '#fff',
+                padding: '32px',
+                borderRadius: '20px',
+                textAlign: 'center',
+                maxWidth: '500px',
+                boxShadow: '0 20px 60px rgba(0, 0, 0, 0.3)',
+                zIndex: 10000
+              }}
+            >
+              <h3 style={{ margin: '0 0 16px 0', fontSize: '24px', fontWeight: 700 }}>⚠️ Game Error</h3>
+              <p style={{ margin: '0 0 24px 0', fontSize: '16px', lineHeight: 1.6, background: 'rgba(255, 255, 255, 0.2)', padding: '16px', borderRadius: '8px' }}>{error}</p>
+              <div style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
+                <button
+                  onClick={onClose}
+                  style={{
+                    background: '#fff',
+                    border: 'none',
+                    color: '#ff4d4d',
+                    padding: '12px 24px',
+                    borderRadius: '10px',
+                    cursor: 'pointer',
+                    fontWeight: 600,
+                    fontSize: '16px',
+                    transition: 'transform 0.2s',
+                  }}
+                  onMouseOver={(e) => e.currentTarget.style.transform = 'scale(1.05)'}
+                  onMouseOut={(e) => e.currentTarget.style.transform = 'scale(1)'}
+                >
+                  Close
+                </button>
+                <button
+                  onClick={() => setShowErrorWarning(true)}
+                  style={{
+                    background: 'rgba(255, 255, 255, 0.2)',
+                    border: '2px solid #fff',
+                    color: '#fff',
+                    padding: '12px 24px',
+                    borderRadius: '10px',
+                    cursor: 'pointer',
+                    fontWeight: 600,
+                    fontSize: '16px',
+                    transition: 'transform 0.2s',
+                  }}
+                  onMouseOver={(e) => e.currentTarget.style.transform = 'scale(1.05)'}
+                  onMouseOut={(e) => e.currentTarget.style.transform = 'scale(1)'}
+                >
+                  Continue
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div
+              style={{
+                position: 'absolute',
+                top: '50%',
+                left: '50%',
+                transform: 'translate(-50%, -50%)',
+                background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
+                color: '#fff',
+                padding: '32px',
+                borderRadius: '20px',
+                textAlign: 'center',
+                maxWidth: '500px',
+                boxShadow: '0 20px 60px rgba(0, 0, 0, 0.3)',
+                zIndex: 10001
+              }}
+            >
+              <h3 style={{ margin: '0 0 16px 0', fontSize: '24px', fontWeight: 700 }}>⚠️ Warning</h3>
+              <p style={{ margin: '0 0 24px 0', fontSize: '16px', lineHeight: 1.6, background: 'rgba(255, 255, 255, 0.2)', padding: '16px', borderRadius: '8px' }}>
+                Continuing with errors may cause the game to behave unexpectedly or crash. Are you sure you want to proceed?
+              </p>
+              <div style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
+                <button
+                  onClick={() => setShowErrorWarning(false)}
+                  style={{
+                    background: 'rgba(255, 255, 255, 0.2)',
+                    border: '2px solid #fff',
+                    color: '#fff',
+                    padding: '12px 24px',
+                    borderRadius: '10px',
+                    cursor: 'pointer',
+                    fontWeight: 600,
+                    fontSize: '16px',
+                    transition: 'transform 0.2s',
+                  }}
+                  onMouseOver={(e) => e.currentTarget.style.transform = 'scale(1.05)'}
+                  onMouseOut={(e) => e.currentTarget.style.transform = 'scale(1)'}
+                >
+                  Go Back
+                </button>
+                <button
+                  onClick={() => {
+                    setErrorBypassed(true);
+                    setShowErrorWarning(false);
+                    setError(null);
+                  }}
+                  style={{
+                    background: '#fff',
+                    border: 'none',
+                    color: '#f5576c',
+                    padding: '12px 24px',
+                    borderRadius: '10px',
+                    cursor: 'pointer',
+                    fontWeight: 600,
+                    fontSize: '16px',
+                    transition: 'transform 0.2s',
+                  }}
+                  onMouseOver={(e) => e.currentTarget.style.transform = 'scale(1.05)'}
+                  onMouseOut={(e) => e.currentTarget.style.transform = 'scale(1)'}
+                >
+                  Continue Anyway
+                </button>
+              </div>
+            </div>
+          )}
+        </>
       )}
     </div>
   );
