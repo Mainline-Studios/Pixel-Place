@@ -179,7 +179,7 @@ io.on('connection', (socket) => {
     const roomId = Array.from(socket.rooms).find(r => r.startsWith('game-') || r.startsWith('session-'));
     if (roomId && gameRooms.has(roomId)) {
       const room = gameRooms.get(roomId);
-      const player = room.players.find(p => p.id === socket.id);
+      const gamePlayer = room.players.find(p => p.id === socket.id);
       if (player) {
         player.position = position;
         player.rotation = rotation;
