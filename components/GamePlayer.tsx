@@ -305,7 +305,7 @@ socket.on('disconnect', () => {
       } else {
         clearInterval(interval);
       }
-    }, 50); // Update every 50ms for smooth progress
+    }, 16); // Update every ~16ms (60fps) for ultra-smooth progress
     
     return () => clearInterval(interval);
   }, [isLoading]);
@@ -1050,133 +1050,263 @@ return (
         </div>
       )}
 
-      {/* Roblox-style Loading Screen */}
+      {/* Enhanced Real-Time Loading Screen */}
       {isLoading && (
         <div
           style={{
             position: 'absolute',
             top: 0,
             left: 0,
-            right: 0,
-            bottom: 0,
-            background: '#181818',
-            zIndex: 15000,
+            width: '100%',
+            height: '100%',
+            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%)',
+            backgroundSize: '400% 400%',
+            animation: 'gradientShift 8s ease infinite',
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
             justifyContent: 'center',
+            zIndex: 15000,
             color: '#fff',
-            fontFamily: '"Gotham SSm A", "Gotham SSm B", Arial, sans-serif'
+            fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+            overflow: 'hidden'
           }}
         >
-          {/* Roblox-style Logo/Title */}
-          <div style={{ textAlign: 'center', marginBottom: '60px' }}>
-            <div style={{ 
-              fontSize: '64px', 
-              margin: '0 0 20px 0', 
-              fontWeight: 'bold',
-              background: 'linear-gradient(180deg, #fff 0%, #ccc 100%)',
+          {/* Animated Background Particles */}
+          <div style={{
+            position: 'absolute',
+            width: '100%',
+            height: '100%',
+            overflow: 'hidden',
+            opacity: 0.3
+          }}>
+            {[...Array(20)].map((_, i) => (
+              <div
+                key={i}
+                style={{
+                  position: 'absolute',
+                  width: `${Math.random() * 4 + 2}px`,
+                  height: `${Math.random() * 4 + 2}px`,
+                  background: '#fff',
+                  borderRadius: '50%',
+                  left: `${Math.random() * 100}%`,
+                  top: `${Math.random() * 100}%`,
+                  animation: `float${i % 3} ${3 + Math.random() * 2}s ease-in-out infinite`,
+                  animationDelay: `${Math.random() * 2}s`
+                }}
+              />
+            ))}
+          </div>
+
+          <div style={{
+            width: '500px',
+            maxWidth: '90%',
+            textAlign: 'center',
+            position: 'relative',
+            zIndex: 1
+          }}>
+            {/* Game Title with Glow Effect */}
+            <div style={{
+              fontSize: '42px',
+              fontWeight: 800,
+              marginBottom: '20px',
+              letterSpacing: '3px',
+              textTransform: 'uppercase',
+              background: 'linear-gradient(90deg, #fff 0%, #f0f0f0 50%, #fff 100%)',
+              backgroundSize: '200% 100%',
               WebkitBackgroundClip: 'text',
               WebkitTextFillColor: 'transparent',
-              textShadow: '0 2px 4px rgba(0,0,0,0.3)'
+              backgroundClip: 'text',
+              animation: 'shimmer 3s linear infinite',
+              textShadow: '0 0 30px rgba(255, 255, 255, 0.5)',
+              filter: 'drop-shadow(0 0 10px rgba(255, 255, 255, 0.3))'
             }}>
               {game.title}
             </div>
-            <div style={{ 
-              fontSize: '18px', 
-              color: '#999',
-              marginTop: '10px',
-              fontWeight: 300
+            
+            {/* Real-Time Progress Percentage */}
+            <div style={{
+              fontSize: '48px',
+              fontWeight: 700,
+              marginBottom: '30px',
+              color: '#fff',
+              textShadow: '0 0 20px rgba(255, 255, 255, 0.5)',
+              fontVariantNumeric: 'tabular-nums',
+              letterSpacing: '2px'
             }}>
-              by {game.owner}
-            </div>
-          </div>
-          
-          {/* Roblox-style Progress Bar Container */}
-          <div style={{ width: '500px', maxWidth: '90%' }}>
-            <div style={{ 
-              fontSize: '14px', 
-              color: '#999',
-              marginBottom: '12px',
-              textAlign: 'center',
-              fontWeight: 300
-            }}>
-              Loading...
+              {Math.round(loadingProgress)}%
             </div>
             
-            {/* Progress Bar Background */}
+            {/* Enhanced Progress Bar */}
             <div
               style={{
                 width: '100%',
-                height: '8px',
-                background: '#2a2a2a',
-                borderRadius: '4px',
+                height: '16px',
+                background: 'rgba(255, 255, 255, 0.2)',
+                borderRadius: '10px',
                 overflow: 'hidden',
-                border: '1px solid #1a1a1a',
-                boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.5)'
+                border: '2px solid rgba(255, 255, 255, 0.3)',
+                boxShadow: '0 4px 20px rgba(0, 0, 0, 0.3), inset 0 2px 4px rgba(255, 255, 255, 0.1)',
+                marginBottom: '40px',
+                position: 'relative'
               }}
             >
-              {/* Actual Progress Fill */}
+              {/* Progress Fill with Animated Gradient */}
               <div
                 style={{
+                  width: `${loadingProgress}%`,
+                  height: '100%',
+                  background: 'linear-gradient(90deg, #fff 0%, #f0f0f0 50%, #fff 100%)',
+                  backgroundSize: '200% 100%',
+                  borderRadius: '8px',
+                  transition: 'width 0.05s linear',
+                  boxShadow: '0 0 20px rgba(255, 255, 255, 0.6), inset 0 2px 4px rgba(255, 255, 255, 0.3)',
+                  animation: 'progressShine 2s linear infinite',
+                  position: 'relative',
+                  overflow: 'hidden'
+                }}
+              >
+                {/* Shimmer Effect */}
+                <div style={{
+                  position: 'absolute',
+                  top: 0,
+                  left: '-100%',
                   width: '100%',
                   height: '100%',
-                  background: 'linear-gradient(90deg, #00A2FF 0%, #00D4FF 50%, #00A2FF 100%)',
-                  backgroundSize: '200% 100%',
-                  borderRadius: '4px',
-                  transition: 'width 0.1s linear',
-                  boxShadow: '0 0 10px rgba(0, 162, 255, 0.5)'
-                }}
-              />
+                  background: 'linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4), transparent)',
+                  animation: 'shimmerMove 1.5s ease-in-out infinite'
+                }} />
+              </div>
+              
+              {/* Glowing Edge */}
+              <div style={{
+                position: 'absolute',
+                top: 0,
+                left: `${loadingProgress}%`,
+                width: '4px',
+                height: '100%',
+                background: '#fff',
+                boxShadow: '0 0 15px rgba(255, 255, 255, 0.8), 0 0 30px rgba(255, 255, 255, 0.4)',
+                borderRadius: '2px',
+                transition: 'left 0.05s linear'
+              }} />
             </div>
             
-            {/* Loading Steps */}
+            {/* Dynamic Loading Steps with Icons */}
             <div style={{
-              marginTop: '30px',
-              fontSize: '12px',
-              color: '#666',
-              textAlign: 'center',
-              fontWeight: 300
+              marginTop: '40px',
+              fontSize: '16px',
+              textAlign: 'left',
+              fontWeight: 500
             }}>
               <div style={{ 
-                marginBottom: '8px',
-                color: loadingStage === 'engine' ? '#00A2FF' : '#666'
+                marginBottom: '16px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '12px',
+                color: loadingStage === 'engine' ? '#fff' : loadingProgress > 27.8 ? 'rgba(255, 255, 255, 0.6)' : 'rgba(255, 255, 255, 0.4)',
+                transition: 'all 0.3s ease',
+                transform: loadingStage === 'engine' ? 'scale(1.05)' : 'scale(1)',
+                textShadow: loadingStage === 'engine' ? '0 0 10px rgba(255, 255, 255, 0.5)' : 'none'
               }}>
-                {loadingProgress > 27.8 ? '✓' : loadingStage === 'engine' ? '○' : '○'} Initializing game engine...
+                <span style={{ fontSize: '20px', width: '24px', textAlign: 'center' }}>
+                  {loadingProgress > 27.8 ? '✓' : loadingStage === 'engine' ? '⟳' : '○'}
+                </span>
+                <span>Initializing game engine...</span>
+                {loadingStage === 'engine' && (
+                  <span style={{ marginLeft: 'auto', fontSize: '12px', opacity: 0.7 }}>
+                    {Math.round((loadingProgress / 27.8) * 100)}%
+                  </span>
+                )}
               </div>
               <div style={{ 
-                marginBottom: '8px',
-                color: loadingStage === 'assets' ? '#00A2FF' : loadingProgress > 44.4 ? '#999' : '#666'
+                marginBottom: '16px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '12px',
+                color: loadingStage === 'assets' ? '#fff' : loadingProgress > 44.4 ? 'rgba(255, 255, 255, 0.6)' : 'rgba(255, 255, 255, 0.4)',
+                transition: 'all 0.3s ease',
+                transform: loadingStage === 'assets' ? 'scale(1.05)' : 'scale(1)',
+                textShadow: loadingStage === 'assets' ? '0 0 10px rgba(255, 255, 255, 0.5)' : 'none'
               }}>
-                {loadingProgress > 44.4 ? '✓' : loadingStage === 'assets' ? '○' : '○'} Loading assets...
+                <span style={{ fontSize: '20px', width: '24px', textAlign: 'center' }}>
+                  {loadingProgress > 44.4 ? '✓' : loadingStage === 'assets' ? '⟳' : '○'}
+                </span>
+                <span>Loading assets and textures...</span>
+                {loadingStage === 'assets' && (
+                  <span style={{ marginLeft: 'auto', fontSize: '12px', opacity: 0.7 }}>
+                    {Math.round(((loadingProgress - 27.8) / (44.4 - 27.8)) * 100)}%
+                  </span>
+                )}
               </div>
               <div style={{
-                color: loadingStage === 'world' ? '#00A2FF' : loadingProgress === 100 ? '#999' : '#666'
+                display: 'flex',
+                alignItems: 'center',
+                gap: '12px',
+                color: loadingStage === 'world' ? '#fff' : loadingProgress === 100 ? 'rgba(255, 255, 255, 0.6)' : 'rgba(255, 255, 255, 0.4)',
+                transition: 'all 0.3s ease',
+                transform: loadingStage === 'world' ? 'scale(1.05)' : 'scale(1)',
+                textShadow: loadingStage === 'world' ? '0 0 10px rgba(255, 255, 255, 0.5)' : 'none'
               }}>
-                {loadingProgress === 100 ? '✓' : loadingStage === 'world' ? '○' : '○'} Preparing world...
+                <span style={{ fontSize: '20px', width: '24px', textAlign: 'center' }}>
+                  {loadingProgress === 100 ? '✓' : loadingStage === 'world' ? '⟳' : '○'}
+                </span>
+                <span>Preparing world and finalizing...</span>
+                {loadingStage === 'world' && (
+                  <span style={{ marginLeft: 'auto', fontSize: '12px', opacity: 0.7 }}>
+                    {Math.round(((loadingProgress - 44.4) / (100 - 44.4)) * 100)}%
+                  </span>
+                )}
               </div>
+            </div>
+
+            {/* Loading Indicator */}
+            <div style={{
+              marginTop: '40px',
+              fontSize: '14px',
+              color: 'rgba(255, 255, 255, 0.7)',
+              fontWeight: 300,
+              letterSpacing: '1px'
+            }}>
+              {loadingStage === 'engine' && '⚙️ Setting up game engine...'}
+              {loadingStage === 'assets' && '📦 Loading game assets...'}
+              {loadingStage === 'world' && '🌍 Building game world...'}
             </div>
           </div>
           
           <style>{`
-            @keyframes robloxLoading {
-              0% { 
-                background-position: 0% 0%;
-                transform: translateX(-100%);
-              }
-              50% {
-                background-position: 100% 0%;
-                transform: translateX(0%);
-              }
-              100% { 
-                background-position: 200% 0%;
-                transform: translateX(100%);
-              }
+            @keyframes gradientShift {
+              0% { background-position: 0% 50%; }
+              50% { background-position: 100% 50%; }
+              100% { background-position: 0% 50%; }
+            }
+            @keyframes shimmer {
+              0% { background-position: -200% 0; }
+              100% { background-position: 200% 0; }
+            }
+            @keyframes progressShine {
+              0% { background-position: -200% 0; }
+              100% { background-position: 200% 0; }
+            }
+            @keyframes shimmerMove {
+              0% { left: -100%; }
+              100% { left: 100%; }
+            }
+            @keyframes float0 {
+              0%, 100% { transform: translateY(0px) translateX(0px); opacity: 0.3; }
+              50% { transform: translateY(-20px) translateX(10px); opacity: 0.6; }
+            }
+            @keyframes float1 {
+              0%, 100% { transform: translateY(0px) translateX(0px); opacity: 0.3; }
+              50% { transform: translateY(-15px) translateX(-10px); opacity: 0.5; }
+            }
+            @keyframes float2 {
+              0%, 100% { transform: translateY(0px) translateX(0px); opacity: 0.3; }
+              50% { transform: translateY(-25px) translateX(15px); opacity: 0.7; }
             }
           `}</style>
         </div>
       )}
-
       {/* Hidden header - ESC key to exit */}
       <div
         ref={containerRef}
