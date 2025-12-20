@@ -1072,6 +1072,8 @@ function createGame(container) {
     }
     renderer.dispose();
   };
+  }
+  setupGame();
 }
 `;
 
@@ -2145,6 +2147,8 @@ function createGame(container) {
     }
     renderer.dispose();
   };
+  }
+  setupGame();
 }
 `;
 
@@ -2979,16 +2983,29 @@ export const HIDE_AND_SEEK_GAME_CODE = `// Hide and Seek - Online Multiplayer
 // THREE is provided by the game engine
 
 function createGame(container) {
-  // Check for socket - also check __gameSocket which is set before gameSocket wrapper
-  const isOnline = typeof window !== 'undefined' && (
-    (window.gameSocket !== undefined && window.gameSocket !== null) ||
-    (window.__gameSocket !== undefined && window.__gameSocket !== null)
-  );
+  // Wait for socket to be available (it connects asynchronously)
+  let checkCount = 0;
+  const maxChecks = 50; // Wait up to 5 seconds (50 * 100ms)
   
-  if (!isOnline) {
-    container.innerHTML = '<div style="color: white; padding: 20px; text-align: center;"><h2>Hide and Seek</h2><p>This game requires online multiplayer. Click "Play Online" to start.</p></div>';
-    return;
-  }
+  const checkSocket = setInterval(() => {
+    checkCount++;
+    const hasSocket = typeof window !== 'undefined' && (
+      (window.gameSocket !== undefined && window.gameSocket !== null) ||
+      (window.__gameSocket !== undefined && window.__gameSocket !== null)
+    );
+    
+    if (hasSocket) {
+      clearInterval(checkSocket);
+      // Socket is available, start the game
+      setupGame();
+    } else if (checkCount >= maxChecks) {
+      // Give up after max checks
+      clearInterval(checkSocket);
+      container.innerHTML = '<div style="color: white; padding: 20px; text-align: center;"><h2>Hide and Seek</h2><p>This game requires online multiplayer. Click "Play Online" to start.</p><p style="font-size: 12px; margin-top: 10px;">Waiting for connection...</p></div>';
+    }
+  }, 100);
+  
+  function setupGame() {
   
   // Scene setup
   const scene = new THREE.Scene();
@@ -3271,6 +3288,8 @@ function createGame(container) {
     }
     document.exitPointerLock();
   };
+  }
+  setupGame();
 }
 `;
 export const HIDE_AND_SEEK_PRELOADED_GAME: PublishedGame = {
