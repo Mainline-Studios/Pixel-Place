@@ -3264,23 +3264,6 @@ function createGame(container) {
     document.exitPointerLock();
   };
 }
-      hidersFoundText.textContent = `Hiders Found: ${hidersFound}/${totalHiders}`;
-      if (hidersFound >= totalHiders && isSeeker) {
-        gameOver = true;
-        statusText.textContent = '🎉 You found everyone! You win!';
-        statusText.style.color = '#4CAF50';
-      }
-    });
-    
-    window.gameSocket.on('game-over', (data) => {
-      gameOver = true;
-      if (data.winner === 'seekers') {
-        statusText.textContent = isSeeker ? '🎉 Seekers win!' : '😔 You were found!';
-      } else {
-        statusText.textContent = isSeeker ? '😔 Time ran out! Hiders win!' : '🎉 You survived! Hiders win!';
-      }
-    });
-  }
   
   // Game loop
   const animate = () => {
