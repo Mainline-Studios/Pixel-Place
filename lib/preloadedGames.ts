@@ -2989,9 +2989,11 @@ function createGame(container) {
   
   const checkSocket = setInterval(() => {
     checkCount++;
+    // Check for socket in multiple ways
     const hasSocket = typeof window !== 'undefined' && (
       (window.gameSocket !== undefined && window.gameSocket !== null) ||
-      (window.__gameSocket !== undefined && window.__gameSocket !== null)
+      (window.__gameSocket !== undefined && window.__gameSocket !== null) ||
+      (window.__gameSocket && window.__gameSocket.connected === true)
     );
     
     if (hasSocket) {
@@ -3001,7 +3003,10 @@ function createGame(container) {
     } else if (checkCount >= maxChecks) {
       // Give up after max checks
       clearInterval(checkSocket);
-      container.innerHTML = '<div style="color: white; padding: 20px; text-align: center;"><h2>Hide and Seek</h2><p>This game requires online multiplayer. Click "Play Online" to start.</p><p style="font-size: 12px; margin-top: 10px;">Waiting for connection...</p></div>';
+      container.innerHTML = '<div style="color: white; padding: 20px; text-align: center;"><h2>Hide and Seek</h2><p>This game requires online multiplayer. Click "Play Online" to start.</p><p style="font-size: 12px; margin-top: 10px;">Connection timeout. Please ensure the socket server is running.</p></div>';
+    } else if (checkCount % 10 === 0) {
+      // Show progress every second
+      container.innerHTML = '<div style="color: white; padding: 20px; text-align: center;"><h2>Hide and Seek</h2><p>Waiting for connection... (' + Math.ceil((maxChecks - checkCount) / 10) + 's)</p></div>';
     }
   }, 100);
   
