@@ -3289,7 +3289,6 @@ function createGame(container) {
     document.exitPointerLock();
   };
   }
-  setupGame();
 }
 `;
 export const HIDE_AND_SEEK_PRELOADED_GAME: PublishedGame = {
