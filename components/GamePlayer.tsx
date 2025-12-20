@@ -591,11 +591,12 @@ socket.on('disconnect', () => {
 
         // Use Function constructor with proper parameters to prevent module parsing
         // Wrap in IIFE with "use strict" to ensure script mode
+        // IMPORTANT: multiplayerCode before cleanCode so window.gameSocket exists
         const fullCode =
           '"use strict";\n' +
           textureUtils + '\n' +
-          cleanCode + '\n' +
           multiplayerCode + '\n' +
+          cleanCode + '\n' +
           'if (typeof createGame !== "undefined") {\n' +
           '  exports.createGame = createGame;\n' +
           '}';
