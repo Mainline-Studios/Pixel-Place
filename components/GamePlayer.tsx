@@ -228,6 +228,50 @@ socket.on('disconnect', () => {
       }
     };
   }, [isOnline, serverId, game.ts, game.multiplayer, onlineSession, contextUser]);
+  
+  // Listen for Hide and Seek requesting online mode
+  useEffect(() => {
+    const handleOnlineRequest = () => {
+      if (!isOnline && game.multiplayer) {
+        // Trigger the same logic as Play Online button
+        // Create a session or enable online mode
+        if (!contextUser) {
+          alert('Please log in to play online');
+          return;
+        }
+        setIsCreatingSession(true);
+        fetch('/api/game-sessions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            gameId: game.ts.toString(),
+            serverId: serverId || undefined
+          })
+        })
+          .then(res => res.json())
+          .then(data => {
+            setIsCreatingSession(false);
+            if (data.success && data.sessionId) {
+              setOnlineSession(data.sessionId);
+              setIsOnline(true);
+              setIsLoading(true);
+            } else {
+              alert('Failed to create session: ' + (data.error || 'Unknown error'));
+            }
+          })
+          .catch(err => {
+            setIsCreatingSession(false);
+            alert('Error creating session: ' + err.message);
+          });
+      }
+    };
+    
+    window.addEventListener('hide-seek-request-online', handleOnlineRequest);
+    return () => {
+      window.removeEventListener('hide-seek-request-online', handleOnlineRequest);
+    };
+  }, [isOnline, game.multiplayer, contextUser, serverId, game.ts]);
+
 
   // Loading sequence: 5s engine, 3s assets, 10s world (18s total)
   useEffect(() => {
