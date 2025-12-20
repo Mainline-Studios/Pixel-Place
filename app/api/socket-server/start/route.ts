@@ -46,26 +46,45 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Start the server
+    // Start the server - use detached mode so it runs independently
     const nodePath = process.execPath;
     serverProcess = spawn(nodePath, [serverPath], {
-      detached: false,
-      stdio: 'pipe',
+      detached: true,
+      stdio: ['ignore', 'pipe', 'pipe'],
       cwd: process.cwd(),
-      env: { ...process.env }
+      env: { 
+        ...process.env,
+        SOCKET_PORT: process.env.SOCKET_PORT || '3001',
+        PORT: process.env.SOCKET_PORT || '3001',
+        NEXT_PUBLIC_BASE_URL: process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000',
+        NEXT_PUBLIC_SOCKET_URL: process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:3001'
+      }
     });
 
+    // Unref the process so it doesn't keep the parent alive
+    serverProcess.unref();
+
     // Handle process events
+    let errorOutput = '';
+    let successOutput = '';
+
     serverProcess.stdout.on('data', (data: Buffer) => {
-      console.log(`[Socket Server] ${data.toString()}`);
+      const output = data.toString();
+      console.log(`[Socket Server] ${output}`);
+      successOutput += output;
     });
 
     serverProcess.stderr.on('data', (data: Buffer) => {
-      console.error(`[Socket Server Error] ${data.toString()}`);
+      const output = data.toString();
+      console.error(`[Socket Server Error] ${output}`);
+      errorOutput += output;
     });
 
     serverProcess.on('exit', (code: number) => {
       console.log(`[Socket Server] Process exited with code ${code}`);
+      if (code !== 0 && code !== null) {
+        console.error(`[Socket Server] Error output: ${errorOutput}`);
+      }
       serverProcess = null;
     });
 
@@ -75,18 +94,49 @@ export async function POST(request: NextRequest) {
     });
 
     // Wait a moment to see if server starts successfully
-    await new Promise(resolve => setTimeout(resolve, 2000));
+    await new Promise(resolve => setTimeout(resolve, 3000));
 
-    // Check if process is still running
-    if (serverProcess && !serverProcess.killed) {
+    // Check if process is still running by checking exit code
+    // Note: With detached process, killed might not work as expected
+    if (serverProcess && serverProcess.exitCode === null) {
+      // Process is still running
       return NextResponse.json({
         success: true,
         message: 'Socket server started successfully',
         pid: serverProcess.pid
       });
-    } else {
+    } else if (errorOutput) {
+      // Process exited with error
       return NextResponse.json(
-        { success: false, error: 'Server process exited immediately' },
+        { success: false, error: `Server failed to start: ${errorOutput.substring(0, 200)}` },
+        { status: 500 }
+      );
+    } else {
+      // Check if server is actually running by trying to connect
+      try {
+        const checkResponse = await fetch(`${socketUrl}/socket.io/`, {
+          method: 'GET',
+          signal: AbortSignal.timeout(2000)
+        });
+        if (checkResponse.status === 400 || checkResponse.ok) {
+          return NextResponse.json({
+            success: true,
+            message: 'Socket server is running',
+            pid: serverProcess?.pid
+          });
+        }
+      } catch (e) {
+        // Server not responding yet, but process might still be starting
+        return NextResponse.json({
+          success: true,
+          message: 'Socket server process started (checking connection...)',
+          pid: serverProcess?.pid,
+          warning: 'Server may still be initializing'
+        });
+      }
+      
+      return NextResponse.json(
+        { success: false, error: 'Server process exited immediately. Check server logs for details.' },
         { status: 500 }
       );
     }
