@@ -3012,19 +3012,28 @@ function createGame(container) {
   ground.receiveShadow = true;
   scene.add(ground);
   
-  // Hiding spots (boxes)
+  // Hiding spots (boxes, trees, structures)
   const hidingSpots = [];
-  for (let i = 0; i < 20; i++) {
+  const hidingSpotTypes = [
+    { size: [3, 3, 3], color: 0x8B4513 },
+    { size: [2, 2, 2], color: 0x654321 },
+    { size: [1.5, 4, 1.5], color: 0x228B22 },
+    { size: [2, 1, 2], color: 0x696969 },
+  ];
+  
+  for (let i = 0; i < 30; i++) {
+    const type = hidingSpotTypes[Math.floor(Math.random() * hidingSpotTypes.length)];
     const box = new THREE.Mesh(
-      new THREE.BoxGeometry(2, 2, 2),
-      new THREE.MeshStandardMaterial({ color: Math.random() * 0xffffff })
+      new THREE.BoxGeometry(type.size[0], type.size[1], type.size[2]),
+      new THREE.MeshStandardMaterial({ color: type.color })
     );
     box.position.set(
       (Math.random() - 0.5) * 80,
-      1,
+      type.size[1] / 2,
       (Math.random() - 0.5) * 80
     );
     box.castShadow = true;
+    box.receiveShadow = true;
     scene.add(box);
     hidingSpots.push(box);
   }
@@ -3037,25 +3046,134 @@ function createGame(container) {
   player.castShadow = true;
   scene.add(player);
   
+  // Other players (from multiplayer)
+  const otherPlayers = new Map();
+  
+  // UI
+  const uiContainer = document.createElement('div');
+  uiContainer.style.cssText = 'position: absolute; top: 20px; left: 20px; color: white; font-family: Arial, sans-serif; font-size: 16px; z-index: 100; background: rgba(0,0,0,0.7); padding: 15px; border-radius: 10px;';
+  container.appendChild(uiContainer);
+  
+  const roleText = document.createElement('div');
+  roleText.textContent = 'Waiting for role assignment...';
+  roleText.style.fontWeight = 'bold';
+  roleText.style.marginBottom = '8px';
+  uiContainer.appendChild(roleText);
+  
+  const countdownText = document.createElement('div');
+  countdownText.textContent = '';
+  countdownText.style.fontSize = '24px';
+  countdownText.style.color = '#FFD700';
+  uiContainer.appendChild(countdownText);
+  
+  const statusText = document.createElement('div');
+  statusText.textContent = '';
+  statusText.style.marginTop = '8px';
+  statusText.style.fontSize = '14px';
+  uiContainer.appendChild(statusText);
+  
+  const hidersFoundText = document.createElement('div');
+  hidersFoundText.textContent = '';
+  hidersFoundText.style.marginTop = '8px';
+  hidersFoundText.style.fontSize = '12px';
+  uiContainer.appendChild(hidersFoundText);
+  
   // Controls
   const keys = {};
-  window.addEventListener('keydown', (e) => { keys[e.key.toLowerCase()] = true; });
-  window.addEventListener('keyup', (e) => { keys[e.key.toLowerCase()] = false; });
+  window.addEventListener('keydown', (e) => { 
+    keys[e.key.toLowerCase()] = true;
+    keys[e.code] = true;
+  });
+  window.addEventListener('keyup', (e) => { 
+    keys[e.key.toLowerCase()] = false;
+    keys[e.code] = false;
+  });
+  
+  // Mouse look for seeker
+  let yaw = 0;
+  let pitch = 0;
+  let mouseLocked = false;
+  
+  container.addEventListener('click', () => {
+    if (!mouseLocked) {
+      container.requestPointerLock();
+    }
+  });
+  
+  document.addEventListener('pointerlockchange', () => {
+    mouseLocked = document.pointerLockElement === container;
+  });
+  
+  document.addEventListener('mousemove', (e) => {
+    if (mouseLocked) {
+      yaw -= e.movementX * 0.002;
+      pitch -= e.movementY * 0.002;
+      pitch = Math.max(-Math.PI/2, Math.min(Math.PI/2, pitch));
+    }
+  });
   
   // Game state
   let isSeeker = false;
   let gameStarted = false;
   let countdown = 0;
+  let gameTime = 0;
+  let hidersFound = 0;
+  let totalHiders = 0;
+  let gameOver = false;
+  
+  // Detection radius for seeker
+  const detectionRadius = 8;
   
   // Multiplayer setup
   if (window.gameSocket) {
-    window.gameSocket.on('game-start', () => {
+    window.gameSocket.on('game-start', (data) => {
       gameStarted = true;
-      countdown = 10;
+      countdown = 30;
+      totalHiders = (data.players || []).length - 1;
+      statusText.textContent = isSeeker ? 'Find all the hiders!' : 'Hide! The seeker is coming!';
     });
     
     window.gameSocket.on('role-assigned', (data) => {
       isSeeker = data.role === 'seeker';
+      roleText.textContent = isSeeker ? '🔍 You are the SEEKER' : '🙈 You are a HIDER';
+      roleText.style.color = isSeeker ? '#FF6B6B' : '#4A9EFF';
+      statusText.textContent = isSeeker ? 'Wait for game to start...' : 'Wait for game to start...';
+    });
+    
+    window.gameSocket.on('player-update', (data) => {
+      if (data.id && data.id !== window.gameSocket.id) {
+        if (!otherPlayers.has(data.id)) {
+          const otherPlayer = new THREE.Mesh(
+            new THREE.CapsuleGeometry(0.5, 1.5, 4, 8),
+            new THREE.MeshStandardMaterial({ color: isSeeker ? 0xFF6B6B : 0x4A9EFF })
+          );
+          scene.add(otherPlayer);
+          otherPlayers.set(data.id, otherPlayer);
+        }
+        const otherPlayer = otherPlayers.get(data.id);
+        if (otherPlayer && data.position) {
+          otherPlayer.position.set(data.position.x, data.position.y || 1, data.position.z);
+        }
+      }
+    });
+    
+    window.gameSocket.on('hider-found', (data) => {
+      hidersFound++;
+      hidersFoundText.textContent = 'Hiders Found: ' + hidersFound + '/' + totalHiders;
+      if (hidersFound >= totalHiders && isSeeker) {
+        gameOver = true;
+        statusText.textContent = '🎉 You found everyone! You win!';
+        statusText.style.color = '#4CAF50';
+      }
+    });
+    
+    window.gameSocket.on('game-over', (data) => {
+      gameOver = true;
+      if (data.winner === 'seekers') {
+        statusText.textContent = isSeeker ? '🎉 Seekers win!' : '😔 You were found!';
+      } else {
+        statusText.textContent = isSeeker ? '😔 Time ran out! Hiders win!' : '🎉 You survived! Hiders win!';
+      }
     });
   }
   
@@ -3063,17 +3181,189 @@ function createGame(container) {
   const animate = () => {
     requestAnimationFrame(animate);
     
-    if (gameStarted) {
-      // Movement
-      const speed = 0.1;
-      if (keys['w'] || keys['arrowup']) player.position.z -= speed;
-      if (keys['s'] || keys['arrowdown']) player.position.z += speed;
-      if (keys['a'] || keys['arrowleft']) player.position.x -= speed;
-      if (keys['d'] || keys['arrowright']) player.position.x += speed;
-      
-      // Update position
-      if (window.gameSocket && window.updatePlayerPosition) {
-        window.updatePlayerPosition(player.position, { x: 0, y: 0, z: 0 });
+    if (gameStarted && !gameOver) {
+      if (countdown > 0) {
+        countdown -= 1/60;
+        countdownText.textContent = isSeeker ? 'Game starts in: ' + Math.ceil(countdown) : 'Hide! ' + Math.ceil(countdown) + 's';
+        countdownText.style.color = countdown < 10 ? '#FF0000' : '#FFD700';
+      } else {
+        countdownText.textContent = '';
+        gameTime += 1/60;
+        
+        const speed = isSeeker ? 0.15 : 0.12;
+        const moveVector = new THREE.Vector3();
+        
+        if (keys['w'] || keys['arrowup']) moveVector.z -= 1;
+        if (keys['s'] || keys['arrowdown']) moveVector.z += 1;
+        if (keys['a'] || keys['arrowleft']) moveVector.x -= 1;
+        if (keys['d'] || keys['arrowright']) moveVector.x += 1;
+        
+        if (isSeeker && mouseLocked) {
+          moveVector.applyAxisAngle(new THREE.Vector3(0, 1, 0), yaw);
+        }
+        
+        moveVector.normalize();
+        moveVector.multiplyScalar(speed);
+        player.position.add(moveVector);
+        
+        player.position.y = 1;
+        player.position.x = Math.max(-45, Math.min(45, player.position.x));
+        player.position.z = Math.max(-45, Math.min(45, player.position.z));
+        
+        if (isSeeker && countdown <= 0) {
+          otherPlayers.forEach((otherPlayer, id) => {
+            const distance = player.position.distanceTo(otherPlayer.position);
+            if (distance < detectionRadius) {
+              if (window.gameSocket) {
+                window.gameSocket.emit('hider-found', { hiderId: id });
+              }
+              otherPlayer.material.color.setHex(0xFF0000);
+            }
+          });
+        }
+        
+        if (isSeeker && mouseLocked) {
+          camera.rotation.order = 'YXZ';
+          camera.rotation.y = yaw;
+          camera.rotation.x = pitch;
+          camera.position.copy(player.position);
+          camera.position.y += 1.6;
+        } else {
+          const cameraOffset = new THREE.Vector3(0, 3, 5);
+          cameraOffset.applyAxisAngle(new THREE.Vector3(0, 1, 0), yaw);
+          camera.position.copy(player.position).add(cameraOffset);
+          camera.lookAt(player.position);
+        }
+        
+        if (window.gameSocket && window.updatePlayerPosition) {
+          window.updatePlayerPosition(player.position, { x: pitch, y: yaw, z: 0 });
+        }
+        
+        if (gameTime > 300 && !gameOver) {
+          gameOver = true;
+          if (window.gameSocket) {
+            window.gameSocket.emit('game-over', { winner: 'hiders' });
+          }
+          statusText.textContent = isSeeker ? '😔 Time ran out! Hiders win!' : '🎉 You survived! Hiders win!';
+        }
+      }
+    }
+    
+    renderer.render(scene, camera);
+  };
+  
+  animate();
+  
+  return () => {
+    if (container.contains(renderer.domElement)) {
+      container.removeChild(renderer.domElement);
+    }
+    if (container.contains(uiContainer)) {
+      container.removeChild(uiContainer);
+    }
+    document.exitPointerLock();
+  };
+}
+      hidersFoundText.textContent = `Hiders Found: ${hidersFound}/${totalHiders}`;
+      if (hidersFound >= totalHiders && isSeeker) {
+        gameOver = true;
+        statusText.textContent = '🎉 You found everyone! You win!';
+        statusText.style.color = '#4CAF50';
+      }
+    });
+    
+    window.gameSocket.on('game-over', (data) => {
+      gameOver = true;
+      if (data.winner === 'seekers') {
+        statusText.textContent = isSeeker ? '🎉 Seekers win!' : '😔 You were found!';
+      } else {
+        statusText.textContent = isSeeker ? '😔 Time ran out! Hiders win!' : '🎉 You survived! Hiders win!';
+      }
+    });
+  }
+  
+  // Game loop
+  const animate = () => {
+    requestAnimationFrame(animate);
+    
+    if (gameStarted && !gameOver) {
+      // Update countdown
+      if (countdown > 0) {
+        countdown -= 1/60; // Assuming 60 FPS
+        countdownText.textContent = isSeeker ? `Game starts in: ${Math.ceil(countdown)}` : `Hide! ${Math.ceil(countdown)}s`;
+        countdownText.style.color = countdown < 10 ? '#FF0000' : '#FFD700';
+      } else {
+        countdownText.textContent = '';
+        gameTime += 1/60;
+        
+        // Movement
+        const speed = isSeeker ? 0.15 : 0.12; // Seeker slightly faster
+        const moveVector = new THREE.Vector3();
+        
+        if (keys['w'] || keys['arrowup']) moveVector.z -= 1;
+        if (keys['s'] || keys['arrowdown']) moveVector.z += 1;
+        if (keys['a'] || keys['arrowleft']) moveVector.x -= 1;
+        if (keys['d'] || keys['arrowright']) moveVector.x += 1;
+        
+        if (isSeeker && mouseLocked) {
+          // Seeker uses mouse look
+          moveVector.applyAxisAngle(new THREE.Vector3(0, 1, 0), yaw);
+        }
+        
+        moveVector.normalize();
+        moveVector.multiplyScalar(speed);
+        player.position.add(moveVector);
+        
+        // Keep player on ground
+        player.position.y = 1;
+        
+        // Boundary check
+        player.position.x = Math.max(-45, Math.min(45, player.position.x));
+        player.position.z = Math.max(-45, Math.min(45, player.position.z));
+        
+        // Seeker detection
+        if (isSeeker && countdown <= 0) {
+          otherPlayers.forEach((otherPlayer, id) => {
+            const distance = player.position.distanceTo(otherPlayer.position);
+            if (distance < detectionRadius) {
+              // Found a hider!
+              if (window.gameSocket) {
+                window.gameSocket.emit('hider-found', { hiderId: id });
+              }
+              // Highlight found hider
+              otherPlayer.material.color.setHex(0xFF0000);
+            }
+          });
+        }
+        
+        // Update camera
+        if (isSeeker && mouseLocked) {
+          camera.rotation.order = 'YXZ';
+          camera.rotation.y = yaw;
+          camera.rotation.x = pitch;
+          camera.position.copy(player.position);
+          camera.position.y += 1.6; // Eye height
+        } else {
+          // Third person for hiders
+          const cameraOffset = new THREE.Vector3(0, 3, 5);
+          cameraOffset.applyAxisAngle(new THREE.Vector3(0, 1, 0), yaw);
+          camera.position.copy(player.position).add(cameraOffset);
+          camera.lookAt(player.position);
+        }
+        
+        // Update position to server
+        if (window.gameSocket && window.updatePlayerPosition) {
+          window.updatePlayerPosition(player.position, { x: pitch, y: yaw, z: 0 });
+        }
+        
+        // Game time limit (5 minutes)
+        if (gameTime > 300 && !gameOver) {
+          gameOver = true;
+          if (window.gameSocket) {
+            window.gameSocket.emit('game-over', { winner: 'hiders' });
+          }
+          statusText.textContent = isSeeker ? '😔 Time ran out! Hiders win!' : '🎉 You survived! Hiders win!';
+        }
       }
     }
     
@@ -3084,10 +3374,15 @@ function createGame(container) {
   
   // Cleanup
   return () => {
-    container.removeChild(renderer.domElement);
+    if (container.contains(renderer.domElement)) {
+      container.removeChild(renderer.domElement);
+    }
+    if (container.contains(uiContainer)) {
+      container.removeChild(uiContainer);
+    }
+    document.exitPointerLock();
   };
 }`;
-
 export const HIDE_AND_SEEK_PRELOADED_GAME: PublishedGame = {
   title: 'Hide and Seek',
   desc: 'Classic hide and seek! One seeker, multiple hiders. Online multiplayer only - requires 3+ players.',

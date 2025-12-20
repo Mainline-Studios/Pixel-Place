@@ -246,7 +246,26 @@ io.on('connection', (socket) => {
     if (waitingRoom && waitingRoom.status === 'playing') {
       io.to(roomId).emit('game-chat', { username, message });
     }
+  })
+  
+  socket.on('hider-found', ({ roomId, hiderId }) => {
+    const waitingRoom = waitingRooms.get(roomId);
+    if (waitingRoom && waitingRoom.status === 'playing') {
+      // Notify all players that a hider was found
+      io.to(roomId).emit('hider-found', { hiderId });
+    }
   });
+  
+  socket.on('game-over', ({ roomId, winner }) => {
+    const waitingRoom = waitingRooms.get(roomId);
+    if (waitingRoom && waitingRoom.status === 'playing') {
+      // Notify all players of game end
+      io.to(roomId).emit('game-over', { winner });
+      // Reset waiting room for next game
+      waitingRoom.status = 'waiting';
+    }
+  });
+;
 socket.on('disconnect', () => {
     console.log('Player disconnected:', socket.id);
 
