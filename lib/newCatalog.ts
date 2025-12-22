@@ -1,0 +1,253 @@
+// New catalog based on provided images - exact names and textures
+import { Skin, Accessory } from '@/types';
+
+export const NEW_SKINS: Skin[] = [
+    // Blue Blob Character with yellow patch
+    {
+        id: "blue_blob",
+        name: "Blue Blob",
+        price: 0,
+        img: "",
+        use3d: true,
+        defaultAnimation: 'idle',
+        colors: {
+            head: "#4A90E2",
+            torso: "#4A90E2",
+            arm: "#4A90E2",
+            legs: "#4A90E2"
+        },
+        materials: {
+            head: { type: 'skin', roughness: 0.7, metalness: 0.0 },
+            torso: { type: 'skin', roughness: 0.7, metalness: 0.0 },
+            arm: { type: 'skin', roughness: 0.7, metalness: 0.0 },
+            legs: { type: 'skin', roughness: 0.7, metalness: 0.0 }
+        },
+        textures: {
+            head: { base: 'smooth' },
+            torso: { base: 'smooth' },
+            arm: { base: 'smooth' },
+            legs: { base: 'smooth' }
+        }
+    },
+    // Pink-haired Girl with yellow flower and pleated skirt
+    {
+        id: "pink_girl",
+        name: "Pink Girl",
+        price: 100,
+        img: "",
+        use3d: true,
+        defaultAnimation: 'idle',
+        colors: {
+            head: "#F4C2A1",
+            torso: "#FFB6C1",
+            arm: "#F4C2A1",
+            legs: "#FFD700"
+        },
+        materials: {
+            head: { type: 'skin', roughness: 0.6, metalness: 0.0 },
+            torso: { type: 'cloth', roughness: 0.8, metalness: 0.0 },
+            arm: { type: 'skin', roughness: 0.6, metalness: 0.0 },
+            legs: { type: 'cloth', roughness: 0.8, metalness: 0.0 }
+        },
+        textures: {
+            head: { base: 'smooth' },
+            torso: { base: 'fabric' },
+            arm: { base: 'smooth' },
+            legs: { base: 'fabric' }
+        }
+    },
+    // Green Figure with Leaves
+    {
+        id: "green_nature",
+        name: "Green Nature",
+        price: 100,
+        img: "",
+        use3d: true,
+        defaultAnimation: 'idle',
+        colors: {
+            head: "#228B22",
+            torso: "#228B22",
+            arm: "#228B22",
+            legs: "#228B22"
+        },
+        materials: {
+            head: { type: 'skin', roughness: 0.7, metalness: 0.0 },
+            torso: { type: 'skin', roughness: 0.7, metalness: 0.0 },
+            arm: { type: 'skin', roughness: 0.7, metalness: 0.0 },
+            legs: { type: 'skin', roughness: 0.7, metalness: 0.0 }
+        },
+        textures: {
+            head: { base: 'smooth' },
+            torso: { base: 'smooth' },
+            arm: { base: 'smooth' },
+            legs: { base: 'smooth' }
+        }
+    },
+    // Blue Capped Boy with star
+    {
+        id: "blue_star_boy",
+        name: "Star Boy",
+        price: 150,
+        img: "",
+        use3d: true,
+        defaultAnimation: 'idle',
+        colors: {
+            head: "#F4C2A1",
+            torso: "#0000FF",
+            arm: "#F4C2A1",
+            legs: "#0000FF"
+        },
+        materials: {
+            head: { type: 'skin', roughness: 0.6, metalness: 0.0 },
+            torso: { type: 'cloth', roughness: 0.8, metalness: 0.0 },
+            arm: { type: 'skin', roughness: 0.6, metalness: 0.0 },
+            legs: { type: 'cloth', roughness: 0.8, metalness: 0.0 }
+        },
+        textures: {
+            head: { base: 'smooth' },
+            torso: { base: 'fabric' },
+            arm: { base: 'smooth' },
+            legs: { base: 'fabric' }
+        }
+    },
+    // Orange-striped Boy
+    {
+        id: "orange_striped_boy",
+        name: "Orange Striped Boy",
+        price: 150,
+        img: "",
+        use3d: true,
+        defaultAnimation: 'idle',
+        colors: {
+            head: "#F4C2A1",
+            torso: "#FF8C00",
+            arm: "#F4C2A1",
+            legs: "#0000FF"
+        },
+        materials: {
+            head: { type: 'skin', roughness: 0.6, metalness: 0.0 },
+            torso: { type: 'cloth', roughness: 0.8, metalness: 0.0 },
+            arm: { type: 'skin', roughness: 0.6, metalness: 0.0 },
+            legs: { type: 'cloth', roughness: 0.8, metalness: 0.0 }
+        },
+        textures: {
+            head: { base: 'smooth' },
+            torso: { base: 'fabric' },
+            arm: { base: 'smooth' },
+            legs: { base: 'fabric' }
+        }
+    },
+    // Banana Man
+    {
+        id: "banana_man",
+        name: "Banana Man",
+        price: 200,
+        img: "",
+        use3d: true,
+        defaultAnimation: 'idle',
+        colors: {
+            head: "#FFD700",
+            torso: "#FFD700",
+            arm: "#FFD700",
+            legs: "#FFD700"
+        },
+        materials: {
+            head: { type: 'skin', roughness: 0.8, metalness: 0.0 },
+            torso: { type: 'skin', roughness: 0.8, metalness: 0.0 },
+            arm: { type: 'skin', roughness: 0.8, metalness: 0.0 },
+            legs: { type: 'skin', roughness: 0.8, metalness: 0.0 }
+        },
+        textures: {
+            head: { base: 'banana_peel' },
+            torso: { base: 'banana_peel' },
+            arm: { base: 'banana_peel' },
+            legs: { base: 'banana_peel' }
+        }
+    },
+    // Cheeseburger
+    {
+        id: "cheeseburger",
+        name: "Cheeseburger",
+        price: 250,
+        img: "",
+        use3d: true,
+        defaultAnimation: 'idle',
+        colors: {
+            head: "#FFA500",
+            torso: "#8B4513",
+            arm: "#FFA500",
+            legs: "#FFA500"
+        },
+        materials: {
+            head: { type: 'skin', roughness: 0.7, metalness: 0.0 },
+            torso: { type: 'skin', roughness: 0.7, metalness: 0.0 },
+            arm: { type: 'skin', roughness: 0.7, metalness: 0.0 },
+            legs: { type: 'skin', roughness: 0.7, metalness: 0.0 }
+        },
+        textures: {
+            head: { base: 'bun' },
+            torso: { base: 'meat' },
+            arm: { base: 'bun' },
+            legs: { base: 'bun' }
+        }
+    }
+];
+
+export const NEW_ACCESSORIES: Accessory[] = [
+    // Keep only sunglasses
+    {
+        id: "cool_sunglasses",
+        name: "Cool Sunglasses",
+        type: "glasses",
+        price: 100,
+        img: "",
+        color: "#000000"
+    },
+    // Wizard Hat - Triangular with bending point at top
+    {
+        id: "wizard_hat",
+        name: "Wizard Hat",
+        type: "hat",
+        price: 300,
+        img: "",
+        color: "#4B0082",
+        position: { x: 0, y: 2.75, z: 0 }
+    },
+    // Pets
+    {
+        id: "pet_slime",
+        name: "Pet Slime",
+        type: "pet",
+        price: 200,
+        img: "",
+        color: "#00FF00",
+        position: { x: 0, y: -1.6, z: -1.5 }
+    },
+    {
+        id: "pet_dog",
+        name: "Pet Dog",
+        type: "pet",
+        price: 250,
+        img: "",
+        color: "#8B4513",
+        position: { x: 0, y: -1.6, z: -1.5 }
+    },
+    {
+        id: "pet_cat",
+        name: "Pet Cat",
+        type: "pet",
+        price: 250,
+        img: "",
+        color: "#FFA500",
+        position: { x: 0, y: -1.6, z: -1.5 }
+    },
+    {
+        id: "pet_robot",
+        name: "Pet Robot",
+        type: "pet",
+        price: 300,
+        img: "",
+        color: "#808080",
+        position: { x: 0, y: -1.6, z: -1.5 }
+    }
+];

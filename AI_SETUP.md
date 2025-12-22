@@ -75,3 +75,10 @@ If no API key is set, the system automatically falls back to smart template-base
 The AI will generate appropriate game code based on your description!
 
 
+
+
+
+
+
+
+

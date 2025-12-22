@@ -238,3 +238,10 @@ export function populateCatalog(): { skins: Skin[]; accessories: Accessory[] } {
 }
 
 
+
+
+
+
+
+
+

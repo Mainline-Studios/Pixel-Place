@@ -65,6 +65,11 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       return { success: false, message: 'Incorrect password.' };
     }
 
+    // Ensure ownedSkins and ownedAccessories arrays exist
+    if (!found.ownedSkins) found.ownedSkins = ['starter_classic'];
+    if (!found.ownedAccessories) found.ownedAccessories = [];
+    if (!found.equippedAccessories) found.equippedAccessories = {};
+
     setUser(found);
     return { success: true, message: '' };
   };
@@ -116,10 +121,32 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     setUser(updatedUser);
 
     const users = await getUsers();
-    const index = users.findIndex(u => u.username === user.username);
+    const index = users.findIndex(u => u.username.toLowerCase() === user.username.toLowerCase());
     if (index !== -1) {
-      users[index] = { ...users[index], ...updates };
+      // Merge updates to preserve existing data like friends, ownedSkins, ownedAccessories
+      const existingUser = users[index];
+      users[index] = { 
+        ...existingUser, 
+        ...updates,
+        // Preserve friends array if not being updated
+        friends: updates.friends !== undefined ? updates.friends : existingUser.friends || [],
+        // Preserve ownedSkins if not being updated
+        ownedSkins: updates.ownedSkins !== undefined ? updates.ownedSkins : existingUser.ownedSkins || [],
+        // Preserve ownedAccessories if not being updated
+        ownedAccessories: updates.ownedAccessories !== undefined ? updates.ownedAccessories : existingUser.ownedAccessories || []
+      };
       await saveUsers(users);
+      
+      // Also update via API PUT to ensure persistence
+      try {
+        await fetch('/api/users', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(users[index])
+        });
+      } catch (error) {
+        console.error('Error saving user to API:', error);
+      }
     }
   };
 

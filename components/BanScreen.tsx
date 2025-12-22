@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { Ban } from '@/types';
-import { createBanAppeal, getMessages, sendMessage } from '@/lib/storage';
+import { createBanAppeal, getMessagesAPI, sendMessage } from '@/lib/storage';
 
 interface BanScreenProps {
   ban: Ban;
@@ -21,7 +21,7 @@ export default function BanScreen({ ban, username, onAppealSubmitted }: BanScree
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const loadMessages = async () => {
-    const messages = await getMessages(username, ban.bannedBy);
+    const messages = await getMessagesAPI(username, ban.bannedBy);
     setChatMessages(messages);
   };
 

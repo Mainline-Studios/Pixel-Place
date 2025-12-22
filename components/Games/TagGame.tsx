@@ -651,21 +651,29 @@ export default function TagGame({ onClose }: TagGameProps) {
             <div style={{ fontSize: '16px', fontWeight: 600, marginBottom: '12px' }}>Game Mode</div>
             <div style={{ display: 'flex', gap: '8px', justifyContent: 'center', marginBottom: '16px' }}>
               <button
-                className="btn"
                 onClick={() => setGameMode('2d')}
                 style={{ 
                   padding: '8px 16px',
-                  background: gameMode === '2d' ? 'var(--accent)' : 'var(--panel-alt)'
+                  background: gameMode === '2d' ? '#00a2ff' : '#2a2a2a',
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: '6px',
+                  cursor: 'pointer',
+                  fontWeight: '600'
                 }}
               >
                 2D Mode
               </button>
               <button
-                className="btn"
                 onClick={() => setGameMode('3d')}
                 style={{ 
                   padding: '8px 16px',
-                  background: gameMode === '3d' ? 'var(--accent)' : 'var(--panel-alt)'
+                  background: gameMode === '3d' ? '#00a2ff' : '#2a2a2a',
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: '6px',
+                  cursor: 'pointer',
+                  fontWeight: '600'
                 }}
               >
                 3D Mode (Fullscreen)
@@ -680,18 +688,34 @@ export default function TagGame({ onClose }: TagGameProps) {
             </div>
             <div style={{ display: 'flex', gap: '8px', justifyContent: 'center', marginBottom: '16px' }}>
               <button
-                className="btn"
                 onClick={removePlayerFromLobby}
                 disabled={playerCount <= 1}
-                style={{ padding: '8px 16px' }}
+                style={{ 
+                  padding: '8px 16px',
+                  background: playerCount <= 1 ? '#666' : '#00a2ff',
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: '6px',
+                  cursor: playerCount <= 1 ? 'not-allowed' : 'pointer',
+                  fontWeight: '600',
+                  opacity: playerCount <= 1 ? 0.5 : 1
+                }}
               >
                 -
               </button>
               <button
-                className="btn"
                 onClick={addPlayerToLobby}
                 disabled={playerCount >= (gameMode === '3d' ? 5 : 6)}
-                style={{ padding: '8px 16px' }}
+                style={{ 
+                  padding: '8px 16px',
+                  background: playerCount >= (gameMode === '3d' ? 5 : 6) ? '#666' : '#00a2ff',
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: '6px',
+                  cursor: playerCount >= (gameMode === '3d' ? 5 : 6) ? 'not-allowed' : 'pointer',
+                  fontWeight: '600',
+                  opacity: playerCount >= (gameMode === '3d' ? 5 : 6) ? 0.5 : 1
+                }}
               >
                 +
               </button>
@@ -700,16 +724,32 @@ export default function TagGame({ onClose }: TagGameProps) {
 
           <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', flexWrap: 'wrap' }}>
             <button
-              className="btn"
               onClick={() => initializeGame(Math.max(3, playerCount), true)}
-              style={{ padding: '12px 24px', fontSize: '14px' }}
+              style={{ 
+                padding: '12px 24px', 
+                fontSize: '14px',
+                background: '#00a2ff',
+                color: '#fff',
+                border: 'none',
+                borderRadius: '6px',
+                cursor: 'pointer',
+                fontWeight: '600'
+              }}
             >
               Start with CPU ({playerCount < 3 ? 3 : playerCount} players)
             </button>
             <button
-              className="btn"
               onClick={() => initializeGame(playerCount, true)}
-              style={{ padding: '12px 24px', fontSize: '14px', background: 'var(--panel-alt)' }}
+              style={{ 
+                padding: '12px 24px', 
+                fontSize: '14px',
+                background: '#2a2a2a',
+                color: '#fff',
+                border: 'none',
+                borderRadius: '6px',
+                cursor: 'pointer',
+                fontWeight: '600'
+              }}
             >
               Play Now ({playerCount} {playerCount === 1 ? 'player' : 'players'})
             </button>
@@ -717,7 +757,7 @@ export default function TagGame({ onClose }: TagGameProps) {
         </div>
 
         <div className="smalltext" style={{ textAlign: 'center', color: 'var(--text-dim)' }}>
-          Use W/A/S/D or Arrow Keys to move. The player marked "IT" tries to tag others!
+          Use W/A/S/D or Arrow Keys to move. The player marked &quot;IT&quot; tries to tag others!
         </div>
       </div>
     );
@@ -803,20 +843,36 @@ export default function TagGame({ onClose }: TagGameProps) {
           zIndex: 10001
         }}>
           <button
-            className="btn"
             onClick={() => {
               const newPaused = !isPaused;
               setIsPaused(newPaused);
               setGameState(newPaused ? 'paused' : 'playing');
             }}
-            style={{ padding: '12px 24px', fontSize: '14px' }}
+            style={{ 
+              padding: '12px 24px', 
+              fontSize: '14px',
+              background: '#00a2ff',
+              color: '#fff',
+              border: 'none',
+              borderRadius: '6px',
+              cursor: 'pointer',
+              fontWeight: '600'
+            }}
           >
             {isPaused ? 'Resume' : 'Pause'}
           </button>
           <button
-            className="btn"
             onClick={resetGame}
-            style={{ padding: '12px 24px', fontSize: '14px', background: 'var(--panel-alt)' }}
+            style={{ 
+              padding: '12px 24px', 
+              fontSize: '14px',
+              background: '#2a2a2a',
+              color: '#fff',
+              border: 'none',
+              borderRadius: '6px',
+              cursor: 'pointer',
+              fontWeight: '600'
+            }}
           >
             Exit
           </button>
@@ -841,24 +897,46 @@ export default function TagGame({ onClose }: TagGameProps) {
 
   return (
     <div style={{
-      background: 'var(--panel)',
-      borderRadius: '16px',
+      position: 'fixed',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      background: '#1a1a1a',
       padding: '24px',
-      border: '1px solid var(--border)',
-      boxShadow: 'var(--shadow-card)'
+      overflow: 'auto',
+      zIndex: 1000
     }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
         <h3 style={{ margin: 0, fontSize: '20px', fontWeight: 700 }}>🏃 Tag Game</h3>
         <div style={{ display: 'flex', gap: '8px' }}>
-          <button className="btn" onClick={() => {
+          <button onClick={() => {
             const newPaused = !isPaused;
             setIsPaused(newPaused);
             setGameState(newPaused ? 'paused' : 'playing');
-          }} style={{ padding: '6px 12px', fontSize: '12px' }}>
+          }} style={{ 
+            padding: '8px 16px', 
+            fontSize: '14px',
+            background: '#00a2ff',
+            color: '#fff',
+            border: 'none',
+            borderRadius: '6px',
+            cursor: 'pointer',
+            fontWeight: '600'
+          }}>
             {isPaused ? 'Resume' : 'Pause'}
           </button>
           {onClose && (
-            <button className="btn" onClick={onClose} style={{ padding: '6px 12px', fontSize: '12px' }}>
+            <button onClick={onClose} style={{ 
+              padding: '8px 16px', 
+              fontSize: '14px',
+              background: '#00a2ff',
+              color: '#fff',
+              border: 'none',
+              borderRadius: '6px',
+              cursor: 'pointer',
+              fontWeight: '600'
+            }}>
               Close
             </button>
           )}
@@ -924,16 +1002,34 @@ export default function TagGame({ onClose }: TagGameProps) {
       </div>
 
       <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
-        <button className="btn" onClick={resetGame}>
+        <button onClick={resetGame} style={{
+          padding: '8px 16px',
+          fontSize: '14px',
+          background: '#00a2ff',
+          color: '#fff',
+          border: 'none',
+          borderRadius: '6px',
+          cursor: 'pointer',
+          fontWeight: '600'
+        }}>
           Back to Lobby
         </button>
-        <button className="btn" onClick={() => initializeGame(players.length, true)} style={{ background: 'var(--panel-alt)' }}>
+        <button onClick={() => initializeGame(players.length, true)} style={{ 
+          padding: '8px 16px',
+          fontSize: '14px',
+          background: '#2a2a2a',
+          color: '#fff',
+          border: 'none',
+          borderRadius: '6px',
+          cursor: 'pointer',
+          fontWeight: '600'
+        }}>
           Restart
         </button>
       </div>
 
-      <div className="smalltext" style={{ marginTop: '12px', textAlign: 'center', color: 'var(--text-dim)' }}>
-        Use W/A/S/D or Arrow Keys to move. Avoid the player marked "IT"!
+      <div style={{ marginTop: '12px', textAlign: 'center', color: '#999', fontSize: '12px' }}>
+        Use W/A/S/D or Arrow Keys to move. Avoid the player marked &quot;IT&quot;!
       </div>
     </div>
   );

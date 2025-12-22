@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { User, Skin, TabContent } from '@/types';
 import { getSkins, getTabContent } from '@/lib/storage';
 import { escapeHTML } from '@/lib/utils';
+import AdminPanelTab from './AdminPanelTab';
 
 interface SettingsTabProps {
   user: User;
@@ -39,9 +40,9 @@ export default function SettingsTab({ user, editMode, onToggleEditMode, onResetP
           <br />
           Role: {escapeHTML(user.role)}
           <br />
-          Gender: {escapeHTML(user.gender || 'N/A')}
+          Gender: Boy
           <br />
-          Coins: {coins}
+          Coins: {coins.toLocaleString('en-US')}
           <br />
           Equipped Skin: {escapeHTML(equippedSkinName)}
         </div>
@@ -65,6 +66,13 @@ export default function SettingsTab({ user, editMode, onToggleEditMode, onResetP
         <div className="ai-label">Settings Info</div>
         <div className="ai-output">{tabContent.settings || ''}</div>
       </div>
+      
+      {/* Admin Panel - Only visible to admins */}
+      {user.role === 'admin' && (
+        <div style={{ marginTop: '40px' }}>
+          <AdminPanelTab user={user} editMode={editMode} />
+        </div>
+      )}
     </>
   );
 }

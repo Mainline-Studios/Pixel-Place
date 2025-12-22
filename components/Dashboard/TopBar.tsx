@@ -1,30 +1,42 @@
 'use client';
 
-import { TabType } from '@/types';
+import { TabType, User } from '@/types';
 import Image from 'next/image';
-import { getInitials } from '@/lib/utils';
+import { getSkins, getAccessories } from '@/lib/storage';
+import Avatar3DViewer from '@/components/Avatar3DViewer';
 
 interface TopBarProps {
   currentTab: TabType;
   onTabChange: (tab: TabType) => void;
-  username: string;
-  role: string;
-  avatarInitials: string;
+  user: User;
 }
 
 const tabs: { key: TabType; label: string; adminOnly?: boolean }[] = [
   { key: 'home', label: 'Home' },
   { key: 'avatarShop', label: 'Avatar Shop' },
-  { key: 'createGame', label: 'Create' },
   { key: 'coins', label: 'Pixel Coins' },
-  { key: 'servers', label: 'Servers' },
   { key: 'friends', label: 'Friends' },
-  { key: 'report', label: 'Report' },
   { key: 'settings', label: 'Settings' },
-  { key: 'adminPanel', label: 'Admin Panel', adminOnly: true },
 ];
 
-export default function TopBar({ currentTab, onTabChange, username, role, avatarInitials }: TopBarProps) {
+export default function TopBar({ currentTab, onTabChange, user }: TopBarProps) {
+  const skins = getSkins();
+  const accessories = getAccessories();
+  const equippedSkin = skins.find(s => s.id === user.equippedSkin) || skins.find(s => s.id === 'starter_classic') || skins[0];
+  // equippedAccessories is an object, not an array: { hat: 'id', glasses: 'id', ... }
+  const equippedAccessoriesList = Object.values(user.equippedAccessories || {}).map(id => 
+    accessories.find(a => a.id === id)
+  ).filter(Boolean) as any[];
+
+  // Merge equipped accessories into skin for display
+  const skinWithAccessories = equippedSkin ? {
+    ...equippedSkin,
+    accessories: [
+      ...(equippedSkin.accessories || []),
+      ...equippedAccessoriesList
+    ]
+  } : null;
+
   return (
     <div className="topbar">
       <div className="topbar-inner">
@@ -41,7 +53,7 @@ export default function TopBar({ currentTab, onTabChange, username, role, avatar
         </div>
         <div className="header-nav">
           {tabs
-            .filter(tab => !tab.adminOnly || role === 'admin')
+            .filter(tab => !tab.adminOnly || user.role === 'admin')
             .map((tab) => (
               <button
                 key={tab.key}
@@ -54,10 +66,29 @@ export default function TopBar({ currentTab, onTabChange, username, role, avatar
             ))}
         </div>
         <div className="userbox">
-          <div className="avatar-top">{avatarInitials}</div>
+          <div className="avatar-top" style={{ 
+            width: '40px', 
+            height: '40px', 
+            borderRadius: '50%', 
+            overflow: 'hidden',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            background: 'transparent'
+          }}>
+            {skinWithAccessories && (
+              <Avatar3DViewer
+                skin={skinWithAccessories}
+                width={40}
+                height={40}
+                interactive={false}
+                animation={skinWithAccessories.defaultAnimation || 'idle'}
+              />
+            )}
+          </div>
           <div className="user-texts">
-            <div className="username-top">{username}</div>
-            <div className="role-top">{role}</div>
+            <div className="username-top">{user.username}</div>
+            <div className="role-top">{user.role}</div>
           </div>
         </div>
       </div>

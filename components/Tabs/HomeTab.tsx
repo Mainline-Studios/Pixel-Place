@@ -6,6 +6,8 @@ import { getSkins, getPublished, getUsers } from '@/lib/storage';
 import { escapeHTML } from '@/lib/utils';
 import GamePlayer from '@/components/GamePlayer';
 import Avatar3DViewer from '@/components/Avatar3DViewer';
+import { FNAF_PRELOADED_GAME, GYM_PUMP_PRELOADED_GAME } from '@/lib/preloadedGames';
+import GymPumpEngine from '@/components/Games/GymPumpEngine';
 
 interface HomeTabProps {
   user: User;
@@ -15,6 +17,7 @@ interface HomeTabProps {
 
 export default function HomeTab({ user, editMode, onResetPublished }: HomeTabProps) {
   const [selectedGame, setSelectedGame] = useState<PublishedGame | null>(null);
+  const [showGymPump, setShowGymPump] = useState(false);
   const [published, setPublished] = useState<PublishedGame[]>([]);
   const [users, setUsers] = useState<User[]>([]);
   const [skins, setSkins] = useState(getSkins());
@@ -32,14 +35,19 @@ export default function HomeTab({ user, editMode, onResetPublished }: HomeTabPro
     return () => clearInterval(interval);
   }, [user]);
 
-  // Sort published games
-  const sortedGames = published.slice().sort((a, b) => b.ts - a.ts);
+  // Include preloaded games
+  const allGames = [FNAF_PRELOADED_GAME, GYM_PUMP_PRELOADED_GAME, ...published];
+  const sortedGames = allGames.slice().sort((a, b) => b.ts - a.ts);
 
   // Get friends - show first 8
   const friends = (user.friends || []).slice(0, 8);
   const friendUsers = users
     .filter(u => u && u.username && friends.includes(u.username))
     .slice(0, 8);
+
+  if (showGymPump) {
+    return <GymPumpEngine user={user} onClose={() => setShowGymPump(false)} />;
+  }
 
   if (selectedGame) {
     return <GamePlayer game={selectedGame} onClose={() => setSelectedGame(null)} />;
@@ -248,7 +256,12 @@ export default function HomeTab({ user, editMode, onResetPublished }: HomeTabPro
                   }}
                   onClick={() => {
                     if (game.playable && game.gameCode) {
-                      setSelectedGame(game);
+                      // Special handling for Gym Pump (React component game)
+                      if (game.gameCode === 'builtin_gymPump' || game.id === 'gym-pump') {
+                        setShowGymPump(true);
+                      } else {
+                        setSelectedGame(game);
+                      }
                     }
                   }}
                 >
@@ -289,15 +302,17 @@ export default function HomeTab({ user, editMode, onResetPublished }: HomeTabPro
                       <div style={{
                         width: '100%',
                         height: '100%',
-                        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                        background: game.id === 'gym-pump' 
+                          ? 'linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%)'
+                          : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
                         color: '#fff',
-                        fontSize: '28px',
+                        fontSize: game.id === 'gym-pump' ? '48px' : '28px',
                         fontWeight: 700
                       }}>
-                        {(game.title || 'G').charAt(0).toUpperCase()}
+                        {game.id === 'gym-pump' ? '💪' : (game.title || 'G').charAt(0).toUpperCase()}
                       </div>
                     )}
                   </div>
@@ -348,7 +363,12 @@ export default function HomeTab({ user, editMode, onResetPublished }: HomeTabPro
                         }}
                         onClick={(e) => {
                           e.stopPropagation();
-                          setSelectedGame(game);
+                          // Special handling for Gym Pump (React component game)
+                          if (game.gameCode === 'builtin_gymPump' || game.id === 'gym-pump') {
+                            setShowGymPump(true);
+                          } else {
+                            setSelectedGame(game);
+                          }
                         }}
                       >
                         Play
@@ -431,7 +451,12 @@ export default function HomeTab({ user, editMode, onResetPublished }: HomeTabPro
                   }}
                   onClick={() => {
                     if (game.playable && game.gameCode) {
-                      setSelectedGame(game);
+                      // Special handling for Gym Pump (React component game)
+                      if (game.gameCode === 'builtin_gymPump' || game.id === 'gym-pump') {
+                        setShowGymPump(true);
+                      } else {
+                        setSelectedGame(game);
+                      }
                     }
                   }}
                 >
@@ -470,15 +495,17 @@ export default function HomeTab({ user, editMode, onResetPublished }: HomeTabPro
                       <div style={{
                         width: '100%',
                         height: '100%',
-                        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                        background: game.id === 'gym-pump' 
+                          ? 'linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%)'
+                          : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
                         color: '#fff',
-                        fontSize: '28px',
+                        fontSize: game.id === 'gym-pump' ? '48px' : '28px',
                         fontWeight: 700
                       }}>
-                        {(game.title || 'G').charAt(0).toUpperCase()}
+                        {game.id === 'gym-pump' ? '💪' : (game.title || 'G').charAt(0).toUpperCase()}
                       </div>
                     )}
                   </div>
@@ -527,7 +554,12 @@ export default function HomeTab({ user, editMode, onResetPublished }: HomeTabPro
                         }}
                         onClick={(e) => {
                           e.stopPropagation();
-                          setSelectedGame(game);
+                          // Special handling for Gym Pump (React component game)
+                          if (game.gameCode === 'builtin_gymPump' || game.id === 'gym-pump') {
+                            setShowGymPump(true);
+                          } else {
+                            setSelectedGame(game);
+                          }
                         }}
                       >
                         Play

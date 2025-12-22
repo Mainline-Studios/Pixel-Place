@@ -36,16 +36,30 @@ export async function POST(request: NextRequest) {
     const users = await readUsers();
     const newUser: User = await request.json();
     
-    // Check if user already exists - if so, update it
+    // Check if user already exists - if so, update it while preserving important data
     const existingIndex = users.findIndex(u => u.username.toLowerCase() === newUser.username.toLowerCase());
     if (existingIndex !== -1) {
-      users[existingIndex] = newUser;
+      // Preserve important arrays if they exist in the existing user
+      const existingUser = users[existingIndex];
+      users[existingIndex] = { 
+        ...existingUser, // Start with existing user to preserve all data
+        ...newUser, // Apply updates
+        // Preserve arrays unless explicitly being updated
+        friends: newUser.friends !== undefined ? newUser.friends : (existingUser.friends || []),
+        ownedSkins: newUser.ownedSkins !== undefined ? newUser.ownedSkins : (existingUser.ownedSkins || []),
+        ownedAccessories: newUser.ownedAccessories !== undefined ? newUser.ownedAccessories : (existingUser.ownedAccessories || []),
+        sentFriendRequests: newUser.sentFriendRequests !== undefined ? newUser.sentFriendRequests : (existingUser.sentFriendRequests || [])
+      };
     } else {
+      // New user - ensure all arrays exist
+      if (!newUser.friends) newUser.friends = [];
+      if (!newUser.ownedSkins) newUser.ownedSkins = [];
+      if (!newUser.ownedAccessories) newUser.ownedAccessories = [];
       users.push(newUser);
     }
     
     await writeUsers(users);
-    return NextResponse.json(newUser);
+    return NextResponse.json(users[existingIndex !== -1 ? existingIndex : users.length - 1]);
   } catch (error) {
     console.error('Error creating/updating user:', error);
     return NextResponse.json({ error: 'Failed to create/update user' }, { status: 500 });
