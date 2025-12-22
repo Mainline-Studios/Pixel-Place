@@ -12,6 +12,9 @@ export interface User {
   friends?: string[]; // Array of friend usernames
   friendRequests?: FriendRequest[]; // Incoming friend requests
   sentFriendRequests?: string[]; // Outgoing friend requests
+  currentGameId?: string; // Game ID user is currently playing
+  currentServerId?: string; // Server ID user is currently on
+  recentlyPlayed?: string[]; // Array of game IDs (ts as string) the user has played
 }
 
 export interface FriendRequest {
@@ -78,7 +81,6 @@ export interface SkinAccessory {
 export interface Skin {
   id: string;
   name: string;
-  rarity: 'common' | 'rare' | 'legendary';
   price: number;
   img: string;
   colors: {
@@ -120,8 +122,7 @@ export interface Skin {
 export interface Accessory {
   id: string;
   name: string;
-  type: 'hat' | 'glasses' | 'mask' | 'backpack' | 'weapon';
-  rarity: 'common' | 'rare' | 'legendary';
+  type: 'hat' | 'glasses' | 'mask' | 'backpack' | 'weapon' | 'chain' | 'shoes';
   price: number;
   img: string;
   color?: string;
@@ -141,6 +142,8 @@ export interface PublishedGame {
   multiplayer?: boolean; // Whether game supports multiplayer
   maxPlayers?: number; // Maximum players for multiplayer games
   serverId?: string; // Server ID if hosted on a server
+  playCount?: number; // Number of times the game has been played
+  id?: string; // Game ID (usually ts as string)
 }
 
 export interface GameServer {
@@ -209,7 +212,7 @@ export interface CoinPack {
   stripePriceId: string;
 }
 
-export type TabType = 'home' | 'avatarShop' | 'createGame' | 'coins' | 'friends' | 'settings' | 'servers';
+export type TabType = 'home' | 'games' | 'avatarShop' | 'createGame' | 'studio' | 'coins' | 'friends' | 'settings' | 'servers' | 'donation' | 'aiCoder' | 'adminPanel' | 'report';
 
 export interface TabContent {
   home?: string;
@@ -244,4 +247,49 @@ export interface GameSubmission {
   status: 'pending' | 'approved' | 'rejected';
   reviewedBy?: string;
   adminNotes?: string;
+}
+
+export interface Ban {
+  username: string;
+  bannedBy: string;
+  reason: string;
+  timestamp: number;
+  permanent: boolean;
+  expiresAt?: number;
+}
+
+export interface BanAppeal {
+  id: string;
+  username: string;
+  ban: Ban;
+  appealMessage: string;
+  timestamp: number;
+  status: 'pending' | 'approved' | 'rejected';
+  reviewedBy?: string;
+  adminNotes?: string;
+}
+
+export interface Report {
+  id: string;
+  reportedUsername: string;
+  reporterUsername: string;
+  reason: string;
+  description: string;
+  timestamp: number;
+  status: 'pending' | 'reviewed' | 'resolved';
+  reviewedBy?: string;
+  adminNotes?: string;
+}
+
+export interface PrebuiltGame {
+  id: string;
+  title: string;
+  desc: string;
+  thumbnail?: string;
+  gameCode?: string;
+  sceneData?: SceneData;
+  category?: string;
+  tags?: string[];
+  createdAt: number;
+  updatedAt: number;
 }

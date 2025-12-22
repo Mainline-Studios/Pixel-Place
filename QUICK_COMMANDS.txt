@@ -12,3 +12,10 @@ AFTER DEPLOYMENT - USE THE APP:
 3. Click "Install" button (or menu → Install app)
 4. App opens in its own window - works like native app!
 
+
+
+
+
+
+
+

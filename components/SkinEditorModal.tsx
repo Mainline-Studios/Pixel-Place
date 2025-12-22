@@ -1,3 +1,4 @@
+\
 'use client';
 
 import { useState } from 'react';
@@ -14,7 +15,6 @@ interface SkinEditorModalProps {
 export default function SkinEditorModal({ isOpen, onClose, onSave }: SkinEditorModalProps) {
   const [name, setName] = useState('');
   const [price, setPrice] = useState('0');
-  const [rarity, setRarity] = useState<'common' | 'rare' | 'legendary'>('common');
   const [headColor, setHeadColor] = useState(ROBOX_COLORS[5]); // Black
   const [torsoColor, setTorsoColor] = useState(ROBOX_COLORS[6]); // Red
   const [armColor, setArmColor] = useState(ROBOX_COLORS[6]); // Red
@@ -31,6 +31,8 @@ export default function SkinEditorModal({ isOpen, onClose, onSave }: SkinEditorM
       id: 'acc_' + Date.now() + '_' + Math.random(),
       type: newAccessoryType,
       name: newAccessoryType.charAt(0).toUpperCase() + newAccessoryType.slice(1),
+      img: '',
+      price: 0,
       color: newAccessoryColor
     };
     setAccessories([...accessories, newAccessory]);
@@ -49,7 +51,6 @@ export default function SkinEditorModal({ isOpen, onClose, onSave }: SkinEditorM
 
     onSave({
       name,
-      rarity,
       price: parseInt(price) || 0,
       img: name,
       use3d: true,
@@ -66,7 +67,6 @@ export default function SkinEditorModal({ isOpen, onClose, onSave }: SkinEditorM
     // Reset form
     setName('');
     setPrice('0');
-    setRarity('common');
     setHeadColor(ROBOX_COLORS[5]);
     setTorsoColor(ROBOX_COLORS[6]);
     setArmColor(ROBOX_COLORS[6]);
@@ -125,30 +125,15 @@ export default function SkinEditorModal({ isOpen, onClose, onSave }: SkinEditorM
             />
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-            <div>
-              <div className="prop-field-label">Price (Coins)</div>
-              <input
-                className="prop-input"
-                type="number"
-                value={price}
-                onChange={(e) => setPrice(e.target.value)}
-                style={{ width: '100%' }}
-              />
-            </div>
-            <div>
-              <div className="prop-field-label">Rarity</div>
-              <select
-                className="prop-input"
-                value={rarity}
-                onChange={(e) => setRarity(e.target.value as any)}
-                style={{ width: '100%' }}
-              >
-                <option value="common">Common</option>
-                <option value="rare">Rare</option>
-                <option value="legendary">Legendary</option>
-              </select>
-            </div>
+          <div>
+            <div className="prop-field-label">Price (Coins)</div>
+            <input
+              className="prop-input"
+              type="number"
+              value={price}
+              onChange={(e) => setPrice(e.target.value)}
+              style={{ width: '100%' }}
+            />
           </div>
 
           <div style={{ borderTop: '1px solid var(--border)', paddingTop: '16px' }}>

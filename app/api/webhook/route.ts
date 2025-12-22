@@ -2,11 +2,12 @@ import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { getUsers, saveUsers } from '@/lib/storage';
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
-  apiVersion: '2023-10-16',
-});
-
+const stripeSecretKey = process.env.STRIPE_SECRET_KEY || '';
 const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET || '';
+
+const stripe = stripeSecretKey ? new Stripe(stripeSecretKey, {
+  apiVersion: '2023-10-16',
+}) : null;
 
 export const runtime = 'nodejs';
 
@@ -26,6 +27,36 @@ export async function POST(request: NextRequest) {
     console.warn('Webhook secret not configured, skipping verification');
     // In development, you can process the webhook without verification
     // In production, always verify the signature
+  }
+
+  // Skip signature verification in development if webhook secret is not set
+  if (!webhookSecret || webhookSecret === 'whsec_your_webhook_secret_here' || !stripe) {
+    console.warn('Webhook secret not configured or Stripe not set up, processing without verification');
+    // In development, parse the event without verification
+    try {
+      const event = JSON.parse(body);
+      if (event.type === 'checkout.session.completed') {
+        const session = event.data.object;
+        const userId = session.metadata?.userId;
+        const coins = parseInt(session.metadata?.coins || '0');
+
+        if (userId && coins) {
+          const users = await getUsers();
+          const userIndex = users.findIndex((u) => u.username === userId);
+
+          if (userIndex !== -1) {
+            const currentCoins = typeof users[userIndex].coins === 'number' ? users[userIndex].coins : 0;
+            users[userIndex].coins = currentCoins + coins;
+            await saveUsers(users);
+            console.log(`Added ${coins} coins to user ${userId}`);
+          }
+        }
+      }
+      return NextResponse.json({ received: true });
+    } catch (err: any) {
+      console.error('Error processing webhook (dev mode):', err);
+      return NextResponse.json({ received: true });
+    }
   }
 
   let event: Stripe.Event;
@@ -54,13 +85,13 @@ export async function POST(request: NextRequest) {
       }
 
       // Update user's coin balance
-      const users = getUsers();
+      const users = await getUsers();
       const userIndex = users.findIndex((u) => u.username === userId);
 
       if (userIndex !== -1) {
         const currentCoins = typeof users[userIndex].coins === 'number' ? users[userIndex].coins : 0;
         users[userIndex].coins = currentCoins + coins;
-        saveUsers(users);
+        await saveUsers(users);
         console.log(`Added ${coins} coins to user ${userId}`);
       } else {
         console.error(`User ${userId} not found`);

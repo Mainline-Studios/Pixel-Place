@@ -56,7 +56,7 @@ export default function DonationTab({ user, editMode }: DonationTabProps) {
         }}>
           <div className="ai-label">🎉 Donor Status</div>
           <div className="ai-output">
-            Thank you for your support! You've donated ${totalDonated.toFixed(2)} total.
+            Thank you for your support! You&apos;ve donated ${totalDonated.toFixed(2)} total.
             <br />
             <strong>You have Full AI Coder access!</strong>
           </div>

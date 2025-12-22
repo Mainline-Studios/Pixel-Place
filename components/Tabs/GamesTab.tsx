@@ -5,12 +5,13 @@ import { User, UserMadeGame } from '@/types';
 import { getUserMadeGames, deleteUserMadeGame } from '@/lib/storage';
 import UserMadeGamePlayer from '../Games/UserMadeGamePlayer';
 import SnakeGame from '../Games/SnakeGame';
-import TicTacToe from '../Games/TicTacToe';
 import MemoryGame from '../Games/MemoryGame';
 import AvatarRunner3D from '../Games/AvatarRunner3D';
 import AvatarCollector3D from '../Games/AvatarCollector3D';
 import TagGame from '../Games/TagGame';
 import AIExperimentTest from '../Games/AIExperimentTest';
+import SchoolAdventure3D from '../Games/SchoolAdventure3D';
+import GymPumpEngine from '../Games/GymPumpEngine';
 
 interface GamesTabProps {
   user: User;
@@ -55,14 +56,6 @@ const games: GameInfo[] = [
     component: SnakeGame,
   },
   {
-    id: 'tictactoe',
-    name: 'Tic-Tac-Toe',
-    description: 'Play the classic X and O game',
-    icon: '⭕',
-    category: 'Strategy',
-    component: TicTacToe,
-  },
-  {
     id: 'memory',
     name: 'Memory Game',
     description: 'Match pairs of emojis to test your memory',
@@ -79,12 +72,29 @@ const games: GameInfo[] = [
     component: TagGame,
   },
   {
+    id: 'schoolAdventure',
+    name: 'School Adventure',
+    description: 'Explore a 3D school! Visit classrooms, collect items, and interact with students',
+    icon: '🏫',
+    category: '3D Adventure',
+    is3D: true,
+    component: SchoolAdventure3D,
+  },
+  {
     id: 'aiExperiment',
     name: 'AI Experiment Test',
     description: 'Text-to-speech experiment - type and hear your words',
     icon: '🤖',
     category: 'Experiment',
     component: AIExperimentTest,
+  },
+  {
+    id: 'gymPump',
+    name: 'Gym Pump',
+    description: 'Lift weights, build power, and climb the leaderboard!',
+    icon: '💪',
+    category: 'Action',
+    component: GymPumpEngine,
   },
 ];
 
@@ -221,7 +231,7 @@ export default function GamesTab({ user, editMode }: GamesTabProps) {
           <br />
           <strong>Memory Game:</strong> Click cards to flip them. Match pairs of emojis to win!
           <br />
-          <strong>Tag Game:</strong> Wait in lobby for 3+ players or play with CPU. Use W/A/S/D to move and avoid the player marked "IT"!
+          <strong>Tag Game:</strong> Wait in lobby for 3+ players or play with CPU. Use W/A/S/D to move and avoid the player marked &quot;IT&quot;!
         </div>
       </div>
 

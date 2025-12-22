@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useRef, useState, useEffect } from 'react';
 import { User, DraftGame, PublishedGame } from '@/types';
 import { getDraft, saveDraft, getPublished, savePublished } from '@/lib/storage';
 import { useUser } from '@/contexts/UserContext';
@@ -17,8 +17,20 @@ export default function CreateTab({ user, editMode }: CreateTabProps) {
   const codeEditorRef = useRef<HTMLTextAreaElement>(null);
   const thumbnailInputRef = useRef<HTMLInputElement>(null);
   const [studioMode, setStudioMode] = useState<StudioMode>('code');
-  const [draft, setDraft] = useState<DraftGame>(getDraft());
-  const [gameCode, setGameCode] = useState(draft.gameCode || getDefaultGameCode());
+  const [draft, setDraft] = useState<DraftGame>({
+    title: '',
+    desc: '',
+    owner: user.username,
+    gameCode: ''
+  });
+  const [gameCode, setGameCode] = useState(getDefaultGameCode());
+
+  useEffect(() => {
+    getDraft().then((loadedDraft) => {
+      setDraft(loadedDraft);
+      setGameCode(loadedDraft.gameCode || getDefaultGameCode());
+    }).catch(() => {});
+  }, []);
   const [thumbnail, setThumbnail] = useState<string | undefined>(draft.thumbnail);
   const [multiplayerEnabled, setMultiplayerEnabled] = useState(false);
   const [maxPlayers, setMaxPlayers] = useState(10);
@@ -125,7 +137,7 @@ export function createGame(container: HTMLElement) {
     alert('Draft saved.');
   };
 
-  const publishDraftNow = () => {
+  const publishDraftNow = async () => {
     if (user.role !== 'admin') {
       alert('Only admins can publish live.');
       return;
@@ -134,7 +146,7 @@ export function createGame(container: HTMLElement) {
       alert('No draft to publish. Save draft first.');
       return;
     }
-    const pub = getPublished();
+    const pub = await getPublished();
     const publishedGame: PublishedGame = {
       title: draft.title,
       desc: draft.desc || '(no description)',
@@ -147,7 +159,7 @@ export function createGame(container: HTMLElement) {
       maxPlayers: multiplayerEnabled ? maxPlayers : undefined,
     };
     pub.push(publishedGame);
-    savePublished(pub);
+    await savePublished(pub);
     alert("Published '" + draft.title + "' to Home instantly!");
   };
 

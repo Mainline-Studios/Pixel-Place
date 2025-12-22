@@ -1,11 +1,13 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import React from 'react';
 import { User, Skin, Accessory } from '@/types';
 import { getSkins, saveSkins, getAccessories, saveAccessories } from '@/lib/storage';
 import { escapeHTML } from '@/lib/utils';
 import { useUser } from '@/contexts/UserContext';
 import Avatar3DViewer from '@/components/Avatar3DViewer';
+import Accessory3DThumbnail from '@/components/Accessory3DThumbnail';
 
 interface AvatarShopTabProps {
   user: User;
@@ -67,8 +69,55 @@ function RarityBadge({ rarity }: { rarity: string }) {
 }
 
 function SkinThumb({ skin }: { skin: Skin }) {
+  const [hasError, setHasError] = useState(false);
+  const [isVisible, setIsVisible] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+  
+  useEffect(() => {
+    // Lazy load - only render when visible
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) {
+          setIsVisible(true);
+          observer.disconnect();
+        }
+      },
+      { threshold: 0.1 }
+    );
+    
+    if (containerRef.current) {
+      observer.observe(containerRef.current);
+    }
+    
+    return () => observer.disconnect();
+  }, []);
+  
+  // Validate skin has required properties
+  if (!skin || !skin.colors || hasError) {
+    return (
+      <div
+        ref={containerRef}
+        className="skin-thumb"
+        style={{
+          width: 80,
+          height: 80,
+          background: '#333',
+          borderRadius: '8px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          color: '#888',
+          fontSize: '10px'
+        }}
+      >
+        {hasError ? 'Error' : 'Invalid'}
+      </div>
+    );
+  }
+
   return (
     <div
+      ref={containerRef}
       className="skin-thumb"
       style={{
         display: 'flex',
@@ -81,51 +130,169 @@ function SkinThumb({ skin }: { skin: Skin }) {
         borderRadius: '8px'
       }}
     >
-      <Avatar3DViewer
-        skin={skin}
-        width={80}
-        height={80}
-        interactive={true}
-        animation={skin.defaultAnimation || 'idle'}
-      />
+      {isVisible ? (
+        <ErrorBoundary 
+          fallback={
+            <div 
+              style={{ 
+                width: 80, 
+                height: 80, 
+                background: '#333', 
+                borderRadius: '8px', 
+                display: 'flex', 
+                alignItems: 'center', 
+                justifyContent: 'center', 
+                color: '#888', 
+                fontSize: '10px' 
+              }}
+            >
+              Error
+            </div>
+          }
+          onError={() => setHasError(true)}
+        >
+          <Avatar3DViewer
+            skin={skin}
+            width={80}
+            height={80}
+            interactive={false}
+            animation={skin.defaultAnimation || 'idle'}
+          />
+        </ErrorBoundary>
+      ) : (
+        <div style={{ width: 80, height: 80, background: '#333', borderRadius: '8px' }} />
+      )}
     </div>
   );
+}
+
+// Proper React Error Boundary class component
+class ErrorBoundary extends React.Component<
+  { children: React.ReactNode; fallback: React.ReactNode; onError?: () => void },
+  { hasError: boolean; error: Error | null }
+> {
+  constructor(props: { children: React.ReactNode; fallback: React.ReactNode; onError?: () => void }) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+    console.error('Avatar3DViewer error:', error, errorInfo);
+    if (this.props.onError) {
+      this.props.onError();
+    }
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return <>{this.props.fallback}</>;
+    }
+    return <>{this.props.children}</>;
+  }
 }
 
 export default function AvatarShopTab({ user, editMode }: AvatarShopTabProps) {
   const { updateUser } = useUser();
   const [skins, setSkins] = useState<Skin[]>([]);
   const [accessories, setAccessories] = useState<Accessory[]>([]);
+  const [loadingError, setLoadingError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    let isMounted = true;
     const loadData = async () => {
-      const [skinsData, accessoriesData] = await Promise.all([getSkins(), getAccessories()]);
-      setSkins(skinsData);
-      setAccessories(accessoriesData);
+      setIsLoading(true);
+      try {
+        const [skinsData, accessoriesData] = await Promise.all([getSkins(), getAccessories()]);
+        if (!isMounted) return;
+        
+        // Validate and filter out invalid skins
+        const validSkins = (Array.isArray(skinsData) ? skinsData : []).filter((skin: Skin) => {
+          return skin && skin.id && skin.colors && 
+                 skin.colors.head && skin.colors.torso && 
+                 skin.colors.arm && skin.colors.legs;
+        });
+        
+        const validAccessories = (Array.isArray(accessoriesData) ? accessoriesData : []).filter((acc: Accessory) => {
+          return acc && acc.id && acc.type && acc.name;
+        });
+        
+        setSkins(validSkins);
+        setAccessories(validAccessories);
+        setLoadingError(null);
+      } catch (error: any) {
+        console.error('Error loading avatar shop data:', error);
+        if (isMounted) {
+          setLoadingError(error.message || 'Failed to load avatar shop');
+          setSkins([]);
+          setAccessories([]);
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      }
     };
     loadData();
+    
+    return () => {
+      isMounted = false;
+    };
   }, []);
   const ownedSkins = skins.filter((s) => user.ownedSkins?.includes(s.id));
   const ownedAccessories = accessories.filter((a) => user.ownedAccessories?.includes(a.id));
-  const equippedSkin = skins.find((s) => s.id === user.equippedSkin) || skins[0];
+  
+  // Find equipped skin with validation
+  let equippedSkin = skins.find((s) => s.id === user.equippedSkin);
+  if (!equippedSkin && skins.length > 0) {
+    // Fallback to first skin if equipped skin not found
+    equippedSkin = skins[0];
+  }
+  
+  // Ensure equippedSkin has required properties
+  if (equippedSkin) {
+    if (!equippedSkin.colors) {
+      equippedSkin = {
+        ...equippedSkin,
+        colors: {
+          head: '#f4c2a1',
+          torso: '#4d536f',
+          arm: '#3a3f56',
+          legs: '#3a3f56'
+        }
+      };
+    }
+  }
+  
   const equippedSkinName = equippedSkin ? equippedSkin.name : 'None';
 
-  const handlePurchase = (skin: Skin) => {
+  const handlePurchase = async (skin: Skin) => {
     if (user.ownedSkins?.includes(skin.id)) {
       alert('You already own this skin.');
       return;
     }
 
-    if ((user.coins || 0) < skin.price) {
+    const userCoins = user.coins || 0;
+    const formattedUserCoins = userCoins.toLocaleString('en-US');
+    const formattedPrice = skin.price.toLocaleString('en-US');
+    
+    if (userCoins < skin.price) {
       alert(`You don't have enough Pixel Coins to buy ${skin.name}.`);
       return;
     }
 
-    if (confirm(`Buy ${skin.name} for ${skin.price} Coins?\nYour balance: ${user.coins || 0}`)) {
+    if (confirm(`Buy ${skin.name} for ${formattedPrice} Coins?\nYour balance: ${formattedUserCoins}`)) {
       const newCoins = (user.coins || 0) - skin.price;
       const newOwnedSkins = [...(user.ownedSkins || []), skin.id];
-      updateUser({ coins: newCoins, ownedSkins: newOwnedSkins });
-      alert(`Purchased ${skin.name}!`);
+      
+      // Save purchase to backend - updateUser already saves and updates state
+      await updateUser({ coins: newCoins, ownedSkins: newOwnedSkins });
+      
+      alert(`Purchased ${skin.name}! Your purchase has been saved.`);
     }
   };
 
@@ -137,22 +304,29 @@ export default function AvatarShopTab({ user, editMode }: AvatarShopTabProps) {
     updateUser({ equippedSkin: skinId });
   };
 
-  const handlePurchaseAccessory = (accessory: Accessory) => {
+  const handlePurchaseAccessory = async (accessory: Accessory) => {
     if (user.ownedAccessories?.includes(accessory.id)) {
       alert('You already own this accessory.');
       return;
     }
 
-    if ((user.coins || 0) < accessory.price) {
+    const userCoins = user.coins || 0;
+    const formattedUserCoins = userCoins.toLocaleString('en-US');
+    const formattedPrice = accessory.price.toLocaleString('en-US');
+    
+    if (userCoins < accessory.price) {
       alert(`You don't have enough Pixel Coins to buy ${accessory.name}.`);
       return;
     }
 
-    if (confirm(`Buy ${accessory.name} for ${accessory.price} Coins?\nYour balance: ${user.coins || 0}`)) {
+    if (confirm(`Buy ${accessory.name} for ${formattedPrice} Coins?\nYour balance: ${formattedUserCoins}`)) {
       const newCoins = (user.coins || 0) - accessory.price;
       const newOwnedAccessories = [...(user.ownedAccessories || []), accessory.id];
-      updateUser({ coins: newCoins, ownedAccessories: newOwnedAccessories });
-      alert(`Purchased ${accessory.name}!`);
+      
+      // Save purchase to backend - updateUser already saves and updates state
+      await updateUser({ coins: newCoins, ownedAccessories: newOwnedAccessories });
+      
+      alert(`Purchased ${accessory.name}! Your purchase has been saved.`);
       setAccessories([...accessories]);
     }
   };
@@ -182,7 +356,7 @@ export default function AvatarShopTab({ user, editMode }: AvatarShopTabProps) {
     const name = prompt('Skin name?');
     if (!name) return;
     const priceStr = prompt('Price in coins? (0 for free)');
-    const rarity = prompt('Rarity: common / rare / legendary', 'common');
+    // Rarity system removed
     const torsoColor = prompt('Main color hex (like #4d536f)', '#4d536f');
     const headColor = prompt('Head color hex (or press Enter to use main color)', torsoColor || '#4d536f');
     const armColor = prompt('Arm color hex (or press Enter to use main color)', torsoColor || '#4d536f');
@@ -212,7 +386,7 @@ export default function AvatarShopTab({ user, editMode }: AvatarShopTabProps) {
     const newSkin: Skin = {
       id: 'skin_' + Date.now(),
       name,
-      rarity: (rarity || 'common').toLowerCase() as 'common' | 'rare' | 'legendary',
+      // rarity removed
       price: parseInt(priceStr || '0', 10),
       img: name,
       use3d: true,
@@ -245,6 +419,25 @@ export default function AvatarShopTab({ user, editMode }: AvatarShopTabProps) {
       alert(`Skin "${skin.name}" deleted.`);
     }
   };
+
+  if (loadingError) {
+    return (
+      <>
+        <h2 className="section-title">Avatar Shop</h2>
+        <div className="ai-box" style={{ borderColor: '#ff4444' }}>
+          <div className="ai-label" style={{ color: '#ff4444' }}>Error Loading Shop</div>
+          <div className="ai-output">{loadingError}</div>
+          <button 
+            className="btn" 
+            onClick={() => window.location.reload()}
+            style={{ marginTop: '12px' }}
+          >
+            Reload Page
+          </button>
+        </div>
+      </>
+    );
+  }
 
   return (
     <>
@@ -286,8 +479,6 @@ export default function AvatarShopTab({ user, editMode }: AvatarShopTabProps) {
                 <SkinThumb skin={s} accessories={s.id === user.equippedSkin ? equippedAccessoriesList : []} />
                 <div className="skin-name">{escapeHTML(s.name)}</div>
                 <div className="skin-meta">
-                  <RarityBadge rarity={s.rarity} />
-                  <br />
                   <span className="price-tag">{s.price === 0 ? 'Free' : 'Cost ' + s.price + ' Coins'}</span>
                 </div>
                 <div className="skin-actions">
@@ -335,8 +526,6 @@ export default function AvatarShopTab({ user, editMode }: AvatarShopTabProps) {
                 <SkinThumb skin={s} accessories={[]} />
                 <div className="skin-name">{escapeHTML(s.name)}</div>
                 <div className="skin-meta">
-                  <RarityBadge rarity={s.rarity} />
-                  <br />
                   <span className="price-tag">{s.price === 0 ? 'Free' : 'Cost ' + s.price + ' Coins'}</span>
                 </div>
                 <div className="skin-actions">
@@ -427,15 +616,19 @@ export default function AvatarShopTab({ user, editMode }: AvatarShopTabProps) {
 
             return (
               <div key={acc.id} className="skin-card">
-                <AccessoryThumb 
-                  accessory={acc} 
-                  skin={equippedSkin} 
-                  equippedAccessories={user.equippedAccessories}
-                />
+                <ErrorBoundary fallback={<div style={{ width: 80, height: 80, background: '#333', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#888', fontSize: '10px' }}>Error</div>}>
+                  {equippedSkin ? (
+                    <Accessory3DThumbnail 
+                      accessory={acc} 
+                      skin={equippedSkin} 
+                      equippedAccessories={user.equippedAccessories}
+                    />
+                  ) : (
+                    <div style={{ width: 80, height: 80, background: '#333', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#888', fontSize: '10px' }}>No Skin</div>
+                  )}
+                </ErrorBoundary>
                 <div className="skin-name">{escapeHTML(acc.name)}</div>
                 <div className="skin-meta">
-                  <RarityBadge rarity={acc.rarity} />
-                  <br />
                   <span style={{ fontSize: '11px', color: '#8b90a8' }}>{acc.type}</span>
                   <br />
                   <span className="price-tag">{acc.price} Coins</span>

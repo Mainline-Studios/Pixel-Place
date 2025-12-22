@@ -122,16 +122,29 @@ export default function SnakeGame({ onClose }: SnakeGameProps) {
 
   return (
     <div style={{
-      background: 'var(--panel)',
-      borderRadius: '16px',
+      position: 'fixed',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      background: '#1a1a1a',
       padding: '24px',
-      border: '1px solid var(--border)',
-      boxShadow: 'var(--shadow-card)'
+      overflow: 'auto',
+      zIndex: 1000
     }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
         <h3 style={{ margin: 0, fontSize: '20px', fontWeight: 700 }}>🐍 Snake Game</h3>
         {onClose && (
-          <button className="btn" onClick={onClose} style={{ padding: '6px 12px', fontSize: '12px' }}>
+          <button onClick={onClose} style={{ 
+            padding: '8px 16px', 
+            fontSize: '14px',
+            background: '#00a2ff',
+            color: '#fff',
+            border: 'none',
+            borderRadius: '6px',
+            cursor: 'pointer',
+            fontWeight: '600'
+          }}>
             Close
           </button>
         )}
@@ -151,7 +164,7 @@ export default function SnakeGame({ onClose }: SnakeGameProps) {
         width: '400px',
         height: '400px',
         background: '#0a0a0a',
-        border: '2px solid var(--border)',
+        border: '2px solid #333',
         borderRadius: '8px',
         margin: '0 auto',
         display: 'grid',
@@ -181,14 +194,33 @@ export default function SnakeGame({ onClose }: SnakeGameProps) {
       </div>
 
       <div style={{ marginTop: '16px', textAlign: 'center' }}>
-        <div className="smalltext" style={{ marginBottom: '12px' }}>
+        <div style={{ marginBottom: '12px', fontSize: '12px', color: '#999' }}>
           Use Arrow Keys to move • Space to pause
         </div>
         <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
-          <button className="btn" onClick={resetGame}>
+          <button onClick={resetGame} style={{
+            padding: '8px 16px',
+            fontSize: '14px',
+            background: '#00a2ff',
+            color: '#fff',
+            border: 'none',
+            borderRadius: '6px',
+            cursor: 'pointer',
+            fontWeight: '600'
+          }}>
             {gameOver ? 'Play Again' : 'Reset'}
           </button>
-          <button className="btn" onClick={() => setIsPaused(!isPaused)} disabled={gameOver}>
+          <button onClick={() => setIsPaused(!isPaused)} disabled={gameOver} style={{
+            padding: '8px 16px',
+            fontSize: '14px',
+            background: gameOver ? '#666' : '#00a2ff',
+            color: '#fff',
+            border: 'none',
+            borderRadius: '6px',
+            cursor: gameOver ? 'not-allowed' : 'pointer',
+            fontWeight: '600',
+            opacity: gameOver ? 0.5 : 1
+          }}>
             {isPaused ? 'Resume' : 'Pause'}
           </button>
         </div>

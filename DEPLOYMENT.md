@@ -84,3 +84,9 @@ To change the password:
 - Check Node.js version (should be 18+)
 - Review build logs in Vercel dashboard
 
+
+
+
+
+
+

@@ -26,3 +26,10 @@ try {
     Write-Host "Please update the installerUrl in this script with your actual download URL." -ForegroundColor Yellow
 }
 
+
+
+
+
+
+
+

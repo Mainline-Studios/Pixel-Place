@@ -39,6 +39,17 @@ next-env.d.ts
 /data/*.json
 !/data/.gitkeep
 
+# VS Code extensions and user data
+.vscode/extensions/
+AppData/
+
+
+
+
+
+
+
+
 
 
 
