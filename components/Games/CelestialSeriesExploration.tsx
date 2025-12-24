@@ -145,7 +145,7 @@ export default function CelestialSeriesExploration() {
         id: "uranus",
         name: "Uranus",
         x: 1040,
-        y: 80,
+        y: 80, 
         radius: 38,
         color: "#9be7ff",
         description:
