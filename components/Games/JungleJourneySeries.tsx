@@ -2,7 +2,7 @@ import React, { useEffect, useRef } from 'react';
 
 // JungleJourneySeries.tsx
 // Dense jungle scene with thick trees, swamps, realistic terrain, fauna and fruits
-// Added: lightweight clan system and camp creation (clans > 6 members can create a camp)
+// Realistic fruit visuals (IRL-like shapes/colors). Poisonous/lethal fruits remain visually indistinguishable (no markers).
 
 type Tile = {
   elevation: number; // 0..1
@@ -457,7 +457,7 @@ export default function JungleJourneySeries({ seed = 42 }: { seed?: number }) {
       }
     }
 
-    // Draw fruits (visual markers). NOTE: per request poisonous/lethal fruits are visually indistinguishable from normal fruits.
+    // Draw fruits (realistic shapes/colors)
     for (const f of fruits) {
       drawFruit(ctx, f);
     }
@@ -567,7 +567,6 @@ function drawAnimal(ctx: CanvasRenderingContext2D, a: Animal) {
       ctx.beginPath();
       ctx.ellipse(x, y, s * 0.9, s * 0.6, 0, 0, Math.PI * 2);
       ctx.fill();
-      // spots
       ctx.fillStyle = '#1B130E';
       ctx.fillRect(x - 3, y - 2, 2, 2);
       ctx.fillRect(x + 1, y, 2, 2);
@@ -628,89 +627,186 @@ function drawAnimal(ctx: CanvasRenderingContext2D, a: Animal) {
   }
 }
 
-// Draw fruit visual; per request poisonous/lethal fruits are visually indistinguishable from normal fruits
+// Draw fruit with IRL-like shapes and colors. Poisonous/lethal fruits remain visually indistinguishable from safe ones.
 function drawFruit(ctx: CanvasRenderingContext2D, f: Fruit) {
-  const colorMap: Record<string, string> = {
-    passion_fruit: '#7EC850',
-    star_fruit: '#FBE870',
-    papaya: '#F59E4A',
-    pineapple: '#F5D16A',
-    sugar_apple: '#E3F7C6',
-    berries: '#B93C6B',
-    edible_mushroom: '#E6CDAA',
-    poisonous_mushroom: '#8B3E72',
-    ackee: '#E98B3C',
-    elderberry: '#4B2A7A',
-    manchineel: '#2F4F2F'
-  };
+  const x = f.x;
+  const y = f.y;
+  const s = Math.max(1, f.size);
 
-  const c = colorMap[f.kind] || '#FFD400';
-  ctx.beginPath();
-  ctx.fillStyle = c;
-  ctx.arc(f.x, f.y, Math.max(1, f.size), 0, Math.PI * 2);
-  ctx.fill();
+  // helper: draw rotated polygon
+  function polygon(cx: number, cy: number, radius: number, sides: number, rotation = 0) {
+    ctx.beginPath();
+    for (let i = 0; i < sides; i++) {
+      const theta = (i / sides) * Math.PI * 2 + rotation;
+      const px = cx + Math.cos(theta) * radius;
+      const py = cy + Math.sin(theta) * radius;
+      if (i === 0) ctx.moveTo(px, py);
+      else ctx.lineTo(px, py);
+    }
+    ctx.closePath();
+  }
 
-  // Only show edible marker for clearly edible non-poisonous items
+  switch (f.kind) {
+    case 'passion_fruit':
+      // purple round, slightly dimpled — interior seeds for detail
+      ctx.fillStyle = '#6F2D91';
+      ctx.beginPath();
+      ctx.arc(x, y, s + 1.4, 0, Math.PI * 2);
+      ctx.fill();
+      // inner pulp dots
+      ctx.fillStyle = '#FFD96B';
+      for (let i = 0; i < 5; i++) {
+        const ang = (i / 5) * Math.PI * 2 + 0.3;
+        ctx.beginPath();
+        ctx.arc(x + Math.cos(ang) * (s * 0.4), y + Math.sin(ang) * (s * 0.15), 0.9, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      break;
+
+    case 'star_fruit':
+      // draw 5-sided star-cross-section: approximate with polygon rotated for star shape
+      ctx.fillStyle = '#F8E76A';
+      polygon(x, y, s * 1.6, 5, Math.PI / 5);
+      ctx.fill();
+      ctx.strokeStyle = '#E0C84A';
+      ctx.lineWidth = 0.6;
+      ctx.stroke();
+      break;
+
+    case 'papaya':
+      // elongated oval orange with black seed cluster
+      ctx.fillStyle = '#F79A45';
+      ctx.beginPath();
+      ctx.ellipse(x, y, s * 1.6, s * 0.9, 0, 0, Math.PI * 2);
+      ctx.fill();
+      // seeds down the center
+      ctx.fillStyle = '#0B0B0B';
+      for (let i = -2; i <= 2; i++) {
+        ctx.beginPath();
+        ctx.arc(x + i * (s * 0.22), y, 0.75, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      break;
+
+    case 'pineapple':
+      // textured yellow body + green crown
+      ctx.fillStyle = '#F3D078';
+      ctx.beginPath();
+      ctx.ellipse(x, y + s * 0.15, s * 1.2, s * 1.6, 0, 0, Math.PI * 2);
+      ctx.fill();
+      // cross-hatch texture
+      ctx.strokeStyle = '#D3A84B';
+      ctx.lineWidth = 0.6;
+      for (let i = -2; i <= 2; i++) {
+        ctx.beginPath();
+        ctx.moveTo(x - s * 1.0, y - i * s * 0.35);
+        ctx.lineTo(x + s * 1.0, y + (-i + 0.6) * s * 0.35);
+        ctx.stroke();
+      }
+      // crown
+      ctx.fillStyle = '#2E7D32';
+      for (let i = -2; i <= 2; i++) {
+        ctx.beginPath();
+        ctx.moveTo(x + i * s * 0.35, y - s * 1.1);
+        ctx.lineTo(x + (i - 0.4) * s * 0.35, y - s * 0.3);
+        ctx.lineTo(x + (i + 0.4) * s * 0.35, y - s * 0.3);
+        ctx.closePath();
+        ctx.fill();
+      }
+      break;
+
+    case 'sugar_apple':
+      // green bumpy segmented sphere
+      ctx.fillStyle = '#8FD08A';
+      ctx.beginPath();
+      ctx.arc(x, y, s * 1.1, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#AEE6B0';
+      for (let i = 0; i < 6; i++) {
+        const ang = (i / 6) * Math.PI * 2;
+        ctx.beginPath();
+        ctx.arc(x + Math.cos(ang) * s * 0.6, y + Math.sin(ang) * s * 0.6, s * 0.32, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      break;
+
+    case 'berries':
+      // small cluster of purple/red berries
+      ctx.fillStyle = '#7A1F4B';
+      ctx.beginPath();
+      ctx.arc(x - s * 0.6, y, s * 0.7, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(x + s * 0.2, y - s * 0.2, s * 0.7, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(x + s * 0.8, y + 0.05 * s, s * 0.7, 0, Math.PI * 2);
+      ctx.fill();
+      break;
+
+    case 'edible_mushroom':
+      // common mushroom: cap + stem
+      ctx.fillStyle = '#CDAF8C';
+      ctx.beginPath();
+      ctx.ellipse(x, y - s * 0.2, s * 1.2, s * 0.7, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#EDE0C8';
+      ctx.fillRect(x - s * 0.25, y - s * 0.1, s * 0.5, s * 0.9);
+      break;
+
+    case 'poisonous_mushroom':
+      // slightly brighter/darker cap — still visually like a mushroom (no marker)
+      ctx.fillStyle = '#8B3E72';
+      ctx.beginPath();
+      ctx.ellipse(x, y - s * 0.2, s * 1.2, s * 0.7, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#CFA9C9';
+      ctx.fillRect(x - s * 0.25, y - s * 0.1, s * 0.5, s * 0.9);
+      break;
+
+    case 'ackee':
+      // ackee resembles a small orange/yellow pod (draw a small pod)
+      ctx.fillStyle = '#F29D4A';
+      ctx.beginPath();
+      ctx.ellipse(x, y, s * 1.1, s * 0.9, 0, 0, Math.PI * 2);
+      ctx.fill();
+      break;
+
+    case 'elderberry':
+      // elderberries are small dark purple clusters (clustered tiny berries)
+      ctx.fillStyle = '#2F0E3B';
+      for (let i = 0; i < 4; i++) {
+        const ang = (i / 4) * Math.PI * 2;
+        ctx.beginPath();
+        ctx.arc(x + Math.cos(ang) * s * 0.6, y + Math.sin(ang) * s * 0.2, s * 0.5, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      break;
+
+    case 'manchineel':
+      // manchineel looks like a small green apple/berry — draw a simple green apple
+      ctx.fillStyle = '#3A6A3A';
+      ctx.beginPath();
+      ctx.arc(x, y, s * 1.1, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#2E5B2E';
+      ctx.fillRect(x - 0.6, y - s * 1.2, 1.2, 1.2); // simple stem
+      break;
+
+    default:
+      // fallback simple colored dot
+      ctx.fillStyle = '#FFD400';
+      ctx.beginPath();
+      ctx.arc(x, y, s, 0, Math.PI * 2);
+      ctx.fill();
+      break;
+  }
+
+  // Only show edible marker for clearly edible non-poisonous items (unchanged behavior).
   if (f.edible && !f.poisonous && !f.lethal) {
     ctx.fillStyle = 'rgba(255,215,64,0.9)';
     ctx.fillRect(f.x - 1, f.y - 1, 2, 2);
   }
 
-  // Note: poisonous and lethal fruits intentionally have no outline or visible indicator here.
+  // NOTE: Per request, poisonous and lethal fruits intentionally have no special outline or visible marker.
 }
-
-// --- Clan system (in-memory store) ---
-// This is a minimal implementation to be used by game logic. Replace with persistent server-backed store as needed.
-const clans = new Map<string, Clan>();
-
-function makeId(prefix = '') { return prefix + Math.random().toString(36).slice(2, 9); }
-
-export function createClan(name: string, owner: Player): Clan {
-  const id = makeId('clan_');
-  const clan: Clan = { id, name, ownerId: owner.id, members: [owner.id], canCreateCamp: false, camp: null };
-  clans.set(id, clan);
-  return clan;
-}
-
-export function joinClan(clanId: string, player: Player): Clan | null {
-  const clan = clans.get(clanId);
-  if (!clan) return null;
-  if (!clan.members.includes(player.id)) {
-    clan.members.push(player.id);
-    // update camp eligibility
-    clan.canCreateCamp = clan.members.length > 6;
-  }
-  return clan;
-}
-
-export function leaveClan(clanId: string, playerId: string): Clan | null {
-  const clan = clans.get(clanId);
-  if (!clan) return null;
-  clan.members = clan.members.filter(m => m !== playerId);
-  // if owner leaves and there are members left, assign a new owner (first member)
-  if (clan.ownerId === playerId) {
-    clan.ownerId = clan.members[0] || '';
-  }
-  clan.canCreateCamp = clan.members.length > 6;
-  // if members drop below threshold, optionally remove camp
-  if (clan.members.length <= 6 && clan.camp) {
-    // automatically remove camp (game can decide to persist instead)
-    clan.camp = null;
-  }
-  return clan;
-}
-
-export function getClan(clanId: string): Clan | null {
-  return clans.get(clanId) ?? null;
-}
-
-export function createCamp(clanId: string, x: number, y: number): Camp | null {
-  const clan = clans.get(clanId);
-  if (!clan) return null;
-  if (!clan.canCreateCamp) return null; // not enough members
-  const camp: Camp = { id: makeId('camp_'), clanId: clan.id, x, y, createdAt: Date.now() };
-  clan.camp = camp;
-  return camp;
-}
-
-// Drawing helper for fruits/animals etc. reused above
