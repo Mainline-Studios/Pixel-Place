@@ -90,6 +90,10 @@
    - **Underwater Oddysey**
      
    - Find out about the wonders of the ocean, living in a submarine
+
+   - **Jungle Journey**
+
+   -Hike the jungle and avoid some weird things
      
      
 10. **Ghost in the Dark**
