@@ -1,12 +1,21 @@
 import React, { useEffect, useRef } from 'react';
 
 // JungleJourneySeries.tsx
-// Generates a dense jungle scene with thick trees, swamps, and realistic terrain
+// Generates a dense jungle scene with thick trees, swamps, realistic terrain and fauna
 
 type Tile = {
   elevation: number; // 0..1
   humidity: number;  // 0..1
   feature?: 'water' | 'swamp' | 'tree' | 'clear' | 'vine' | 'lily';
+};
+
+type Animal = {
+  species: string;
+  x: number; // pixel position
+  y: number; // pixel position
+  size: number;
+  color?: string;
+  id: number;
 };
 
 const TILE_SIZE = 8; // pixels per tile for canvas preview
@@ -16,7 +25,7 @@ const MAP_H = 48;
 // Simple value-noise (coherent) generator using hashing and interpolation
 function seededRandom(seed: number) {
   return function() {
-    // Xorshift32-ish
+    // Xorshift-like deterministic generator
     seed |= 0;
     seed = (seed + 0x6D2B79F5) | 0;
     let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
@@ -72,17 +81,14 @@ function generateJungleMap(seed = 42) {
   }
 
   // Determine water level and swamp pockets
-  // Water is where elevation is very low; swamps are low-elevation high-humidity
   for (let y = 0; y < MAP_H; y++) {
     for (let x = 0; x < MAP_W; x++) {
       const t = map[y][x];
-      // Introduce river meanders using detail noise
       const d = detailNoise(x, y);
 
       if (t.elevation < 0.32 - d * 0.07) {
         t.feature = 'water';
       } else if (t.elevation < 0.42 && t.humidity > 0.6) {
-        // swamps form in lower, humid areas with some randomness
         if (d > 0.35) t.feature = 'swamp';
       }
     }
@@ -94,9 +100,7 @@ function generateJungleMap(seed = 42) {
       const t = map[y][x];
       if (t.feature === 'clear') {
         const d = detailNoise(x, y);
-        // canopy probability increases with humidity and mid-elevation
         const canopyScore = (t.humidity * 0.7) + (1 - Math.abs(t.elevation - 0.6)) * 0.4 + d * 0.4;
-        // Bias for clustering to create thick stands
         if (canopyScore > 0.85 || (canopyScore > 0.72 && neighborsHaveTrees(map, x, y))) {
           t.feature = 'tree';
         }
@@ -134,22 +138,73 @@ function neighborsHaveTrees(map: Tile[][], x: number, y: number) {
 
 function tileColor(tile: Tile) {
   switch (tile.feature) {
-    case 'water': return '#1B6CA8'; // deep water blue
-    case 'swamp': return '#3B6B2F'; // muddy green-brown
-    case 'lily': return '#2E8B57'; // lily pad green
+    case 'water': return '#1B6CA8';
+    case 'swamp': return '#3B6B2F';
+    case 'lily': return '#2E8B57';
     case 'vine': return '#2F5E2E';
     case 'tree': {
-      // canopy shading depends on humidity and elevation
       const g = Math.floor(100 + tile.humidity * 80 - tile.elevation * 30);
       const r = Math.floor(30 + (1 - tile.elevation) * 20);
       const b = Math.floor(20 + tile.elevation * 10);
       return `rgb(${r},${g},${b})`;
     }
     default:
-      // ground: vary between muddy soil and dense undergrowth
       const tone = Math.floor(70 + tile.humidity * 60 - tile.elevation * 20);
       return `rgb(${40},${tone},${30})`;
   }
+}
+
+function spawnFauna(map: Tile[][], seed = 42) {
+  const rand = seededRandom(seed * 97 + 13);
+  const animals: Animal[] = [];
+  let idCounter = 1;
+
+  for (let y = 0; y < MAP_H; y++) {
+    for (let x = 0; x < MAP_W; x++) {
+      const t = map[y][x];
+      const px = x * TILE_SIZE;
+      const py = y * TILE_SIZE;
+
+      // fish: water
+      if (t.feature === 'water') {
+        if (rand() < 0.06) animals.push({ species: 'fish', x: px + rand() * TILE_SIZE, y: py + rand() * TILE_SIZE, size: 4 + rand() * 4, id: idCounter++ });
+        if (rand() < 0.008) animals.push({ species: 'hippo', x: px + rand() * TILE_SIZE, y: py + rand() * TILE_SIZE, size: 18, id: idCounter++ });
+        if (rand() < 0.01) animals.push({ species: 'otter', x: px + rand() * TILE_SIZE, y: py + rand() * TILE_SIZE, size: 8, id: idCounter++ });
+      }
+
+      // swamp inhabitants
+      if (t.feature === 'swamp' || t.feature === 'lily') {
+        if (rand() < 0.08) animals.push({ species: 'frog', x: px + rand() * TILE_SIZE, y: py + rand() * TILE_SIZE, size: 4, id: idCounter++ });
+        if (rand() < 0.04) animals.push({ species: 'capybara', x: px + rand() * TILE_SIZE, y: py + rand() * TILE_SIZE, size: 12, id: idCounter++ });
+      }
+
+      // trees: monkeys, parrots, toucans, sloths, jaguars occasionally
+      if (t.feature === 'tree') {
+        if (rand() < 0.06) animals.push({ species: 'monkey', x: px + rand() * TILE_SIZE, y: py + rand() * TILE_SIZE, size: 8, id: idCounter++ });
+        if (rand() < 0.03) animals.push({ species: 'parrot', x: px + rand() * TILE_SIZE, y: py + rand() * TILE_SIZE, size: 6, id: idCounter++ });
+        if (rand() < 0.02) animals.push({ species: 'toucan', x: px + rand() * TILE_SIZE, y: py + rand() * TILE_SIZE, size: 6, id: idCounter++ });
+        if (rand() < 0.015) animals.push({ species: 'sloth', x: px + rand() * TILE_SIZE, y: py + rand() * TILE_SIZE, size: 10, id: idCounter++ });
+        if (rand() < 0.008) animals.push({ species: 'jaguar', x: px + rand() * TILE_SIZE, y: py + rand() * TILE_SIZE, size: 14, id: idCounter++ });
+      }
+
+      // ground animals: lizards, elephants (rare), lions (very rare), bears, pandas
+      if (t.feature === 'clear') {
+        if (rand() < 0.03) animals.push({ species: 'lizard', x: px + rand() * TILE_SIZE, y: py + rand() * TILE_SIZE, size: 5, id: idCounter++ });
+        if (rand() < 0.003 && rand() > 0.6) animals.push({ species: 'elephant', x: px + rand() * TILE_SIZE, y: py + rand() * TILE_SIZE, size: 24, id: idCounter++ });
+        if (rand() < 0.002) animals.push({ species: 'lion', x: px + rand() * TILE_SIZE, y: py + rand() * TILE_SIZE, size: 16, id: idCounter++ });
+        if (rand() < 0.002) animals.push({ species: 'panda', x: px + rand() * TILE_SIZE, y: py + rand() * TILE_SIZE, size: 16, id: idCounter++ });
+        if (rand() < 0.002) animals.push({ species: 'bear', x: px + rand() * TILE_SIZE, y: py + rand() * TILE_SIZE, size: 18, id: idCounter++ });
+      }
+    }
+  }
+
+  // Post-process: ensure animals inside canvas bounds (they should be)
+  for (const a of animals) {
+    a.x = Math.max(1, Math.min(a.x, MAP_W * TILE_SIZE - 2));
+    a.y = Math.max(1, Math.min(a.y, MAP_H * TILE_SIZE - 2));
+  }
+
+  return animals;
 }
 
 export default function JungleJourneySeries({ seed = 42 }: { seed?: number }) {
@@ -161,10 +216,10 @@ export default function JungleJourneySeries({ seed = 42 }: { seed?: number }) {
     canvas.height = MAP_H * TILE_SIZE;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
-    // pixelated look
     ctx.imageSmoothingEnabled = false;
 
     const map = generateJungleMap(seed);
+    const animals = spawnFauna(map, seed);
 
     // Render base tiles
     for (let y = 0; y < MAP_H; y++) {
@@ -183,18 +238,15 @@ export default function JungleJourneySeries({ seed = 42 }: { seed?: number }) {
         const py = y * TILE_SIZE;
 
         if (t.feature === 'water') {
-          // lighter edges where adjacent to non-water
           if (isAdjacentTo(map, x, y, (f) => f !== 'water')) {
             ctx.fillStyle = 'rgba(46,122,184,0.28)';
             ctx.fillRect(px, py, TILE_SIZE, TILE_SIZE);
           }
-          // subtle ripple
           ctx.fillStyle = 'rgba(255,255,255,0.04)';
           ctx.fillRect(px + (TILE_SIZE/4)|0, py + (TILE_SIZE/4)|0, TILE_SIZE/2, TILE_SIZE/2);
         }
 
         if (t.feature === 'swamp') {
-          // draw patches of mud and reeds
           ctx.fillStyle = 'rgba(30,18,8,0.12)';
           ctx.fillRect(px, py, TILE_SIZE, TILE_SIZE);
           if (Math.random() > 0.8) {
@@ -220,22 +272,23 @@ export default function JungleJourneySeries({ seed = 42 }: { seed?: number }) {
         }
 
         if (t.feature === 'tree') {
-          // draw trunk (small) and canopy highlight
           ctx.fillStyle = '#3B2314';
           ctx.fillRect(px + TILE_SIZE/2 - 1, py + TILE_SIZE - 3, 2, 3);
-
-          // canopy overlay: multi-layer circle to simulate thick leaves
           ctx.fillStyle = 'rgba(10,60,20,0.9)';
           ctx.beginPath();
           ctx.arc(px + TILE_SIZE/2, py + TILE_SIZE/2, TILE_SIZE * 0.9, 0, Math.PI * 2);
           ctx.fill();
-
           ctx.fillStyle = 'rgba(70,130,60,0.12)';
           ctx.beginPath();
           ctx.arc(px + TILE_SIZE/2 - 1, py + TILE_SIZE/2 - 1, TILE_SIZE * 0.55, 0, Math.PI * 2);
           ctx.fill();
         }
       }
+    }
+
+    // Draw animals
+    for (const a of animals) {
+      drawAnimal(ctx, a);
     }
 
     // Global fog/haze to evoke thick jungle humidity
@@ -267,4 +320,133 @@ function isAdjacentTo(map: Tile[][], x: number, y: number, predicate: (f: string
     }
   }
   return false;
+}
+
+function drawAnimal(ctx: CanvasRenderingContext2D, a: Animal) {
+  const x = a.x;
+  const y = a.y;
+  const s = a.size;
+
+  switch (a.species) {
+    case 'fish':
+      ctx.fillStyle = '#F2A65A';
+      ctx.beginPath();
+      ctx.ellipse(x, y, s * 0.6, s * 0.35, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = 'rgba(0,0,0,0.25)';
+      ctx.fillRect(x + s * 0.4, y - 1, 2, 2);
+      break;
+    case 'frog':
+      ctx.fillStyle = '#2EA849';
+      ctx.beginPath();
+      ctx.ellipse(x, y, s * 0.6, s * 0.45, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#153716';
+      ctx.fillRect(x - s * 0.2, y - s * 0.1, 2, 2);
+      break;
+    case 'hippo':
+      ctx.fillStyle = '#6C6E72';
+      ctx.beginPath();
+      ctx.ellipse(x, y, s, s * 0.6, 0, 0, Math.PI * 2);
+      ctx.fill();
+      break;
+    case 'otter':
+      ctx.fillStyle = '#7A4F2B';
+      ctx.beginPath();
+      ctx.ellipse(x, y, s * 0.9, s * 0.5, 0, 0, Math.PI * 2);
+      ctx.fill();
+      break;
+    case 'capybara':
+      ctx.fillStyle = '#9B6B3A';
+      ctx.beginPath();
+      ctx.ellipse(x, y, s * 1.0, s * 0.6, 0, 0, Math.PI * 2);
+      ctx.fill();
+      break;
+    case 'monkey':
+      ctx.fillStyle = '#8B5A2B';
+      ctx.beginPath();
+      ctx.arc(x, y, s * 0.5, 0, Math.PI * 2);
+      ctx.fill();
+      break;
+    case 'parrot':
+      ctx.fillStyle = '#2ECC71';
+      ctx.beginPath();
+      ctx.arc(x, y, s * 0.45, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#FFD400';
+      ctx.fillRect(x + 2, y - 1, 3, 2);
+      break;
+    case 'toucan':
+      ctx.fillStyle = '#111111';
+      ctx.beginPath();
+      ctx.arc(x, y, s * 0.45, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#FFD54F';
+      ctx.beginPath();
+      ctx.ellipse(x + s * 0.8, y, s * 0.55, s * 0.25, 0, 0, Math.PI * 2);
+      ctx.fill();
+      break;
+    case 'jaguar':
+      ctx.fillStyle = '#D9A84A';
+      ctx.beginPath();
+      ctx.ellipse(x, y, s * 0.9, s * 0.6, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#1B130E';
+      ctx.fillRect(x - 3, y - 2, 2, 2);
+      ctx.fillRect(x + 1, y, 2, 2);
+      break;
+    case 'sloth':
+      ctx.fillStyle = '#7E5A3C';
+      ctx.beginPath();
+      ctx.arc(x, y, s * 0.5, 0, Math.PI * 2);
+      ctx.fill();
+      break;
+    case 'lizard':
+      ctx.fillStyle = '#5FB86E';
+      ctx.beginPath();
+      ctx.ellipse(x, y, s * 0.8, s * 0.3, 0, 0, Math.PI * 2);
+      ctx.fill();
+      break;
+    case 'elephant':
+      ctx.fillStyle = '#9AA0A6';
+      ctx.beginPath();
+      ctx.ellipse(x, y, s * 1.2, s * 0.8, 0, 0, Math.PI * 2);
+      ctx.fill();
+      // trunk
+      ctx.fillRect(x + s * 0.9, y - s * 0.05, s * 0.25, s * 0.2);
+      break;
+    case 'lion':
+      ctx.fillStyle = '#D7A24A';
+      ctx.beginPath();
+      ctx.ellipse(x, y, s * 0.9, s * 0.6, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#9B5A2B';
+      ctx.beginPath();
+      ctx.arc(x, y - s * 0.1, s * 0.6, 0, Math.PI * 2);
+      ctx.fill();
+      break;
+    case 'panda':
+      ctx.fillStyle = '#FFFFFF';
+      ctx.beginPath();
+      ctx.arc(x, y, s * 0.7, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#000000';
+      ctx.beginPath();
+      ctx.arc(x - s * 0.25, y - s * 0.05, s * 0.2, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(x + s * 0.25, y - s * 0.05, s * 0.2, 0, Math.PI * 2);
+      ctx.fill();
+      break;
+    case 'bear':
+      ctx.fillStyle = '#6B3E23';
+      ctx.beginPath();
+      ctx.ellipse(x, y, s * 1.0, s * 0.7, 0, 0, Math.PI * 2);
+      ctx.fill();
+      break;
+    default:
+      ctx.fillStyle = '#000000';
+      ctx.fillRect(x - 1, y - 1, 2, 2);
+      break;
+  }
 }
