@@ -4,6 +4,9 @@
 
 type ID = string;
 
+type Position2D = { x: number; y: number };
+type Position3D = { x: number; y: number; z: number };
+
 export type RoleName =
   | "ghost"
   | "angel"
@@ -39,7 +42,8 @@ export interface Player {
 export interface Report {
   reporterId: ID;
   victimId: ID;
-  location?: { x: number; y: number } | string;
+  // location can now be a 3D point, a legacy 2D point, or a string descriptor
+  location?: Position3D | Position2D | string;
   time: number;
 }
 
@@ -60,6 +64,8 @@ export interface GameOptions {
 /**
  * Core game class. Authoritative state should live on the server when used in multiplayer.
  * This is intentionally implementation-focused but event-driven so UI/network code can subscribe.
+ *
+ * This update expands location types to 3D (x,y,z) while remaining compatible with existing 2D or string locations.
  */
 export class GhostInTheDarkGame {
   players: Map<ID, Player> = new Map();
@@ -180,7 +186,10 @@ export class GhostInTheDarkGame {
 
   // Call a meeting: any player may call once (meetingCallRemaining) unless president who may call up to 5
   // Now includes a discussion phase (chat) followed by a voting phase.
-  callMeeting(callerId: ID, report?: { victimId: ID; location?: { x: number; y: number } | string }) {
+  callMeeting(
+    callerId: ID,
+    report?: { victimId: ID; location?: Position3D | Position2D | string }
+  ) {
     if (this.gameOver) return;
     const caller = this.getPlayer(callerId);
     if (!caller || !caller.alive) throw new Error("Only alive players can call meetings/report");
@@ -238,7 +247,7 @@ export class GhostInTheDarkGame {
     }, voteMs);
   }
 
-  reportBody(reporterId: ID, victimId: ID, location?: { x: number; y: number } | string) {
+  reportBody(reporterId: ID, victimId: ID, location?: Position3D | Position2D | string) {
     // reporting is a type of meeting call
     return this.callMeeting(reporterId, { victimId, location });
   }
@@ -418,7 +427,7 @@ export class GhostInTheDarkGame {
     return (this as any)._deathReports ?? [];
   }
 
-  // Spirit: travel through walls up to 3 times per game for 15s each
+  // Spirit: travel through walls up to 3 times per game for 15s each (works in 3D space now)
   spiritPhase(spiritId: ID) {
     const spirit = this.getPlayer(spiritId);
     if (!spirit || spirit.role !== "spirit") throw new Error("Invalid spirit");
@@ -452,7 +461,11 @@ export class GhostInTheDarkGame {
   }
 
   // Internal: apply a kill, mark death time, trigger jumpscare event for victim
-  _killPlayer(victimId: ID, killerId: ID | null, opts?: { ejected?: boolean; location?: any }) {
+  _killPlayer(
+    victimId: ID,
+    killerId: ID | null,
+    opts?: { ejected?: boolean; location?: Position3D | Position2D | string }
+  ) {
     const victim = this.getPlayer(victimId);
     if (!victim || !victim.alive) return;
     victim.alive = false;
