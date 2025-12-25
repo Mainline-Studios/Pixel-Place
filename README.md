@@ -54,7 +54,34 @@
    - Test your memory with emoji matching
    - Flip cards to find matching pairs
    - Challenge yourself with increasing difficulty
-
+     
+7. **Hide and Seek**
+   -Classic childhood game
+   -Hide in specific areas
+   -Try not to get caught
+   
+9. **Red Rover**
+   -Fun game to test teamwork
+   -Run through the link
+   -Quick and easy gameplay
+   
+11. **The Series**
+   - **Celestial Exploration**
+   - Explore the solar system and land on planets to thrive extraterrestrialy
+   - **Mountain March**
+   - Climb the mounyain with friends to reach the top, don't fall
+   - **Underwater Oddysey**
+   - Find out about the wonders of the ocean, living in a submarine
+     
+11. **Ghost in the Dark**
+    -Fun game where you find out who is NOT one of us
+    -Intense game with jumpscares
+    -A variety of roles to be picked
+    
+13. **City Life**
+    -A roleplay to simulate adulthood and entrepeneurship to kids
+    -A game to teach you about the world
+    -Placed in our member's beloved home: St.Louis
 ---
 
 ## 🚀 Getting Started
