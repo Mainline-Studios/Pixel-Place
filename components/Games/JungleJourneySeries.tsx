@@ -1,7 +1,8 @@
 import React, { useEffect, useRef } from 'react';
 
 // JungleJourneySeries.tsx
-// Generates a dense jungle scene with thick trees, swamps, realistic terrain and fauna
+// Dense jungle scene with thick trees, swamps, realistic terrain, fauna and fruits
+// Added: lightweight clan system and camp creation (clans > 6 members can create a camp)
 
 type Tile = {
   elevation: number; // 0..1
@@ -16,16 +17,57 @@ type Animal = {
   size: number;
   color?: string;
   id: number;
+  edible?: boolean;
+  hostile?: boolean;
+  attackDamage?: number;
+  aggroRange?: number;
+  aggroProbability?: number;
+};
+
+type Fruit = {
+  kind: string;
+  x: number; // pixel
+  y: number; // pixel
+  size: number;
+  edible: boolean;       // safe to eat
+  poisonous: boolean;    // causes poisoning (but not instant death)
+  lethal: boolean;       // causes instant death if consumed
+  tileX: number;         // tile coordinate
+  tileY: number;
+  id: number;
+};
+
+// Lightweight player / clan types for gameplay integration
+export type Player = {
+  id: string;
+  name: string;
+  // additional player state (health, inventory, position) should be managed by game code
+};
+
+export type Camp = {
+  id: string;
+  clanId: string;
+  x: number; // pixel
+  y: number; // pixel
+  createdAt: number;
+};
+
+export type Clan = {
+  id: string;
+  name: string;
+  ownerId: string;
+  members: string[]; // player IDs
+  canCreateCamp: boolean;
+  camp?: Camp | null;
 };
 
 const TILE_SIZE = 8; // pixels per tile for canvas preview
 const MAP_W = 80;
 const MAP_H = 48;
 
-// Simple value-noise (coherent) generator using hashing and interpolation
+// Simple seeded deterministic random
 function seededRandom(seed: number) {
   return function() {
-    // Xorshift-like deterministic generator
     seed |= 0;
     seed = (seed + 0x6D2B79F5) | 0;
     let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
@@ -165,17 +207,18 @@ function spawnFauna(map: Tile[][], seed = 42) {
       const px = x * TILE_SIZE;
       const py = y * TILE_SIZE;
 
-      // fish: water
+      // water: fish, otters, hippos
       if (t.feature === 'water') {
-        if (rand() < 0.06) animals.push({ species: 'fish', x: px + rand() * TILE_SIZE, y: py + rand() * TILE_SIZE, size: 4 + rand() * 4, id: idCounter++ });
-        if (rand() < 0.008) animals.push({ species: 'hippo', x: px + rand() * TILE_SIZE, y: py + rand() * TILE_SIZE, size: 18, id: idCounter++ });
+        if (rand() < 0.06) animals.push({ species: 'fish', x: px + rand() * TILE_SIZE, y: py + rand() * TILE_SIZE, size: 4 + rand() * 4, id: idCounter++ , edible: true});
         if (rand() < 0.01) animals.push({ species: 'otter', x: px + rand() * TILE_SIZE, y: py + rand() * TILE_SIZE, size: 8, id: idCounter++ });
+        if (rand() < 0.008) animals.push({ species: 'hippo', x: px + rand() * TILE_SIZE, y: py + rand() * TILE_SIZE, size: 18, id: idCounter++ , hostile: true, attackDamage: 18, aggroRange: 18});
       }
 
       // swamp inhabitants
       if (t.feature === 'swamp' || t.feature === 'lily') {
-        if (rand() < 0.08) animals.push({ species: 'frog', x: px + rand() * TILE_SIZE, y: py + rand() * TILE_SIZE, size: 4, id: idCounter++ });
+        if (rand() < 0.08) animals.push({ species: 'frog', x: px + rand() * TILE_SIZE, y: py + rand() * TILE_SIZE, size: 4, id: idCounter++, edible: true });
         if (rand() < 0.04) animals.push({ species: 'capybara', x: px + rand() * TILE_SIZE, y: py + rand() * TILE_SIZE, size: 12, id: idCounter++ });
+        if (rand() < 0.03) animals.push({ species: 'lizard', x: px + rand() * TILE_SIZE, y: py + rand() * TILE_SIZE, size: 5, id: idCounter++, edible: true });
       }
 
       // trees: monkeys, parrots, toucans, sloths, jaguars occasionally
@@ -184,27 +227,154 @@ function spawnFauna(map: Tile[][], seed = 42) {
         if (rand() < 0.03) animals.push({ species: 'parrot', x: px + rand() * TILE_SIZE, y: py + rand() * TILE_SIZE, size: 6, id: idCounter++ });
         if (rand() < 0.02) animals.push({ species: 'toucan', x: px + rand() * TILE_SIZE, y: py + rand() * TILE_SIZE, size: 6, id: idCounter++ });
         if (rand() < 0.015) animals.push({ species: 'sloth', x: px + rand() * TILE_SIZE, y: py + rand() * TILE_SIZE, size: 10, id: idCounter++ });
-        if (rand() < 0.008) animals.push({ species: 'jaguar', x: px + rand() * TILE_SIZE, y: py + rand() * TILE_SIZE, size: 14, id: idCounter++ });
+        if (rand() < 0.008) animals.push({ species: 'jaguar', x: px + rand() * TILE_SIZE, y: py + rand() * TILE_SIZE, size: 14, id: idCounter++, hostile: true, attackDamage: 22, aggroRange: 30 });
       }
 
-      // ground animals: lizards, elephants (rare), lions (very rare), bears, pandas
+      // clear ground: lizards, occasional elephants, lions, bears, pandas
       if (t.feature === 'clear') {
-        if (rand() < 0.03) animals.push({ species: 'lizard', x: px + rand() * TILE_SIZE, y: py + rand() * TILE_SIZE, size: 5, id: idCounter++ });
-        if (rand() < 0.003 && rand() > 0.6) animals.push({ species: 'elephant', x: px + rand() * TILE_SIZE, y: py + rand() * TILE_SIZE, size: 24, id: idCounter++ });
-        if (rand() < 0.002) animals.push({ species: 'lion', x: px + rand() * TILE_SIZE, y: py + rand() * TILE_SIZE, size: 16, id: idCounter++ });
-        if (rand() < 0.002) animals.push({ species: 'panda', x: px + rand() * TILE_SIZE, y: py + rand() * TILE_SIZE, size: 16, id: idCounter++ });
-        if (rand() < 0.002) animals.push({ species: 'bear', x: px + rand() * TILE_SIZE, y: py + rand() * TILE_SIZE, size: 18, id: idCounter++ });
+        if (rand() < 0.03) animals.push({ species: 'lizard', x: px + rand() * TILE_SIZE, y: py + rand() * TILE_SIZE, size: 5, id: idCounter++, edible: true });
+        if (rand() < 0.003 && rand() > 0.6) animals.push({ species: 'elephant', x: px + rand() * TILE_SIZE, y: py + rand() * TILE_SIZE, size: 24, id: idCounter++, hostile: true, attackDamage: 28, aggroProbability: 0.15 });
+        if (rand() < 0.002) animals.push({ species: 'lion', x: px + rand() * TILE_SIZE, y: py + rand() * TILE_SIZE, size: 16, id: idCounter++, hostile: true, attackDamage: 20, aggroRange: 28 });
+        if (rand() < 0.002) animals.push({ species: 'panda', x: px + rand() * TILE_SIZE, y: py + rand() * TILE_SIZE, size: 16, id: idCounter++ , hostile: true, attackDamage: 12 });
+        if (rand() < 0.002) animals.push({ species: 'bear', x: px + rand() * TILE_SIZE, y: py + rand() * TILE_SIZE, size: 18, id: idCounter++, edible: true, hostile: true, attackDamage: 24 });
       }
     }
   }
 
-  // Post-process: ensure animals inside canvas bounds (they should be)
+  // Post-process: ensure animals inside canvas bounds
   for (const a of animals) {
     a.x = Math.max(1, Math.min(a.x, MAP_W * TILE_SIZE - 2));
     a.y = Math.max(1, Math.min(a.y, MAP_H * TILE_SIZE - 2));
   }
 
   return animals;
+}
+
+// Spawn fruits and mushrooms with edible / poisonous / lethal metadata
+function spawnFruits(map: Tile[][], seed = 42) {
+  const rand = seededRandom(seed * 131 + 7);
+  const fruits: Fruit[] = [];
+  let idCounter = 1;
+
+  const treeFruits = [
+    { kind: 'passion_fruit', edible: true, poisonous: false, lethal: false },
+    { kind: 'star_fruit', edible: true, poisonous: false, lethal: false },
+    { kind: 'papaya', edible: true, poisonous: false, lethal: false },
+    { kind: 'pineapple', edible: true, poisonous: false, lethal: false },
+    { kind: 'sugar_apple', edible: true, poisonous: false, lethal: false },
+    { kind: 'berries', edible: true, poisonous: false, lethal: false }
+  ];
+
+  const groundFruits = [
+    { kind: 'edible_mushroom', edible: true, poisonous: false, lethal: false },
+    { kind: 'poisonous_mushroom', edible: false, poisonous: true, lethal: false }
+  ];
+
+  const deadlyFruits = [
+    { kind: 'ackee', edible: false, poisonous: true, lethal: false },
+    { kind: 'elderberry', edible: false, poisonous: true, lethal: false },
+    { kind: 'manchineel', edible: false, poisonous: true, lethal: true }
+  ];
+
+  for (let y = 0; y < MAP_H; y++) {
+    for (let x = 0; x < MAP_W; x++) {
+      const t = map[y][x];
+      const px = x * TILE_SIZE;
+      const py = y * TILE_SIZE;
+
+      if (t.feature === 'tree') {
+        if (rand() < 0.12) {
+          const pick = treeFruits[Math.floor(rand() * treeFruits.length)];
+          fruits.push({
+            kind: pick.kind,
+            x: px + TILE_SIZE * (0.2 + rand() * 0.6),
+            y: py + TILE_SIZE * (0.15 + rand() * 0.5),
+            size: 3 + Math.floor(rand() * 3),
+            edible: pick.edible,
+            poisonous: pick.poisonous,
+            lethal: pick.lethal,
+            tileX: x,
+            tileY: y,
+            id: idCounter++
+          });
+        }
+        if (rand() < 0.0015) {
+          const df = deadlyFruits.find(f => f.kind === 'manchineel')!;
+          fruits.push({
+            kind: df.kind,
+            x: px + TILE_SIZE * (0.2 + rand() * 0.6),
+            y: py + TILE_SIZE * (0.15 + rand() * 0.5),
+            size: 4,
+            edible: df.edible,
+            poisonous: df.poisonous,
+            lethal: df.lethal,
+            tileX: x,
+            tileY: y,
+            id: idCounter++
+          });
+        }
+      }
+
+      if (t.feature === 'clear' || t.feature === 'swamp') {
+        if (rand() < 0.02) {
+          const pick = groundFruits[Math.floor(rand() * groundFruits.length)];
+          fruits.push({
+            kind: pick.kind,
+            x: px + TILE_SIZE * (0.2 + rand() * 0.6),
+            y: py + TILE_SIZE * (0.6 + rand() * 0.3),
+            size: 2 + Math.floor(rand() * 3),
+            edible: pick.edible,
+            poisonous: pick.poisonous,
+            lethal: pick.lethal,
+            tileX: x,
+            tileY: y,
+            id: idCounter++
+          });
+        }
+        if (rand() < 0.0015) {
+          const pick = deadlyFruits[Math.floor(rand() * deadlyFruits.length)];
+          if (pick.kind !== 'manchineel' && rand() < 0.5) {
+            fruits.push({
+              kind: pick.kind,
+              x: px + TILE_SIZE * (0.3 + rand() * 0.4),
+              y: py + TILE_SIZE * (0.6 + rand() * 0.3),
+              size: 3,
+              edible: pick.edible,
+              poisonous: pick.poisonous,
+              lethal: pick.lethal,
+              tileX: x,
+              tileY: y,
+              id: idCounter++
+            });
+          }
+        }
+      }
+
+      if (t.feature === 'lily') {
+        if (rand() < 0.02) {
+          fruits.push({
+            kind: 'berries',
+            x: px + TILE_SIZE * (0.3 + rand() * 0.4),
+            y: py + TILE_SIZE * (0.4 + rand() * 0.3),
+            size: 2 + Math.floor(rand() * 2),
+            edible: true,
+            poisonous: false,
+            lethal: false,
+            tileX: x,
+            tileY: y,
+            id: idCounter++
+          });
+        }
+      }
+    }
+  }
+
+  for (const f of fruits) {
+    f.x = Math.max(1, Math.min(f.x, MAP_W * TILE_SIZE - 2));
+    f.y = Math.max(1, Math.min(f.y, MAP_H * TILE_SIZE - 2));
+  }
+
+  return fruits;
 }
 
 export default function JungleJourneySeries({ seed = 42 }: { seed?: number }) {
@@ -220,6 +390,7 @@ export default function JungleJourneySeries({ seed = 42 }: { seed?: number }) {
 
     const map = generateJungleMap(seed);
     const animals = spawnFauna(map, seed);
+    const fruits = spawnFruits(map, seed);
 
     // Render base tiles
     for (let y = 0; y < MAP_H; y++) {
@@ -230,7 +401,7 @@ export default function JungleJourneySeries({ seed = 42 }: { seed?: number }) {
       }
     }
 
-    // Add details: water highlights, tree trunks, fog overlay, and swamp ripples
+    // Add tile details (water edge, trunks, lilies, vines)
     for (let y = 0; y < MAP_H; y++) {
       for (let x = 0; x < MAP_W; x++) {
         const t = map[y][x];
@@ -286,12 +457,17 @@ export default function JungleJourneySeries({ seed = 42 }: { seed?: number }) {
       }
     }
 
+    // Draw fruits (visual markers). NOTE: per request poisonous/lethal fruits are visually indistinguishable from normal fruits.
+    for (const f of fruits) {
+      drawFruit(ctx, f);
+    }
+
     // Draw animals
     for (const a of animals) {
       drawAnimal(ctx, a);
     }
 
-    // Global fog/haze to evoke thick jungle humidity
+    // Global fog/haze
     const fogGrad = ctx.createLinearGradient(0, 0, 0, canvas.height);
     fogGrad.addColorStop(0, 'rgba(230,250,240,0.02)');
     fogGrad.addColorStop(1, 'rgba(20,30,20,0.06)');
@@ -391,6 +567,7 @@ function drawAnimal(ctx: CanvasRenderingContext2D, a: Animal) {
       ctx.beginPath();
       ctx.ellipse(x, y, s * 0.9, s * 0.6, 0, 0, Math.PI * 2);
       ctx.fill();
+      // spots
       ctx.fillStyle = '#1B130E';
       ctx.fillRect(x - 3, y - 2, 2, 2);
       ctx.fillRect(x + 1, y, 2, 2);
@@ -412,7 +589,7 @@ function drawAnimal(ctx: CanvasRenderingContext2D, a: Animal) {
       ctx.beginPath();
       ctx.ellipse(x, y, s * 1.2, s * 0.8, 0, 0, Math.PI * 2);
       ctx.fill();
-      // trunk
+      ctx.fillStyle = '#8F9599';
       ctx.fillRect(x + s * 0.9, y - s * 0.05, s * 0.25, s * 0.2);
       break;
     case 'lion':
@@ -450,3 +627,90 @@ function drawAnimal(ctx: CanvasRenderingContext2D, a: Animal) {
       break;
   }
 }
+
+// Draw fruit visual; per request poisonous/lethal fruits are visually indistinguishable from normal fruits
+function drawFruit(ctx: CanvasRenderingContext2D, f: Fruit) {
+  const colorMap: Record<string, string> = {
+    passion_fruit: '#7EC850',
+    star_fruit: '#FBE870',
+    papaya: '#F59E4A',
+    pineapple: '#F5D16A',
+    sugar_apple: '#E3F7C6',
+    berries: '#B93C6B',
+    edible_mushroom: '#E6CDAA',
+    poisonous_mushroom: '#8B3E72',
+    ackee: '#E98B3C',
+    elderberry: '#4B2A7A',
+    manchineel: '#2F4F2F'
+  };
+
+  const c = colorMap[f.kind] || '#FFD400';
+  ctx.beginPath();
+  ctx.fillStyle = c;
+  ctx.arc(f.x, f.y, Math.max(1, f.size), 0, Math.PI * 2);
+  ctx.fill();
+
+  // Only show edible marker for clearly edible non-poisonous items
+  if (f.edible && !f.poisonous && !f.lethal) {
+    ctx.fillStyle = 'rgba(255,215,64,0.9)';
+    ctx.fillRect(f.x - 1, f.y - 1, 2, 2);
+  }
+
+  // Note: poisonous and lethal fruits intentionally have no outline or visible indicator here.
+}
+
+// --- Clan system (in-memory store) ---
+// This is a minimal implementation to be used by game logic. Replace with persistent server-backed store as needed.
+const clans = new Map<string, Clan>();
+
+function makeId(prefix = '') { return prefix + Math.random().toString(36).slice(2, 9); }
+
+export function createClan(name: string, owner: Player): Clan {
+  const id = makeId('clan_');
+  const clan: Clan = { id, name, ownerId: owner.id, members: [owner.id], canCreateCamp: false, camp: null };
+  clans.set(id, clan);
+  return clan;
+}
+
+export function joinClan(clanId: string, player: Player): Clan | null {
+  const clan = clans.get(clanId);
+  if (!clan) return null;
+  if (!clan.members.includes(player.id)) {
+    clan.members.push(player.id);
+    // update camp eligibility
+    clan.canCreateCamp = clan.members.length > 6;
+  }
+  return clan;
+}
+
+export function leaveClan(clanId: string, playerId: string): Clan | null {
+  const clan = clans.get(clanId);
+  if (!clan) return null;
+  clan.members = clan.members.filter(m => m !== playerId);
+  // if owner leaves and there are members left, assign a new owner (first member)
+  if (clan.ownerId === playerId) {
+    clan.ownerId = clan.members[0] || '';
+  }
+  clan.canCreateCamp = clan.members.length > 6;
+  // if members drop below threshold, optionally remove camp
+  if (clan.members.length <= 6 && clan.camp) {
+    // automatically remove camp (game can decide to persist instead)
+    clan.camp = null;
+  }
+  return clan;
+}
+
+export function getClan(clanId: string): Clan | null {
+  return clans.get(clanId) ?? null;
+}
+
+export function createCamp(clanId: string, x: number, y: number): Camp | null {
+  const clan = clans.get(clanId);
+  if (!clan) return null;
+  if (!clan.canCreateCamp) return null; // not enough members
+  const camp: Camp = { id: makeId('camp_'), clanId: clan.id, x, y, createdAt: Date.now() };
+  clan.camp = camp;
+  return camp;
+}
+
+// Drawing helper for fruits/animals etc. reused above
