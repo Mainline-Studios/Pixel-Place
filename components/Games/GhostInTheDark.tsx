@@ -65,10 +65,7 @@ export interface GameOptions {
   // skull/visibility options:
   skullVisibleDistance?: number; // default distance within which skulls are visible to non-whisperers
   // optional override to implement LOS/walls logic. If provided it must return true when viewer can see skull.
-  canSeeSkull?: (viewer: Player, skull: Skull, map?: MansionMap) => boolean;
-
-  // optional map/scene override
-  map?: MansionMap;
+  canSeeSkull?: (viewer: Player, skull: Skull) => boolean;
 }
 
 /**
@@ -83,100 +80,12 @@ export interface Skull {
   reportedAt?: number | null;
 }
 
-// Simple 2D wall segment used for LOS checks (z handled separately by viewer/skull elevation)
-export interface Wall2D {
-  x1: number;
-  y1: number;
-  x2: number;
-  y2: number;
-  opaque?: boolean; // if false, considered a doorway/opening
-}
-
-export interface Room {
-  id: string;
-  name: string;
-  // bounds (simple axis-aligned rectangle for convenience)
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-}
-
-export interface MansionMap {
-  name: string;
-  width: number;
-  height: number;
-  walls: Wall2D[];
-  rooms: Room[];
-  spawnPoints: Position3D[];
-}
-
-/**
- * Default mansion layout. Coordinates are arbitrary units; adjust to fit your renderer.
- * The layout is intentionally simple: outer rectangle and a few interior walls/rooms with door gaps.
- */
-const DEFAULT_MANSION: MansionMap = {
-  name: "Old Manor",
-  width: 40,
-  height: 30,
-  walls: [
-    // outer boundary (clockwise) - break at door positions by splitting segments and marking gaps as non-opaque walls omitted
-    { x1: 0, y1: 0, x2: 40, y2: 0, opaque: true },
-    { x1: 40, y1: 0, x2: 40, y2: 30, opaque: true },
-    { x1: 40, y1: 30, x2: 0, y2: 30, opaque: true },
-    { x1: 0, y1: 30, x2: 0, y2: 0, opaque: true },
-
-    // foyer / hall divider
-    { x1: 10, y1: 0, x2: 10, y2: 12, opaque: true },
-    { x1: 10, y1: 12, x2: 30, y2: 12, opaque: true },
-
-    // library west wall
-    { x1: 2, y1: 2, x2: 2, y2: 10, opaque: true },
-    { x1: 2, y1: 10, x2: 10, y2: 10, opaque: true },
-
-    // dining room east wall
-    { x1: 30, y1: 2, x2: 38, y2: 2, opaque: true },
-    { x1: 30, y1: 2, x2: 30, y2: 10, opaque: true },
-
-    // kitchen partition
-    { x1: 26, y1: 12, x2: 26, y2: 20, opaque: true },
-
-    // stairs area (mid)
-    { x1: 18, y1: 12, x2: 18, y2: 20, opaque: true },
-
-    // upstairs rooms (represented as walls upstairs projection)
-    { x1: 4, y1: 20, x2: 16, y2: 20, opaque: true },
-    { x1: 16, y1: 20, x2: 28, y2: 20, opaque: true },
-    { x1: 28, y1: 20, x2: 36, y2: 20, opaque: true },
-  ],
-  rooms: [
-    { id: "foyer", name: "Foyer", x: 10, y: 0, width: 20, height: 12 },
-    { id: "library", name: "Library", x: 0, y: 0, width: 10, height: 12 },
-    { id: "dining", name: "Dining Room", x: 30, y: 0, width: 10, height: 12 },
-    { id: "kitchen", name: "Kitchen", x: 26, y: 12, width: 14, height: 8 },
-    { id: "stairs", name: "Stairs", x: 16, y: 12, width: 8, height: 8 },
-    { id: "up1", name: "Upstairs - West", x: 0, y: 20, width: 16, height: 10 },
-    { id: "up2", name: "Upstairs - Middle", x: 16, y: 20, width: 12, height: 10 },
-    { id: "up3", name: "Upstairs - East", x: 28, y: 20, width: 12, height: 10 },
-  ],
-  spawnPoints: [
-    { x: 12, y: 6, z: 0 }, // foyer
-    { x: 4, y: 6, z: 0 }, // library
-    { x: 34, y: 6, z: 0 }, // dining
-    { x: 28, y: 16, z: 0 }, // kitchen
-    { x: 20, y: 16, z: 0 }, // stairs
-    { x: 8, y: 24, z: 3 }, // upstairs west
-    { x: 20, y: 24, z: 3 }, // upstairs middle
-    { x: 32, y: 24, z: 3 }, // upstairs east
-  ],
-};
-
 /**
  * Core game class. Authoritative state should live on the server when used in multiplayer.
  * This is intentionally implementation-focused but event-driven so UI/network code can subscribe.
  *
- * This update adds a MansionMap and default "Old Manor" layout. Skull visibility uses LOS checks
- * against the mansion walls; whisperer still sees skulls through walls.
+ * This update adds skull markers (bodies) placed at deaths; skulls can be reported to call meetings. Whisperer
+ * can see skulls through walls by default. Visibility can be customized via GameOptions.canSeeSkull.
  */
 export class GhostInTheDarkGame {
   players: Map<ID, Player> = new Map();
@@ -206,9 +115,6 @@ export class GhostInTheDarkGame {
   // skull storage
   private _skulls: Map<string, Skull> = new Map();
 
-  // map
-  private _map: MansionMap;
-
   constructor(players: { id: ID; name: string }[], options: GameOptions = {}) {
     this.options = {
       now: () => Date.now(),
@@ -217,8 +123,6 @@ export class GhostInTheDarkGame {
       skullVisibleDistance: 5, // default units
       ...options,
     };
-
-    this._map = options.map ?? DEFAULT_MANSION;
 
     // Create default player objects
     players.forEach((p) => {
@@ -247,15 +151,6 @@ export class GhostInTheDarkGame {
         if (role === "ghost") this.ghostId = p.id;
       }
     }
-  }
-
-  // Map accessors
-  getMap(): MansionMap {
-    return this._map;
-  }
-
-  setMap(map: MansionMap) {
-    this._map = map;
   }
 
   // Basic helpers
@@ -313,12 +208,12 @@ export class GhostInTheDarkGame {
     }
   }
 
-  // ---------- Map/LOS utilities ----------
+  // ---------- Skull visibility helpers ----------
+
   private _toPosition3D(loc?: Position3D | Position2D | string | null): Position3D | undefined {
     if (!loc || typeof loc === "string") return undefined;
     // Assume if z missing, z = 0
     const asAny = loc as any;
-    if (typeof asAny.x !== "number" || typeof asAny.y !== "number") return undefined;
     return { x: asAny.x, y: asAny.y, z: asAny.z ?? 0 };
   }
 
@@ -329,57 +224,17 @@ export class GhostInTheDarkGame {
     return Math.sqrt(dx * dx + dy * dy + dz * dz);
   }
 
-  // Check if two 2D line segments intersect
-  private _segmentsIntersect(a1: Position2D, a2: Position2D, b1: Position2D, b2: Position2D): boolean {
-    const cross = (p: Position2D, q: Position2D) => p.x * q.y - p.y * q.x;
-    const sub = (p: Position2D, q: Position2D) => ({ x: p.x - q.x, y: p.y - q.y });
-
-    const r = sub(a2, a1);
-    const s = sub(b2, b1);
-    const rxs = cross(r, s);
-    const qp = sub(b1, a1);
-    const qpxr = cross(qp, r);
-
-    if (rxs === 0 && qpxr === 0) {
-      // Collinear - check overlap
-      const t0 = ((b1.x - a1.x) * r.x + (b1.y - a1.y) * r.y) / (r.x * r.x + r.y * r.y);
-      const t1 = t0 + (s.x * r.x + s.y * r.y) / (r.x * r.x + r.y * r.y);
-      if (r.x === 0 && r.y === 0) return false;
-      return (t0 >= 0 && t0 <= 1) || (t1 >= 0 && t1 <= 1) || (t0 < 0 && t1 > 1) || (t1 < 0 && t0 > 1);
-    }
-
-    if (rxs === 0 && qpxr !== 0) return false; // parallel
-
-    const t = cross(qp, s) / rxs;
-    const u = cross(qp, r) / rxs;
-
-    return rxs !== 0 && t >= 0 && t <= 1 && u >= 0 && u <= 1;
-  }
-
-  // Check whether a straight 2D line between viewer and skull intersects any opaque wall
-  private _isLineBlockedByWalls(a: Position3D, b: Position3D): boolean {
-    const a2 = { x: a.x, y: a.y };
-    const b2 = { x: b.x, y: b.y };
-    for (const w of this._map.walls) {
-      if (w.opaque === false) continue; // open door/gap
-      const w1 = { x: w.x1, y: w.y1 };
-      const w2 = { x: w.x2, y: w.y2 };
-      if (this._segmentsIntersect(a2, b2, w1, w2)) return true;
-    }
-    return false;
-  }
-
   private _isSkullVisibleTo(viewer: Player, skull: Skull): boolean {
     // If consumer provided a custom visibility function, use it
     if (this.options.canSeeSkull) {
       try {
-        return this.options.canSeeSkull(viewer, skull, this._map);
+        return this.options.canSeeSkull(viewer, skull);
       } catch (e) {
         // fallback to built-in behavior on error
       }
     }
 
-    // Whisperer can see skulls through walls (i.e., ignore LOS) when alive
+    // Whisperer can see skulls through walls (i.e., ignore distance)
     if (viewer.role === "whisperer" && viewer.alive) return true;
 
     // If skull has no position, it's not visible by default
@@ -388,15 +243,9 @@ export class GhostInTheDarkGame {
     // If viewer has no position, cannot determine visibility; default to false
     if (!viewer.position) return false;
 
-    // Distance check
     const distance = this._distance(viewer.position, skull.position);
     const threshold = this.options.skullVisibleDistance ?? 5;
-    if (distance > threshold || !viewer.alive) return false;
-
-    // LOS check against walls
-    if (this._isLineBlockedByWalls(viewer.position, skull.position)) return false;
-
-    return true;
+    return distance <= threshold && viewer.alive;
   }
 
   // Return skulls visible to a particular player. If no viewer provided, return all skulls.
@@ -780,19 +629,10 @@ export class GhostInTheDarkGame {
   }
 
   // Utility: returns a snapshot useful for clients (excluding secret info unless requested)
-  // Snapshot now includes skulls visible to the requesting player and basic map data so clients can render the mansion.
+  // Snapshot now includes skulls visible to the requesting player (so the client can render bodies).
   snapshot(forPlayerId?: ID) {
     const selfId = forPlayerId;
     const visibleSkulls = forPlayerId ? this.getVisibleSkulls(forPlayerId) : this.getAllSkulls();
-    // Provide a sanitized map for clients (walls included so client can render/perform LOS; if you want to hide walls, modify here)
-    const mapForClient = {
-      name: this._map.name,
-      width: this._map.width,
-      height: this._map.height,
-      walls: this._map.walls,
-      rooms: this._map.rooms,
-      spawnPoints: this._map.spawnPoints,
-    };
     return {
       players: Array.from(this.players.values()).map((p) => ({
         id: p.id,
@@ -801,7 +641,6 @@ export class GhostInTheDarkGame {
         alive: p.alive,
         isResurrected: p.isResurrected ?? false,
         meetingCallRemaining: p.meetingCallRemaining,
-        position: p.position ?? null,
       })),
       skulls: visibleSkulls.map((s) => ({
         id: s.id,
@@ -810,7 +649,6 @@ export class GhostInTheDarkGame {
         createdAt: s.createdAt,
         reportedAt: s.reportedAt ?? null,
       })),
-      map: mapForClient,
       inMeeting: this.inMeeting,
       meetingPhase: this.meetingPhase,
       meetingReport: this.meetingReport ? { ...this.meetingReport, reporterId: this.meetingReport.reporterId } : null,
