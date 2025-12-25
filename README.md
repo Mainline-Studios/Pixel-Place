@@ -64,7 +64,7 @@
    -Try not to get caught
    
    
-9. **Red Rover**
+8. **Red Rover**
     
    -Fun game to test teamwork
    
@@ -74,7 +74,7 @@
    
    
    
-11. **The Series**
+9. **The Series**
     
     
    - **Celestial Exploration**
@@ -92,7 +92,8 @@
    - Find out about the wonders of the ocean, living in a submarine
      
      
-11. **Ghost in the Dark**
+10. **Ghost in the Dark**
+    
     -Fun game where you find out who is NOT one of us
     
     -Intense game with jumpscares
@@ -100,7 +101,8 @@
     -A variety of roles to be picked
     
     
-13. **City Life**
+12. **City Life**
+    
     -A roleplay to simulate adulthood and entrepeneurship to kids
 
     -A game to teach you about the world
