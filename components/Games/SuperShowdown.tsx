@@ -578,6 +578,14 @@ export default function SuperShowdown(): JSX.Element {
   // Movement keys (kept)
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
+      // Intercept the Space key here to prevent jumping.
+      // This prevents Space from triggering any global jump behavior while playing SuperShowdown.
+      if (e.code === "Space" || e.key === " " || e.key === "Spacebar") {
+        e.preventDefault();
+        e.stopPropagation();
+        return;
+      }
+
       if (gameOver || !startConfirmed) return;
       const speed = 0.9;
       let moved = false;
@@ -789,7 +797,7 @@ export default function SuperShowdown(): JSX.Element {
     const transform = `translate3d(${xPx - size / 2}px, 0px, ${zPx - size / 2}px)`;
     return (
       <div style={{ position: "absolute", transform, width: size, height: size, pointerEvents: "none" }}>
-        <div style={{ width: "100%", height: "100%", borderRadius: "50%", background: "radial-gradient(ellipse at center, #111 0%, #000 70%)", boxShadow: "0 0 30px rgba(120,60,200,0.5) inset" }} />
+        <div style={{ width: "100%", height: "100%", borderRadius: "50%", background: "radial-gradient(ellipse at center, #111 0%, #000 70%)", boxShadow: "0 0 30px rgba(120,60,200,0.5) inset" }} [...] />
       </div>
     );
   }
