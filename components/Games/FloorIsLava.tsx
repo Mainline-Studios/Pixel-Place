@@ -1,11 +1,11 @@
 import React, { useRef, useEffect, useState, useCallback } from 'react';
 
-// "Floor Is Lava" canvas mini-game with local voting for the map
-// - Voting UI where players can vote for: house, mountain, city, coral reef, hotel
-// - Voting period is configurable (now 180s). Single vote per player per voting round.
-// - Winner chosen by highest votes (ties broken randomly) and applied as the selected map
-// - Selected map changes visuals: background, platforms, lava gradient, and small gameplay tweaks
-// - During gameplay, at 30 seconds elapsed the lava increases difficulty (one-time boost)
+// "Floor Is Lava" canvas mini-game with server-synced voting via WebSocket
+// - If NEXT_PUBLIC_VOTE_WS_URL is provided the component will connect to that WebSocket server
+//   and use it as the authoritative vote source (one vote per connection enforced server-side).
+// - If no WS URL is provided the component falls back to local (client-only) voting.
+// - The WebSocket protocol is JSON messages with types: request_status, status, start_vote, vote_started,
+//   cast_vote, vote_update, vote_ended, selected_map.
 
 const WIDTH = 640;
 const HEIGHT = 360;
@@ -14,6 +14,8 @@ const PLAYER_SIZE = 18;
 const PLATFORM_MIN_W = 60;
 const PLATFORM_MAX_W = 160;
 const PLATFORM_H = 10;
+const VOTE_DURATION = 15; // seconds (voting window)
+const GAME_DURATION = 180; // seconds (3 minutes)
 
 type MapKey = 'house' | 'mountain' | 'city' | 'coral' | 'hotel';
 
@@ -32,6 +34,9 @@ const MAPS: Record<MapKey, {
   hotel: { displayName: 'Hotel', bg: '#0f1724', platformColor: '#cbb0ff', lavaColors: ['#ffb267', '#ff6f3a'], platformFrequencyMod: 0.95, lavaSpeedMod: 1.0 },
 };
 
+// Read WebSocket URL from environment (NEXT_PUBLIC_ prefix is required for client-side exposure in Next.js)
+const WS_URL = typeof process !== 'undefined' ? (process.env.NEXT_PUBLIC_VOTE_WS_URL as string | undefined) : undefined;
+
 export default function FloorIsLava(): JSX.Element {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const rafRef = useRef<number | null>(null);
@@ -42,25 +47,30 @@ export default function FloorIsLava(): JSX.Element {
   const [paused, setPaused] = useState(false);
   const [score, setScore] = useState(0);
   const [gameOver, setGameOver] = useState(false);
+  const [timeUp, setTimeUp] = useState(false);
 
-  // Voting state
+  // Voting state (local view)
   const [votes, setVotes] = useState<Record<MapKey, number>>({ house: 0, mountain: 0, city: 0, coral: 0, hotel: 0 });
   const votesRef = useRef(votes);
   useEffect(() => { votesRef.current = votes; }, [votes]);
 
-  const [voted, setVoted] = useState<boolean>(false);
+  const [voted, setVoted] = useState<boolean>(false); // client-side flag to prevent repeated cast attempts
   const [votingActive, setVotingActive] = useState(false);
   const [voteTimeLeft, setVoteTimeLeft] = useState(0);
   const voteTimerRef = useRef<number | null>(null);
 
   const [selectedMap, setSelectedMap] = useState<MapKey>('house');
 
+  // WebSocket
+  const wsRef = useRef<WebSocket | null>(null);
+  const [wsConnected, setWsConnected] = useState(false);
+
   const playerRef = useRef({ pos: { x: WIDTH / 2 - PLAYER_SIZE / 2, y: 60 }, vel: { x: 0, y: 0 }, onGround: false });
   const platformsRef = useRef<Array<{ x: number; y: number; w: number; h: number }>>([]);
   const lavaYRef = useRef(HEIGHT - 24);
   const baseLavaSpeedRef = useRef(15);
   const elapsedRef = useRef(0);
-  const lavaBoostedRef = useRef(false); // tracks one-time 30s boost
+  const lavaBoostedRef = useRef(false);
 
   const keys = useRef<{ left: boolean; right: boolean; up: boolean }>({ left: false, right: false, up: false });
 
@@ -85,10 +95,11 @@ export default function FloorIsLava(): JSX.Element {
     lavaBoostedRef.current = false;
     setScore(0);
     setGameOver(false);
+    setTimeUp(false);
   }, [selectedMap]);
 
   useEffect(() => {
-    // Setup keyboard
+    // Setup keyboard handlers
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') keys.current.left = true;
       if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') keys.current.right = true;
@@ -109,54 +120,150 @@ export default function FloorIsLava(): JSX.Element {
     };
   }, [resetGame]);
 
-  // Voting logic
-  const startVoting = (duration = 180) => {
-    setVotes({ house: 0, mountain: 0, city: 0, coral: 0, hotel: 0 });
-    votesRef.current = { house: 0, mountain: 0, city: 0, coral: 0, hotel: 0 };
-    setVoted(false);
-    setVotingActive(true);
-    setVoteTimeLeft(duration);
+  // WebSocket connection & handlers
+  useEffect(() => {
+    if (!WS_URL) return; // don't try to connect if WS URL not provided
 
-    if (voteTimerRef.current) {
-      window.clearInterval(voteTimerRef.current);
-      voteTimerRef.current = null;
+    let ws: WebSocket;
+    try {
+      ws = new WebSocket(WS_URL);
+    } catch (err) {
+      console.warn('Failed to create WebSocket to', WS_URL, err);
+      return;
     }
+    wsRef.current = ws;
 
+    ws.addEventListener('open', () => {
+      setWsConnected(true);
+      // Ask server for latest status
+      ws.send(JSON.stringify({ type: 'request_status' }));
+    });
+
+    ws.addEventListener('message', (ev) => {
+      try {
+        const data = JSON.parse(ev.data);
+        if (!data || !data.type) return;
+        switch (data.type) {
+          case 'status': {
+            // { votingActive, voteTimeLeft, votes, selectedMap }
+            setVotingActive(Boolean(data.votingActive));
+            setVoteTimeLeft(Number(data.voteTimeLeft) || 0);
+            setVotes(prev => ({ ...prev, ...((data.votes as any) || {}) }));
+            setSelectedMap(data.selectedMap || 'house');
+            break;
+          }
+          case 'vote_started': {
+            setVotingActive(true);
+            setVoteTimeLeft(Number(data.duration) || VOTE_DURATION);
+            setVoted(false);
+            setVotes({ house: 0, mountain: 0, city: 0, coral: 0, hotel: 0 });
+            break;
+          }
+          case 'vote_update': {
+            if (data.votes) setVotes(data.votes);
+            break;
+          }
+          case 'vote_ended': {
+            setVotingActive(false);
+            setVoteTimeLeft(0);
+            if (data.votes) setVotes(data.votes);
+            if (data.selectedMap) {
+              setSelectedMap(data.selectedMap);
+              setTimeout(() => resetGame(), 80);
+            }
+            break;
+          }
+          case 'selected_map': {
+            if (data.selectedMap) {
+              setSelectedMap(data.selectedMap);
+              setTimeout(() => resetGame(), 80);
+            }
+            break;
+          }
+          case 'error': {
+            console.warn('Vote server error:', data.message);
+            break;
+          }
+          default:
+            break;
+        }
+      } catch (err) {
+        console.warn('Failed to parse ws message', err);
+      }
+    });
+
+    ws.addEventListener('close', () => {
+      setWsConnected(false);
+      wsRef.current = null;
+    });
+
+    ws.addEventListener('error', () => {
+      setWsConnected(false);
+    });
+
+    return () => {
+      if (ws) {
+        try { ws.close(); } catch (e) {}
+      }
+      wsRef.current = null;
+    };
+  }, []);
+
+  // Local fallback voting timer (used only when not connected to WS)
+  useEffect(() => {
+    if (WS_URL) return; // don't run local vote timer if using server
+    if (!votingActive) return;
+    if (voteTimerRef.current) window.clearInterval(voteTimerRef.current);
     voteTimerRef.current = window.setInterval(() => {
       setVoteTimeLeft(t => {
         if (t <= 1) {
-          // finish voting
-          if (voteTimerRef.current) {
-            window.clearInterval(voteTimerRef.current);
-            voteTimerRef.current = null;
-          }
+          if (voteTimerRef.current) { window.clearInterval(voteTimerRef.current); voteTimerRef.current = null; }
           setVotingActive(false);
-
-          // pick winner using latest votes from votesRef
-          const current = votesRef.current;
-          const arr = Object.entries(current) as [MapKey, number][];
-          let max = -1;
-          arr.forEach(([k, v]) => { if (v > max) max = v; });
-          const winners = arr.filter(([k, v]) => v === max).map(a => a[0]);
-          const pick = (winners.length > 0) ? winners[Math.floor(Math.random() * winners.length)] : 'house';
-          setSelectedMap(pick as MapKey);
-          // Reset game so map modifiers apply
-          setTimeout(() => resetGame(), 80);
-
+          // Decide winner locally
+          setVotes(prev => {
+            const arr = Object.entries(prev) as [MapKey, number][];
+            let max = -1;
+            arr.forEach(([k, v]) => { if (v > max) max = v; });
+            const winners = arr.filter(([k, v]) => v === max).map(a => a[0]);
+            const pick = (winners.length > 0) ? winners[Math.floor(Math.random() * winners.length)] : 'house';
+            setSelectedMap(pick as MapKey);
+            setTimeout(() => resetGame(), 80);
+            return prev;
+          });
           return 0;
         }
         return t - 1;
       });
     }, 1000) as unknown as number;
+
+    return () => {
+      if (voteTimerRef.current) { window.clearInterval(voteTimerRef.current); voteTimerRef.current = null; }
+    };
+  }, [votingActive, WS_URL, resetGame]);
+
+  const startVoting = (duration = VOTE_DURATION) => {
+    if (wsRef.current && wsConnected) {
+      try { wsRef.current.send(JSON.stringify({ type: 'start_vote', duration })); } catch (e) { console.warn(e); }
+      return;
+    }
+    // Local fallback
+    setVotes({ house: 0, mountain: 0, city: 0, coral: 0, hotel: 0 });
+    setVoted(false);
+    setVotingActive(true);
+    setVoteTimeLeft(duration);
   };
 
   const castVote = (key: MapKey) => {
     if (!votingActive || voted) return;
-    setVotes(prev => {
-      const next = { ...prev, [key]: (prev[key] ?? 0) + 1 };
-      votesRef.current = next;
-      return next;
-    });
+    if (wsRef.current && wsConnected) {
+      try {
+        wsRef.current.send(JSON.stringify({ type: 'cast_vote', map: key }));
+        setVoted(true);
+      } catch (e) { console.warn(e); }
+      return;
+    }
+    // Local fallback increment
+    setVotes(prev => ({ ...prev, [key]: (prev[key] ?? 0) + 1 }));
     setVoted(true);
   };
 
@@ -206,11 +313,17 @@ export default function FloorIsLava(): JSX.Element {
     // One-time 30s difficulty increase
     if (!lavaBoostedRef.current && elapsedRef.current >= 30) {
       lavaBoostedRef.current = true;
-      // increase lava speed by 40%
       baseLavaSpeedRef.current = baseLavaSpeedRef.current * 1.4;
     }
 
-    // Gradual difficulty scaling at later times (still respect map modifier)
+    // Check for game duration win
+    if (!timeUp && elapsedRef.current >= GAME_DURATION) {
+      setTimeUp(true);
+      setRunning(false);
+      return; // stop further physics for this frame
+    }
+
+    // Gradual difficulty scaling
     if (elapsedRef.current > 120) baseLavaSpeedRef.current = Math.max(baseLavaSpeedRef.current, 48 * (MAPS[selectedMap].lavaSpeedMod ?? 1));
     else if (elapsedRef.current > 40) baseLavaSpeedRef.current = Math.max(baseLavaSpeedRef.current, 36 * (MAPS[selectedMap].lavaSpeedMod ?? 1));
     else if (elapsedRef.current > 20) baseLavaSpeedRef.current = Math.max(baseLavaSpeedRef.current, 24 * (MAPS[selectedMap].lavaSpeedMod ?? 1));
@@ -237,7 +350,7 @@ export default function FloorIsLava(): JSX.Element {
       setGameOver(true);
       setRunning(false);
     }
-  }, [selectedMap]);
+  }, [selectedMap, timeUp]);
 
   const render = useCallback(() => {
     const canvas = canvasRef.current;
@@ -293,16 +406,28 @@ export default function FloorIsLava(): JSX.Element {
       ctx.fillText('Final score: ' + score, WIDTH / 2, HEIGHT / 2 + 24);
       ctx.textAlign = 'left';
     }
-  }, [score, paused, gameOver, selectedMap]);
+
+    if (timeUp) {
+      ctx.fillStyle = 'rgba(0,0,0,0.6)';
+      ctx.fillRect(0, 0, WIDTH, HEIGHT);
+      ctx.fillStyle = '#a6f0a6';
+      ctx.font = '22px monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText('You survived!', WIDTH / 2, HEIGHT / 2 - 10);
+      ctx.fillStyle = 'white';
+      ctx.fillText('Final score: ' + score, WIDTH / 2, HEIGHT / 2 + 24);
+      ctx.textAlign = 'left';
+    }
+  }, [score, paused, gameOver, selectedMap, timeUp]);
 
   const gameLoop = useCallback((time: number) => {
     if (!lastTimeRef.current) lastTimeRef.current = time;
     const dt = time - lastTimeRef.current;
     lastTimeRef.current = time;
-    if (!paused && running && !gameOver) step(dt);
+    if (!paused && running && !gameOver && !timeUp) step(dt);
     render();
     rafRef.current = requestAnimationFrame(gameLoop);
-  }, [paused, running, gameOver, step, render]);
+  }, [paused, running, gameOver, step, render, timeUp]);
 
   useEffect(() => {
     rafRef.current = requestAnimationFrame(gameLoop);
@@ -319,7 +444,7 @@ export default function FloorIsLava(): JSX.Element {
         <canvas ref={canvasRef} width={WIDTH} height={HEIGHT} />
       </div>
 
-      <div style={{ minWidth: 300 }}>
+      <div style={{ minWidth: 320 }}>
         <h3>Floor is Lava</h3>
         <p>Vote for the next map, then press Start to play the selected map.</p>
 
@@ -349,9 +474,12 @@ export default function FloorIsLava(): JSX.Element {
             ))}
           </div>
           <div style={{ marginTop: 6 }}>
-            <button onClick={() => startVoting(180)} disabled={votingActive} style={{ padding: '6px 10px', marginRight: 6 }}>Start Vote (3m)</button>
+            <button onClick={() => startVoting(VOTE_DURATION)} disabled={votingActive} style={{ padding: '6px 10px', marginRight: 6 }}>{`Start Vote (${VOTE_DURATION}s)`}</button>
             {votingActive && <span>Voting ends in {voteTimeLeft}s</span>}
-            {!votingActive && <small style={{ marginLeft: 6 }}>Start a vote to pick a map based on votes.</small>}
+            {!votingActive && <small style={{ marginLeft: 6 }}>{WS_URL ? 'Connects to vote server' : 'Local vote (no server configured)'}</small>}
+          </div>
+          <div style={{ marginTop: 6 }}>
+            <small>Vote server: {WS_URL ? (wsConnected ? 'connected' : 'disconnected') : 'not configured'}</small>
           </div>
         </div>
 
@@ -359,8 +487,9 @@ export default function FloorIsLava(): JSX.Element {
           <strong>Score:</strong> {score}
         </div>
         <div>
-          <strong>Status:</strong> {gameOver ? 'Game Over' : running ? (paused ? 'Paused' : 'Running') : 'Stopped'}
+          <strong>Status:</strong> {gameOver ? 'Game Over' : timeUp ? 'Finished (Survived)' : running ? (paused ? 'Paused' : 'Running') : 'Stopped'}
         </div>
+        <div style={{ marginTop: 6 }}><small>Game duration: {GAME_DURATION}s</small></div>
       </div>
     </div>
   );
