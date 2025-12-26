@@ -90,6 +90,7 @@
    - **Underwater Oddysey**
      
    - Find out about the wonders of the ocean, living in a submarine
+     
 
    - **Jungle Journey**
 
@@ -111,7 +112,16 @@
 
     -A game to teach you about the world
     
-    -Placed in our member's beloved home: St.Louis
+    -Placed in St.Louis
+
+
+13. **International Sports HQ**
+
+    -Go to a HQ where all fun sports can be enjoyed
+
+    -Play sports online with friends
+
+    -Try out new sports
 ---
 
 ## 🚀 Getting Started
