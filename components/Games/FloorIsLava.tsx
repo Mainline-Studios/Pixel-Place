@@ -1,42 +1,70 @@
 import React, { useRef, useEffect, useState, useCallback } from 'react';
 
-// Simple "Floor Is Lava" canvas mini-game component
-// - Player is a square that can move left/right and jump
-// - Platforms generate upward as lava rises from the bottom
-// - If player touches lava (y >= lavaY) they lose
-// - Score increases with time / height
-
-type Vec = { x: number; y: number };
+// "Floor Is Lava" canvas mini-game with local voting for the map
+// - Voting UI where players can vote for: house, mountain, city, coral reef, hotel
+// - Voting period is configurable (now 180s). Single vote per player per voting round.
+// - Winner chosen by highest votes (ties broken randomly) and applied as the selected map
+// - Selected map changes visuals: background, platforms, lava gradient, and small gameplay tweaks
+// - During gameplay, at 30 seconds elapsed the lava increases difficulty (one-time boost)
 
 const WIDTH = 640;
 const HEIGHT = 360;
 const GRAVITY = 0.8;
-const FRICTION = 0.9;
 const PLAYER_SIZE = 18;
 const PLATFORM_MIN_W = 60;
 const PLATFORM_MAX_W = 160;
 const PLATFORM_H = 10;
+
+type MapKey = 'house' | 'mountain' | 'city' | 'coral' | 'hotel';
+
+const MAPS: Record<MapKey, {
+  displayName: string;
+  bg: string;
+  platformColor: string;
+  lavaColors: [string, string];
+  platformFrequencyMod?: number;
+  lavaSpeedMod?: number;
+}> = {
+  house: { displayName: 'House', bg: '#1f2430', platformColor: '#a67c52', lavaColors: ['#ff6f3f', '#ff3b1f'], platformFrequencyMod: 1.0, lavaSpeedMod: 1.0 },
+  mountain: { displayName: 'Mountain', bg: '#102027', platformColor: '#7f8c8d', lavaColors: ['#ff8c42', '#ff4b1f'], platformFrequencyMod: 0.9, lavaSpeedMod: 0.95 },
+  city: { displayName: 'City', bg: '#0b0f16', platformColor: '#4db6ac', lavaColors: ['#ff5f1f', '#ff2e00'], platformFrequencyMod: 1.1, lavaSpeedMod: 1.1 },
+  coral: { displayName: 'Coral Reef', bg: '#071a2f', platformColor: '#ff9aa2', lavaColors: ['#ff9f76', '#ff6b4d'], platformFrequencyMod: 1.15, lavaSpeedMod: 0.85 },
+  hotel: { displayName: 'Hotel', bg: '#0f1724', platformColor: '#cbb0ff', lavaColors: ['#ffb267', '#ff6f3a'], platformFrequencyMod: 0.95, lavaSpeedMod: 1.0 },
+};
 
 export default function FloorIsLava(): JSX.Element {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const rafRef = useRef<number | null>(null);
   const lastTimeRef = useRef<number | null>(null);
 
+  // Game state
   const [running, setRunning] = useState(false);
   const [paused, setPaused] = useState(false);
   const [score, setScore] = useState(0);
   const [gameOver, setGameOver] = useState(false);
 
-  // Game state
+  // Voting state
+  const [votes, setVotes] = useState<Record<MapKey, number>>({ house: 0, mountain: 0, city: 0, coral: 0, hotel: 0 });
+  const votesRef = useRef(votes);
+  useEffect(() => { votesRef.current = votes; }, [votes]);
+
+  const [voted, setVoted] = useState<boolean>(false);
+  const [votingActive, setVotingActive] = useState(false);
+  const [voteTimeLeft, setVoteTimeLeft] = useState(0);
+  const voteTimerRef = useRef<number | null>(null);
+
+  const [selectedMap, setSelectedMap] = useState<MapKey>('house');
+
   const playerRef = useRef({ pos: { x: WIDTH / 2 - PLAYER_SIZE / 2, y: 60 }, vel: { x: 0, y: 0 }, onGround: false });
   const platformsRef = useRef<Array<{ x: number; y: number; w: number; h: number }>>([]);
   const lavaYRef = useRef(HEIGHT - 24);
-  const lavaSpeedRef = useRef(6); // pixels per second initially
+  const baseLavaSpeedRef = useRef(15);
   const elapsedRef = useRef(0);
+  const lavaBoostedRef = useRef(false); // tracks one-time 30s boost
 
-  // Controls
-  const keys = useRef<{ left: boolean; right: boolean; up: boolean }>( { left: false, right: false, up: false } );
+  const keys = useRef<{ left: boolean; right: boolean; up: boolean }>({ left: false, right: false, up: false });
 
+  // Reset game and apply selected map modifiers
   const resetGame = useCallback(() => {
     const p = playerRef.current;
     p.pos.x = WIDTH / 2 - PLAYER_SIZE / 2;
@@ -44,20 +72,23 @@ export default function FloorIsLava(): JSX.Element {
     p.vel.x = 0;
     p.vel.y = 0;
     p.onGround = false;
+
     platformsRef.current = [
       { x: 0, y: HEIGHT - 80, w: WIDTH, h: PLATFORM_H },
       { x: 120, y: HEIGHT - 150, w: 120, h: PLATFORM_H },
       { x: 380, y: HEIGHT - 220, w: 120, h: PLATFORM_H },
     ];
+
     lavaYRef.current = HEIGHT - 24;
-    lavaSpeedRef.current = 15;
+    baseLavaSpeedRef.current = 15 * (MAPS[selectedMap].lavaSpeedMod ?? 1);
     elapsedRef.current = 0;
+    lavaBoostedRef.current = false;
     setScore(0);
     setGameOver(false);
-  }, []);
+  }, [selectedMap]);
 
   useEffect(() => {
-    resetGame();
+    // Setup keyboard
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') keys.current.left = true;
       if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') keys.current.right = true;
@@ -71,60 +102,88 @@ export default function FloorIsLava(): JSX.Element {
     };
     window.addEventListener('keydown', handleKeyDown);
     window.addEventListener('keyup', handleKeyUp);
+    resetGame();
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
     };
   }, [resetGame]);
 
-  const spawnPlatformIfNeeded = useCallback(() => {
-    const plats = platformsRef.current;
-    // Keep platforms above the camera / view: spawn as lava rises
-    const highest = Math.min(...plats.map(p => p.y));
-    while (highest > 40 && plats.length < 12) break; // safety
+  // Voting logic
+  const startVoting = (duration = 180) => {
+    setVotes({ house: 0, mountain: 0, city: 0, coral: 0, hotel: 0 });
+    votesRef.current = { house: 0, mountain: 0, city: 0, coral: 0, hotel: 0 };
+    setVoted(false);
+    setVotingActive(true);
+    setVoteTimeLeft(duration);
 
-    // Spawn some platforms near top
-    const topY = Math.min(...plats.map(p => p.y));
-    if (topY > 40) {
-      // nothing
+    if (voteTimerRef.current) {
+      window.clearInterval(voteTimerRef.current);
+      voteTimerRef.current = null;
     }
 
-    // Occasionally add new platform at top of screen
-    if (Math.random() < 0.02) {
-      const w = Math.round(PLATFORM_MIN_W + Math.random() * (PLATFORM_MAX_W - PLATFORM_MIN_W));
-      const x = Math.round(Math.random() * (WIDTH - w));
-      const y = Math.round(20 + Math.random() * 100);
-      plats.push({ x, y, w, h: PLATFORM_H });
-    }
-  }, []);
+    voteTimerRef.current = window.setInterval(() => {
+      setVoteTimeLeft(t => {
+        if (t <= 1) {
+          // finish voting
+          if (voteTimerRef.current) {
+            window.clearInterval(voteTimerRef.current);
+            voteTimerRef.current = null;
+          }
+          setVotingActive(false);
 
+          // pick winner using latest votes from votesRef
+          const current = votesRef.current;
+          const arr = Object.entries(current) as [MapKey, number][];
+          let max = -1;
+          arr.forEach(([k, v]) => { if (v > max) max = v; });
+          const winners = arr.filter(([k, v]) => v === max).map(a => a[0]);
+          const pick = (winners.length > 0) ? winners[Math.floor(Math.random() * winners.length)] : 'house';
+          setSelectedMap(pick as MapKey);
+          // Reset game so map modifiers apply
+          setTimeout(() => resetGame(), 80);
+
+          return 0;
+        }
+        return t - 1;
+      });
+    }, 1000) as unknown as number;
+  };
+
+  const castVote = (key: MapKey) => {
+    if (!votingActive || voted) return;
+    setVotes(prev => {
+      const next = { ...prev, [key]: (prev[key] ?? 0) + 1 };
+      votesRef.current = next;
+      return next;
+    });
+    setVoted(true);
+  };
+
+  // Game loop logic
   const step = useCallback((dt: number) => {
     const p = playerRef.current;
     const plats = platformsRef.current;
 
-    // Controls horizontal
+    // Controls
     if (keys.current.left) p.vel.x -= 0.9;
     if (keys.current.right) p.vel.x += 0.9;
-
-    // Jump
     if (keys.current.up && p.onGround) {
       p.vel.y = -14.5;
       p.onGround = false;
     }
 
-    // Apply physics
+    // physics
     p.vel.y += GRAVITY * (dt / (1000 / 60));
     p.pos.x += p.vel.x * (dt / (1000 / 60));
     p.pos.y += p.vel.y * (dt / (1000 / 60));
 
-    // Friction
     p.vel.x *= 0.88;
 
-    // Boundaries
     if (p.pos.x < 0) { p.pos.x = 0; p.vel.x = 0; }
     if (p.pos.x + PLAYER_SIZE > WIDTH) { p.pos.x = WIDTH - PLAYER_SIZE; p.vel.x = 0; }
 
-    // Platform collisions
+    // collisions
     p.onGround = false;
     for (let i = 0; i < plats.length; i++) {
       const pl = plats[i];
@@ -134,49 +193,51 @@ export default function FloorIsLava(): JSX.Element {
         p.pos.y + PLAYER_SIZE > pl.y &&
         p.pos.y + PLAYER_SIZE - p.vel.y <= pl.y
       ) {
-        // landed
         p.pos.y = pl.y - PLAYER_SIZE;
         p.vel.y = 0;
         p.onGround = true;
       }
     }
 
-    // Lava rises
-    const lava = lavaYRef.current;
-    lavaYRef.current -= (lavaSpeedRef.current * dt) / 1000; // move up
-    // As time passes, increase lava speed slightly
+    // lava
+    lavaYRef.current -= (baseLavaSpeedRef.current * dt) / 1000;
     elapsedRef.current += dt / 1000;
-    if (elapsedRef.current > 20) lavaSpeedRef.current = 24;
-    if (elapsedRef.current > 40) lavaSpeedRef.current = 36;
 
-    // Scroll world down as lava rises to give upward feel: move platforms down
-    const riseDelta = (lavaSpeedRef.current * dt) / 1000;
-    for (let i = 0; i < plats.length; i++) {
-      plats[i].y += riseDelta;
+    // One-time 30s difficulty increase
+    if (!lavaBoostedRef.current && elapsedRef.current >= 30) {
+      lavaBoostedRef.current = true;
+      // increase lava speed by 40%
+      baseLavaSpeedRef.current = baseLavaSpeedRef.current * 1.4;
     }
+
+    // Gradual difficulty scaling at later times (still respect map modifier)
+    if (elapsedRef.current > 120) baseLavaSpeedRef.current = Math.max(baseLavaSpeedRef.current, 48 * (MAPS[selectedMap].lavaSpeedMod ?? 1));
+    else if (elapsedRef.current > 40) baseLavaSpeedRef.current = Math.max(baseLavaSpeedRef.current, 36 * (MAPS[selectedMap].lavaSpeedMod ?? 1));
+    else if (elapsedRef.current > 20) baseLavaSpeedRef.current = Math.max(baseLavaSpeedRef.current, 24 * (MAPS[selectedMap].lavaSpeedMod ?? 1));
+
+    const riseDelta = (baseLavaSpeedRef.current * dt) / 1000;
+    for (let i = 0; i < plats.length; i++) plats[i].y += riseDelta;
     p.pos.y += riseDelta;
 
-    // Remove platforms that fall off bottom
     platformsRef.current = plats.filter(pl => pl.y < HEIGHT + 100);
 
-    // Randomly spawn new platforms near top
-    if (Math.random() < 0.03) {
+    // spawn platforms with map frequency modifier
+    const freqMod = MAPS[selectedMap].platformFrequencyMod ?? 1;
+    if (Math.random() < 0.02 * freqMod) {
       const w = Math.round(PLATFORM_MIN_W + Math.random() * (PLATFORM_MAX_W - PLATFORM_MIN_W));
       const x = Math.round(Math.random() * (WIDTH - w));
       const y = -20 - Math.random() * 80;
       platformsRef.current.push({ x, y, w, h: PLATFORM_H });
     }
 
-    // Score based on lowest lavaY (the higher lava gets, the more score)
     const currentScore = Math.max(0, Math.floor((HEIGHT - lavaYRef.current) * 2));
     setScore(currentScore);
 
-    // Check death
     if (p.pos.y + PLAYER_SIZE >= lavaYRef.current) {
       setGameOver(true);
       setRunning(false);
     }
-  }, []);
+  }, [selectedMap]);
 
   const render = useCallback(() => {
     const canvas = canvasRef.current;
@@ -184,34 +245,34 @@ export default function FloorIsLava(): JSX.Element {
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    // Clear
-    ctx.fillStyle = '#0b1020';
+    // Background based on selected map
+    ctx.fillStyle = MAPS[selectedMap].bg;
     ctx.fillRect(0, 0, WIDTH, HEIGHT);
 
     // Draw platforms
-    ctx.fillStyle = '#6b8e23';
-    platformsRef.current.forEach(pl => {
-      ctx.fillRect(pl.x, pl.y, pl.w, pl.h);
-    });
+    ctx.fillStyle = MAPS[selectedMap].platformColor;
+    platformsRef.current.forEach(pl => ctx.fillRect(pl.x, pl.y, pl.w, pl.h));
 
-    // Draw player
+    // Player
     const p = playerRef.current;
     ctx.fillStyle = '#ffd166';
     ctx.fillRect(p.pos.x, p.pos.y, PLAYER_SIZE, PLAYER_SIZE);
 
-    // Draw lava
+    // Lava gradient from selected map
     const lavaY = lavaYRef.current;
     const grd = ctx.createLinearGradient(0, lavaY, 0, HEIGHT);
-    grd.addColorStop(0, '#ff5f1f');
-    grd.addColorStop(1, '#ff2e00');
+    const [c1, c2] = MAPS[selectedMap].lavaColors;
+    grd.addColorStop(0, c1);
+    grd.addColorStop(1, c2);
     ctx.fillStyle = grd;
     ctx.fillRect(0, lavaY, WIDTH, HEIGHT - lavaY);
 
     // HUD
     ctx.fillStyle = 'white';
     ctx.font = '14px monospace';
-    ctx.fillText('Floor is Lava', 10, 20);
+    ctx.fillText('Floor is Lava - ' + MAPS[selectedMap].displayName, 10, 20);
     ctx.fillText('Score: ' + score, 10, 40);
+
     if (paused) {
       ctx.fillStyle = 'rgba(0,0,0,0.6)';
       ctx.fillRect(0, 0, WIDTH, HEIGHT);
@@ -221,6 +282,7 @@ export default function FloorIsLava(): JSX.Element {
       ctx.fillText('Paused', WIDTH / 2, HEIGHT / 2);
       ctx.textAlign = 'left';
     }
+
     if (gameOver) {
       ctx.fillStyle = 'rgba(0,0,0,0.6)';
       ctx.fillRect(0, 0, WIDTH, HEIGHT);
@@ -231,56 +293,66 @@ export default function FloorIsLava(): JSX.Element {
       ctx.fillText('Final score: ' + score, WIDTH / 2, HEIGHT / 2 + 24);
       ctx.textAlign = 'left';
     }
-  }, [score, paused, gameOver]);
+  }, [score, paused, gameOver, selectedMap]);
 
   const gameLoop = useCallback((time: number) => {
     if (!lastTimeRef.current) lastTimeRef.current = time;
     const dt = time - lastTimeRef.current;
     lastTimeRef.current = time;
-    if (!paused && running && !gameOver) {
-      step(dt);
-    }
+    if (!paused && running && !gameOver) step(dt);
     render();
     rafRef.current = requestAnimationFrame(gameLoop);
   }, [paused, running, gameOver, step, render]);
 
   useEffect(() => {
-    // start loop
     rafRef.current = requestAnimationFrame(gameLoop);
-    return () => {
-      if (rafRef.current) cancelAnimationFrame(rafRef.current);
-    };
+    return () => { if (rafRef.current) cancelAnimationFrame(rafRef.current); };
   }, [gameLoop]);
 
-  const start = () => {
-    resetGame();
-    setRunning(true);
-    setPaused(false);
-  };
-
-  const stop = () => {
-    setRunning(false);
-    setPaused(false);
-  };
-
-  const resume = () => setPaused(false);
+  const start = () => { resetGame(); setRunning(true); setPaused(false); };
+  const stop = () => { setRunning(false); setPaused(false); };
   const togglePause = () => setPaused(p => !p);
 
   return (
-    <div style={{ display: 'flex', gap: 12 }}>
+    <div style={{ display: 'flex', gap: 12, color: '#fff', fontFamily: 'monospace' }}>
       <div style={{ border: '2px solid #333', width: WIDTH, height: HEIGHT, background: '#000' }}>
         <canvas ref={canvasRef} width={WIDTH} height={HEIGHT} />
       </div>
-      <div style={{ minWidth: 200, color: '#fff', fontFamily: 'monospace' }}>
+
+      <div style={{ minWidth: 300 }}>
         <h3>Floor is Lava</h3>
-        <p>Use A/D or Left/Right to move. W / Up / Space to jump. P to pause.</p>
-        <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
-          <button onClick={start} disabled={running} style={{ padding: '8px 12px' }}>Start</button>
-          <button onClick={stop} disabled={!running} style={{ padding: '8px 12px' }}>Stop</button>
-          <button onClick={resetGame} style={{ padding: '8px 12px' }}>Reset</button>
-        </div>
+        <p>Vote for the next map, then press Start to play the selected map.</p>
+
         <div style={{ marginBottom: 8 }}>
-          <button onClick={togglePause} style={{ padding: '6px 10px' }}>{paused ? 'Resume' : 'Pause'}</button>
+          <button onClick={() => start()} disabled={running} style={{ padding: '8px 12px', marginRight: 6 }}>Start</button>
+          <button onClick={() => stop()} disabled={!running} style={{ padding: '8px 12px', marginRight: 6 }}>Stop</button>
+          <button onClick={() => { resetGame(); }} style={{ padding: '8px 12px' }}>Reset</button>
+        </div>
+
+        <div style={{ marginBottom: 10 }}>
+          <button onClick={() => togglePause()} style={{ padding: '6px 10px' }}>{paused ? 'Resume' : 'Pause'}</button>
+        </div>
+
+        <div style={{ marginBottom: 12 }}>
+          <strong>Selected map:</strong> {MAPS[selectedMap].displayName}
+        </div>
+
+        <div style={{ marginBottom: 8 }}>
+          <strong>Map voting</strong>
+          <div style={{ marginTop: 6 }}>
+            {(['house','mountain','city','coral','hotel'] as MapKey[]).map(k => (
+              <div key={k} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                <button onClick={() => castVote(k)} disabled={!votingActive || voted} style={{ padding: '6px 10px' }}>{MAPS[k].displayName}</button>
+                <div style={{ minWidth: 60 }}>{votes[k]} vote{votes[k] !== 1 ? 's' : ''}</div>
+                {selectedMap === k && <div style={{ color: '#ffd166' }}>(current)</div>}
+              </div>
+            ))}
+          </div>
+          <div style={{ marginTop: 6 }}>
+            <button onClick={() => startVoting(180)} disabled={votingActive} style={{ padding: '6px 10px', marginRight: 6 }}>Start Vote (3m)</button>
+            {votingActive && <span>Voting ends in {voteTimeLeft}s</span>}
+            {!votingActive && <small style={{ marginLeft: 6 }}>Start a vote to pick a map based on votes.</small>}
+          </div>
         </div>
 
         <div>
@@ -288,10 +360,6 @@ export default function FloorIsLava(): JSX.Element {
         </div>
         <div>
           <strong>Status:</strong> {gameOver ? 'Game Over' : running ? (paused ? 'Paused' : 'Running') : 'Stopped'}
-        </div>
-
-        <div style={{ marginTop: 10 }}>
-          <small>Lava rises over time; keep jumping to survive!</small>
         </div>
       </div>
     </div>
