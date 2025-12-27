@@ -48,7 +48,7 @@ const POWERS: Power[] = [
 ];
 
 // Map config
-const MAP_SIZE = 100; // studs (square)
+const MAP_SIZE = 30; // studs (square) — changed to 30x30 per request
 const CANVAS_SIZE_PX = 700; // visual size (px)
 const STUD_TO_PX = CANVAS_SIZE_PX / MAP_SIZE; // scale studs -> px
 
@@ -231,6 +231,11 @@ export default function SuperShowdown(): JSX.Element {
     return distance(center, targetPos) <= radius;
   }
 
+  // Track last time player attacked or took damage (ms since epoch)
+  const lastPlayerCombatAtRef = useRef<number>(Date.now());
+  // Track whether regen is currently active (to avoid spamming start logs)
+  const regenActiveRef = useRef<boolean>(false);
+
   // Status ticks (same logic as before)
   useEffect(() => {
     const interval = setInterval(() => {
@@ -244,6 +249,9 @@ export default function SuperShowdown(): JSX.Element {
           np.hp = Math.max(0, np.hp - dmg);
           pushLog(`${np.name} suffers ${dmg} burn damage.`);
           s.burn!--;
+          // taking damage resets idle regen timer
+          lastPlayerCombatAtRef.current = Date.now();
+          regenActiveRef.current = false;
           changed = true;
         }
         if (s.poison && s.poison > 0) {
@@ -251,6 +259,8 @@ export default function SuperShowdown(): JSX.Element {
           np.hp = Math.max(0, np.hp - dmg);
           pushLog(`${np.name} takes ${dmg} poison damage.`);
           s.poison!--;
+          lastPlayerCombatAtRef.current = Date.now();
+          regenActiveRef.current = false;
           changed = true;
         }
         if (s.regen && s.regen > 0) {
@@ -303,6 +313,42 @@ export default function SuperShowdown(): JSX.Element {
     return () => clearInterval(interval);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [player, enemy]);
+
+  // Regeneration: if player hasn't attacked or taken damage in the last 10 seconds,
+  // regenerate 10 HP per second (implemented as 1 HP every 100ms) until max HP,
+  // attack, or take damage.
+  useEffect(() => {
+    const regenInterval = setInterval(() => {
+      setPlayer((prev) => {
+        const now = Date.now();
+        const idleMs = now - (lastPlayerCombatAtRef.current || 0);
+        const canRegen =
+          startConfirmed &&
+          !gameOver &&
+          prev.hp > 0 &&
+          prev.hp < prev.maxHp &&
+          idleMs >= 10000;
+        if (canRegen) {
+          if (!regenActiveRef.current) {
+            regenActiveRef.current = true;
+            pushLog("You begin regenerating health.");
+          }
+          // 1 HP per 100ms -> 10 HP/sec
+          const newHp = Math.min(prev.maxHp, prev.hp + 1);
+          return { ...prev, hp: newHp };
+        } else {
+          // If regen was active but now is not eligible, clear the flag silently.
+          if (regenActiveRef.current && idleMs < 10000) {
+            regenActiveRef.current = false;
+          }
+        }
+        return prev;
+      });
+    }, 100); // 100ms ticks -> 1 HP/tick
+
+    return () => clearInterval(regenInterval);
+    // Only depends on match state
+  }, [startConfirmed, gameOver]);
 
   // Drawing the legacy canvas used for precise clicking/aim as before
   function drawCanvas() {
@@ -425,6 +471,10 @@ export default function SuperShowdown(): JSX.Element {
   // Aimed fire function (simple generic shot to demonstrate aim -> fire)
   function playerFireAim() {
     if (waiting || gameOver || !startConfirmed) return;
+    // mark that player attacked (reset idle regen)
+    lastPlayerCombatAtRef.current = Date.now();
+    regenActiveRef.current = false;
+
     // compute normalized direction
     const dir = { x: aimTarget.x - player.pos.x, y: aimTarget.y - player.pos.y };
     const len = Math.hypot(dir.x, dir.y) || 0.0001;
@@ -466,6 +516,10 @@ export default function SuperShowdown(): JSX.Element {
       defBuff: 0,
       power: appliedPower,
     }));
+    // reset idle combat timer so regen doesn't immediately start
+    lastPlayerCombatAtRef.current = Date.now();
+    regenActiveRef.current = false;
+
     ammoRef.current = {
       ...ammoRef.current,
       fire: 10,
@@ -513,6 +567,10 @@ export default function SuperShowdown(): JSX.Element {
   // Player simple punch (fist)
   function playerPunch() {
     if (waiting || gameOver || !startConfirmed) return;
+    // mark that player attacked (reset regen)
+    lastPlayerCombatAtRef.current = Date.now();
+    regenActiveRef.current = false;
+
     const range = 1;
     if (distance(player.pos, enemy.pos) <= range) {
       setEnemy((e) => applyDamageToFighter(e, 10));
@@ -533,7 +591,13 @@ export default function SuperShowdown(): JSX.Element {
       if (gameOver) return;
       // try a simple attack
       if (distance(enemy.pos, player.pos) <= 3) {
-        setPlayer((p) => applyDamageToFighter(p, 6));
+        setPlayer((p) => {
+          const np = applyDamageToFighter(p, 6);
+          // player took damage -> reset idle regen timestamp
+          lastPlayerCombatAtRef.current = Date.now();
+          regenActiveRef.current = false;
+          return np;
+        });
         pushLog(`${enemy.name} strikes you for 6 damage.`);
       } else {
         // small move toward player
@@ -601,6 +665,9 @@ export default function SuperShowdown(): JSX.Element {
       earth: 4,
     };
     cooldownsRef.current = {};
+    // reset idle combat tracker so regen doesn't start immediately after reset
+    lastPlayerCombatAtRef.current = Date.now();
+    regenActiveRef.current = false;
   }
 
   // Mobile detection
@@ -697,7 +764,9 @@ export default function SuperShowdown(): JSX.Element {
     if (!joystickActive) return;
     setJoystickActive(false);
     joystickOriginRef.current = null;
-    // fire the shot
+    // fire the shot (this counts as attack)
+    lastPlayerCombatAtRef.current = Date.now();
+    regenActiveRef.current = false;
     playerFireAim();
   }
 
@@ -715,7 +784,7 @@ export default function SuperShowdown(): JSX.Element {
   // Convert studs coordinate to 3D transform coordinates (px)
   const toScenePx = (v: Vec2) => {
     // We want the ground plane to be width CANVAS_SIZE_PX and depth CANVAS_SIZE_PX.
-    // X maps to left->right (px), Z maps to top->bottom (px). We'll place elements with translate3d(xPx, 0, zPx).
+    // X maps to left->right (px), Z maps to top->bottom (px). We'll place elements with translate3d(xPx, 0px, zPx).
     const xPx = (v.x / MAP_SIZE) * CANVAS_SIZE_PX;
     const zPx = (v.y / MAP_SIZE) * CANVAS_SIZE_PX;
     return { xPx, zPx };
@@ -925,19 +994,17 @@ export default function SuperShowdown(): JSX.Element {
     const { xPx, zPx } = toScenePx(pl.pos);
     const size = 16;
     const transform = `translate3d(${xPx - size / 2}px, 0px, ${zPx - size / 2}px)`;
-    return (
-      <div style={{ position: "absolute", transform, width: size, height: size, pointerEvents: "none" }}>
-        <div
-          style={{
-            width: "100%",
-            height: "100%",
-            background: "linear-gradient(#9fe29f,#68b268)",
-            borderRadius: 6,
-            boxShadow: "0 6px 14px rgba(0,0,0,0.5)",
-          }}
-        />
-      </div>
-    );
+    return <div style={{ position: "absolute", transform, width: size, height: size, pointerEvents: "none" }}>
+      <div
+        style={{
+          width: "100%",
+          height: "100%",
+          background: "linear-gradient(#9fe29f,#68b268)",
+          borderRadius: 6,
+          boxShadow: "0 6px 14px rgba(0,0,0,0.5)",
+        }}
+      />
+    </div>;
   }
 
   function BlackHole3D({ bh }: { bh: BlackHole }) {
@@ -1040,7 +1107,7 @@ export default function SuperShowdown(): JSX.Element {
                   pointerEvents: "none",
                 }}
               >
-                {/* draw a simple tiled ground using background */}
+                {/* simple grey baselate (30x30 studs) */}
                 <div
                   style={{
                     position: "absolute",
@@ -1048,10 +1115,7 @@ export default function SuperShowdown(): JSX.Element {
                     top: 0,
                     width: "100%",
                     height: "100%",
-                    backgroundImage:
-                      "linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px)",
-                    backgroundSize: `${STUD_TO_PX}px ${STUD_TO_PX}px, ${STUD_TO_PX}px ${STUD_TO_PX}px`,
-                    opacity: 0.6,
+                    backgroundColor: "#7f7f7f",
                     transform: "translateZ(0px)",
                   }}
                 />
@@ -1098,7 +1162,7 @@ export default function SuperShowdown(): JSX.Element {
               onMouseMove={handleMouseMove}
             />
             <div style={{ marginTop: 6, color: "#9fb", fontSize: 12 }}>
-              Click the arena (hidden hit canvas) to set aim. On PC press E to enter aiming mode, move the mouse to adjust direction and release the mousepad to fire. On mobile use the joystick at bottom-right.
+              Click the arena (hidden hit canvas) to set aim. On PC press E to enter aiming mode, move the mouse to adjust direction and release the mousepad to fire. On mobile use the joystick [...]
             </div>
           </div>
 
