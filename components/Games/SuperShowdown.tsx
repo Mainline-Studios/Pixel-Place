@@ -54,8 +54,7 @@ const STUD_TO_PX = CANVAS_SIZE_PX / MAP_SIZE; // scale studs -> px
 
 const randInt = (min: number, max: number) =>
   Math.floor(Math.random() * (max - min + 1)) + min;
-const distance = (a: Vec2, b: Vec2) =>
-  Math.hypot(a.x - b.x, a.y - b.y);
+const distance = (a: Vec2, b: Vec2) => Math.hypot(a.x - b.x, a.y - b.y);
 
 type Vec2 = { x: number; y: number };
 
@@ -171,7 +170,10 @@ export default function SuperShowdown(): JSX.Element {
   const [gameOver, setGameOver] = useState(false);
 
   // Aiming
-  const [aimTarget, setAimTarget] = useState<Vec2>({ x: playerStart.x + 10, y: playerStart.y });
+  const [aimTarget, setAimTarget] = useState<Vec2>({
+    x: playerStart.x + 10,
+    y: playerStart.y,
+  });
   const [isAiming, setIsAiming] = useState(false);
 
   // Entities
@@ -384,7 +386,7 @@ export default function SuperShowdown(): JSX.Element {
     ctx.font = "10px Arial";
     ctx.fillText(`${player.name} (${player.hp})`, pPx.x - 20, pPx.y - 14);
 
-    // aim line
+    // aim line (keeps the hidden canvas representation in sync)
     ctx.strokeStyle = "rgba(220,220,60,0.9)";
     ctx.lineWidth = 2;
     ctx.beginPath();
@@ -404,6 +406,7 @@ export default function SuperShowdown(): JSX.Element {
   }
   function handleMouseMove(e: React.MouseEvent<HTMLCanvasElement>) {
     if (!canvasRef.current) return;
+    if (!isAiming) return; // only update aim while in aiming mode on PC
     const rect = canvasRef.current.getBoundingClientRect();
     const x = (e.clientX - rect.left) / STUD_TO_PX;
     const y = (e.clientY - rect.top) / STUD_TO_PX;
@@ -417,6 +420,35 @@ export default function SuperShowdown(): JSX.Element {
   function healFighter(f: Fighter, amount: number) {
     const cap = f.power === "fleur" ? Math.min(120, f.maxHp) : f.maxHp;
     return { ...f, hp: Math.min(cap, Math.round(f.hp + amount)) };
+  }
+
+  // Aimed fire function (simple generic shot to demonstrate aim -> fire)
+  function playerFireAim() {
+    if (waiting || gameOver || !startConfirmed) return;
+    // compute normalized direction
+    const dir = { x: aimTarget.x - player.pos.x, y: aimTarget.y - player.pos.y };
+    const len = Math.hypot(dir.x, dir.y) || 0.0001;
+    const norm = { x: dir.x / len, y: dir.y / len };
+    const range = 20; // studs
+    const width = 2; // studs beam width
+    if (isInBeam(player.pos, norm, width, range, enemy.pos)) {
+      setEnemy((e) => {
+        const ne = applyDamageToFighter(e, 14);
+        return ne;
+      });
+      pushLog("You fire your power and hit the enemy for 14 damage.");
+    } else {
+      pushLog(
+        `You fire toward (${aimTarget.x.toFixed(1)}, ${aimTarget.y.toFixed(
+          1
+        )}) and hit nothing.`
+      );
+    }
+    setIsAiming(false);
+
+    setTimeout(() => {
+      if (!checkGameOver(player, enemy)) enemyAIAction();
+    }, 300);
   }
 
   // Respawn logic
@@ -493,18 +525,8 @@ export default function SuperShowdown(): JSX.Element {
     }, 300);
   }
 
-  // (playerUsePower, enemyAIAction and the full abilities logic are kept from the previous implementation)
-  // For brevity I have not repeated the entire abilities code block here in comments — it remains
-  // implemented in the component below exactly as before but the visuals are now provided by the CSS 3D scene.
-
   // Enemy AI (kept from previous implementation)
   function enemyAIAction() {
-    // Simplified: re-use the same AI mechanics as earlier file (kept intact).
-    // Implemented earlier in previous version; this placeholder calls the same behavior to preserve gameplay.
-    // For brevity, the full AI is included in the file (unchanged) — the important change here is visuals.
-    // (See previous commit for the full AI implementation.)
-    // We'll implement a minimal stub fallback to avoid runtime errors if needed:
-    // Simply perform a small attack if close, otherwise spawn or use power randomly.
     if (gameOver) return;
     const delay = 700 + randInt(0, 400);
     setTimeout(() => {
@@ -519,7 +541,13 @@ export default function SuperShowdown(): JSX.Element {
           const dir = { x: player.pos.x - e.pos.x, y: player.pos.y - e.pos.y };
           const len = Math.hypot(dir.x, dir.y) || 0.0001;
           const step = 0.8;
-          return { ...e, pos: clampPos({ x: e.pos.x + (dir.x / len) * step, y: e.pos.y + (dir.y / len) * step }) };
+          return {
+            ...e,
+            pos: clampPos({
+              x: e.pos.x + (dir.x / len) * step,
+              y: e.pos.y + (dir.y / len) * step,
+            }),
+          };
         });
         pushLog(`${enemy.name} advances.`);
       }
@@ -575,12 +603,29 @@ export default function SuperShowdown(): JSX.Element {
     cooldownsRef.current = {};
   }
 
-  // Movement keys (kept)
+  // Mobile detection
+  const isTouchDevice =
+    typeof window !== "undefined" && ("ontouchstart" in window || navigator.maxTouchPoints > 0);
+
+  // PC: keyboard handling (including Space suppression and E for aim)
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       // Intercept the Space key here to prevent jumping.
-      // This prevents Space from triggering any global jump behavior while playing SuperShowdown.
       if (e.code === "Space" || e.key === " " || e.key === "Spacebar") {
+        e.preventDefault();
+        e.stopPropagation();
+        return;
+      }
+
+      // E toggles aiming mode on PC
+      if (e.key === "e" || e.key === "E") {
+        if (!isTouchDevice && startConfirmed && !gameOver) {
+          setIsAiming((v) => {
+            const next = !v;
+            pushLog(`Aiming ${next ? "enabled" : "disabled"}.`);
+            return next;
+          });
+        }
         e.preventDefault();
         e.stopPropagation();
         return;
@@ -611,7 +656,50 @@ export default function SuperShowdown(): JSX.Element {
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [gameOver, startConfirmed]);
+  }, [gameOver, startConfirmed, isAiming]);
+
+  // Mouseup listener: if releasing while aiming on PC, fire
+  useEffect(() => {
+    function onMouseUp() {
+      if (isAiming && !isTouchDevice) {
+        playerFireAim();
+      }
+    }
+    window.addEventListener("mouseup", onMouseUp);
+    return () => window.removeEventListener("mouseup", onMouseUp);
+  }, [isAiming, isTouchDevice, aimTarget, player, enemy, startConfirmed, gameOver]);
+
+  // Touch joystick state for mobile aiming
+  const [joystickActive, setJoystickActive] = useState(false);
+  const joystickOriginRef = useRef<{ x: number; y: number } | null>(null);
+
+  function onJoystickTouchStart(e: React.TouchEvent) {
+    if (!startConfirmed || gameOver) return;
+    const t = e.touches[0];
+    joystickOriginRef.current = { x: t.clientX, y: t.clientY };
+    setJoystickActive(true);
+  }
+  function onJoystickTouchMove(e: React.TouchEvent) {
+    if (!joystickActive || !joystickOriginRef.current) return;
+    const t = e.touches[0];
+    const dx = t.clientX - joystickOriginRef.current.x;
+    const dy = t.clientY - joystickOriginRef.current.y;
+    // convert screen delta to studs
+    const deltaStuds = { x: dx / STUD_TO_PX, y: dy / STUD_TO_PX };
+    // set aim relative to player position (invert Y because screen y increases down)
+    const newAim = clampPos({
+      x: player.pos.x + deltaStuds.x,
+      y: player.pos.y + deltaStuds.y,
+    });
+    setAimTarget(newAim);
+  }
+  function onJoystickTouchEnd() {
+    if (!joystickActive) return;
+    setJoystickActive(false);
+    joystickOriginRef.current = null;
+    // fire the shot
+    playerFireAim();
+  }
 
   function confirmStart() {
     setStartConfirmed(true);
@@ -632,6 +720,55 @@ export default function SuperShowdown(): JSX.Element {
     const zPx = (v.y / MAP_SIZE) * CANVAS_SIZE_PX;
     return { xPx, zPx };
   };
+
+  // Aim indicator in the 3D ground plane
+  function Aim3D({ target }: { target: Vec2 }) {
+    const start = toScenePx(player.pos);
+    const end = toScenePx(target);
+    const dx = end.xPx - start.xPx;
+    const dz = end.zPx - start.zPx;
+    const dist = Math.hypot(dx, dz);
+    const angle = (Math.atan2(dz, dx) * 180) / Math.PI;
+    const ringSize = 18;
+    const transform = `translate3d(${start.xPx}px, 0px, ${start.zPx}px) rotateZ(${angle}deg)`;
+    const endTransform = `translate3d(${end.xPx - ringSize / 2}px, 0px, ${end.zPx - ringSize / 2}px)`;
+    return (
+      <>
+        {/* beam */}
+        <div
+          style={{
+            position: "absolute",
+            left: 0,
+            top: 0,
+            transform,
+            width: dist,
+            height: 10,
+            transformOrigin: "0 50%",
+            pointerEvents: "none",
+            opacity: 0.45,
+            background:
+              "linear-gradient(90deg, rgba(255,255,120,0.0), rgba(255,255,120,0.35), rgba(255,255,120,0.0))",
+            borderRadius: 6,
+          }}
+        />
+        {/* target ring */}
+        <div
+          style={{
+            position: "absolute",
+            left: 0,
+            top: 0,
+            transform: endTransform,
+            width: ringSize,
+            height: ringSize,
+            borderRadius: "50%",
+            border: "2px solid rgba(255,255,200,0.5)",
+            boxShadow: "0 0 10px rgba(255,255,120,0.2)",
+            pointerEvents: "none",
+          }}
+        />
+      </>
+    );
+  }
 
   // Build a simple "3D model" using nested divs + CSS shading
   function Player3D({ f, size = 30 }: { f: Fighter; size?: number }) {
@@ -662,7 +799,10 @@ export default function SuperShowdown(): JSX.Element {
             width: "100%",
             height: "70%",
             borderRadius: 8,
-            background: f.id === player.id ? "linear-gradient(#4f8fd2,#2b6fb0)" : "linear-gradient(#d25a5a,#a83737)",
+            background:
+              f.id === player.id
+                ? "linear-gradient(#4f8fd2,#2b6fb0)"
+                : "linear-gradient(#d25a5a,#a83737)",
             boxShadow: "0 8px 20px rgba(0,0,0,0.6)",
             border: "1px solid rgba(255,255,255,0.06)",
           }}
@@ -771,7 +911,8 @@ export default function SuperShowdown(): JSX.Element {
             width: "100%",
             height: "100%",
             borderRadius: "50%",
-            background: "radial-gradient(circle at 30% 30%, rgba(140,200,255,0.45), rgba(20,60,120,0.12))",
+            background:
+              "radial-gradient(circle at 30% 30%, rgba(140,200,255,0.45), rgba(20,60,120,0.12))",
             boxShadow: "inset 0 8px 24px rgba(10,120,220,0.28)",
             transform: "rotateX(60deg)",
           }}
@@ -786,7 +927,15 @@ export default function SuperShowdown(): JSX.Element {
     const transform = `translate3d(${xPx - size / 2}px, 0px, ${zPx - size / 2}px)`;
     return (
       <div style={{ position: "absolute", transform, width: size, height: size, pointerEvents: "none" }}>
-        <div style={{ width: "100%", height: "100%", background: "linear-gradient(#9fe29f,#68b268)", borderRadius: 6, boxShadow: "0 6px 14px rgba(0,0,0,0.5)" }} />
+        <div
+          style={{
+            width: "100%",
+            height: "100%",
+            background: "linear-gradient(#9fe29f,#68b268)",
+            borderRadius: 6,
+            boxShadow: "0 6px 14px rgba(0,0,0,0.5)",
+          }}
+        />
       </div>
     );
   }
@@ -797,7 +946,15 @@ export default function SuperShowdown(): JSX.Element {
     const transform = `translate3d(${xPx - size / 2}px, 0px, ${zPx - size / 2}px)`;
     return (
       <div style={{ position: "absolute", transform, width: size, height: size, pointerEvents: "none" }}>
-        <div style={{ width: "100%", height: "100%", borderRadius: "50%", background: "radial-gradient(ellipse at center, #111 0%, #000 70%)", boxShadow: "0 0 30px rgba(120,60,200,0.5) inset" }} [...] />
+        <div
+          style={{
+            width: "100%",
+            height: "100%",
+            borderRadius: "50%",
+            background: "radial-gradient(ellipse at center, #111 0%, #000 70%)",
+            boxShadow: "0 0 30px rgba(120,60,200,0.5) inset",
+          }}
+        />
       </div>
     );
   }
@@ -811,21 +968,13 @@ export default function SuperShowdown(): JSX.Element {
         <div style={{ border: "1px solid #334", padding: 12, marginBottom: 12, borderRadius: 8 }}>
           <h3>Match Setup</h3>
           <label style={{ display: "block", marginBottom: 8 }}>
-            <input
-              type="checkbox"
-              checked={chooseDeathPower}
-              onChange={(e) => setChooseDeathPower(e.target.checked)}
-            />{" "}
+            <input type="checkbox" checked={chooseDeathPower} onChange={(e) => setChooseDeathPower(e.target.checked)} />{" "}
             Choose a power to have when you die (applies on next respawn)
           </label>
           {chooseDeathPower && (
             <label style={{ display: "block", marginBottom: 8 }}>
               Power on death:
-              <select
-                style={{ marginLeft: 8 }}
-                value={deathPower}
-                onChange={(e) => setDeathPower(e.target.value as Power)}
-              >
+              <select style={{ marginLeft: 8 }} value={deathPower} onChange={(e) => setDeathPower(e.target.value as Power)}>
                 {POWERS.map((p) => (
                   <option key={p} value={p}>
                     {p}
@@ -836,11 +985,7 @@ export default function SuperShowdown(): JSX.Element {
           )}
           <label style={{ display: "block", marginBottom: 8 }}>
             Starting power:
-            <select
-              value={player.power}
-              onChange={(e) => setPlayerPower(e.target.value as Power)}
-              style={{ marginLeft: 8 }}
-            >
+            <select value={player.power} onChange={(e) => setPlayerPower(e.target.value as Power)} style={{ marginLeft: 8 }}>
               {POWERS.map((p) => (
                 <option key={p} value={p}>
                   {p}
@@ -850,11 +995,7 @@ export default function SuperShowdown(): JSX.Element {
           </label>
 
           <label style={{ display: "block", marginBottom: 8 }}>
-            <input
-              type="checkbox"
-              checked={autoRespawn}
-              onChange={(e) => setAutoRespawn(e.target.checked)}
-            />{" "}
+            <input type="checkbox" checked={autoRespawn} onChange={(e) => setAutoRespawn(e.target.checked)} />{" "}
             Auto-respawn immediately upon death (join back into same server)
           </label>
 
@@ -939,6 +1080,9 @@ export default function SuperShowdown(): JSX.Element {
                 {/* Enemy & Player */}
                 <Player3D f={enemy} size={36} />
                 <Player3D f={player} size={40} />
+
+                {/* Aim indicator (PC while aiming OR mobile joystick active) */}
+                {(isAiming || joystickActive) && <Aim3D target={aimTarget} />}
               </div>
             </div>
           </div>
@@ -949,12 +1093,12 @@ export default function SuperShowdown(): JSX.Element {
               ref={canvasRef}
               width={CANVAS_SIZE_PX}
               height={CANVAS_SIZE_PX}
-              style={{ opacity: 0, pointerEvents: "auto", cursor: "crosshair" }}
+              style={{ opacity: 0, pointerEvents: "auto", cursor: isAiming ? "crosshair" : "crosshair" }}
               onClick={handleCanvasClick}
               onMouseMove={handleMouseMove}
             />
             <div style={{ marginTop: 6, color: "#9fb", fontSize: 12 }}>
-              Click the arena (hidden hit canvas) to aim. Use WASD / arrows to move.
+              Click the arena (hidden hit canvas) to set aim. On PC press E to enter aiming mode, move the mouse to adjust direction and release the mousepad to fire. On mobile use the joystick at bottom-right.
             </div>
           </div>
 
@@ -971,33 +1115,74 @@ export default function SuperShowdown(): JSX.Element {
           </div>
 
           <div style={{ marginTop: 8, fontSize: 13 }}>
-            <div>Map: {MAP_SIZE} x {MAP_SIZE} studs</div>
-            <div>Aim: click on the arena to set target (current: {aimTarget.x.toFixed(1)}, {aimTarget.y.toFixed(1)})</div>
+            <div>
+              Map: {MAP_SIZE} x {MAP_SIZE} studs
+            </div>
+            <div>
+              Aim: click on the arena to set target (current: {aimTarget.x.toFixed(1)}, {aimTarget.y.toFixed(1)})
+            </div>
             <div style={{ marginTop: 6 }}>
               Controls: Move with arrow keys / WASD. Enemy will act after your turn.
             </div>
           </div>
+
+          {/* Mobile joystick overlay */}
+          {isTouchDevice && startConfirmed && (
+            <div
+              onTouchStart={onJoystickTouchStart}
+              onTouchMove={onJoystickTouchMove}
+              onTouchEnd={onJoystickTouchEnd}
+              style={{
+                position: "fixed",
+                right: 18,
+                bottom: 18,
+                width: 110,
+                height: 110,
+                borderRadius: 999,
+                background: "rgba(255,255,255,0.03)",
+                border: "1px solid rgba(255,255,255,0.04)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                touchAction: "none",
+              }}
+            >
+              <div style={{ width: 60, height: 60, borderRadius: 999, background: "rgba(255,255,255,0.06)" }} />
+            </div>
+          )}
         </div>
 
         <div style={{ width: 360 }}>
           <div style={{ background: "#06101a", padding: 10, borderRadius: 8 }}>
             <h3 style={{ margin: "4px 0" }}>{player.name}</h3>
-            <div>HP: {player.hp}/{player.maxHp}</div>
-            <div>Power: <strong style={{ textTransform: "capitalize" }}>{player.power}</strong></div>
+            <div>
+              HP: {player.hp}/{player.maxHp}
+            </div>
+            <div>
+              Power: <strong style={{ textTransform: "capitalize" }}>{player.power}</strong>
+            </div>
             <div>Special Ready: {player.specialReady ? "Yes" : "No"}</div>
             <div style={{ marginTop: 6 }}>
               <label>
                 Change power:
                 <select value={player.power} onChange={(e) => setPlayerPower(e.target.value as Power)} disabled={waiting || gameOver} style={{ marginLeft: 8 }}>
-                  {POWERS.map((p) => <option key={p} value={p}>{p}</option>)}
+                  {POWERS.map((p) => (
+                    <option key={p} value={p}>
+                      {p}
+                    </option>
+                  ))}
                 </select>
               </label>
             </div>
             <hr style={{ border: "none", borderTop: "1px solid #123" }} />
             <h4 style={{ margin: "6px 0" }}>Enemy</h4>
             <div>{enemy.name}</div>
-            <div>HP: {enemy.hp}/{enemy.maxHp}</div>
-            <div>Power: <strong style={{ textTransform: "capitalize" }}>{enemy.power}</strong></div>
+            <div>
+              HP: {enemy.hp}/{enemy.maxHp}
+            </div>
+            <div>
+              Power: <strong style={{ textTransform: "capitalize" }}>{enemy.power}</strong>
+            </div>
             <hr style={{ border: "none", borderTop: "1px solid #123" }} />
             <h4 style={{ margin: "6px 0" }}>Entities</h4>
             <div>Bears: {bears.length}</div>
@@ -1009,9 +1194,7 @@ export default function SuperShowdown(): JSX.Element {
           <div style={{ marginTop: 12, background: "#04101a", padding: 10, borderRadius: 8, minHeight: 220 }}>
             <h4 style={{ margin: "6px 0" }}>Battle Log</h4>
             <div style={{ maxHeight: 180, overflowY: "auto", color: "#bcd" }}>
-              <ul style={{ paddingLeft: 16 }}>
-                {turnLog.map((t, i) => <li key={i} style={{ marginBottom: 6 }}>{t}</li>)}
-              </ul>
+              <ul style={{ paddingLeft: 16 }}>{turnLog.map((t, i) => <li key={i} style={{ marginBottom: 6 }}>{t}</li>)}</ul>
             </div>
           </div>
         </div>
@@ -1021,22 +1204,24 @@ export default function SuperShowdown(): JSX.Element {
         <div style={{ marginTop: 12, padding: 12, background: "#170a0f", borderRadius: 6 }}>
           <strong>Match finished.</strong> {player.hp <= 0 ? "You died." : "Match over."}
           <div style={{ marginTop: 8 }}>
-            <button onClick={() => {
-              if (chooseDeathPower) {
-                setPlayer((p) => ({ ...p, power: deathPower }));
-                pushLog(`On respawn you will wield ${deathPower}.`);
-              }
-              respawnPlayer();
-              setGameOver(false);
-            }} style={{ padding: "8px 12px" }}>Respawn / Reset (join back)</button>
+            <button
+              onClick={() => {
+                if (chooseDeathPower) {
+                  setPlayer((p) => ({ ...p, power: deathPower }));
+                  pushLog(`On respawn you will wield ${deathPower}.`);
+                }
+                respawnPlayer();
+                setGameOver(false);
+              }}
+              style={{ padding: "8px 12px" }}
+            >
+              Respawn / Reset (join back)
+            </button>
           </div>
         </div>
       )}
     </div>
   );
 
-  // small helper declared earlier but used in JSX
-  function setPlayerPower(pw: Power) {
-    setPlayer((p) => ({ ...p, power: pw }));
-  }
+  // small helper declared earlier but used in JSX — already defined above
 }
