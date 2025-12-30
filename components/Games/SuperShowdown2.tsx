@@ -385,7 +385,11 @@ export default function SuperShowdown2(): JSX.Element {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [player, enemy]);
 
-  // Drawing canvas
+  // Drawing canvas — now renders with simple 3D perspective projection (ground-plane) so the arena looks 3D
+  function toScenePx(v: Vec2) {
+    return { xPx: (v.x / MAP_SIZE) * CANVAS_SIZE_PX, zPx: (v.y / MAP_SIZE) * CANVAS_SIZE_PX };
+  }
+
   function drawCanvas() {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -393,89 +397,95 @@ export default function SuperShowdown2(): JSX.Element {
     if (!ctx) return;
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // background
-    ctx.fillStyle = "#0b1020";
+    // simple sky
+    ctx.fillStyle = lunarActive ? "#031026" : "#0b1020";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    // grid
-    ctx.strokeStyle = "#0f1a2b";
-    ctx.lineWidth = 1;
+    // ground grid (faint), with slight perspective shading
     for (let i = 0; i <= MAP_SIZE; i += 5) {
-      const px = i * STUD_TO_PX;
+      const px = (i / MAP_SIZE) * canvas.width;
+      ctx.strokeStyle = lunarActive ? "rgba(20,30,60,0.12)" : "rgba(15,26,43,0.12)";
+      ctx.lineWidth = 1;
       ctx.beginPath();
       ctx.moveTo(px, 0);
       ctx.lineTo(px, canvas.height);
       ctx.stroke();
     }
 
-    // mud patches
+    // draw mud patches with perspective (scale down with z)
     mudPatches.forEach((mp) => {
-      const p = toPx(mp.pos);
+      const s = toScenePx(mp.pos);
+      const depth = 0.6 + (s.zPx / CANVAS_SIZE_PX) * 0.6;
+      const size = mp.radius * STUD_TO_PX * (0.8 + depth * 0.6);
       ctx.beginPath();
-      ctx.fillStyle = "rgba(80,50,20,0.45)";
-      ctx.arc(p.x, p.y, mp.radius * STUD_TO_PX, 0, Math.PI * 2);
+      ctx.fillStyle = "rgba(80,50,20,0.6)";
+      ctx.ellipse(s.xPx, s.zPx + depth * 6, size, size * 0.6, 0, 0, Math.PI * 2);
       ctx.fill();
-      ctx.strokeStyle = "rgba(110,80,40,0.7)";
+      ctx.strokeStyle = "rgba(110,80,40,0.8)";
       ctx.stroke();
     });
 
-    // parasites
+    // parasites marker near enemy
     parasites.forEach(() => {
-      const ePx = toPx(enemy.pos);
-      ctx.fillStyle = "#7e2b7e";
+      const e = toScenePx(enemy.pos);
+      ctx.fillStyle = "#9a3b9a";
       ctx.beginPath();
-      ctx.arc(ePx.x + 12, ePx.y - 12, 6, 0, Math.PI * 2);
+      ctx.arc(e.xPx + 14, e.zPx - 12, 6, 0, Math.PI * 2);
       ctx.fill();
     });
 
     // doppels
     doppels.forEach((d) => {
-      const p = toPx(d.pos);
-      ctx.fillStyle = d.invulnerable ? "rgba(240,240,240,0.9)" : "rgba(200,200,200,0.7)";
+      const p = toScenePx(d.pos);
+      const size = 12;
+      ctx.fillStyle = d.invulnerable ? "rgba(240,240,240,0.95)" : "rgba(200,200,200,0.8)";
       ctx.beginPath();
-      ctx.arc(p.x, p.y, 8, 0, Math.PI * 2);
+      ctx.ellipse(p.xPx, p.zPx + 6, size, size * 0.6, 0, 0, Math.PI * 2);
       ctx.fill();
     });
 
-    // Soleil sun indicator (if player is Soleil)
+    // soleil indicator
     if (player.power === "soleil") {
-      const pp = toPx(player.pos);
+      const pp = toScenePx(player.pos);
       ctx.beginPath();
       ctx.fillStyle = "rgba(255,180,64,0.12)";
-      ctx.arc(pp.x, pp.y, 4 * STUD_TO_PX, 0, Math.PI * 2);
+      ctx.arc(pp.xPx, pp.zPx, 4 * STUD_TO_PX, 0, Math.PI * 2);
       ctx.fill();
       ctx.strokeStyle = "rgba(255,200,90,0.5)";
       ctx.lineWidth = 2;
       ctx.stroke();
     }
 
-    // enemy
-    const ePx = toPx(enemy.pos);
+    // enemy (with depth-based shadow)
+    const ePx = toScenePx(enemy.pos);
+    const eDepth = 0.6 + (ePx.zPx / CANVAS_SIZE_PX) * 0.4;
     ctx.fillStyle = "#d25a5a";
     ctx.beginPath();
-    ctx.arc(ePx.x, ePx.y, 10, 0, Math.PI * 2);
+    ctx.ellipse(ePx.xPx, ePx.zPx - 6 - eDepth * 4, 12, 18 * (1 - eDepth * 0.08), 0, 0, Math.PI * 2);
     ctx.fill();
+    // name
     ctx.fillStyle = "#fff";
-    ctx.font = "10px Arial";
-    ctx.fillText(`${enemy.name} (${enemy.hp})`, ePx.x - 24, ePx.y - 14);
+    ctx.font = "12px Arial";
+    ctx.fillText(`${enemy.name} (${enemy.hp})`, ePx.xPx - 28, ePx.zPx - 26 - eDepth * 4);
 
     // player
-    const pPx = toPx(player.pos);
+    const pPx = toScenePx(player.pos);
+    const pDepth = 0.6 + (pPx.zPx / CANVAS_SIZE_PX) * 0.4;
     ctx.fillStyle = "#4f8fd2";
     ctx.beginPath();
-    ctx.arc(pPx.x, pPx.y, 10, 0, Math.PI * 2);
+    ctx.ellipse(pPx.xPx, pPx.zPx - 6 - pDepth * 4, 12, 18 * (1 - pDepth * 0.08), 0, 0, Math.PI * 2);
     ctx.fill();
     ctx.fillStyle = "#fff";
-    ctx.font = "10px Arial";
-    ctx.fillText(`${player.name} (${player.hp})`, pPx.x - 20, pPx.y - 14);
+    ctx.font = "12px Arial";
+    ctx.fillText(`${player.name} (${player.hp})`, pPx.xPx - 22, pPx.zPx - 26 - pDepth * 4);
 
-    // aim line
-    ctx.strokeStyle = "rgba(220,220,60,0.9)";
+    // aim line projected to ground-plane
+    ctx.strokeStyle = "rgba(220,220,60,0.85)";
     ctx.lineWidth = 2;
     ctx.beginPath();
-    ctx.moveTo(pPx.x, pPx.y);
-    const aimPx = toPx(aimTarget);
-    ctx.lineTo(aimPx.x, aimPx.y);
+    ctx.moveTo(pPx.xPx, pPx.zPx);
+    const aimPx = toScenePx(aimTarget);
+    ctx.lineTo(aimPx.xPx, aimPx.zPx);
     ctx.stroke();
   }
 
@@ -816,7 +826,7 @@ export default function SuperShowdown2(): JSX.Element {
       case "doppelganger": {
         const existing = doppels[0];
         if (!existing) {
-          const d: Doppel = { id: `dup-${Date.now()}`, pos: clampPos({ x: player.pos.x + 1.5, y: player.pos.y }), hp: 60, createdAt: Date.now(), durationMs: 24 * 60 * 60 * 1000, nextAttackAt: Date.now() + 800, invulnerable: true };
+          const d: Doppel = { id: `dup-${Date.now()}`, pos: clampPos({ x: player.pos.x + 1.5, y: player.pos.y }), hp: 60, createdAt: Date.now(), durationMs: 24 * 60 * 60 * 1000, nextAttackAt: Date.now() + 1000, invulnerable: true };
           setDoppels((ds) => [...ds, d]);
           ammoRef.current["doppelganger"] = Math.max(0, ammo - 1);
           pushLog("A doppelganger replica has been summoned and is invulnerable.");
@@ -965,7 +975,8 @@ export default function SuperShowdown2(): JSX.Element {
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
-      if (e.code === "Space" || e.key === " " || e.key === "Spacebar") {
+      // Block spacebar and common "jump" keybindings explicitly so the game doesn't jump the page
+      if (e.code === "Space" || e.key === " " || e.key === "Spacebar" || e.key === "k" || e.key === "K") {
         e.preventDefault();
         e.stopPropagation();
         return;
@@ -1049,9 +1060,6 @@ export default function SuperShowdown2(): JSX.Element {
     setPlayer((p) => ({ ...p, power: pw, maxHp: newMax, hp: Math.min(newMax, p.hp) }));
   }
 
-  // 3D helpers
-  const toScenePx = (v: Vec2) => ({ xPx: (v.x / MAP_SIZE) * CANVAS_SIZE_PX, zPx: (v.y / MAP_SIZE) * CANVAS_SIZE_PX });
-
   function Aim3D({ target }: { target: Vec2 }) {
     const start = toScenePx(player.pos);
     const end = toScenePx(target);
@@ -1064,8 +1072,8 @@ export default function SuperShowdown2(): JSX.Element {
     const endTransform = `translate3d(${end.xPx - ringSize / 2}px, 0px, ${end.zPx - ringSize / 2}px)`;
     return (
       <>
-        <div style={{ position: "absolute", left: 0, top: 0, transform, width: dist, height: 10, transformOrigin: "0 50%", pointerEvents: "none", opacity: 0.45, background: "linear-gradient(90deg, rgba(255,255,120,0.0), rgba(255,255,120,0.35), rgba(255,255,120,0.0))", borderRadius: 6 }} />
-        <div style={{ position: "absolute", left: 0, top: 0, transform: endTransform, width: ringSize, height: ringSize, borderRadius: "50%", border: "2px solid rgba(255,255,200,0.5)", boxShadow: "0 0 10px rgba(255,255,120,0.2)", pointerEvents: "none" }} />
+        <div style={{ position: "absolute", left: 0, top: 0, transform, width: dist, height: 10, transformOrigin: "0 50%", pointerEvents: "none", opacity: 0.45, background: "linear-gradient(90deg, rgba(255,255,150,0.9), rgba(255,255,150,0.2))" }} />
+        <div style={{ position: "absolute", left: 0, top: 0, transform: endTransform, width: ringSize, height: ringSize, borderRadius: "50%", border: "2px solid rgba(255,255,200,0.6)", boxShadow: "0 0 8px rgba(255,220,120,0.25)", pointerEvents: "none" }} />
       </>
     );
   }
@@ -1077,11 +1085,11 @@ export default function SuperShowdown2(): JSX.Element {
     const shadowScale = 1 + (zPx / CANVAS_SIZE_PX) * 0.4;
     const hpPct = Math.max(0, Math.round((f.hp / f.maxHp) * 100));
     return (
-      <div className="scene-object player-3d" style={{ position: "absolute", transformStyle: "preserve-3d", transform, width: size, height: size * 1.6, pointerEvents: "none" }} title={`${f.name} — ${f.hp}/${f.maxHp}`}>
-        <div style={{ transform: `translateZ(0px)`, width: "100%", height: "70%", borderRadius: 8, background: f.id === player.id ? "linear-gradient(#4f8fd2,#2b6fb0)" : "linear-gradient(#d25a5a,#a83737)", boxShadow: "0 8px 20px rgba(0,0,0,0.6)", border: "1px solid rgba(255,255,255,0.06)" }} />
-        <div style={{ position: "absolute", top: -8, left: "50%", transform: "translateX(-50%)", width: size * 0.7, height: size * 0.45, borderRadius: "50% 50% 40% 40%", background: "rgba(255,255,255,0.06)", boxShadow: "inset 0 2px 4px rgba(255,255,255,0.06)" }} />
-        <div style={{ position: "absolute", bottom: -6, left: "50%", transform: "translateX(-50%) rotateX(90deg) translateZ(-0.1px)", width: size * shadowScale, height: size * 0.25, borderRadius: "50%", background: "rgba(0,0,0,0.45)", filter: "blur(6px)", opacity: 0.6 }} />
-        <div style={{ position: "absolute", top: -18, left: "50%", transform: "translateX(-50%)", width: size * 1.2, height: 6, background: "rgba(0,0,0,0.5)", borderRadius: 6, overflow: "hidden", border: "1px solid rgba(255,255,255,0.04)" }}>
+      <div className="scene-object player-3d" style={{ position: "absolute", transformStyle: "preserve-3d", transform, width: size, height: size * 1.6, pointerEvents: "none" }} title={`${f.name} (${f.hp}/${f.maxHp})`}>
+        <div style={{ transform: `translateZ(0px)`, width: "100%", height: "70%", borderRadius: 8, background: f.id === player.id ? "linear-gradient(#4f8fd2,#2b6fb0)" : "linear-gradient(#d25a5a,#a83f3f)" }} />
+        <div style={{ position: "absolute", top: -8, left: "50%", transform: "translateX(-50%)", width: size * 0.7, height: size * 0.45, borderRadius: "50% 50% 40% 40%", background: "rgba(255,255,255,0.06)" }} />
+        <div style={{ position: "absolute", bottom: -6, left: "50%", transform: "translateX(-50%) rotateX(90deg) translateZ(-0.1px)", width: size * shadowScale, height: size * 0.25, borderRadius: 999, background: "rgba(0,0,0,0.5)" }} />
+        <div style={{ position: "absolute", top: -18, left: "50%", transform: "translateX(-50%)", width: size * 1.2, height: 6, background: "rgba(0,0,0,0.5)", borderRadius: 6, overflow: "hidden" }}>
           <div style={{ width: `${hpPct}%`, height: "100%", background: hpPct > 50 ? "#4caf50" : hpPct > 20 ? "#ff9800" : "#f44336", transition: "width 200ms linear" }} />
         </div>
       </div>
@@ -1099,7 +1107,7 @@ export default function SuperShowdown2(): JSX.Element {
           {/* darken */}
           <div style={{ position: "absolute", left: 0, top: 0, right: 0, bottom: 0, background: "rgba(2,8,25,0.55)", transition: "opacity 400ms" }} />
           {/* moon rising (simple animated effect) */}
-          <div style={{ position: "absolute", left: "50%", transform: "translateX(-50%)", bottom: "64%", width: 120, height: 120, borderRadius: "50%", background: "radial-gradient(circle at 30% 30%, #f4f4f8, #cdd6e5)", boxShadow: "0 0 60px rgba(200,220,255,0.6)", opacity: 0.98 }} />
+          <div style={{ position: "absolute", left: "50%", transform: "translateX(-50%)", bottom: "64%", width: 120, height: 120, borderRadius: "50%", background: "radial-gradient(circle at 30% 30%, #fff8e6, #ddd)" }} />
         </div>
       )}
 
@@ -1136,15 +1144,15 @@ export default function SuperShowdown2(): JSX.Element {
         <div style={{ flex: 1 }}>
           {/* 3D Scene */}
           <div style={{ perspective: 1100, marginBottom: 8, position: "relative", zIndex: 10 }}>
-            <div aria-hidden style={{ width: CANVAS_SIZE_PX, height: CANVAS_SIZE_PX, margin: "0 auto", position: "relative", transformStyle: "preserve-3d", background: "linear-gradient(#071018,#041018)", borderRadius: 8, boxShadow: "0 12px 40px rgba(0,0,0,0.7)", overflow: "hidden" }}>
+            <div aria-hidden style={{ width: CANVAS_SIZE_PX, height: CANVAS_SIZE_PX, margin: "0 auto", position: "relative", transformStyle: "preserve-3d", background: "linear-gradient(#071018,#061123)" }}>
               {/* Sky darkening for lunarActive inside scene container as subtle overlay */}
               {lunarActive && (
                 <div style={{ position: "absolute", left: 0, top: 0, width: "100%", height: "100%", background: "rgba(0,0,40,0.28)", zIndex: 5, pointerEvents: "none" }} />
               )}
 
               {/* Ground plane */}
-              <div style={{ position: "absolute", left: 0, top: 0, width: "100%", height: "100%", transformStyle: "preserve-3d", transform: `rotateX(60deg) translateZ(-${CANVAS_SIZE_PX * 0.15}px)`, transformOrigin: "center center", pointerEvents: "none" }}>
-                <div style={{ position: "absolute", left: 0, top: 0, width: "100%", height: "100%", backgroundImage: "linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px)", backgroundSize: `${STUD_TO_PX}px ${STUD_TO_PX}px, ${STUD_TO_PX}px ${STUD_TO_PX}px`, opacity: 0.6, transform: "translateZ(0px)" }} />
+              <div style={{ position: "absolute", left: 0, top: 0, width: "100%", height: "100%", transformStyle: "preserve-3d", transform: `rotateX(60deg) translateZ(-${CANVAS_SIZE_PX * 0.15}px)`, overflow: "hidden" }}>
+                <div style={{ position: "absolute", left: 0, top: 0, width: "100%", height: "100%", backgroundImage: "linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px)", backgroundSize: "40px 40px, 40px 40px" }} />
 
                 {/* Mud patches (3D) */}
                 {mudPatches.map((m) => {
@@ -1170,7 +1178,7 @@ export default function SuperShowdown2(): JSX.Element {
                   const { xPx, zPx } = toScenePx(d.pos);
                   const size = 14;
                   const transform = `translate3d(${xPx - size / 2}px, 0px, ${zPx - size / 2}px)`;
-                  return <div key={d.id} style={{ position: "absolute", transform, width: size, height: size, pointerEvents: "none" }}><div style={{ width: "100%", height: "100%", borderRadius: 6, background: d.invulnerable ? "rgba(240,240,240,0.9)" : "rgba(200,200,200,0.7)" }} /></div>;
+                  return <div key={d.id} style={{ position: "absolute", transform, width: size, height: size, pointerEvents: "none" }}><div style={{ width: "100%", height: "100%", borderRadius: 8, background: d.invulnerable ? "linear-gradient(#fff,#ddd)" : "linear-gradient(#ddd,#bbb)" }} /></div>;
                 })}
 
                 {/* Soleil teleport emblem (sun) at aimTarget when player is Soleil */}
@@ -1180,7 +1188,7 @@ export default function SuperShowdown2(): JSX.Element {
                   const ready = !soleilStateRef.current.lastTeleportAt || (Date.now() - soleilStateRef.current.lastTeleportAt) >= 120000;
                   return (
                     <div key="soleil-sigil" style={{ position: "absolute", left: 0, top: 0, transform, pointerEvents: "none" }}>
-                      <div style={{ width: 24, height: 24, borderRadius: "50%", background: ready ? "radial-gradient(circle at 30% 30%, #fff8d1, #ffd36a)" : "radial-gradient(circle at 30% 30%, rgba(200,180,120,0.6), rgba(150,120,60,0.5))", boxShadow: ready ? "0 0 12px rgba(255,200,80,0.6)" : "0 0 6px rgba(0,0,0,0.2)", transform: "translateZ(0.1px)" }} />
+                      <div style={{ width: 24, height: 24, borderRadius: "50%", background: ready ? "radial-gradient(circle at 30% 30%, #fff8d1, #ffd36a)" : "radial-gradient(circle at 30% 30%, #d6d6d6, #b8b8b8)", boxShadow: "0 0 10px rgba(255,200,80,0.25)" }} />
                     </div>
                   );
                 })()}
@@ -1194,10 +1202,10 @@ export default function SuperShowdown2(): JSX.Element {
             </div>
           </div>
 
-          {/* Hidden canvas for accurate clicks */}
+          {/* Visible canvas for accurate clicks and 3D styled representation (was hidden before) */}
           <div style={{ textAlign: "center", marginTop: -CANVAS_SIZE_PX - 6 }}>
-            <canvas ref={canvasRef} width={CANVAS_SIZE_PX} height={CANVAS_SIZE_PX} style={{ opacity: 0, pointerEvents: "auto", cursor: isAiming ? "crosshair" : "crosshair" }} onClick={handleCanvasClick} onMouseMove={handleMouseMove} />
-            <div style={{ marginTop: 6, color: "#9fb", fontSize: 12 }}>Click the arena (hidden hit canvas) to set aim. On PC press E to enter aiming mode. On mobile use the joystick.</div>
+            <canvas ref={canvasRef} width={CANVAS_SIZE_PX} height={CANVAS_SIZE_PX} style={{ opacity: 0.98, pointerEvents: "auto", cursor: isAiming ? "crosshair" : "crosshair", transform: `translateZ(0)` }} onClick={handleCanvasClick} onMouseMove={handleMouseMove} />
+            <div style={{ marginTop: 6, color: "#9fb", fontSize: 12 }}>Click the arena to set aim. On PC press E to enter aiming mode. Space and common jump keys are blocked to avoid page scrolling.</div>
           </div>
 
           <div style={{ marginTop: 10, display: "flex", gap: 8 }}>
@@ -1218,11 +1226,11 @@ export default function SuperShowdown2(): JSX.Element {
           <div style={{ marginTop: 8, fontSize: 13 }}>
             <div>Map: {MAP_SIZE} x {MAP_SIZE} studs</div>
             <div>Aim: click on the arena to set target (current: {aimTarget.x.toFixed(1)}, {aimTarget.y.toFixed(1)})</div>
-            <div style={{ marginTop: 6 }}>Controls: Move with arrow keys / WASD. Enemy will act after your turn.</div>
+            <div style={{ marginTop: 6 }}>Controls: Move with arrow keys / WASD. Enemy will act after your turn. Spacebar and jump keys blocked.</div>
           </div>
 
           {isTouchDevice && startConfirmed && (
-            <div onTouchStart={onJoystickTouchStart} onTouchMove={onJoystickTouchMove} onTouchEnd={onJoystickTouchEnd} style={{ position: "fixed", right: 18, bottom: 18, width: 110, height: 110, borderRadius: 999, background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.04)", display: "flex", alignItems: "center", justifyContent: "center", touchAction: "none" }}>
+            <div onTouchStart={onJoystickTouchStart} onTouchMove={onJoystickTouchMove} onTouchEnd={onJoystickTouchEnd} style={{ position: "fixed", right: 18, bottom: 18, width: 110, height: 110, borderRadius: 8, pointerEvents: "auto" }}>
               <div style={{ width: 60, height: 60, borderRadius: 999, background: "rgba(255,255,255,0.06)" }} />
             </div>
           )}
@@ -1268,7 +1276,7 @@ export default function SuperShowdown2(): JSX.Element {
         <div style={{ marginTop: 12, padding: 12, background: "#170a0f", borderRadius: 6 }}>
           <strong>Match finished.</strong> {player.hp <= 0 ? "You died." : "Match over."}
           <div style={{ marginTop: 8 }}>
-            <button onClick={() => { if (chooseDeathPower) { setPlayer((p) => ({ ...p, power: deathPower })); pushLog(`On respawn you will wield ${deathPower}.`); } respawnPlayer(); setGameOver(false); }} style={{ padding: "8px 12px" }}>Respawn / Reset (join back)</button>
+            <button onClick={() => { if (chooseDeathPower) { setPlayer((p) => ({ ...p, power: deathPower })); pushLog(`On respawn you will wield ${deathPower}.`); } respawnPlayer(); setGameOver(false); }} style={{ padding: "8px 12px" }}>Respawn</button>
           </div>
         </div>
       )}
