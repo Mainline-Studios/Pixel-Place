@@ -130,20 +130,20 @@ type Doppel = { id: string; pos: Vec2; hp: number; createdAt: number; durationMs
    --------------------------- */
 
 const DEFAULT_AMMO: Record<string, number> = {
-  fire: 10,
+  fire: 20,
   electricity: 10,
-  ice: 10,
+  ice: 7,
   invisible: 4,
   poison: 6,
   earth: 4,
   mud: 6,
-  parasite: 5,
+  parasite: 2,
   harmony: 3,
   berserker: 4,
   regen: 3,
   hex: 4,
   lunar: 4,
-  soleil: 5,
+  soleil: 8,
   doppelganger: 2,
 };
 
