@@ -7,7 +7,7 @@ import { getPublished, savePublished } from '@/lib/storage';
 import TopBar from './TopBar';
 import Sidebar from './Sidebar';
 import HomeTab from '../Tabs/HomeTab';
-import DiscoverTab from '../Tabs/DiscoverTab';
+// DiscoverTab removed - merged into HomeTab
 import AvatarShopTab from '../Tabs/AvatarShopTab';
 import CreateTab from '../Tabs/CreateTab';
 import StudioTab from '../Tabs/StudioTab';
@@ -28,10 +28,9 @@ export default function Dashboard({ user }: DashboardProps) {
     if (user.role !== 'admin') return;
     savePublished([]);
     alert('All published games cleared.');
-    if (currentTab === 'discover') {
-      // Force re-render
+    // Force re-render if on home tab
+    if (currentTab === 'home') {
       setCurrentTab('home');
-      setTimeout(() => setCurrentTab('discover'), 0);
     }
   };
 
@@ -39,8 +38,7 @@ export default function Dashboard({ user }: DashboardProps) {
     switch (currentTab) {
       case 'home':
         return <HomeTab user={user} editMode={editMode} />;
-      case 'discover':
-        return <DiscoverTab user={user} editMode={editMode} onResetPublished={handleResetPublished} />;
+      // Discover tab was merged into Home tab - removed
       case 'avatarShop':
         return <AvatarShopTab user={user} editMode={editMode} />;
       case 'createGame':
@@ -72,9 +70,7 @@ export default function Dashboard({ user }: DashboardProps) {
       <TopBar
         currentTab={currentTab}
         onTabChange={setCurrentTab}
-        username={user.username}
-        role={user.role}
-        avatarInitials={getInitials(user.username)}
+        user={user}
       />
       <div className="body-row">
         <div className="body-inner">

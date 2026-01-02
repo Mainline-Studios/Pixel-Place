@@ -6,7 +6,7 @@ import { getSkins, getPublished, getUsers } from '@/lib/storage';
 import { escapeHTML } from '@/lib/utils';
 import GamePlayer from '@/components/GamePlayer';
 import Avatar3DViewer from '@/components/Avatar3DViewer';
-import { FNAF_PRELOADED_GAME, GYM_PUMP_PRELOADED_GAME } from '@/lib/preloadedGames';
+import { GYM_PUMP_PRELOADED_GAME } from '@/lib/preloadedGames';
 import GymPumpEngine from '@/components/Games/GymPumpEngine';
 
 interface HomeTabProps {
@@ -24,10 +24,21 @@ export default function HomeTab({ user, editMode, onResetPublished }: HomeTabPro
 
   // Refresh data
   useEffect(() => {
-    const refreshData = () => {
-      setPublished(getPublished());
-      setUsers(getUsers());
-      setSkins(getSkins());
+    const refreshData = async () => {
+      try {
+        const publishedData = await getPublished();
+        const usersData = await getUsers();
+        const skinsData = getSkins();
+
+        setPublished(Array.isArray(publishedData) ? publishedData : []);
+        setUsers(Array.isArray(usersData) ? usersData : []);
+        setSkins(Array.isArray(skinsData) ? skinsData : []);
+      } catch (error) {
+        console.error('Error refreshing data:', error);
+        setPublished([]);
+        setUsers([]);
+        setSkins([]);
+      }
     };
     refreshData();
     // Refresh every 2 seconds to catch updates
@@ -35,13 +46,15 @@ export default function HomeTab({ user, editMode, onResetPublished }: HomeTabPro
     return () => clearInterval(interval);
   }, [user]);
 
-  // Include preloaded games
-  const allGames = [FNAF_PRELOADED_GAME, GYM_PUMP_PRELOADED_GAME, ...published];
+  // Include preloaded games - only Gym Pump
+  const publishedArray = Array.isArray(published) ? published : [];
+  const allGames = [GYM_PUMP_PRELOADED_GAME, ...publishedArray];
   const sortedGames = allGames.slice().sort((a, b) => b.ts - a.ts);
 
   // Get friends - show first 8
   const friends = (user.friends || []).slice(0, 8);
-  const friendUsers = users
+  const usersArray = Array.isArray(users) ? users : [];
+  const friendUsers = usersArray
     .filter(u => u && u.username && friends.includes(u.username))
     .slice(0, 8);
 
@@ -302,7 +315,7 @@ export default function HomeTab({ user, editMode, onResetPublished }: HomeTabPro
                       <div style={{
                         width: '100%',
                         height: '100%',
-                        background: game.id === 'gym-pump' 
+                        background: game.id === 'gym-pump'
                           ? 'linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%)'
                           : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
                         display: 'flex',
@@ -495,7 +508,7 @@ export default function HomeTab({ user, editMode, onResetPublished }: HomeTabPro
                       <div style={{
                         width: '100%',
                         height: '100%',
-                        background: game.id === 'gym-pump' 
+                        background: game.id === 'gym-pump'
                           ? 'linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%)'
                           : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
                         display: 'flex',
