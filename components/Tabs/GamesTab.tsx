@@ -4,13 +4,6 @@ import { useState, useEffect } from 'react';
 import { User, UserMadeGame } from '@/types';
 import { getUserMadeGames, deleteUserMadeGame } from '@/lib/storage';
 import UserMadeGamePlayer from '../Games/UserMadeGamePlayer';
-import SnakeGame from '../Games/SnakeGame';
-import MemoryGame from '../Games/MemoryGame';
-import AvatarRunner3D from '../Games/AvatarRunner3D';
-import AvatarCollector3D from '../Games/AvatarCollector3D';
-import TagGame from '../Games/TagGame';
-import AIExperimentTest from '../Games/AIExperimentTest';
-import SchoolAdventure3D from '../Games/SchoolAdventure3D';
 import GymPumpEngine from '../Games/GymPumpEngine';
 
 interface GamesTabProps {
@@ -28,66 +21,8 @@ interface GameInfo {
   component: React.ComponentType<{ user?: User; onClose?: () => void }>;
 }
 
+// Only Gym Pump game
 const games: GameInfo[] = [
-  {
-    id: 'avatarRunner',
-    name: '3D Avatar Runner',
-    description: 'Run with your avatar! Collect coins and avoid obstacles',
-    icon: '🏃',
-    category: '3D Action',
-    is3D: true,
-    component: AvatarRunner3D,
-  },
-  {
-    id: 'avatarCollector',
-    name: '3D Avatar Collector',
-    description: 'Control your avatar to collect gems in a 3D world',
-    icon: '💎',
-    category: '3D Adventure',
-    is3D: true,
-    component: AvatarCollector3D,
-  },
-  {
-    id: 'snake',
-    name: 'Snake',
-    description: 'Classic snake game - eat food and grow!',
-    icon: '🐍',
-    category: 'Arcade',
-    component: SnakeGame,
-  },
-  {
-    id: 'memory',
-    name: 'Memory Game',
-    description: 'Match pairs of emojis to test your memory',
-    icon: '🧠',
-    category: 'Puzzle',
-    component: MemoryGame,
-  },
-  {
-    id: 'tag',
-    name: 'Tag Game',
-    description: 'Play tag with friends or CPU! Wait in lobby for 3+ players',
-    icon: '🏃',
-    category: 'Action',
-    component: TagGame,
-  },
-  {
-    id: 'schoolAdventure',
-    name: 'School Adventure',
-    description: 'Explore a 3D school! Visit classrooms, collect items, and interact with students',
-    icon: '🏫',
-    category: '3D Adventure',
-    is3D: true,
-    component: SchoolAdventure3D,
-  },
-  {
-    id: 'aiExperiment',
-    name: 'AI Experiment Test',
-    description: 'Text-to-speech experiment - type and hear your words',
-    icon: '🤖',
-    category: 'Experiment',
-    component: AIExperimentTest,
-  },
   {
     id: 'gymPump',
     name: 'Gym Pump',
@@ -133,11 +68,7 @@ export default function GamesTab({ user, editMode }: GamesTabProps) {
   if (selectedGame && GameComponent) {
     return (
       <div>
-        {selectedGameInfo?.is3D ? (
-          <GameComponent user={user} onClose={() => setSelectedGame(null)} />
-        ) : (
-          <GameComponent onClose={() => setSelectedGame(null)} />
-        )}
+        <GameComponent user={user} onClose={() => setSelectedGame(null)} />
       </div>
     );
   }
@@ -221,17 +152,7 @@ export default function GamesTab({ user, editMode }: GamesTabProps) {
       <div className="ai-box" style={{ marginTop: '24px' }}>
         <div className="ai-label">Game Instructions</div>
         <div className="ai-output" style={{ fontSize: '13px', lineHeight: '1.8' }}>
-          <strong>3D Avatar Runner:</strong> Use A/D or Arrow Keys to move left/right. Collect gold coins and avoid red obstacles! Your purchased avatar appears in the game.
-          <br />
-          <strong>3D Avatar Collector:</strong> Use W/A/S/D or Arrow Keys to move. Collect colorful gems with your avatar in a 3D world!
-          <br />
-          <strong>Snake:</strong> Use arrow keys to move, space to pause. Eat the red food to grow and score points!
-          <br />
-          <strong>Tic-Tac-Toe:</strong> Take turns placing X and O. Get three in a row to win!
-          <br />
-          <strong>Memory Game:</strong> Click cards to flip them. Match pairs of emojis to win!
-          <br />
-          <strong>Tag Game:</strong> Wait in lobby for 3+ players or play with CPU. Use W/A/S/D to move and avoid the player marked &quot;IT&quot;!
+          <strong>Gym Pump:</strong> Lift weights, build power, and climb the leaderboard! Use the game controls to play.
         </div>
       </div>
 
@@ -334,5 +255,3 @@ export default function GamesTab({ user, editMode }: GamesTabProps) {
     </>
   );
 }
-
-

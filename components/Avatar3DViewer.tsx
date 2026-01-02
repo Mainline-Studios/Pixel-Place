@@ -29,15 +29,6 @@ export default function Avatar3DViewer({
   const mousePositionRef = useRef({ x: 0, y: 0 });
   const rotationRef = useRef({ x: 0, y: 0 });
 
-  // Validate skin
-  if (!skin || !skin.colors) {
-    return (
-      <div style={{ width, height, background: '#333', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#888', fontSize: '12px' }}>
-        Invalid Skin
-      </div>
-    );
-  }
-
   // Convert hex color to Three.js color
   const hexToColor = (hex: string) => {
     if (!hex || typeof hex !== 'string') {

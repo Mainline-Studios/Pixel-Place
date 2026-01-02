@@ -20,6 +20,27 @@ const tabs: { key: TabType; label: string; adminOnly?: boolean }[] = [
 ];
 
 export default function TopBar({ currentTab, onTabChange, user }: TopBarProps) {
+  // Guard against undefined user
+  if (!user) {
+    return (
+      <div className="topbar">
+        <div className="topbar-inner">
+          <div className="brand" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <Image
+              src="/logo.png"
+              alt="Pixel Place Logo"
+              width={32}
+              height={32}
+              style={{ objectFit: 'contain' }}
+              priority
+            />
+            <span>PIXEL PLACE</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   const skins = getSkins();
   const accessories = getAccessories();
   const equippedSkin = skins.find(s => s.id === user.equippedSkin) || skins.find(s => s.id === 'starter_classic') || skins[0];

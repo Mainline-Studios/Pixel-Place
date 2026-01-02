@@ -1,37 +1,699 @@
 'use client';
 
-import { User } from '@/types';
-import { getTabContent } from '@/lib/storage';
+import { useState, useEffect, useRef } from 'react';
+import { User, FriendRequest, Message } from '@/types';
+import { getUsers } from '@/lib/storage';
+import { useUser } from '@/contexts/UserContext';
 
 interface FriendsTabProps {
   user: User;
   editMode: boolean;
 }
 
+interface FriendData {
+  friends: User[];
+  incomingRequests: FriendRequest[];
+  sentRequests: string[];
+}
+
 export default function FriendsTab({ user, editMode }: FriendsTabProps) {
-  const tabContent = getTabContent();
+  const { updateUser } = useUser();
+  const [friendsData, setFriendsData] = useState<FriendData>({ friends: [], incomingRequests: [], sentRequests: [] });
+  const [allUsers, setAllUsers] = useState<User[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedFriend, setSelectedFriend] = useState<User | null>(null);
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [newMessage, setNewMessage] = useState('');
+  const [activeTab, setActiveTab] = useState<'friends' | 'requests' | 'search'>('friends');
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messageInputRef = useRef<HTMLInputElement>(null);
+
+  // Load friends data
+  const loadFriendsData = async () => {
+    try {
+      const response = await fetch(`/api/friends?username=${encodeURIComponent(user.username)}`);
+      if (response.ok) {
+        const data = await response.json();
+        setFriendsData(data);
+      }
+    } catch (error) {
+      console.error('Error loading friends:', error);
+    }
+  };
+
+  // Load all users for search
+  const loadAllUsers = async () => {
+    try {
+      const users = await getUsers();
+      setAllUsers(users.filter(u => u.username.toLowerCase() !== user.username.toLowerCase()));
+    } catch (error) {
+      console.error('Error loading users:', error);
+    }
+  };
+
+  // Load messages for selected friend
+  const loadMessages = async (friendUsername: string) => {
+    try {
+      const response = await fetch(`/api/messages?username=${encodeURIComponent(user.username)}&with=${encodeURIComponent(friendUsername)}`);
+      if (response.ok) {
+        const msgs = await response.json();
+        setMessages(msgs);
+        // Mark messages as read
+        msgs.forEach((msg: Message) => {
+          if (msg.to.toLowerCase() === user.username.toLowerCase() && !msg.read) {
+            fetch('/api/messages', {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ id: msg.id, read: true })
+            }).catch(() => {});
+          }
+        });
+      }
+    } catch (error) {
+      console.error('Error loading messages:', error);
+    }
+  };
+
+  useEffect(() => {
+    loadFriendsData();
+    loadAllUsers();
+    // Refresh every 3 seconds
+    const interval = setInterval(() => {
+      loadFriendsData();
+      if (selectedFriend) {
+        loadMessages(selectedFriend.username);
+      }
+    }, 3000);
+    return () => clearInterval(interval);
+  }, [user.username]);
+
+  useEffect(() => {
+    if (selectedFriend) {
+      loadMessages(selectedFriend.username);
+    }
+  }, [selectedFriend]);
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
+
+  // Send friend request
+  const sendFriendRequest = async (toUsername: string) => {
+    try {
+      const response = await fetch('/api/friends', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'send',
+          fromUsername: user.username,
+          toUsername
+        })
+      });
+      if (response.ok) {
+        await loadFriendsData();
+        await loadAllUsers();
+      } else {
+        const error = await response.json();
+        alert(error.error || 'Failed to send friend request');
+      }
+    } catch (error) {
+      console.error('Error sending friend request:', error);
+      alert('Failed to send friend request');
+    }
+  };
+
+  // Accept friend request
+  const acceptFriendRequest = async (fromUsername: string) => {
+    try {
+      const response = await fetch('/api/friends', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'accept',
+          fromUsername,
+          toUsername: user.username
+        })
+      });
+      if (response.ok) {
+        await loadFriendsData();
+        // Update user context
+        const updatedFriendsData = await fetch(`/api/friends?username=${encodeURIComponent(user.username)}`).then(r => r.json());
+        updateUser({ friends: updatedFriendsData.friends.map((f: User) => f.username) });
+      }
+    } catch (error) {
+      console.error('Error accepting friend request:', error);
+    }
+  };
+
+  // Decline friend request
+  const declineFriendRequest = async (fromUsername: string) => {
+    try {
+      const response = await fetch('/api/friends', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'decline',
+          fromUsername,
+          toUsername: user.username
+        })
+      });
+      if (response.ok) {
+        await loadFriendsData();
+      }
+    } catch (error) {
+      console.error('Error declining friend request:', error);
+    }
+  };
+
+  // Remove friend
+  const removeFriend = async (friendUsername: string) => {
+    if (!confirm(`Remove ${friendUsername} from your friends?`)) return;
+    try {
+      const response = await fetch('/api/friends', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'remove',
+          fromUsername: user.username,
+          toUsername: friendUsername
+        })
+      });
+      if (response.ok) {
+        await loadFriendsData();
+        if (selectedFriend?.username === friendUsername) {
+          setSelectedFriend(null);
+          setMessages([]);
+        }
+        // Update user context
+        const updatedFriendsData = await fetch(`/api/friends?username=${encodeURIComponent(user.username)}`).then(r => r.json());
+        updateUser({ friends: updatedFriendsData.friends.map((f: User) => f.username) });
+      }
+    } catch (error) {
+      console.error('Error removing friend:', error);
+    }
+  };
+
+  // Send message
+  const sendMessage = async () => {
+    if (!selectedFriend || !newMessage.trim()) return;
+
+    try {
+      const response = await fetch('/api/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          fromUsername: user.username,
+          toUsername: selectedFriend.username,
+          message: newMessage.trim()
+        })
+      });
+      if (response.ok) {
+        setNewMessage('');
+        await loadMessages(selectedFriend.username);
+        messageInputRef.current?.focus();
+      }
+    } catch (error) {
+      console.error('Error sending message:', error);
+    }
+  };
+
+  // Filter users for search
+  const filteredUsers = allUsers.filter(u => {
+    const query = searchQuery.toLowerCase();
+    const username = u.username.toLowerCase();
+    const isFriend = friendsData.friends.some(f => f.username.toLowerCase() === username);
+    const isPending = friendsData.sentRequests.some(r => r.toLowerCase() === username);
+    return username.includes(query) && !isFriend && !isPending && username !== user.username.toLowerCase();
+  });
+
+  // Format timestamp
+  const formatTime = (timestamp: number) => {
+    const date = new Date(timestamp);
+    const now = new Date();
+    const diff = now.getTime() - date.getTime();
+    const seconds = Math.floor(diff / 1000);
+    const minutes = Math.floor(seconds / 60);
+    const hours = Math.floor(minutes / 60);
+    const days = Math.floor(hours / 24);
+
+    if (seconds < 60) return 'Just now';
+    if (minutes < 60) return `${minutes}m ago`;
+    if (hours < 24) return `${hours}h ago`;
+    if (days < 7) return `${days}d ago`;
+    return date.toLocaleDateString();
+  };
 
   return (
     <>
       <h2 className="section-title">Friends</h2>
-      <div className="ai-box">
-        <div className="ai-label">Friend System</div>
-        <div className="ai-output">
-          • Add friends (coming soon)
-          <br />
-          • Party up (coming soon)
-          <br />
-          • Direct message (coming soon)
-        </div>
+      
+      {/* Tabs */}
+      <div style={{ display: 'flex', gap: '8px', marginBottom: '20px', borderBottom: '1px solid var(--border)' }}>
+        <button
+          onClick={() => setActiveTab('friends')}
+          style={{
+            padding: '8px 16px',
+            background: activeTab === 'friends' ? 'var(--accent-bg)' : 'transparent',
+            border: 'none',
+            borderBottom: activeTab === 'friends' ? '2px solid var(--accent-hover)' : '2px solid transparent',
+            color: 'var(--text-main)',
+            cursor: 'pointer',
+            fontSize: '14px',
+            fontWeight: '600'
+          }}
+        >
+          Friends ({friendsData.friends.length})
+        </button>
+        <button
+          onClick={() => setActiveTab('requests')}
+          style={{
+            padding: '8px 16px',
+            background: activeTab === 'requests' ? 'var(--accent-bg)' : 'transparent',
+            border: 'none',
+            borderBottom: activeTab === 'requests' ? '2px solid var(--accent-hover)' : '2px solid transparent',
+            color: 'var(--text-main)',
+            cursor: 'pointer',
+            fontSize: '14px',
+            fontWeight: '600',
+            position: 'relative'
+          }}
+        >
+          Requests
+          {friendsData.incomingRequests.length > 0 && (
+            <span style={{
+              position: 'absolute',
+              top: '4px',
+              right: '4px',
+              background: '#ff4d4d',
+              color: '#fff',
+              borderRadius: '50%',
+              width: '18px',
+              height: '18px',
+              fontSize: '10px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontWeight: 'bold'
+            }}>
+              {friendsData.incomingRequests.length}
+            </span>
+          )}
+        </button>
+        <button
+          onClick={() => setActiveTab('search')}
+          style={{
+            padding: '8px 16px',
+            background: activeTab === 'search' ? 'var(--accent-bg)' : 'transparent',
+            border: 'none',
+            borderBottom: activeTab === 'search' ? '2px solid var(--accent-hover)' : '2px solid transparent',
+            color: 'var(--text-main)',
+            cursor: 'pointer',
+            fontSize: '14px',
+            fontWeight: '600'
+          }}
+        >
+          Find Friends
+        </button>
       </div>
-      <div className="ai-box">
-        <div className="ai-label">Friends Info</div>
-        <div className="ai-output">{tabContent.friends || ''}</div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: selectedFriend ? '300px 1fr' : '1fr', gap: '20px', minHeight: '500px' }}>
+        {/* Left Panel: Friends List / Requests / Search */}
+        <div style={{
+          background: 'var(--panel-alt)',
+          borderRadius: 'var(--panel-radius)',
+          padding: '16px',
+          border: '1px solid var(--border)',
+          maxHeight: '600px',
+          overflowY: 'auto'
+        }}>
+          {activeTab === 'friends' && (
+            <div>
+              <div style={{ marginBottom: '16px', fontSize: '16px', fontWeight: '600', color: 'var(--text-main)' }}>
+                Your Friends ({friendsData.friends.length})
+              </div>
+              {friendsData.friends.length === 0 ? (
+                <div style={{ color: 'var(--text-dim)', textAlign: 'center', padding: '40px 20px' }}>
+                  No friends yet. Search for users to add friends!
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  {friendsData.friends.map((friend) => (
+                    <div
+                      key={friend.username}
+                      onClick={() => setSelectedFriend(friend)}
+                      style={{
+                        padding: '12px',
+                        background: selectedFriend?.username === friend.username ? 'var(--accent-bg)' : 'var(--panel-soft)',
+                        borderRadius: '8px',
+                        cursor: 'pointer',
+                        border: selectedFriend?.username === friend.username ? '1px solid var(--accent-hover)' : '1px solid var(--border)',
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        transition: 'all 0.2s'
+                      }}
+                      onMouseEnter={(e) => {
+                        if (selectedFriend?.username !== friend.username) {
+                          e.currentTarget.style.background = 'var(--panel-soft)';
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        if (selectedFriend?.username !== friend.username) {
+                          e.currentTarget.style.background = 'var(--panel-soft)';
+                        }
+                      }}
+                    >
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: '14px', fontWeight: '600', color: 'var(--text-main)' }}>
+                          {friend.username}
+                        </div>
+                        <div style={{ fontSize: '11px', color: 'var(--text-dim)' }}>
+                          Click to message
+                        </div>
+                      </div>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          removeFriend(friend.username);
+                        }}
+                        style={{
+                          padding: '4px 8px',
+                          background: 'transparent',
+                          border: '1px solid var(--border)',
+                          borderRadius: '4px',
+                          color: 'var(--text-dim)',
+                          cursor: 'pointer',
+                          fontSize: '11px'
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.background = '#3a1a1a';
+                          e.currentTarget.style.borderColor = '#5a2a2a';
+                          e.currentTarget.style.color = '#ff4d4d';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.background = 'transparent';
+                          e.currentTarget.style.borderColor = 'var(--border)';
+                          e.currentTarget.style.color = 'var(--text-dim)';
+                        }}
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {activeTab === 'requests' && (
+            <div>
+              <div style={{ marginBottom: '16px', fontSize: '16px', fontWeight: '600', color: 'var(--text-main)' }}>
+                Friend Requests
+              </div>
+              
+              {/* Incoming Requests */}
+              {friendsData.incomingRequests.length > 0 && (
+                <div style={{ marginBottom: '24px' }}>
+                  <div style={{ fontSize: '13px', color: 'var(--text-dim)', marginBottom: '12px' }}>
+                    Incoming ({friendsData.incomingRequests.length})
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    {friendsData.incomingRequests.map((request) => (
+                      <div
+                        key={`${request.from}-${request.timestamp}`}
+                        style={{
+                          padding: '12px',
+                          background: 'var(--panel-soft)',
+                          borderRadius: '8px',
+                          border: '1px solid var(--border)'
+                        }}
+                      >
+                        <div style={{ fontSize: '14px', fontWeight: '600', color: 'var(--text-main)', marginBottom: '8px' }}>
+                          {request.from}
+                        </div>
+                        <div style={{ display: 'flex', gap: '8px' }}>
+                          <button
+                            onClick={() => acceptFriendRequest(request.from)}
+                            className="btn"
+                            style={{ flex: 1, fontSize: '12px', padding: '6px 12px', background: '#00a2ff', border: 'none' }}
+                          >
+                            Accept
+                          </button>
+                          <button
+                            onClick={() => declineFriendRequest(request.from)}
+                            style={{
+                              flex: 1,
+                              fontSize: '12px',
+                              padding: '6px 12px',
+                              background: 'transparent',
+                              border: '1px solid var(--border)',
+                              borderRadius: '4px',
+                              color: 'var(--text-dim)',
+                              cursor: 'pointer'
+                            }}
+                          >
+                            Decline
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Sent Requests */}
+              {friendsData.sentRequests.length > 0 && (
+                <div>
+                  <div style={{ fontSize: '13px', color: 'var(--text-dim)', marginBottom: '12px' }}>
+                    Sent ({friendsData.sentRequests.length})
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    {friendsData.sentRequests.map((username) => (
+                      <div
+                        key={username}
+                        style={{
+                          padding: '12px',
+                          background: 'var(--panel-soft)',
+                          borderRadius: '8px',
+                          border: '1px solid var(--border)',
+                          color: 'var(--text-dim)'
+                        }}
+                      >
+                        {username} - Pending
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {friendsData.incomingRequests.length === 0 && friendsData.sentRequests.length === 0 && (
+                <div style={{ color: 'var(--text-dim)', textAlign: 'center', padding: '40px 20px' }}>
+                  No friend requests
+                </div>
+              )}
+            </div>
+          )}
+
+          {activeTab === 'search' && (
+            <div>
+              <div style={{ marginBottom: '16px', fontSize: '16px', fontWeight: '600', color: 'var(--text-main)' }}>
+                Find Friends
+              </div>
+              <input
+                type="text"
+                placeholder="Search by username..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                style={{
+                  width: '100%',
+                  padding: '10px',
+                  background: 'var(--panel-soft)',
+                  border: '1px solid var(--border)',
+                  borderRadius: '8px',
+                  color: 'var(--text-main)',
+                  fontSize: '14px',
+                  marginBottom: '16px'
+                }}
+              />
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '400px', overflowY: 'auto' }}>
+                {filteredUsers.slice(0, 20).map((u) => (
+                  <div
+                    key={u.username}
+                    style={{
+                      padding: '12px',
+                      background: 'var(--panel-soft)',
+                      borderRadius: '8px',
+                      border: '1px solid var(--border)',
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center'
+                    }}
+                  >
+                    <div style={{ fontSize: '14px', fontWeight: '600', color: 'var(--text-main)' }}>
+                      {u.username}
+                    </div>
+                    <button
+                      onClick={() => sendFriendRequest(u.username)}
+                      className="btn"
+                      style={{ fontSize: '12px', padding: '6px 12px' }}
+                    >
+                      Add Friend
+                    </button>
+                  </div>
+                ))}
+                {filteredUsers.length === 0 && searchQuery && (
+                  <div style={{ color: 'var(--text-dim)', textAlign: 'center', padding: '20px' }}>
+                    No users found
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Right Panel: Messages */}
+        {selectedFriend && (
+          <div style={{
+            display: 'flex',
+            flexDirection: 'column',
+            background: 'var(--panel-alt)',
+            borderRadius: 'var(--panel-radius)',
+            border: '1px solid var(--border)',
+            height: '600px'
+          }}>
+            {/* Chat Header */}
+            <div style={{
+              padding: '16px',
+              borderBottom: '1px solid var(--border)',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center'
+            }}>
+              <div style={{ fontSize: '16px', fontWeight: '600', color: 'var(--text-main)' }}>
+                {selectedFriend.username}
+              </div>
+              <button
+                onClick={() => {
+                  setSelectedFriend(null);
+                  setMessages([]);
+                }}
+                style={{
+                  padding: '4px 8px',
+                  background: 'transparent',
+                  border: '1px solid var(--border)',
+                  borderRadius: '4px',
+                  color: 'var(--text-dim)',
+                  cursor: 'pointer',
+                  fontSize: '12px'
+                }}
+              >
+                Close
+              </button>
+            </div>
+
+            {/* Messages */}
+            <div style={{
+              flex: 1,
+              overflowY: 'auto',
+              padding: '16px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '12px'
+            }}>
+              {messages.length === 0 ? (
+                <div style={{ color: 'var(--text-dim)', textAlign: 'center', padding: '40px 20px' }}>
+                  No messages yet. Start the conversation!
+                </div>
+              ) : (
+                messages.map((msg) => {
+                  const isOwn = msg.from.toLowerCase() === user.username.toLowerCase();
+                  return (
+                    <div
+                      key={msg.id}
+                      style={{
+                        display: 'flex',
+                        justifyContent: isOwn ? 'flex-end' : 'flex-start'
+                      }}
+                    >
+                      <div style={{
+                        maxWidth: '70%',
+                        padding: '10px 14px',
+                        background: isOwn ? '#00a2ff' : 'var(--panel-soft)',
+                        borderRadius: '12px',
+                        border: isOwn ? 'none' : '1px solid var(--border)'
+                      }}>
+                        <div style={{
+                          fontSize: '14px',
+                          color: isOwn ? '#ffffff' : 'var(--text-main)',
+                          marginBottom: '4px',
+                          wordBreak: 'break-word'
+                        }}>
+                          {msg.message}
+                        </div>
+                        <div style={{
+                          fontSize: '10px',
+                          color: isOwn ? 'rgba(255,255,255,0.7)' : 'var(--text-dim)',
+                          textAlign: 'right'
+                        }}>
+                          {formatTime(msg.timestamp)}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+              <div ref={messagesEndRef} />
+            </div>
+
+            {/* Message Input */}
+            <div style={{
+              padding: '16px',
+              borderTop: '1px solid var(--border)',
+              display: 'flex',
+              gap: '8px'
+            }}>
+              <input
+                ref={messageInputRef}
+                type="text"
+                placeholder="Type a message..."
+                value={newMessage}
+                onChange={(e) => setNewMessage(e.target.value)}
+                onKeyPress={(e) => {
+                  if (e.key === 'Enter') {
+                    sendMessage();
+                  }
+                }}
+                style={{
+                  flex: 1,
+                  padding: '10px',
+                  background: 'var(--panel-soft)',
+                  border: '1px solid var(--border)',
+                  borderRadius: '8px',
+                  color: 'var(--text-main)',
+                  fontSize: '14px'
+                }}
+              />
+              <button
+                onClick={sendMessage}
+                className="btn"
+                style={{
+                  padding: '10px 20px',
+                  background: '#00a2ff',
+                  border: 'none',
+                  borderRadius: '8px',
+                  color: '#ffffff',
+                  cursor: 'pointer',
+                  fontSize: '14px',
+                  fontWeight: '600'
+                }}
+                disabled={!newMessage.trim()}
+              >
+                Send
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </>
   );
 }
-
-
-
-
