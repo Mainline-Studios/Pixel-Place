@@ -168,9 +168,10 @@ export default function Avatar3DViewer({
 
       // Note: We don't rotate the character for accessories - they should be visible from the front
 
-      // Add accessories if available
-      if (skin.accessories && skin.accessories.length > 0) {
-        skin.accessories.forEach((accessory) => {
+      // Add accessories if available (check both accessories and skinAccessories)
+      const accessoriesToRender = (skin.accessories || []).concat(skin.skinAccessories || []);
+      if (accessoriesToRender.length > 0) {
+        accessoriesToRender.forEach((accessory) => {
           const accessoryColor = accessory.color
             ? hexToColor(accessory.color)
             : { r: 0.5, g: 0.5, b: 0.5 };
