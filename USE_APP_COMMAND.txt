@@ -20,3 +20,12 @@ After deployment, you'll get a URL like: https://pixel-place.vercel.app
    - Works offline (cached content)
    - No browser address bar when installed
 
+
+
+
+
+
+
+
+
+

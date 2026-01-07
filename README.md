@@ -1,12 +1,8 @@
 # 🎮 Pixel Place
 
-**Pixel Place** is a cutting-edge web-based gaming platform and creative studio that brings together gaming, social interaction, and game development in one immersive experience. Developed by **Mainline Studios**, Pixel Place empowers players to play, create, customize, and share in a vibrant community-driven ecosystem.
-
-Experience fullscreen 3D adventures, compete in multiplayer matches, design your unique avatar with custom skins and accessories, and even build your own games using our intuitive studio tools. Whether you're a casual gamer, a creative developer, or looking to connect with friends, Pixel Place offers something for everyone.
-
-**🔒 IMPORTANT: This platform is currently in private alpha. Password authentication is required for access.**
-![Pixel Place](https://img.shields.io/badge/Version-v0.2.2-blue)
-![Desktop App](https://img.shields.io/badge/Desktop%20App-Under_Construction-yellow)
+**Pixel Place** is an immersive web-based gaming platform and creative studio developed by **Mainline Studios**. Build games, play with friends, customize your avatar, and explore a vibrant community of creators.
+**THE GAME IS NOT OPEN TO THE PUBLIC. A PASSWORD WILL BE REQUIRED.**
+![Pixel Place](https://img.shields.io/badge/Version-Unreleased-red)
 ![Next.js](https://img.shields.io/badge/Next.js-14.2.5-black)
 ![React](https://img.shields.io/badge/React-18.3.1-61dafb)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.5.4-3178c6)
@@ -58,16 +54,74 @@ Experience fullscreen 3D adventures, compete in multiplayer matches, design your
    - Test your memory with emoji matching
    - Flip cards to find matching pairs
    - Challenge yourself with increasing difficulty
+     
+7. **Hide and Seek**
+   
+   -Classic childhood game
+
+   -Hide in specific areas
+   
+   -Try not to get caught
+   
+   
+8. **Red Rover**
+    
+   -Fun game to test teamwork
+   
+   -Run through the link
+   
+   -Quick and easy gameplay
+   
+   
+   
+9. **The Series**
+    
+    
+   - **Celestial Exploration**
+     
+   - Explore the solar system and land on planets to thrive extraterrestrialy
+     
+     
+   - **Mountain March**
+     
+   - Climb the mounyain with friends to reach the top, don't fall
+     
+     
+   - **Underwater Oddysey**
+     
+   - Find out about the wonders of the ocean, living in a submarine
+     
+
+   - **Jungle Journey**
+
+   -Hike the jungle and avoid some weird things
+     
+     
+10. **Ghost in the Dark**
+    
+    -Fun game where you find out who is NOT one of us
+    
+    -Intense game with jumpscares
+    
+    -A variety of roles to be picked
+    
+    
+12. **City Life**
+    
+    -A roleplay to simulate adulthood and entrepeneurship to kids
+
+    -A game to teach you about the world
+    
+    -Placed in St.Louis
 
 
-7. **Capture the Flag** 🚩
-   - Epic 4-team multiplayer battle in fullscreen 3D
-   - Capture flags from Red, Green, and Yellow teams
-   - Advanced movement: sprint, jump, and zoom controls
-   - Play online with friends or against smart NPCs
-   - Real-time chat with preset messages
-   - Your customized avatar appears in-game
+13. **International Sports HQ**
 
+    -Go to a HQ where all fun sports can be enjoyed
+
+    -Play sports online with friends
+
+    -Try out new sports
 ---
 
 ## 🚀 Getting Started
@@ -81,7 +135,7 @@ Experience fullscreen 3D adventures, compete in multiplayer matches, design your
 
 1. **Clone the repository**
    ```bash
-   git clone https://github.com/Mainline-Studios/Pixel-Place.git
+   git clone https://github.com/boehmlaird0/Pixel-Place.git
    cd Pixel-Place
    ```
 
@@ -108,37 +162,6 @@ Experience fullscreen 3D adventures, compete in multiplayer matches, design your
 npm run build
 npm start
 ```
-
----
-
-
-
-## 💻 Desktop App
-
-**Pixel Place is now available as a desktop application!** Download and install the app for Windows, macOS, or Linux.
-
-### Download
-
-Get the latest release from [GitHub Releases](https://github.com/boehmlaird0/Pixel-Place/releases/latest).
-
-- **macOS**: Download the `.dmg` file (Apple Silicon or Intel)
-- **Windows**: Download the `.exe` installer
-- **Linux**: Download the `.AppImage` or `.deb` file
-
-### Features
-
-- ✅ Native desktop experience
-- ✅ Auto-updates with web app changes
-- ✅ Works offline (with local Next.js build)
-- ✅ Custom Pixel Place logo icon
-
-### Installation
-
-1. Download the installer for your platform
-2. Run the installer
-3. Launch Pixel Place from your Applications folder (or Start menu on Windows)
-
-**Note for macOS users**: If you see a "damaged" error, right-click the app and select "Open", or run the included fix script.
 
 ---
 

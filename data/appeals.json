@@ -1,0 +1,21 @@
+[
+  {
+    "id": "appeal_1765419168579_fvni7j2y0",
+    "username": "BANACCOUNTTEST",
+    "ban": {
+      "username": "BANACCOUNTTEST",
+      "bannedBy": "BDawgsAwesome1",
+      "reason": "Reported for: Harassment",
+      "timestamp": 1765419151978,
+      "permanent": true
+    },
+    "appealMessage": "aww POOP",
+    "timestamp": 1765419168579,
+    "status": "approved",
+    "reviewedBy": "BDawgsAwesome1",
+    "adminNotes": "Appeal approved"
+  }
+]
+
+
+

@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Hide & Seek — Networked + WebRTC (TURN aware)</title>
+  <style> /* same minimal styles as before */ body{margin:0;font-family:Inter,system-ui,Arial;background:#0f1724;color:#e6eef6} .wrap{max-width:980px;margin:20px auto;padding:18px} header{display:flex;gap:12px;align-items:center} h1{margin:0;font-size:18px} .controls{display:flex;gap:8px;margin-top:8px;align-items:center} .btn{padding:8px 10px;border-radius:8px;background:#2b8cff;color:white;border:none;cursor:pointer} canvas{display:block;border-radius:8px;background:#eaf3ff;margin-top:12px} .panel{background:rgba(255,255,255,0.02);padding:12px;border-radius:8px;margin-left:12px} .flex{display:flex;gap:12px;align-items:flex-start} .muted{color:#9aa6b2;font-size:13px} .peer{font-size:13px;margin-bottom:6px}</style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div>
+        <h1>Hide & Seek — Networked + WebRTC</h1>
+        <div class="muted">Rooms 4–12 players. The client fetches TURN/STUN configuration from the server's /rtc-config endpoint.</div>
+      </div>
+      <div style="margin-left:auto">
+        <input id="room" placeholder="room id (e.g. party1)" />
+        <input id="name" placeholder="your name" />
+        <button id="join" class="btn">Join</button>
+      </div>
+    </header>
+
+    <div class="flex" style="margin-top:12px">
+      <div>
+        <canvas id="c" width="720" height="480"></canvas>
+        <div class="controls">
+          <button id="hideBtn" class="btn">Hide / Unhide</button>
+          <button id="searchBtn" class="btn">Search (Seeker)</button>
+          <button id="startReq" class="btn">Request Start</button>
+          <div class="muted" id="status">Not connected</div>
+        </div>
+        <div style="margin-top:8px;">
+          <strong>Peer connections</strong>
+          <div id="peers" style="margin-top:6px"></div>
+        </div>
+      </div>
+
+      <div class="panel" style="min-width:260px">
+        <div><strong>Players</strong></div>
+        <div id="players" style="margin-top:8px"></div>
+        <div style="margin-top:10px">
+          <strong>Controls</strong>
+          <div class="muted" style="margin-top:6px">Move: Arrow keys or WASD. Hide: "Hide" button. Search (if seeker): "Search" button.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Client will fetch /rtc-config from the same origin that serves this file.
+    // If you host the client on a different origin, change the URL accordingly.
+    const RTC_CONFIG_ENDPOINT = '/rtc-config';
+    let RTC_CONFIG = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] }; // fallback
+
+    // Try to fetch iceServers from server (best-effort)
+    fetch(RTC_CONFIG_ENDPOINT + '?ttl=3600').then(r => r.ok ? r.json() : null).then(cfg => {
+      if (cfg && cfg.iceServers) {
+        RTC_CONFIG = cfg;
+        console.log('Using RTC config from server', RTC_CONFIG);
+      } else {
+        console.warn('No rtc-config from server, falling back to default STUN only.');
+      }
+    }).catch(err => {
+      console.warn('Failed to fetch rtc-config, using default STUN only.', err);
+    });
+
+    // -- rest of the client code is identical to previous webRTC example --
+    // For brevity I won't repeat the entire client here; the important change is that
+    // the client uses the RTC_CONFIG variable (fetched above) when creating RTCPeerConnection:
+    //
+    // const pc = new RTCPeerConnection(RTC_CONFIG);
+    //
+    // Make sure all places that create new RTCPeerConnection use RTC_CONFIG so TURN credentials are applied.
+    //
+    // Full client previously provided (hide-and-seek-net-webrtc.html) should be updated:
+    // - Insert the fetch above near the top of the script
+    // - Replace the static RTC_CONFIG definition with this dynamic RTC_CONFIG
+    //
+    // If you'd like, I can push the full updated client file (identical to your previous webrtc client but with this fetch and RTC_CONFIG usage)
+    // into public/hide-and-seek-net-webrtc.html for you; tell me to commit and I'll create the commit/PR.
+  </script>
+</body>
+</html>

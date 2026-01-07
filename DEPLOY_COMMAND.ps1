@@ -6,3 +6,12 @@ npm run build
 vercel login
 vercel --prod
 
+
+
+
+
+
+
+
+
+

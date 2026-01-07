@@ -1,11 +1,13 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { User, PublishedGame, Skin } from '@/types';
-import { getSkins, getPublished, getUsers, findSkin } from '@/lib/storage';
+import { User, PublishedGame } from '@/types';
+import { getSkins, getPublished, getUsers } from '@/lib/storage';
 import { escapeHTML } from '@/lib/utils';
 import GamePlayer from '@/components/GamePlayer';
 import Avatar3DViewer from '@/components/Avatar3DViewer';
+import { GYM_PUMP_PRELOADED_GAME } from '@/lib/preloadedGames';
+import GymPumpEngine from '@/components/Games/GymPumpEngine';
 
 interface HomeTabProps {
   user: User;
@@ -15,66 +17,50 @@ interface HomeTabProps {
 
 export default function HomeTab({ user, editMode, onResetPublished }: HomeTabProps) {
   const [selectedGame, setSelectedGame] = useState<PublishedGame | null>(null);
+  const [showGymPump, setShowGymPump] = useState(false);
   const [published, setPublished] = useState<PublishedGame[]>([]);
   const [users, setUsers] = useState<User[]>([]);
-  const [skins, setSkins] = useState<Skin[]>([]);
+  const [skins, setSkins] = useState(getSkins());
 
   // Refresh data
   useEffect(() => {
     const refreshData = async () => {
-      const [publishedData, usersData, skinsData] = await Promise.all([
-        getPublished(),
-        getUsers(),
-        getSkins()
-      ]);
-      setPublished(publishedData);
-      setUsers(usersData);
-      setSkins(skinsData);
+      try {
+        const publishedData = await getPublished();
+        const usersData = await getUsers();
+        const skinsData = getSkins();
+
+        setPublished(Array.isArray(publishedData) ? publishedData : []);
+        setUsers(Array.isArray(usersData) ? usersData : []);
+        setSkins(Array.isArray(skinsData) ? skinsData : []);
+      } catch (error) {
+        console.error('Error refreshing data:', error);
+        setPublished([]);
+        setUsers([]);
+        setSkins([]);
+      }
     };
     refreshData();
     // Refresh every 2 seconds to catch updates
     const interval = setInterval(refreshData, 2000);
     return () => clearInterval(interval);
   }, [user]);
-  // Auto-initialize published games if none exist
-  useEffect(() => {
-    const initGames = async () => {
-      if (published.length === 0 && user.role === 'admin') {
-        try {
-          const response = await fetch('/api/published/init', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${localStorage.getItem('pixelPlaceAuthToken') || ''}`
-            }
-          });
-          
-          if (response.ok) {
-            const data = await response.json();
-            if (data.success) {
-              // Refresh published games
-              const updated = await getPublished();
-              setPublished(updated);
-            }
-          }
-        } catch (error) {
-          console.error('Error initializing games:', error);
-        }
-      }
-    };
-    
-    initGames();
-  }, [published.length, user.role]);
 
-
-  // Sort published games
-  const sortedGames = published.slice().sort((a, b) => b.ts - a.ts);
+  // Include preloaded games - only Gym Pump
+  const publishedArray = Array.isArray(published) ? published : [];
+  const allGames = [GYM_PUMP_PRELOADED_GAME, ...publishedArray];
+  const sortedGames = allGames.slice().sort((a, b) => b.ts - a.ts);
 
   // Get friends - show first 8
   const friends = (user.friends || []).slice(0, 8);
-  const friendUsers = users
+  const usersArray = Array.isArray(users) ? users : [];
+  const friendUsers = usersArray
     .filter(u => u && u.username && friends.includes(u.username))
     .slice(0, 8);
+
+  if (showGymPump) {
+    return <GymPumpEngine user={user} onClose={() => setShowGymPump(false)} />;
+  }
 
   if (selectedGame) {
     return <GamePlayer game={selectedGame} onClose={() => setSelectedGame(null)} />;
@@ -138,7 +124,7 @@ export default function HomeTab({ user, editMode, onResetPublished }: HomeTabPro
           }}>
             {friendUsers.map((friend) => {
               if (!friend || !friend.username) return null;
-              const friendSkin = findSkin(skins, friend.equippedSkin);
+              const friendSkin = skins.find(s => s && s.id === friend.equippedSkin) || (skins.length > 0 ? skins[0] : null);
               if (!friendSkin) return null;
 
               return (
@@ -283,7 +269,12 @@ export default function HomeTab({ user, editMode, onResetPublished }: HomeTabPro
                   }}
                   onClick={() => {
                     if (game.playable && game.gameCode) {
-                      setSelectedGame(game);
+                      // Special handling for Gym Pump (React component game)
+                      if (game.gameCode === 'builtin_gymPump' || game.id === 'gym-pump') {
+                        setShowGymPump(true);
+                      } else {
+                        setSelectedGame(game);
+                      }
                     }
                   }}
                 >
@@ -324,15 +315,17 @@ export default function HomeTab({ user, editMode, onResetPublished }: HomeTabPro
                       <div style={{
                         width: '100%',
                         height: '100%',
-                        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                        background: game.id === 'gym-pump'
+                          ? 'linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%)'
+                          : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
                         color: '#fff',
-                        fontSize: '28px',
+                        fontSize: game.id === 'gym-pump' ? '48px' : '28px',
                         fontWeight: 700
                       }}>
-                        {(game.title || 'G').charAt(0).toUpperCase()}
+                        {game.id === 'gym-pump' ? '💪' : (game.title || 'G').charAt(0).toUpperCase()}
                       </div>
                     )}
                   </div>
@@ -383,7 +376,12 @@ export default function HomeTab({ user, editMode, onResetPublished }: HomeTabPro
                         }}
                         onClick={(e) => {
                           e.stopPropagation();
-                          setSelectedGame(game);
+                          // Special handling for Gym Pump (React component game)
+                          if (game.gameCode === 'builtin_gymPump' || game.id === 'gym-pump') {
+                            setShowGymPump(true);
+                          } else {
+                            setSelectedGame(game);
+                          }
                         }}
                       >
                         Play
@@ -466,7 +464,12 @@ export default function HomeTab({ user, editMode, onResetPublished }: HomeTabPro
                   }}
                   onClick={() => {
                     if (game.playable && game.gameCode) {
-                      setSelectedGame(game);
+                      // Special handling for Gym Pump (React component game)
+                      if (game.gameCode === 'builtin_gymPump' || game.id === 'gym-pump') {
+                        setShowGymPump(true);
+                      } else {
+                        setSelectedGame(game);
+                      }
                     }
                   }}
                 >
@@ -505,15 +508,17 @@ export default function HomeTab({ user, editMode, onResetPublished }: HomeTabPro
                       <div style={{
                         width: '100%',
                         height: '100%',
-                        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                        background: game.id === 'gym-pump'
+                          ? 'linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%)'
+                          : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
                         color: '#fff',
-                        fontSize: '28px',
+                        fontSize: game.id === 'gym-pump' ? '48px' : '28px',
                         fontWeight: 700
                       }}>
-                        {(game.title || 'G').charAt(0).toUpperCase()}
+                        {game.id === 'gym-pump' ? '💪' : (game.title || 'G').charAt(0).toUpperCase()}
                       </div>
                     )}
                   </div>
@@ -562,7 +567,12 @@ export default function HomeTab({ user, editMode, onResetPublished }: HomeTabPro
                         }}
                         onClick={(e) => {
                           e.stopPropagation();
-                          setSelectedGame(game);
+                          // Special handling for Gym Pump (React component game)
+                          if (game.gameCode === 'builtin_gymPump' || game.id === 'gym-pump') {
+                            setShowGymPump(true);
+                          } else {
+                            setSelectedGame(game);
+                          }
                         }}
                       >
                         Play

@@ -5,22 +5,13 @@
     "scripts": {
         "dev": "next dev",
         "build": "next build",
-        "start": "next start -p ${PORT:-3000}",
-        "lint": "next lint",
-        "deploy": "npm run build && vercel --prod",
-        "deploy:auto": "npm install -g vercel && npm install && npm run build && vercel login && vercel --prod",
-        "electron": "electron .",
-        "electron:build": "electron-builder",
-        "electron:dist": "npm run build && electron-builder",
-        "electron:dev": "concurrently \"npm run dev\" \"wait-on http://localhost:3000 && electron .\"",
-        "electron:build:win": "npm run build && electron-builder --win",
-        "electron:build:mac": "npm run build && electron-builder --mac",
-        "electron:build:linux": "npm run build && electron-builder --linux",
-        "electron:build:all": "npm run build && electron-builder --win --mac --linux",
-        "build:desktop": "bash scripts/build-and-upload.sh"
+        "start": "next start",
+        "lint": "next lint"
     },
     "dependencies": {
         "@stripe/stripe-js": "^2.4.0",
+        "@types/bcryptjs": "^2.4.6",
+        "@types/jsonwebtoken": "^9.0.10",
         "bcryptjs": "^3.0.3",
         "better-sqlite3": "^12.5.0",
         "jsonwebtoken": "^9.0.3",
@@ -33,105 +24,15 @@
         "three": "^0.168.0"
     },
     "devDependencies": {
-        "@types/bcryptjs": "^2.4.6",
-        "@types/better-sqlite3": "^7.6.13",
-        "@types/jsonwebtoken": "^9.0.10",
         "@types/node": "^20.14.12",
         "@types/react": "^18.3.3",
         "@types/react-dom": "^18.3.0",
         "@types/three": "^0.168.0",
         "autoprefixer": "^10.4.19",
-        "electron": "^28.3.3",
-        "electron-builder": "^24.13.3",
         "eslint": "^8.57.0",
         "eslint-config-next": "^14.2.5",
         "postcss": "^8.4.40",
         "tailwindcss": "^3.4.7",
         "typescript": "^5.5.4"
-    },
-    "main": "electron-main.js",
-    "build": {
-        "appId": "com.pixelplace.app",
-        "productName": "Pixel Place",
-        "directories": {
-            "output": "dist-electron",
-            "buildResources": "build"
-        },
-        "files": [
-            "electron-main.js",
-            "next.config.js",
-            "package.json",
-            ".next/**/*",
-            "public/**/*",
-            "node_modules/**/*"
-        ],
-        "win": {
-            "target": [
-                {
-                    "target": "nsis",
-                    "arch": [
-                        "x64",
-                        "ia32"
-                    ]
-                },
-                {
-                    "target": "portable",
-                    "arch": [
-                        "x64"
-                    ]
-                }
-            ],
-            "icon": "public/logo.png"
-        },
-        "mac": {
-            "target": [
-                {
-                    "target": "dmg",
-                    "arch": [
-                        "x64",
-                        "arm64"
-                    ]
-                },
-                {
-                    "target": "zip",
-                    "arch": [
-                        "x64",
-                        "arm64"
-                    ]
-                }
-            ],
-            "icon": "public/logo.png",
-            "category": "public.app-category.games",
-            "gatekeeperAssess": false,
-            "hardenedRuntime": false,
-            "entitlements": null,
-            "entitlementsInherit": null
-        },
-        "linux": {
-            "target": [
-                {
-                    "target": "AppImage",
-                    "arch": [
-                        "x64"
-                    ]
-                },
-                {
-                    "target": "deb",
-                    "arch": [
-                        "x64"
-                    ]
-                }
-            ],
-            "icon": "public/logo.png",
-            "category": "Game"
-        },
-        "nsis": {
-            "oneClick": false,
-            "allowToChangeInstallationDirectory": true,
-            "createDesktopShortcut": true,
-            "createStartMenuShortcut": true,
-            "installerIcon": "public/icon-512x512.png",
-            "uninstallerIcon": "public/icon-512x512.png"
-        }
     }
 }

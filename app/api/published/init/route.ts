@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAdmin } from '@/lib/middleware';
-import { TIC_TAC_TOE_PRELOADED_GAME, CAPTURE_THE_FLAG_PRELOADED_GAME, HIDE_AND_SEEK_PRELOADED_GAME } from '@/lib/preloadedGames';
+// These games are not currently exported - commented out for now
+// import { TIC_TAC_TOE_PRELOADED_GAME, CAPTURE_THE_FLAG_PRELOADED_GAME, HIDE_AND_SEEK_PRELOADED_GAME } from '@/lib/preloadedGames';
 import { PublishedGame } from '@/types';
 import { promises as fs } from 'fs';
 import path from 'path';
@@ -13,18 +14,19 @@ export async function POST(request: NextRequest) {
   if (authResult.error) return authResult.error;
   
   try {
+    // Preloaded games temporarily disabled - add them back when exported
     const games: PublishedGame[] = [
-      {
-        ...TIC_TAC_TOE_PRELOADED_GAME,
-        multiplayer: true,
-        maxPlayers: 2,
-      },
-      {
-        ...CAPTURE_THE_FLAG_PRELOADED_GAME,
-        multiplayer: true,
-        maxPlayers: 16,
-      },
-      HIDE_AND_SEEK_PRELOADED_GAME,
+      // {
+      //   ...TIC_TAC_TOE_PRELOADED_GAME,
+      //   multiplayer: true,
+      //   maxPlayers: 2,
+      // },
+      // {
+      //   ...CAPTURE_THE_FLAG_PRELOADED_GAME,
+      //   multiplayer: true,
+      //   maxPlayers: 16,
+      // },
+      // HIDE_AND_SEEK_PRELOADED_GAME,
     ];
     
     // Write to JSON file

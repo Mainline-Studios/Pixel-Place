@@ -40,3 +40,12 @@ Write-Host "Installer location: dist-electron\Pixel Place Setup.exe" -Foreground
 Write-Host ""
 Write-Host "You can now distribute this installer file!" -ForegroundColor Yellow
 
+
+
+
+
+
+
+
+
+

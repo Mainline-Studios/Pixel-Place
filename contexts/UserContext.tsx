@@ -2,10 +2,9 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { User } from '@/types';
-import { initializeStorage, getUsers, saveUsers, ADMIN_ACCOUNTS_LIST, isUserBanned, getBanForUser, findUser } from '@/lib/storage';
+import { initializeStorage, getUsers, saveUsers, ADMIN_ACCOUNTS_LIST, isUserBanned, getBanForUser } from '@/lib/storage';
 
 interface UserContextType {
-  logout: () => void;
   user: User | null;
   setUser: (user: User | null) => void;
   login: (username: string, password: string) => Promise<{ success: boolean; message: string; ban?: any }>;
@@ -19,87 +18,60 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
 
   useEffect(() => {
-    try {
-      initializeStorage();
-    } catch (e) {
-      console.error('Error initializing storage:', e);
-    }
+    initializeStorage();
   }, []);
 
-  // Auto-login on mount if token is saved
-  useEffect(() => {
-    const attemptAutoLogin = async () => {
-      if (typeof window === 'undefined' || user) return;
-      
-      const token = localStorage.getItem('pixelPlaceAuthToken');
-      const savedUsername = localStorage.getItem('pixelPlaceSavedUsername');
-      
-      if (token && savedUsername) {
-        try {
-          // Verify token
-          const response = await fetch('/api/auth', {
-            method: 'GET',
-            headers: { 'Authorization': `Bearer ${token}` },
-          });
-
-          const data = await response.json();
-
-          if (response.ok && data.success && data.user) {
-            setUser(data.user);
-          } else {
-            // Token invalid, clear it
-            localStorage.removeItem('pixelPlaceAuthToken');
-            localStorage.removeItem('pixelPlaceSavedUsername');
-          }
-        } catch (error) {
-          // Clear token on error
-          localStorage.removeItem('pixelPlaceAuthToken');
-          localStorage.removeItem('pixelPlaceSavedUsername');
-        }
-      }
-    };
-
-    attemptAutoLogin();
-  }, []); // Only run once on mount
-
-  const login = async (username: string, password: string): Promise<{ success: boolean; message: string; ban?: any }> => {
+  const login = async (username: string, password: string): Promise<{ success: boolean; message: string }> => {
     if (!username || !password) {
       return { success: false, message: 'Enter username and password.' };
     }
 
-    try {
-      // Check if user is banned (still check from storage for now)
-      const isBanned = await isUserBanned(username);
-      if (isBanned) {
-        const ban = await getBanForUser(username);
-        return { success: false, message: 'This account has been banned. Please contact an administrator.', ban: ban || undefined };
-      }
-
-      // Use new JWT authentication API
-      const response = await fetch('/api/auth', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password, action: 'login' }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok || !data.success) {
-        return { success: false, message: data.error || 'Login failed' };
-      }
-
-      // Save token and user
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('pixelPlaceAuthToken', data.token);
-        localStorage.setItem('pixelPlaceSavedUsername', username);
-      }
-
-      setUser(data.user);
-      return { success: true, message: '' };
-    } catch (error: any) {
-      console.error('Login error:', error);
-      return { success: false, message: error.message || 'Login failed' };
+    // Check if user is banned
+    const isBanned = await isUserBanned(username);
+    if (isBanned) {
+      const ban = await getBanForUser(username);
+      return { success: false, message: 'This account has been banned. Please contact an administrator.', ban: ban || undefined };
     }
+
+    let users = await getUsers();
+    let found = users.find(x => x.username === username);
+
+    // Auto-create admin if not found but matches admin list
+    if (!found) {
+      const isAdmin = ADMIN_ACCOUNTS_LIST.some(a => a.username === username && a.password === password);
+      if (isAdmin) {
+        found = {
+          username,
+          password,
+          gender: 'N/A',
+          role: 'admin',
+          coins: 99999,
+          ownedSkins: ['starter_classic'],
+          equippedSkin: 'starter_classic',
+          isDonor: false,
+          ownedAccessories: [],
+          equippedAccessories: {}
+        };
+        users.push(found);
+        await saveUsers(users);
+      }
+    }
+
+    if (!found) {
+      return { success: false, message: 'Account not found. Please create one first.' };
+    }
+
+    if (found.password !== password) {
+      return { success: false, message: 'Incorrect password.' };
+    }
+
+    // Ensure ownedSkins and ownedAccessories arrays exist
+    if (!found.ownedSkins) found.ownedSkins = ['starter_classic'];
+    if (!found.ownedAccessories) found.ownedAccessories = [];
+    if (!found.equippedAccessories) found.equippedAccessories = {};
+
+    setUser(found);
+    return { success: true, message: '' };
   };
 
   const createAccount = async (username: string, password: string, gender: string): Promise<{ success: boolean; message: string }> => {
@@ -107,50 +79,39 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       return { success: false, message: 'Username and password are required.' };
     }
 
-    try {
-      // Check if username is banned
-      const isBanned = await isUserBanned(username);
-      if (isBanned) {
-        return { success: false, message: 'This username is banned and cannot be used.' };
-      }
-
-      // Check if admin account
-      const isAdmin = ADMIN_ACCOUNTS_LIST.some(a => a.username === username && a.password === password);
-      const role = isAdmin ? 'admin' : 'user';
-      const coins = role === 'admin' ? 99999 : 0;
-
-      // Use new JWT registration API
-      const response = await fetch('/api/auth', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          username, 
-          password, 
-          action: 'register',
-          gender: gender || 'N/A',
-          role,
-          coins,
-        }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok || !data.success) {
-        return { success: false, message: data.error || 'Registration failed' };
-      }
-
-      // Save token and user
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('pixelPlaceAuthToken', data.token);
-        localStorage.setItem('pixelPlaceSavedUsername', username);
-      }
-
-      setUser(data.user);
-      return { success: true, message: 'Account created! You are now signed in.' };
-    } catch (error: any) {
-      console.error('Registration error:', error);
-      return { success: false, message: error.message || 'Registration failed' };
+    // Check if username is banned
+    const isBanned = await isUserBanned(username);
+    if (isBanned) {
+      return { success: false, message: 'This username is banned and cannot be used.' };
     }
+
+    const users = await getUsers();
+    if (users.find(x => x.username === username)) {
+      return { success: false, message: 'Username already exists.' };
+    }
+
+    const isAdmin = ADMIN_ACCOUNTS_LIST.some(a => a.username === username && a.password === password);
+    const role = isAdmin ? 'admin' : 'user';
+    const coins = role === 'admin' ? 99999 : 0; // Users start with 0 coins
+
+    const newUser: User = {
+      username,
+      password,
+      gender: gender || 'N/A', // Gender is optional, default to 'N/A'
+      role,
+      coins,
+      ownedSkins: ['starter_classic'],
+      equippedSkin: 'starter_classic',
+      isDonor: false,
+      ownedAccessories: [],
+      equippedAccessories: {}
+    };
+
+    users.push(newUser);
+    await saveUsers(users);
+    setUser(newUser);
+
+    return { success: true, message: 'Account created! You can sign in now.' };
   };
 
   const updateUser = async (updates: Partial<User>) => {
@@ -160,25 +121,37 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     setUser(updatedUser);
 
     const users = await getUsers();
-    const index = users.findIndex(u => u.username === user.username);
+    const index = users.findIndex(u => u.username.toLowerCase() === user.username.toLowerCase());
     if (index !== -1) {
-      users[index] = { ...users[index], ...updates };
+      // Merge updates to preserve existing data like friends, ownedSkins, ownedAccessories
+      const existingUser = users[index];
+      users[index] = { 
+        ...existingUser, 
+        ...updates,
+        // Preserve friends array if not being updated
+        friends: updates.friends !== undefined ? updates.friends : existingUser.friends || [],
+        // Preserve ownedSkins if not being updated
+        ownedSkins: updates.ownedSkins !== undefined ? updates.ownedSkins : existingUser.ownedSkins || [],
+        // Preserve ownedAccessories if not being updated
+        ownedAccessories: updates.ownedAccessories !== undefined ? updates.ownedAccessories : existingUser.ownedAccessories || []
+      };
       await saveUsers(users);
-    }
-  };
-
-  const logout = () => {
-    setUser(null);
-    // Clear saved credentials and token
-    if (typeof window !== 'undefined') {
-      localStorage.removeItem('pixelPlaceAuthToken');
-      localStorage.removeItem('pixelPlaceSavedUsername');
-      localStorage.removeItem('pixelPlaceSavedPassword');
+      
+      // Also update via API PUT to ensure persistence
+      try {
+        await fetch('/api/users', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(users[index])
+        });
+      } catch (error) {
+        console.error('Error saving user to API:', error);
+      }
     }
   };
 
   return (
-    <UserContext.Provider value={{ user, setUser, login, createAccount, updateUser, logout }}>
+    <UserContext.Provider value={{ user, setUser, login, createAccount, updateUser }}>
       {children}
     </UserContext.Provider>
   );

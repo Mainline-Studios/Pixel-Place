@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { User, DraftGame } from '@/types';
 import { getDraft, saveDraft } from '@/lib/storage';
 
@@ -11,7 +11,16 @@ interface AIGameGeneratorProps {
 }
 
 export default function AIGameGenerator({ user, onCodeGenerated, onSwitchToCodeEditor }: AIGameGeneratorProps) {
-  const [draft, setDraft] = useState<DraftGame>(getDraft());
+  const [draft, setDraft] = useState<DraftGame>({
+    title: '',
+    desc: '',
+    owner: user.username,
+    gameCode: ''
+  });
+
+  useEffect(() => {
+    getDraft().then(setDraft).catch(() => {});
+  }, []);
   const [aiPrompt, setAiPrompt] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedCode, setGeneratedCode] = useState<string | null>(null);

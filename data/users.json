@@ -1,0 +1,82 @@
+[
+  {
+    "username": "6767kid",
+    "password": "67676767",
+    "gender": "N/A",
+    "role": "admin",
+    "coins": 33013650,
+    "ownedSkins": [
+      "starter_classic",
+      "orange_striped_boy"
+    ],
+    "equippedSkin": "orange_striped_boy",
+    "ownedAccessories": [
+      "wizard_hat",
+      "cool_sunglasses",
+      "pet_slime",
+      "pet_robot",
+      "pet_cat",
+      "pet_dog",
+      "wings_white",
+      "wings_black",
+      "wings_demon",
+      "wings_angel"
+    ],
+    "equippedAccessories": {
+      "hat": "wizard_hat",
+      "glasses": "cool_sunglasses",
+      "wings": "wings_demon",
+      "pet": "pet_cat"
+    },
+    "friends": [
+      "BDawgsAwesome1"
+    ],
+    "sentFriendRequests": [
+      "number5",
+      "BDawgsAwesome1",
+      "number 9",
+      "67"
+    ],
+    "recentlyPlayed": [
+      "builtin_tag",
+      "builtin_avatarRunner",
+      "builtin_snake",
+      "builtin_schoolAdventure"
+    ]
+  },
+  {
+    "username": "BDawgsAwesome1",
+    "password": "20Minecraft15",
+    "gender": "Male",
+    "role": "user",
+    "coins": 17825,
+    "ownedSkins": [
+      "starter_classic",
+      "galaxy_guard",
+      "neon_runner",
+      "crimson_bot",
+      "urban_shadow",
+      "desert_operative"
+    ],
+    "equippedSkin": "neon_runner",
+    "friends": [],
+    "ownedAccessories": [],
+    "sentFriendRequests": []
+  },
+  {
+    "username": "admin",
+    "password": "extra",
+    "gender": "N/A",
+    "role": "admin",
+    "coins": 99999,
+    "ownedSkins": [
+      "starter_classic"
+    ],
+    "equippedSkin": "starter_classic",
+    "isDonor": false,
+    "ownedAccessories": [],
+    "equippedAccessories": {},
+    "friends": [],
+    "sentFriendRequests": []
+  }
+]
