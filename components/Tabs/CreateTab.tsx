@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useRef, useState, useEffect } from 'react';
 import { User, DraftGame, PublishedGame } from '@/types';
 import { getDraft, saveDraft, getPublished, savePublished } from '@/lib/storage';
 import { useUser } from '@/contexts/UserContext';
@@ -17,8 +17,20 @@ export default function CreateTab({ user, editMode }: CreateTabProps) {
   const codeEditorRef = useRef<HTMLTextAreaElement>(null);
   const thumbnailInputRef = useRef<HTMLInputElement>(null);
   const [studioMode, setStudioMode] = useState<StudioMode>('code');
-  const [draft, setDraft] = useState<DraftGame>(getDraft());
-  const [gameCode, setGameCode] = useState(draft.gameCode || getDefaultGameCode());
+  const [draft, setDraft] = useState<DraftGame>({
+    title: '',
+    desc: '',
+    owner: user.username,
+    gameCode: ''
+  });
+  const [gameCode, setGameCode] = useState(getDefaultGameCode());
+
+  useEffect(() => {
+    getDraft().then((loadedDraft) => {
+      setDraft(loadedDraft);
+      setGameCode(loadedDraft.gameCode || getDefaultGameCode());
+    }).catch(() => {});
+  }, []);
   const [thumbnail, setThumbnail] = useState<string | undefined>(draft.thumbnail);
   const [multiplayerEnabled, setMultiplayerEnabled] = useState(false);
   const [maxPlayers, setMaxPlayers] = useState(10);
@@ -29,7 +41,6 @@ export default function CreateTab({ user, editMode }: CreateTabProps) {
 
 import * as THREE from 'three';
 
-import { toast } from '@/lib/toast';
 export function createGame(container: HTMLElement) {
   // Scene setup
   const scene = new THREE.Scene();
@@ -90,7 +101,7 @@ export function createGame(container: HTMLElement) {
     if (!file) return;
 
     if (!file.type.startsWith('image/')) {
-      toast.info('Please upload an image file.');
+      alert('Please upload an image file.');
       return;
     }
 
@@ -123,19 +134,19 @@ export function createGame(container: HTMLElement) {
     };
     saveDraft(updatedDraft);
     setDraft(updatedDraft);
-    toast.info('Draft saved.');
+    alert('Draft saved.');
   };
 
-  const publishDraftNow = () => {
+  const publishDraftNow = async () => {
     if (user.role !== 'admin') {
-      toast.info('Only admins can publish live.');
+      alert('Only admins can publish live.');
       return;
     }
     if (!draft.title) {
-      toast.info('No draft to publish. Save draft first.');
+      alert('No draft to publish. Save draft first.');
       return;
     }
-    const pub = getPublished();
+    const pub = await getPublished();
     const publishedGame: PublishedGame = {
       title: draft.title,
       desc: draft.desc || '(no description)',
@@ -148,8 +159,8 @@ export function createGame(container: HTMLElement) {
       maxPlayers: multiplayerEnabled ? maxPlayers : undefined,
     };
     pub.push(publishedGame);
-    savePublished(pub);
-    toast.success(`Published "${draft.title}" to Home instantly!`);
+    await savePublished(pub);
+    alert("Published '" + draft.title + "' to Home instantly!");
   };
 
   return (
@@ -222,19 +233,19 @@ export function createGame(container: HTMLElement) {
                 </button>
                 <button className="btn" onClick={() => {
                   navigator.clipboard.writeText(gameCode);
-                  toast.info('Code copied to clipboard!');
+                  alert('Code copied to clipboard!');
                 }}>
                   📋 Copy Code
                 </button>
                 <button className="btn" onClick={() => {
                   const testCode = gameCode;
                   if (!testCode.trim()) {
-                    toast.info('No code to test!');
+                    alert('No code to test!');
                     return;
                   }
                   // Save and test
                   saveDraftFromProps();
-                  toast.info('Code saved! You can test it by publishing.');
+                  alert('Code saved! You can test it by publishing.');
                 }}>
                   💾 Save Code
                 </button>

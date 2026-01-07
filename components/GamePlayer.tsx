@@ -1,28 +1,10 @@
 'use client';
-import WaitingRoom from './WaitingRoom';
 
 import { useEffect, useRef, useState } from 'react';
+import { PublishedGame, GameServer } from '@/types';
+import { getServers, getUsers, saveUsers } from '@/lib/storage';
+import { io, Socket } from 'socket.io-client';
 import { useUser } from '@/contexts/UserContext';
-import { PublishedGame, GameServer, User } from '@/types';
-import { getServers } from '@/lib/storage';
-// Optional socket.io - completely optional, app works without it
-// Note: To enable socket.io, install: npm install socket.io-client
-// For now, socket.io is disabled to allow the app to build without it
-let io: any = null;
-let Socket: any = null;
-
-// Load socket.io-client dynamically
-const loadSocketIO = async () => {
-  try {
-    const socketModule = await import('socket.io-client');
-    io = socketModule.io;
-    Socket = socketModule.Socket;
-    return Promise.resolve();
-  } catch (err) {
-    console.warn('Socket.io-client not available:', err);
-    return Promise.resolve();
-  }
-};
 
 interface GamePlayerProps {
   game: PublishedGame;
@@ -37,46 +19,85 @@ interface Player {
 }
 
 export default function GamePlayer({ game, onClose }: GamePlayerProps) {
+  const { user, updateUser } = useUser();
   const containerRef = useRef<HTMLDivElement>(null);
   const cleanupRef = useRef<(() => void) | null>(null);
   const socketRef = useRef<Socket | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [showErrorWarning, setShowErrorWarning] = useState(false);
-  const [errorBypassed, setErrorBypassed] = useState(false);
   const [showSafetyPopup, setShowSafetyPopup] = useState(true);
   const [isLoading, setIsLoading] = useState(true);
-  const [loadingStage, setLoadingStage] = useState<'engine' | 'assets' | 'world'>('engine');
-  const [loadingProgress, setLoadingProgress] = useState(0);
-  const [particlePositions] = useState(() => 
-    Array.from({ length: 20 }, () => ({
-      size: Math.random() * 4 + 2,
-      left: Math.random() * 100,
-      top: Math.random() * 100,
-      duration: 3 + Math.random() * 2,
-      delay: Math.random() * 2,
-      type: Math.floor(Math.random() * 3)
-    }))
-  );
   const serverId = game.serverId;
   const isOnlineMode = game.multiplayer && !!serverId;
   const [isOnline, setIsOnline] = useState(isOnlineMode);
   const [players, setPlayers] = useState<Player[]>([]);
   const [server, setServer] = useState<GameServer | null>(null);
-  const { user: contextUser } = useUser();
-  const [onlineSession, setOnlineSession] = useState<string | null>(null);
-  const [isCreatingSession, setIsCreatingSession] = useState(false);
-  const [availableSessions, setAvailableSessions] = useState<any[]>([]);
-  const [showWaitingRoom, setShowWaitingRoom] = useState(false);
-  const [waitingRoomPlayers, setWaitingRoomPlayers] = useState<string[]>([]);
-  const [waitingRoomPresets, setWaitingRoomPresets] = useState<string[]>([]);
-  const [gameChatPresets, setGameChatPresets] = useState<string[]>([]);
-  const [waitingRoomMessages, setWaitingRoomMessages] = useState<Array<{ username: string; message: string; timestamp: number }>>([]);
-  const [waitingRoomInput, setWaitingRoomInput] = useState('');
 
+  // Set user as playing when game starts and track play
+  useEffect(() => {
+    if (!user) return;
+
+    const setPlayingStatus = async () => {
+      const users = await getUsers();
+      const userIndex = users.findIndex(u => u.username === user.username);
+      if (userIndex !== -1) {
+        users[userIndex].currentGameId = game.ts.toString();
+        users[userIndex].currentServerId = serverId || undefined;
+        
+        // Track recently played
+        const gameId = game.id || game.ts.toString();
+        if (!users[userIndex].recentlyPlayed) {
+          users[userIndex].recentlyPlayed = [];
+        }
+        // Remove if already exists, then add to end (most recent)
+        users[userIndex].recentlyPlayed = users[userIndex].recentlyPlayed.filter(id => id !== gameId);
+        users[userIndex].recentlyPlayed.push(gameId);
+        // Keep only last 20
+        if (users[userIndex].recentlyPlayed.length > 20) {
+          users[userIndex].recentlyPlayed = users[userIndex].recentlyPlayed.slice(-20);
+        }
+        
+        await saveUsers(users);
+        updateUser({
+          currentGameId: game.ts.toString(),
+          currentServerId: serverId || undefined,
+          recentlyPlayed: users[userIndex].recentlyPlayed
+        });
+      }
+      
+      // Increment play count for published games
+      const { getPublished, savePublished } = await import('@/lib/storage');
+      const published = await getPublished();
+      const gameIndex = published.findIndex(g => g.ts === game.ts);
+      if (gameIndex !== -1) {
+        published[gameIndex].playCount = (published[gameIndex].playCount || 0) + 1;
+        await savePublished(published);
+      }
+    };
+
+    setPlayingStatus();
+
+    // Clear playing status when component unmounts
+    return () => {
+      const clearPlayingStatus = async () => {
+        const users = await getUsers();
+        const userIndex = users.findIndex(u => u.username === user.username);
+        if (userIndex !== -1) {
+          users[userIndex].currentGameId = undefined;
+          users[userIndex].currentServerId = undefined;
+          await saveUsers(users);
+          updateUser({
+            currentGameId: undefined,
+            currentServerId: undefined
+          });
+        }
+      };
+      clearPlayingStatus();
+    };
+  }, [user, game.ts, serverId]);
 
   // Initialize server and socket for online mode
   useEffect(() => {
-    if (isOnline && (serverId || onlineSession) && (game.multiplayer || onlineSession)) {
+    if (isOnline && serverId && game.multiplayer) {
       const servers = getServers();
       const foundServer = servers.find(s => s.id === serverId);
       if (foundServer) {
@@ -85,144 +106,76 @@ export default function GamePlayer({ game, onClose }: GamePlayerProps) {
         // Initialize Socket.io connection
         // Note: For full multiplayer, you need a Socket.io server running
         // For now, it will gracefully fall back to offline mode if server is unavailable
-        // Load socket.io if available
-        loadSocketIO().then(() => {
-          if (!io) {
-            console.warn('Socket.io not available, running in offline mode');
+        try {
+          const socketUrl = process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:3001';
+          const socket = io(socketUrl, {
+            transports: ['websocket', 'polling'],
+            reconnection: true,
+            reconnectionAttempts: 3,
+            reconnectionDelay: 1000,
+            timeout: 5000
+          });
+
+          socket.on('connect', () => {
+            console.log('Connected to game server');
+            socket.emit('join-game', {
+              serverId: serverId,
+              gameId: game.ts.toString(),
+              username: 'Player'
+            });
+
+            // Update server player count
+            const servers = getServers();
+            const serverIndex = servers.findIndex(s => s.id === serverId);
+            if (serverIndex !== -1) {
+              servers[serverIndex].currentPlayers = Math.min(
+                servers[serverIndex].currentPlayers + 1,
+                servers[serverIndex].maxPlayers
+              );
+              require('@/lib/storage').saveServers(servers);
+            }
+          });
+
+          socket.on('connect_error', () => {
+            console.warn('Socket.io server not available, running in offline mode');
             setIsOnline(false);
-            return;
-          }
-          try {
-            const socketUrl = process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:3001';
-            const socket = io(socketUrl, {
-              transports: ['websocket', 'polling'],
-              reconnection: true,
-              reconnectionAttempts: 3,
-              reconnectionDelay: 1000,
-              timeout: 5000
-            });
+          });
 
-            socket.on('connect', () => {
-              console.log('Connected to game server');
-              // Set socket reference globally for game code
-              (window as any).__gameSocket = socket;
-              // Update loading progress when socket connects
-              if (game.multiplayer && isLoading) {
-                setLoadingProgress(10);
-                setLoadingStage('engine');
+          socket.on('player-joined', (player: Player) => {
+            setPlayers(prev => {
+              if (!prev.find(p => p.id === player.id)) {
+                return [...prev, player];
               }
-              // Also set up the gameSocket wrapper immediately
-              if (!(window as any).gameSocket) {
-                (window as any).gameSocket = {
-                  emit: function(event: string, data: any) {
-                    try {
-                      if (socket && socket.emit) {
-                        socket.emit(event, data);
-                      }
-                    } catch (e) {
-                      console.warn('Socket emit error:', e);
-                    }
-                  },
-                  on: function(event: string, callback: Function) {
-                    try {
-                      if (socket && socket.on) {
-                        socket.on(event, callback);
-                      }
-                    } catch (e) {
-                      console.warn('Socket on error:', e);
-                    }
-                  },
-                  off: function(event: string, callback: Function) {
-                    try {
-                      if (socket && socket.off) {
-                        socket.off(event, callback);
-                      }
-                    } catch (e) {
-                      console.warn('Socket off error:', e);
-                    }
-                  }
-                };
-              }
-              socket.emit('join-game', {
-                serverId: serverId,
-                gameId: game.ts.toString(),
-                username: contextUser?.username || 'Player',
-                sessionId: onlineSession || undefined
-              });
+              return prev;
+            });
+          });
 
-              // Update server player count
-              const servers = getServers();
-              const serverIndex = servers.findIndex(s => s.id === serverId);
-              if (serverIndex !== -1) {
-                servers[serverIndex].currentPlayers = Math.min(
-                  servers[serverIndex].currentPlayers + 1,
-                  servers[serverIndex].maxPlayers
-                );
-                require('@/lib/storage').saveServers(servers);
-              }
-            });
+          socket.on('player-left', (playerId: string) => {
+            setPlayers(prev => prev.filter(p => p.id !== playerId));
 
-            socket.on('connect_error', () => {
-              console.warn('Socket.io server not available, running in offline mode');
-              setIsOnline(false);
-            });
+            // Update server player count
+            const servers = getServers();
+            const serverIndex = servers.findIndex(s => s.id === serverId);
+            if (serverIndex !== -1) {
+              servers[serverIndex].currentPlayers = Math.max(0, servers[serverIndex].currentPlayers - 1);
+              require('@/lib/storage').saveServers(servers);
+            }
+          });
 
-            socket.on('player-joined', (player: Player) => {
-              setPlayers(prev => {
-                if (!prev.find(p => p.id === player.id)) {
-                  return [...prev, player];
-                }
-                return prev;
-              });
-            });
+          socket.on('player-update', (player: Player) => {
+            setPlayers(prev => prev.map(p => p.id === player.id ? player : p));
+          });
 
-            socket.on('player-left', (playerId: string) => {
-              setPlayers(prev => prev.filter(p => p.id !== playerId));
-
-              // Update server player count
-              const servers = getServers();
-              const serverIndex = servers.findIndex(s => s.id === serverId);
-              if (serverIndex !== -1) {
-                servers[serverIndex].currentPlayers = Math.max(0, servers[serverIndex].currentPlayers - 1);
-                require('@/lib/storage').saveServers(servers);
-              }
-            });
-
-            socket.on('player-update', (player: Player) => {
-              setPlayers(prev => prev.map(p => p.id === player.id ? player : p));
-            });
-
-            
-            
-            socket.on('waiting-room-update', (data: { players: string[]; currentPlayers: number; minPlayers: number; maxPlayers: number; canStart: boolean }) => {
-              setWaitingRoomPlayers(data.players);
-              if (data.currentPlayers >= data.minPlayers && game.multiplayer) {
-                setShowWaitingRoom(true);
-              }
-            });
-            
-            socket.on('waiting-room-chat', (data: { username: string; message: string }) => {
-              setWaitingRoomMessages(prev => [...prev, { ...data, timestamp: Date.now() }]);
-            });
-            
-            socket.on('game-start', () => {
-              setShowWaitingRoom(false);
-              setIsLoading(false);
-            });
-socket.on('disconnect', () => {
-              console.log('Disconnected from game server');
-              setIsOnline(false);
-            });
-
-            socketRef.current = socket;
-          } catch (err) {
-            console.warn('Socket.io connection failed, running in offline mode:', err);
+          socket.on('disconnect', () => {
+            console.log('Disconnected from game server');
             setIsOnline(false);
-          }
-        }).catch(() => {
-          console.warn('Socket.io not available, running in offline mode');
+          });
+
+          socketRef.current = socket;
+        } catch (err) {
+          console.warn('Socket.io connection failed, running in offline mode:', err);
           setIsOnline(false);
-        });
+        }
       } else {
         console.warn('Server not found, switching to offline mode');
         setIsOnline(false);
@@ -244,112 +197,31 @@ socket.on('disconnect', () => {
         socketRef.current = null;
       }
     };
-  }, [isOnline, serverId, game.ts, game.multiplayer, onlineSession, contextUser]);
-  
-  // Listen for Hide and Seek requesting online mode
-  useEffect(() => {
-    const handleOnlineRequest = () => {
-      if (!isOnline && game.multiplayer) {
-        // Trigger the same logic as Play Online button
-        // Create a session or enable online mode
-        if (!contextUser) {
-          alert('Please log in to play online');
-          return;
-        }
-        setIsCreatingSession(true);
-        fetch('/api/game-sessions', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            action: 'create',
-            gameId: game.ts.toString(),
-            gameTitle: game.title,
-            username: contextUser.username,
-            maxPlayers: game.maxPlayers || 10
-          })
-        })
-          .then(res => res.json())
-          .then(data => {
-            setIsCreatingSession(false);
-            if (data.success && data.session?.id) {
-              setOnlineSession(data.session.id);
-              setIsOnline(true);
-              setIsLoading(true);
-            } else {
-              alert('Failed to create session: ' + (data.error || 'Unknown error'));
-            }
-          })
-          .catch(err => {
-            setIsCreatingSession(false);
-            alert('Error creating session: ' + err.message);
-          });
-      }
-    };
-    
-    window.addEventListener('hide-seek-request-online', handleOnlineRequest);
-    return () => {
-      window.removeEventListener('hide-seek-request-online', handleOnlineRequest);
-    };
-  }, [isOnline, game.multiplayer, contextUser, serverId, game.ts]);
-
-
-  // Real-time loading progress tracking
-  useEffect(() => {
-    if (!isLoading) return;
-    
-    // Start with socket stage for multiplayer games
-    if (game.multiplayer && isOnline) {
-      setLoadingStage('socket');
-      setLoadingProgress(0);
-    } else {
-      setLoadingStage('engine');
-      setLoadingProgress(5);
-    }
-  }, [isLoading, game.multiplayer, isOnline]);
+  }, [isOnline, serverId, game.ts, game.multiplayer]);
 
   useEffect(() => {
     if (!containerRef.current || !game.gameCode) return;
-    setIsLoading(true);
+    
+    // Built-in games should not go through GamePlayer
+    if (game.gameCode === 'builtin_schoolAdventure') {
+      setError('This game should open directly, not through GamePlayer');
+      setIsLoading(false);
+      return;
+    }
+    
+    // Don't show loading screen - load immediately
+    setIsLoading(false);
 
     // Create a safe execution context for the game code
     const executeGame = async () => {
       try {
         // Import Three.js dynamically
         const THREE = await import('three');
-        setLoadingStage('engine');
-        setLoadingProgress(10);
 
         // Create a module-like environment
         const moduleExports: any = {};
         const moduleObj = { exports: moduleExports };
 
-        setLoadingProgress(20);
-        // Get user skin data for avatar rendering
-        let userSkinData = null;
-        if (contextUser) {
-          try {
-            const { getSkins, findSkin } = await import('@/lib/storage');
-            const skins = await getSkins();
-            const equippedSkin = findSkin(skins, contextUser.equippedSkin);
-            if (equippedSkin) {
-              userSkinData = {
-                colors: equippedSkin.colors || {
-                  head: '#FFDBB3',
-                  torso: '#2196F3',
-                  arm: '#2196F3',
-                  legs: '#2196F3'
-                }
-              };
-            }
-          } catch (err) {
-            console.warn('Could not load user skin:', err);
-          }
-        }
-        
-        // Pass user skin data to game
-        (window as any).__userSkinData = userSkinData;
-        
-        setLoadingProgress(30);
         // Add multiplayer support if online
         let multiplayerCode = '';
         if (isOnline && socketRef.current) {
@@ -357,56 +229,31 @@ socket.on('disconnect', () => {
           (window as any).__gameSocket = socketRef.current;
           multiplayerCode = `
           // Multiplayer support
-          if (window.__gameSocket) {
-            window.gameSocket = {
-              emit: function(event, data) {
-                try {
-                  const socket = window.__gameSocket;
-                  if (socket && socket.emit) {
-                    socket.emit(event, data);
-                  }
-                } catch (e) {
-                  console.warn('Socket emit error:', e);
-                }
-              },
-              on: function(event, callback) {
-                try {
-                  const socket = window.__gameSocket;
-                  if (socket && socket.on) {
-                    socket.on(event, callback);
-                  }
-                } catch (e) {
-                  console.warn('Socket on error:', e);
-                }
-              },
-              off: function(event, callback) {
-                try {
-                  const socket = window.__gameSocket;
-                  if (socket && socket.off) {
-                    socket.off(event, callback);
-                  }
-                } catch (e) {
-                  console.warn('Socket off error:', e);
-                }
+          window.gameSocket = {
+            emit: function(event, data) {
+              const socket = window.__gameSocket;
+              if (socket && socket.emit) {
+                socket.emit(event, data);
               }
-            };
-            window.gamePlayers = ${JSON.stringify(players)};
-            window.updatePlayerPosition = function(pos, rot) {
-              if (window.gameSocket && window.gameSocket.emit) {
-                window.gameSocket.emit('player-update', { position: pos, rotation: rot });
+            },
+            on: function(event, callback) {
+              const socket = window.__gameSocket;
+              if (socket && socket.on) {
+                socket.on(event, callback);
               }
-            };
-          } else {
-            window.gameSocket = undefined;
-            window.gamePlayers = [];
-          }
+            }
+          };
+          window.gamePlayers = ${JSON.stringify(players)};
+          window.updatePlayerPosition = function(pos, rot) {
+            if (window.gameSocket && window.gameSocket.emit) {
+              window.gameSocket.emit('player-update', { position: pos, rotation: rot });
+            }
+          };
         `;
         }
 
         // Wrap the game code in a function that has access to THREE
         // Ensure code is treated as plain script, not module
-        setLoadingStage('assets');
-        setLoadingProgress(40);
         const gameCodeStr = String(game.gameCode || '').trim();
 
         // Remove any potential import/export statements that might cause issues
@@ -425,196 +272,153 @@ socket.on('disconnect', () => {
           .replace(/\\\\n/g, '\\n')  // Preserve actual newlines in strings
           .replace(/\\\\\\/g, '\\\\');  // Preserve actual backslashes
 
-        // Roblox-style Engine with Playhop-quality Textures
+        // ULTRA-FAST Texture Utilities - Instant Loading
         const textureUtils = `
-          // Advanced Texture Utilities - Playhop Quality, Roblox Style
+          // Texture cache for instant reuse
+          const textureCache = {};
+          
+          // Ultra-fast texture generation - minimal processing
           window.createTexture = function(type, options) {
+            const cacheKey = type + '_' + (options.color || 'default') + '_' + (options.size || 128);
+            if (textureCache[cacheKey]) {
+              return textureCache[cacheKey].clone();
+            }
+            
             const canvas = document.createElement('canvas');
             const ctx = canvas.getContext('2d');
-            const size = options.size || 1024; // Higher resolution for quality
+            const size = options.size || 128; // Very small for speed
             canvas.width = size;
             canvas.height = size;
             
             if (type === 'wood') {
-              // Realistic wood grain - Playhop style
+              // Ultra-simple wood - just base color with minimal grain
               const baseColor = options.color || '#8B4513';
-              const darkColor = options.darkColor || '#654321';
-              const lightColor = options.lightColor || '#CD853F';
-              
-              // Base color
               ctx.fillStyle = baseColor;
               ctx.fillRect(0, 0, size, size);
               
-              // Wood grain lines - curved and natural
-              for (let i = 0; i < 80; i++) {
-                const y = Math.random() * size;
-                const curve = (Math.random() - 0.5) * 20;
-                ctx.strokeStyle = Math.random() > 0.5 ? darkColor : lightColor;
-                ctx.lineWidth = Math.random() * 4 + 1;
-                ctx.beginPath();
-                ctx.moveTo(0, y);
-                for (let x = 0; x < size; x += 10) {
-                  ctx.lineTo(x, y + Math.sin(x / 50) * curve);
-                }
-                ctx.stroke();
-              }
-              
-              // Add knots
-              for (let i = 0; i < 5; i++) {
-                const x = Math.random() * size;
-                const y = Math.random() * size;
-                const radius = Math.random() * 30 + 10;
-                ctx.fillStyle = darkColor;
-                ctx.beginPath();
-                ctx.arc(x, y, radius, 0, Math.PI * 2);
-                ctx.fill();
-              }
-            } else if (type === 'metal') {
-              // Polished metal - Roblox style
-              const gradient = ctx.createRadialGradient(size/2, size/2, 0, size/2, size/2, size/2);
-              gradient.addColorStop(0, '#F0F0F0');
-              gradient.addColorStop(0.3, '#D0D0D0');
-              gradient.addColorStop(0.7, '#B0B0B0');
-              gradient.addColorStop(1, '#909090');
-              ctx.fillStyle = gradient;
-              ctx.fillRect(0, 0, size, size);
-              
-              // Brushed metal effect
-              for (let i = 0; i < 100; i++) {
-                ctx.strokeStyle = 'rgba(255,255,255,0.1)';
+              // Only 3 grain lines for speed
+              for (let i = 0; i < 3; i++) {
+                const y = (i + 1) * (size / 4);
+                ctx.strokeStyle = 'rgba(0,0,0,0.15)';
                 ctx.lineWidth = 1;
                 ctx.beginPath();
-                ctx.moveTo(0, i * 10);
-                ctx.lineTo(size, i * 10 + Math.random() * 5);
+                ctx.moveTo(0, y);
+                ctx.lineTo(size, y);
                 ctx.stroke();
               }
+            } else if (type === 'metal') {
+              // Simple metal - just gradient
+              const gradient = ctx.createLinearGradient(0, 0, size, size);
+              gradient.addColorStop(0, '#E0E0E0');
+              gradient.addColorStop(1, '#A0A0A0');
+              ctx.fillStyle = gradient;
+              ctx.fillRect(0, 0, size, size);
             } else if (type === 'concrete') {
-              // Realistic concrete - Playhop style
+              // Just solid color
               const baseColor = options.color || '#808080';
               ctx.fillStyle = baseColor;
               ctx.fillRect(0, 0, size, size);
-              
-              // Add aggregate texture
-              const imageData = ctx.getImageData(0, 0, size, size);
-              for (let i = 0; i < imageData.data.length; i += 4) {
-                const noise = (Math.random() - 0.5) * 40;
-                imageData.data[i] = Math.max(0, Math.min(255, imageData.data[i] + noise));
-                imageData.data[i + 1] = Math.max(0, Math.min(255, imageData.data[i + 1] + noise));
-                imageData.data[i + 2] = Math.max(0, Math.min(255, imageData.data[i + 2] + noise));
-              }
-              ctx.putImageData(imageData, 0, 0);
-              
-              // Add cracks
-              for (let i = 0; i < 10; i++) {
-                ctx.strokeStyle = 'rgba(0,0,0,0.2)';
-                ctx.lineWidth = 1;
-                ctx.beginPath();
-                ctx.moveTo(Math.random() * size, Math.random() * size);
-                ctx.lineTo(Math.random() * size, Math.random() * size);
-                ctx.stroke();
-              }
             } else if (type === 'fabric') {
-              // Realistic fabric - Playhop style
+              // Just solid color
               const baseColor = options.color || '#CCCCCC';
               ctx.fillStyle = baseColor;
               ctx.fillRect(0, 0, size, size);
-              
-              // Weave pattern
-              for (let x = 0; x < size; x += 8) {
-                for (let y = 0; y < size; y += 8) {
-                  const isOver = (x + y) % 16 === 0;
-                  ctx.fillStyle = isOver ? 'rgba(0,0,0,0.15)' : 'rgba(255,255,255,0.1)';
-                  ctx.fillRect(x, y, 4, 4);
-                }
-              }
             } else if (type === 'grass') {
-              // Realistic grass - Playhop style
+              // Just solid color
               const baseColor = options.color || '#4CAF50';
               ctx.fillStyle = baseColor;
               ctx.fillRect(0, 0, size, size);
-              
-              // Grass blades with variation
-              for (let i = 0; i < 500; i++) {
-                const x = Math.random() * size;
-                const y = Math.random() * size;
-                const height = Math.random() * 8 + 2;
-                const angle = (Math.random() - 0.5) * 0.3;
-                ctx.strokeStyle = 'rgba(34, 139, 34, ' + (0.3 + Math.random() * 0.4) + ')';
-                ctx.lineWidth = 1;
-                ctx.beginPath();
-                ctx.moveTo(x, y);
-                ctx.lineTo(x + Math.sin(angle) * height, y - Math.cos(angle) * height);
-                ctx.stroke();
-              }
             } else if (type === 'brick') {
-              // Realistic brick - Playhop style
+              // Minimal brick pattern
               const brickColor = options.color || '#B22222';
               const mortarColor = options.mortar || '#888888';
-              const brickWidth = 60;
-              const brickHeight = 20;
-              const mortarWidth = 4;
-              
               ctx.fillStyle = mortarColor;
               ctx.fillRect(0, 0, size, size);
               
-              let offset = 0;
-              for (let y = 0; y < size; y += brickHeight + mortarWidth) {
-                for (let x = -offset; x < size; x += brickWidth + mortarWidth) {
+              // Very simple brick pattern
+              for (let y = 0; y < size; y += 20) {
+                for (let x = 0; x < size; x += 40) {
                   ctx.fillStyle = brickColor;
-                  ctx.fillRect(x, y, brickWidth, brickHeight);
-                  
-                  // Add texture variation
-                  ctx.fillStyle = 'rgba(0,0,0,0.1)';
-                  ctx.fillRect(x + 2, y + 2, brickWidth - 4, brickHeight - 4);
+                  ctx.fillRect(x, y, 36, 16);
                 }
-                offset = offset === 0 ? brickWidth / 2 : 0;
               }
+            } else {
+              // Default - just solid color
+              const baseColor = options.color || '#CCCCCC';
+              ctx.fillStyle = baseColor;
+              ctx.fillRect(0, 0, size, size);
             }
             
             const texture = new THREE.CanvasTexture(canvas);
             texture.wrapS = THREE.RepeatWrapping;
             texture.wrapT = THREE.RepeatWrapping;
             texture.repeat.set(options.repeatX || 1, options.repeatY || 1);
-            texture.anisotropy = 16; // High quality filtering
-            return texture;
+            
+            // Cache it
+            textureCache[cacheKey] = texture;
+            return texture.clone();
           };
           
-          // Roblox-style Material Creator
+          // Ultra-fast Material Creator - instant fallback
           window.createRealisticMaterial = function(type, options) {
             options = options || {};
+            
+            // Parse color from hex string if provided
+            let color = 0xCCCCCC;
+            if (options.color) {
+              if (typeof options.color === 'string' && options.color.startsWith('#')) {
+                color = parseInt(options.color.slice(1), 16);
+              } else if (typeof options.color === 'number') {
+                color = options.color;
+              }
+            }
+            
+            // Try to create texture, but use instant fallback if it fails
             let texture = null;
+            try {
+              if (type === 'wood') {
+                texture = window.createTexture('wood', { 
+                  color: options.color,
+                  size: 64 // Very small for speed
+                });
+              } else if (type === 'metal') {
+                texture = window.createTexture('metal', { size: 64 });
+              } else if (type === 'concrete') {
+                texture = window.createTexture('concrete', { color: options.color, size: 64 });
+              } else if (type === 'grass') {
+                texture = window.createTexture('grass', { color: options.color, size: 64 });
+              } else if (type === 'fabric') {
+                texture = window.createTexture('fabric', { color: options.color, size: 64 });
+              }
+            } catch (e) {
+              // Use fallback - solid color material
+            }
             
             if (type === 'wood') {
-              texture = window.createTexture('wood', { 
-                color: options.color,
-                colors: options.colors 
-              });
               return new THREE.MeshStandardMaterial({
                 map: texture,
+                color: color,
                 roughness: options.roughness !== undefined ? options.roughness : 0.7,
-                metalness: options.metalness !== undefined ? options.metalness : 0.1,
-                bumpMap: texture,
-                bumpScale: 0.3
+                metalness: options.metalness !== undefined ? options.metalness : 0.1
               });
             } else if (type === 'metal') {
-              texture = window.createTexture('metal');
               return new THREE.MeshStandardMaterial({
                 map: texture,
+                color: color,
                 roughness: options.roughness !== undefined ? options.roughness : 0.2,
-                metalness: options.metalness !== undefined ? options.metalness : 0.95,
-                envMapIntensity: 1.2
+                metalness: options.metalness !== undefined ? options.metalness : 0.95
               });
             } else if (type === 'concrete') {
-              texture = window.createTexture('concrete', { color: options.color });
               return new THREE.MeshStandardMaterial({
                 map: texture,
+                color: color,
                 roughness: options.roughness !== undefined ? options.roughness : 0.9,
                 metalness: options.metalness !== undefined ? options.metalness : 0.0
               });
             } else if (type === 'fabric') {
-              texture = window.createTexture('fabric', { color: options.color });
               return new THREE.MeshStandardMaterial({
                 map: texture,
+                color: color,
                 roughness: options.roughness !== undefined ? options.roughness : 0.95,
                 metalness: options.metalness !== undefined ? options.metalness : 0.0
               });
@@ -677,59 +481,72 @@ socket.on('disconnect', () => {
 
         // Use Function constructor with proper parameters to prevent module parsing
         // Wrap in IIFE with "use strict" to ensure script mode
-        // IMPORTANT: multiplayerCode before cleanCode so window.gameSocket exists
         const fullCode =
           '"use strict";\n' +
           textureUtils + '\n' +
-          multiplayerCode + '\n' +
           cleanCode + '\n' +
+          multiplayerCode + '\n' +
           'if (typeof createGame !== "undefined") {\n' +
           '  exports.createGame = createGame;\n' +
+          '} else if (typeof window !== "undefined" && window.createGame) {\n' +
+          '  exports.createGame = window.createGame;\n' +
           '}';
 
         // Execute in function scope with THREE and exports as parameters
-        setLoadingProgress(60);
-        const gameFunction = new Function('THREE', 'exports', fullCode);
+        try {
+          const gameFunction = new Function('THREE', 'exports', fullCode);
+          gameFunction(THREE, moduleExports);
+        } catch (parseError: any) {
+          console.error('Code parsing error:', parseError);
+          throw new Error(`Code syntax error: ${parseError.message}`);
+        }
 
-        setLoadingProgress(70);
-        gameFunction(THREE, moduleExports);
+        // Check for createGame function
+        let createGameFunc = moduleExports.createGame;
 
-        setLoadingStage('world');
-        setLoadingProgress(80);
-        if (moduleExports.createGame && typeof moduleExports.createGame === 'function') {
-          const cleanup = moduleExports.createGame(containerRef.current!);
-          if (typeof cleanup === 'function') {
-            cleanupRef.current = cleanup;
+        // Also check window scope in case code assigned it there
+        if (!createGameFunc && (window as any).createGame) {
+          createGameFunc = (window as any).createGame;
+        }
+
+        if (createGameFunc && typeof createGameFunc === 'function') {
+          try {
+            const cleanup = createGameFunc(containerRef.current!);
+            if (typeof cleanup === 'function') {
+              cleanupRef.current = cleanup;
+            }
+            // Game loaded successfully
+            setIsLoading(false);
+            setError(null);
+          } catch (execError: any) {
+            console.error('Game execution runtime error:', execError);
+            throw new Error(`Game runtime error: ${execError.message || 'Unknown error'}`);
           }
-          // Wait for loading sequence to complete (18 seconds total)
-          // Gradually increase progress during game initialization
-        const startProgress = 80;
-        const endProgress = 95;
-        const duration = 15000; // 15 seconds
-        const startTime = Date.now();
-        const progressInterval = setInterval(() => {
-          const elapsed = Date.now() - startTime;
-          const progress = Math.min(endProgress, startProgress + (elapsed / duration) * (endProgress - startProgress));
-          setLoadingProgress(progress);
-          if (progress >= endProgress) {
-            clearInterval(progressInterval);
-          }
-        }, 50);
-        await new Promise(resolve => setTimeout(resolve, duration));
-        clearInterval(progressInterval);
-          
-          setLoadingProgress(100);
-          setIsLoading(false);
         } else {
-          throw new Error('Game code must export a createGame function');
+          // Try to find createGame in the code string
+          if (cleanCode.includes('function createGame') || cleanCode.includes('createGame =')) {
+            throw new Error('createGame function found but not exported. Make sure your code defines: function createGame(container) { ... }');
+          } else {
+            throw new Error('Game code must define a createGame function. Example: function createGame(container) { ... }');
+          }
         }
       } catch (err: any) {
         console.error('Game execution error:', err);
-        setError(err.message || 'Failed to load game');
+        const errorMessage = err.message || err.toString() || 'Failed to load game';
+        setError(errorMessage);
         setIsLoading(false);
+
+        // Show error in console for debugging
+        console.error('Full error details:', {
+          message: errorMessage,
+          stack: err.stack,
+          gameTitle: game.title,
+          gameCodeLength: game.gameCode?.length || 0
+        });
       }
     };
 
+    // Execute immediately without delay
     executeGame();
 
     return () => {
@@ -781,57 +598,20 @@ socket.on('disconnect', () => {
 
   // Safety/Rules Popup
   if (showSafetyPopup) {
-      // Show waiting room for multiplayer games
-  if (showWaitingRoom && socketRef.current && game.multiplayer) {
-    const minPlayers = game.title.toLowerCase().includes('tic') ? 2 : 
-                       game.title.toLowerCase().includes('flag') ? 4 : 
-                       game.title.toLowerCase().includes('hide') ? 3 : 2;
-    
     return (
-      <WaitingRoom
-        gameTitle={game.title}
-        minPlayers={minPlayers}
-        maxPlayers={game.maxPlayers || 16}
-        currentPlayers={waitingRoomPlayers.length}
-        players={waitingRoomPlayers}
-        onStartGame={() => {
-          setShowWaitingRoom(false);
-          setIsLoading(false);
-        }}
-        onLeave={() => {
-          setShowWaitingRoom(false);
-          setIsOnline(false);
-          if (socketRef.current) {
-            socketRef.current.disconnect();
-            socketRef.current = null;
-          }
-          onClose();
-        }}
-        waitingRoomPresets={waitingRoomPresets}
-        gameChatPresets={gameChatPresets}
-        socket={socketRef.current}
-        roomId={onlineSession || `game-${game.ts}`}
-        username={contextUser?.username || 'Player'}
-      />
-    );
-  }
-
-return (
-    <div
-      style={{
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        width: '100vw',
-        height: '100vh',
+      <div
+        style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
           background: 'rgba(0, 0, 0, 0.9)',
           zIndex: 20000,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          color: '#9fa4b8',
+          color: '#fff',
           fontFamily: 'Arial, sans-serif'
         }}
       >
@@ -849,20 +629,20 @@ return (
           <h2 style={{ margin: '0 0 20px 0', fontSize: '28px', textAlign: 'center', color: '#4CAF50' }}>
             Game Rules & Safety
           </h2>
-          
+
           <div style={{ marginBottom: '24px', lineHeight: '1.8', fontSize: '16px' }}>
             <div style={{ marginBottom: '16px', padding: '12px', background: 'rgba(76, 175, 80, 0.1)', borderRadius: '8px', borderLeft: '4px solid #4CAF50' }}>
               <strong style={{ color: '#4CAF50' }}>✓ Be Nice:</strong> Treat all players with respect and kindness.
             </div>
-            
+
             <div style={{ marginBottom: '16px', padding: '12px', background: 'rgba(76, 175, 80, 0.1)', borderRadius: '8px', borderLeft: '4px solid #4CAF50' }}>
               <strong style={{ color: '#4CAF50' }}>✓ No Bullying:</strong> Harassment, threats, or mean behavior is not allowed.
             </div>
-            
+
             <div style={{ marginBottom: '16px', padding: '12px', background: 'rgba(76, 175, 80, 0.1)', borderRadius: '8px', borderLeft: '4px solid #4CAF50' }}>
               <strong style={{ color: '#4CAF50' }}>✓ Report Problems:</strong> Use the Report button if you see something wrong.
             </div>
-            
+
             <div style={{ marginTop: '24px', padding: '16px', background: 'rgba(255, 193, 7, 0.15)', borderRadius: '8px', borderLeft: '4px solid #FFC107' }}>
               <strong style={{ color: '#FFC107' }}>⚠ Safety Warning:</strong>
               <div style={{ marginTop: '8px' }}>
@@ -900,73 +680,6 @@ return (
           >
             I Understand - Start Game
           </button>
-          <button
-            onClick={async () => {
-              if (!contextUser) {
-                alert('Please log in to play online');
-                return;
-              }
-              setIsCreatingSession(true);
-              try {
-                const response = await fetch('/api/game-sessions', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({
-                    action: 'create',
-                    gameId: game.ts.toString(),
-                    gameTitle: game.title,
-                    username: contextUser.username,
-                    maxPlayers: game.maxPlayers || 10
-                  })
-                });
-                
-                if (!response.ok) {
-                  const errorText = await response.text();
-                  throw new Error(`HTTP ${response.status}: ${errorText || 'Unknown error'}`);
-                }
-                
-                const data = await response.json();
-                if (data.success) {
-                  setOnlineSession(data.session.id);
-                  setIsOnline(true);
-                  setShowSafetyPopup(false);
-                  setIsLoading(true);
-                } else {
-                  alert('Failed to create session: ' + (data.error || 'Unknown error'));
-                }
-              } catch (err: any) {
-                alert('Error creating session: ' + err.message);
-              } finally {
-                setIsCreatingSession(false);
-              }
-            }}
-            disabled={isCreatingSession}
-            style={{
-              marginTop: '12px',
-              width: '100%',
-              padding: '14px 28px',
-              fontSize: '18px',
-              fontWeight: 'bold',
-              background: 'linear-gradient(135deg, #00A2FF 0%, #00D4FF 100%)',
-              color: 'white',
-              border: 'none',
-              borderRadius: '10px',
-              cursor: isCreatingSession ? 'not-allowed' : 'pointer',
-              boxShadow: '0 4px 12px rgba(0, 162, 255, 0.4)',
-              transition: 'transform 0.2s',
-              opacity: isCreatingSession ? 0.7 : 1
-            }}
-            onMouseEnter={(e) => {
-              if (!isCreatingSession) {
-                e.currentTarget.style.transform = 'translateY(-2px)';
-              }
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.transform = 'translateY(0)';
-            }}
-          >
-            {isCreatingSession ? 'Creating Session...' : '🎮 Play Online'}
-          </button>
         </div>
       </div>
     );
@@ -980,369 +693,125 @@ return (
         left: 0,
         right: 0,
         bottom: 0,
-        width: '100vw',
-        height: '100vh',
         background: '#000',
         zIndex: 10000,
         display: 'flex',
         flexDirection: 'column'
       }}
     >
-            {/* Play Online Button */}
-      {showSafetyPopup === false && !onlineSession && !isLoading && (
-        <div
-          style={{
-            position: 'absolute',
-            top: '50%',
-            left: '50%',
-            transform: 'translate(-50%, -50%)',
-            zIndex: 20000,
-            textAlign: 'center'
-          }}
-        >
-          <button
-            onClick={async () => {
-              if (!contextUser) {
-                alert('Please log in to play online');
-                return;
-              }
-              setIsCreatingSession(true);
-              try {
-                // Create or find a session
-                const response = await fetch('/api/game-sessions', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({
-                    action: 'create',
-                    gameId: game.ts.toString(),
-                    gameTitle: game.title,
-                    username: contextUser.username,
-                    maxPlayers: game.maxPlayers || 10
-                  })
-                });
-                
-                if (!response.ok) {
-                  const errorText = await response.text();
-                  throw new Error(`HTTP ${response.status}: ${errorText || 'Unknown error'}`);
-                }
-                
-                const data = await response.json();
-                if (data.success) {
-                  setOnlineSession(data.session.id);
-                  setIsOnline(true);
-                  setIsLoading(true);
-                } else {
-                  alert('Failed to create session: ' + (data.error || 'Unknown error'));
-                }
-              } catch (err: any) {
-                alert('Error creating session: ' + err.message);
-              } finally {
-                setIsCreatingSession(false);
-              }
-            }}
-            disabled={isCreatingSession}
-            style={{
-              padding: '16px 32px',
-              fontSize: '20px',
-              fontWeight: 'bold',
-              background: 'linear-gradient(135deg, #00A2FF 0%, #00D4FF 100%)',
-              color: 'white',
-              border: 'none',
-              borderRadius: '12px',
-              cursor: isCreatingSession ? 'not-allowed' : 'pointer',
-              boxShadow: '0 4px 20px rgba(0, 162, 255, 0.4)',
-              transition: 'transform 0.2s',
-              opacity: isCreatingSession ? 0.7 : 1
-            }}
-            onMouseEnter={(e) => {
-              if (!isCreatingSession) {
-                e.currentTarget.style.transform = 'translateY(-2px)';
-              }
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.transform = 'translateY(0)';
-            }}
-          >
-            {isCreatingSession ? 'Creating Session...' : '🎮 Play Online'}
-          </button>
-          <div style={{ marginTop: '16px', color: '#999', fontSize: '14px' }}>
-            Play with other players in real-time
-          </div>
-        </div>
-      )}
-
-      {/* Enhanced Real-Time Loading Screen */}
+      {/* Roblox-style Loading Screen */}
       {isLoading && (
         <div
           style={{
             position: 'absolute',
             top: 0,
             left: 0,
-            width: '100%',
-            height: '100%',
-            background: '#0f1117',
+            right: 0,
+            bottom: 0,
+            background: '#181818',
+            zIndex: 15000,
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
             justifyContent: 'center',
-            zIndex: 15000,
-            color: '#9fa4b8',
-            fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
-            overflow: 'hidden'
+            color: '#fff',
+            fontFamily: '"Gotham SSm A", "Gotham SSm B", Arial, sans-serif'
           }}
         >
-          {/* Animated Background Particles */}
-          <div style={{
-            position: 'absolute',
-            width: '100%',
-            height: '100%',
-            overflow: 'hidden',
-            opacity: 0.15
-          }}>
-            {particlePositions.map((particle, i) => (
-              <div
-                key={i}
-                style={{
-                  position: 'absolute',
-                  width: `${particle.size}px`,
-                  height: `${particle.size}px`,
-                  background: '#9fa4b8',
-                  borderRadius: '50%',
-                  left: `${particle.left}%`,
-                  top: `${particle.top}%`,
-                  animation: `float${particle.type} ${particle.duration}s ease-in-out infinite`,
-                  animationDelay: `${particle.delay}s`,
-                  boxShadow: '0 0 8px rgba(159, 164, 184, 0.3)'
-                }}
-              />
-            ))}
-          </div>
-
-          <div style={{
-            width: '500px',
-            maxWidth: '90%',
-            textAlign: 'center',
-            position: 'relative',
-            zIndex: 1
-          }}>
-            {/* Game Title with Glow Effect */}
+          {/* Roblox-style Logo/Title */}
+          <div style={{ textAlign: 'center', marginBottom: '60px' }}>
             <div style={{
-              fontSize: '42px',
-              fontWeight: 800,
-              marginBottom: '20px',
-              letterSpacing: '3px',
-              textTransform: 'uppercase',
-              color: '#f2f2f5',
-              textShadow: '0 0 20px rgba(159, 164, 184, 0.2)'
+              fontSize: '64px',
+              margin: '0 0 20px 0',
+              fontWeight: 'bold',
+              background: 'linear-gradient(180deg, #fff 0%, #ccc 100%)',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              textShadow: '0 2px 4px rgba(0,0,0,0.3)'
             }}>
               {game.title}
             </div>
-            
-            {/* Real-Time Progress Percentage */}
             <div style={{
-              fontSize: '48px',
-              fontWeight: 700,
-              marginBottom: '30px',
-              color: '#9fa4b8',
-              
-              fontVariantNumeric: 'tabular-nums',
-              letterSpacing: '2px'
+              fontSize: '18px',
+              color: '#999',
+              marginTop: '10px',
+              fontWeight: 300
             }}>
-              {Math.round(loadingProgress)}%
+              by {game.owner}
             </div>
-            
-            {/* Enhanced Progress Bar */}
+          </div>
+
+          {/* Roblox-style Progress Bar Container */}
+          <div style={{ width: '500px', maxWidth: '90%' }}>
+            <div style={{
+              fontSize: '14px',
+              color: '#999',
+              marginBottom: '12px',
+              textAlign: 'center',
+              fontWeight: 300
+            }}>
+              Loading...
+            </div>
+
+            {/* Progress Bar Background */}
             <div
               style={{
                 width: '100%',
-                height: '12px',
-                background: '#1a1d29',
-                borderRadius: '8px',
+                height: '8px',
+                background: '#2a2a2a',
+                borderRadius: '4px',
                 overflow: 'hidden',
-                border: '1px solid #3a3f57',
-                boxShadow: 'inset 0 2px 4px rgba(0, 0, 0, 0.3)',
-                marginBottom: '40px',
-                position: 'relative'
+                border: '1px solid #1a1a1a',
+                boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.5)'
               }}
             >
-              {/* Progress Fill with Animated Gradient */}
+              {/* Animated Progress Fill */}
               <div
                 style={{
-                  width: `${loadingProgress}%`,
-                  height: '100%',
-                  background: 'linear-gradient(90deg, #9fa4b8 0%, #c9cde0 50%, #9fa4b8 100%)',
-                  backgroundSize: '200% 100%',
-                  borderRadius: '7px',
-                  transition: 'width 0.1s ease-out',
-                  boxShadow: '0 0 10px rgba(159, 164, 184, 0.3)',
-                  position: 'relative',
-                  overflow: 'hidden'
-                }}
-              >
-                {/* Shimmer Effect */}
-                <div style={{
-                  position: 'absolute',
-                  top: 0,
-                  left: '-100%',
                   width: '100%',
                   height: '100%',
-                  background: 'linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.15), transparent)',
-                  animation: 'shimmerMove 2s ease-in-out infinite'
-                }} />
-              </div>
-              
-              {/* Glowing Edge */}
-              <div style={{
-                position: 'absolute',
-                top: 0,
-                left: `${loadingProgress}%`,
-                width: '4px',
-                height: '100%',
-                background: '#9fa4b8',
-                boxShadow: '0 0 15px rgba(255, 255, 255, 0.8), 0 0 30px rgba(255, 255, 255, 0.4)',
-                borderRadius: '2px',
-                transition: 'left 0.05s linear'
-              }} />
-            </div>
-            
-            {/* Dynamic Loading Steps with Icons */}
-            <div style={{
-              marginTop: '40px',
-              fontSize: '16px',
-              textAlign: 'left',
-              fontWeight: 500
-            }}>
-              {game.multiplayer && isOnline && (
-                <div style={{ 
-                  marginBottom: '16px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '12px',
-                  color: loadingStage === 'socket' ? '#f2f2f5' : loadingProgress > 10 ? '#9fa4b8' : '#8b90a8',
-                  transition: 'all 0.3s ease',
-                  transform: loadingStage === 'socket' ? 'scale(1.05)' : 'scale(1)',
-                  textShadow: loadingStage === 'socket' ? '0 0 8px rgba(159, 164, 184, 0.3)' : 'none'
-                }}>
-                  <span style={{ fontSize: '20px', width: '24px', textAlign: 'center' }}>
-                    {loadingProgress > 10 ? '✓' : loadingStage === 'socket' ? '⟳' : '○'}
-                  </span>
-                  <span>Starting socket server...</span>
-                  {loadingStage === 'socket' && (
-                    <span style={{ marginLeft: 'auto', fontSize: '12px', opacity: 0.7 }}>
-                      {Math.round((loadingProgress / 10) * 100)}%
-                    </span>
-                  )}
-                </div>
-              )}
-              <div style={{ 
-                marginBottom: '16px',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '12px',
-                color: loadingStage === 'engine' ? '#f2f2f5' : loadingProgress > 27.8 ? '#9fa4b8' : '#8b90a8',
-                transition: 'all 0.3s ease',
-                transform: loadingStage === 'engine' ? 'scale(1.05)' : 'scale(1)',
-                textShadow: loadingStage === 'engine' ? '0 0 8px rgba(159, 164, 184, 0.3)' : 'none'
-              }}>
-                <span style={{ fontSize: '20px', width: '24px', textAlign: 'center' }}>
-                  {loadingProgress > 27.8 ? '✓' : loadingStage === 'engine' ? '⟳' : '○'}
-                </span>
-                <span>Initializing game engine...</span>
-                {loadingStage === 'engine' && (
-                  <span style={{ marginLeft: 'auto', fontSize: '12px', opacity: 0.7 }}>
-                    {Math.round((loadingProgress / 27.8) * 100)}%
-                  </span>
-                )}
-              </div>
-              <div style={{ 
-                marginBottom: '16px',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '12px',
-                color: loadingStage === 'assets' ? '#f2f2f5' : loadingProgress > 44.4 ? '#9fa4b8' : '#8b90a8',
-                transition: 'all 0.3s ease',
-                transform: loadingStage === 'assets' ? 'scale(1.05)' : 'scale(1)',
-                textShadow: loadingStage === 'assets' ? '0 0 8px rgba(159, 164, 184, 0.3)' : 'none'
-              }}>
-                <span style={{ fontSize: '20px', width: '24px', textAlign: 'center' }}>
-                  {loadingProgress > 44.4 ? '✓' : loadingStage === 'assets' ? '⟳' : '○'}
-                </span>
-                <span>Loading assets and textures...</span>
-                {loadingStage === 'assets' && (
-                  <span style={{ marginLeft: 'auto', fontSize: '12px', opacity: 0.7 }}>
-                    {Math.round(((loadingProgress - 27.8) / (44.4 - 27.8)) * 100)}%
-                  </span>
-                )}
-              </div>
-              <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '12px',
-                color: loadingStage === 'world' ? '#f2f2f5' : loadingProgress === 100 ? '#9fa4b8' : '#8b90a8',
-                transition: 'all 0.3s ease',
-                transform: loadingStage === 'world' ? 'scale(1.05)' : 'scale(1)',
-                textShadow: loadingStage === 'world' ? '0 0 8px rgba(159, 164, 184, 0.3)' : 'none'
-              }}>
-                <span style={{ fontSize: '20px', width: '24px', textAlign: 'center' }}>
-                  {loadingProgress === 100 ? '✓' : loadingStage === 'world' ? '⟳' : '○'}
-                </span>
-                <span>Preparing world and finalizing...</span>
-                {loadingStage === 'world' && (
-                  <span style={{ marginLeft: 'auto', fontSize: '12px', opacity: 0.7 }}>
-                    {Math.round(((loadingProgress - 44.4) / (100 - 44.4)) * 100)}%
-                  </span>
-                )}
-              </div>
+                  background: 'linear-gradient(90deg, #00A2FF 0%, #00D4FF 50%, #00A2FF 100%)',
+                  backgroundSize: '200% 100%',
+                  borderRadius: '4px',
+                  animation: 'robloxLoading 1.5s linear infinite',
+                  boxShadow: '0 0 10px rgba(0, 162, 255, 0.5)'
+                }}
+              />
             </div>
 
-            {/* Loading Indicator */}
+            {/* Loading Steps */}
             <div style={{
-              marginTop: '40px',
-              fontSize: '14px',
-              color: '#8b90a8',
-              fontWeight: 300,
-              letterSpacing: '1px'
+              marginTop: '30px',
+              fontSize: '12px',
+              color: '#666',
+              textAlign: 'center',
+              fontWeight: 300
             }}>
-              {loadingStage === 'socket' && '🔌 Starting socket server...'}
-              {loadingStage === 'engine' && '⚙️ Setting up game engine...'}
-              {loadingStage === 'assets' && '📦 Loading game assets...'}
-              {loadingStage === 'world' && '🌍 Building game world...'}
+              <div style={{ marginBottom: '8px' }}>Initializing game engine...</div>
+              <div style={{ marginBottom: '8px' }}>Loading assets...</div>
+              <div>Preparing world...</div>
             </div>
           </div>
-          
+
           <style>{`
-            @keyframes gradientShift {
-              0% { background-position: 0% 50%; }
-              50% { background-position: 100% 50%; }
-              100% { background-position: 0% 50%; }
-            }
-            @keyframes shimmer {
-              0% { background-position: -200% 0; }
-              100% { background-position: 200% 0; }
-            }
-            @keyframes progressShine {
-              0% { background-position: -200% 0; }
-              100% { background-position: 200% 0; }
-            }
-            @keyframes shimmerMove {
-              0% { left: -100%; }
-              100% { left: 100%; }
-            }
-            @keyframes float0 {
-              0%, 100% { transform: translateY(0px) translateX(0px); opacity: 0.15; }
-              50% { transform: translateY(-20px) translateX(10px); opacity: 0.6; }
-            }
-            @keyframes float1 {
-              0%, 100% { transform: translateY(0px) translateX(0px); opacity: 0.15; }
-              50% { transform: translateY(-15px) translateX(-10px); opacity: 0.5; }
-            }
-            @keyframes float2 {
-              0%, 100% { transform: translateY(0px) translateX(0px); opacity: 0.15; }
-              50% { transform: translateY(-25px) translateX(15px); opacity: 0.7; }
+            @keyframes robloxLoading {
+              0% { 
+                background-position: 0% 0%;
+                transform: translateX(-100%);
+              }
+              50% {
+                background-position: 100% 0%;
+                transform: translateX(0%);
+              }
+              100% { 
+                background-position: 200% 0%;
+                transform: translateX(100%);
+              }
             }
           `}</style>
         </div>
       )}
+
       {/* Hidden header - ESC key to exit */}
       <div
         ref={containerRef}
@@ -1355,132 +824,71 @@ return (
           transition: 'opacity 0.5s'
         }}
       />
-      {error && !errorBypassed && (
-        <>
-          {!showErrorWarning ? (
-            <div
+      {error && (
+        <div
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'rgba(0, 0, 0, 0.95)',
+            zIndex: 16000,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '40px',
+            color: '#fff',
+            fontFamily: 'Arial, sans-serif'
+          }}
+        >
+          <div style={{
+            background: '#1a1a1a',
+            padding: '30px',
+            borderRadius: '12px',
+            maxWidth: '600px',
+            width: '100%',
+            border: '2px solid #ff4444',
+            boxShadow: '0 8px 32px rgba(255, 68, 68, 0.3)'
+          }}>
+            <h2 style={{ color: '#ff4444', marginBottom: '16px', fontSize: '24px' }}>⚠️ Game Failed to Load</h2>
+            <div style={{
+              color: '#fff',
+              marginBottom: '20px',
+              fontSize: '16px',
+              lineHeight: '1.6',
+              backgroundColor: '#2a2a2a',
+              padding: '16px',
+              borderRadius: '8px',
+              fontFamily: 'monospace',
+              whiteSpace: 'pre-wrap',
+              wordBreak: 'break-word'
+            }}>
+              {error}
+            </div>
+            <div style={{ color: '#999', marginBottom: '20px', fontSize: '14px' }}>
+              <strong>Game:</strong> {game.title}<br />
+              <strong>Owner:</strong> {game.owner}
+            </div>
+            <button
+              onClick={onClose}
               style={{
-                position: 'absolute',
-                top: '50%',
-                left: '50%',
-                transform: 'translate(-50%, -50%)',
-                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                color: '#9fa4b8',
-                padding: '32px',
-                borderRadius: '20px',
-                textAlign: 'center',
-                maxWidth: '500px',
-                boxShadow: '0 20px 60px rgba(0, 0, 0, 0.3)',
-                zIndex: 10000
+                padding: '12px 24px',
+                fontSize: '16px',
+                fontWeight: 'bold',
+                background: '#ff4444',
+                color: '#fff',
+                border: 'none',
+                borderRadius: '8px',
+                cursor: 'pointer',
+                width: '100%'
               }}
             >
-              <h3 style={{ margin: '0 0 16px 0', fontSize: '24px', fontWeight: 700 }}>⚠️ Game Error</h3>
-              <p style={{ margin: '0 0 24px 0', fontSize: '16px', lineHeight: 1.6, background: 'rgba(255, 255, 255, 0.2)', padding: '16px', borderRadius: '8px' }}>{error}</p>
-              <div style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
-                <button
-                  onClick={onClose}
-                  style={{
-                    background: '#9fa4b8',
-                    border: 'none',
-                    color: '#ff4d4d',
-                    padding: '12px 24px',
-                    borderRadius: '10px',
-                    cursor: 'pointer',
-                    fontWeight: 600,
-                    fontSize: '16px',
-                    transition: 'transform 0.2s',
-                  }}
-                  onMouseOver={(e) => e.currentTarget.style.transform = 'scale(1.05)'}
-                  onMouseOut={(e) => e.currentTarget.style.transform = 'scale(1)'}
-                >
-                  Close
-                </button>
-                <button
-                  onClick={() => setShowErrorWarning(true)}
-                  style={{
-                    background: 'rgba(255, 255, 255, 0.2)',
-                    border: '2px solid #fff',
-                    color: '#9fa4b8',
-                    padding: '12px 24px',
-                    borderRadius: '10px',
-                    cursor: 'pointer',
-                    fontWeight: 600,
-                    fontSize: '16px',
-                    transition: 'transform 0.2s',
-                  }}
-                  onMouseOver={(e) => e.currentTarget.style.transform = 'scale(1.05)'}
-                  onMouseOut={(e) => e.currentTarget.style.transform = 'scale(1)'}
-                >
-                  Continue
-                </button>
-              </div>
-            </div>
-          ) : (
-            <div
-              style={{
-                position: 'absolute',
-                top: '50%',
-                left: '50%',
-                transform: 'translate(-50%, -50%)',
-                background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
-                color: '#9fa4b8',
-                padding: '32px',
-                borderRadius: '20px',
-                textAlign: 'center',
-                maxWidth: '500px',
-                boxShadow: '0 20px 60px rgba(0, 0, 0, 0.3)',
-                zIndex: 10001
-              }}
-            >
-              <h3 style={{ margin: '0 0 16px 0', fontSize: '24px', fontWeight: 700 }}>⚠️ Warning</h3>
-              <p style={{ margin: '0 0 24px 0', fontSize: '16px', lineHeight: 1.6, background: 'rgba(255, 255, 255, 0.2)', padding: '16px', borderRadius: '8px' }}>
-                Continuing with errors may cause the game to behave unexpectedly or crash. Are you sure you want to proceed?
-              </p>
-              <div style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
-                <button
-                  onClick={() => setShowErrorWarning(false)}
-                  style={{
-                    background: 'rgba(255, 255, 255, 0.2)',
-                    border: '2px solid #fff',
-                    color: '#9fa4b8',
-                    padding: '12px 24px',
-                    borderRadius: '10px',
-                    cursor: 'pointer',
-                    fontWeight: 600,
-                    fontSize: '16px',
-                    transition: 'transform 0.2s',
-                  }}
-                  onMouseOver={(e) => e.currentTarget.style.transform = 'scale(1.05)'}
-                  onMouseOut={(e) => e.currentTarget.style.transform = 'scale(1)'}
-                >
-                  Go Back
-                </button>
-                <button
-                  onClick={() => {
-                    setErrorBypassed(true);
-                    setShowErrorWarning(false);
-                    setError(null);
-                  }}
-                  style={{
-                    background: '#9fa4b8',
-                    border: 'none',
-                    color: '#f5576c',
-                    padding: '12px 24px',
-                    borderRadius: '10px',
-                    cursor: 'pointer',
-                    fontWeight: 600,
-                    fontSize: '16px',
-                    transition: 'transform 0.2s',
-                  }}
-                  onMouseOver={(e) => e.currentTarget.style.transform = 'scale(1.05)'}
-                  onMouseOut={(e) => e.currentTarget.style.transform = 'scale(1)'}
-                >
-                  Continue Anyway
-                </button>
-              </div>
-            </div>
-          )}
-        </>
+              Close Game
+            </button>
+          </div>
+        </div>
       )}
     </div>
   );

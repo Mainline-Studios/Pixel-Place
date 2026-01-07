@@ -49,3 +49,12 @@ export default function Modal({ isOpen, title, text, onConfirm, onClose, onlyClo
 
 
 
+
+
+
+
+
+
+
+
+

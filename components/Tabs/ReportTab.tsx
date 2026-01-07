@@ -4,7 +4,6 @@ import { useState } from 'react';
 import { User } from '@/types';
 import { createReport } from '@/lib/storage';
 
-import { toast } from '@/lib/toast';
 interface ReportTabProps {
   user: User;
   editMode: boolean;
@@ -27,20 +26,20 @@ export default function ReportTab({ user }: ReportTabProps) {
 
   const handleSubmit = async () => {
     if (!reportedUsername.trim()) {
-      toast.info('Please enter the username you want to report.');
+      alert('Please enter the username you want to report.');
       return;
     }
     if (!reason) {
-      toast.info('Please select a reason for the report.');
+      alert('Please select a reason for the report.');
       return;
     }
     if (!description.trim()) {
-      toast.info('Please provide a description of the incident.');
+      alert('Please provide a description of the incident.');
       return;
     }
 
     if (reportedUsername.toLowerCase() === user.username.toLowerCase()) {
-      toast.info('You cannot report yourself.');
+      alert('You cannot report yourself.');
       return;
     }
 
@@ -52,10 +51,10 @@ export default function ReportTab({ user }: ReportTabProps) {
       setDescription('');
       
       setTimeout(() => setSubmitted(false), 3000);
-      toast.info('Report submitted successfully! An administrator will review it.');
+      alert('Report submitted successfully! An administrator will review it.');
     } catch (error) {
       console.error('Error submitting report:', error);
-      toast.error('Error submitting report. Please try again.');
+      alert('Error submitting report. Please try again.');
     }
   };
 

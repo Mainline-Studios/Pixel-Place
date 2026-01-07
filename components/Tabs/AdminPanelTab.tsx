@@ -4,7 +4,6 @@ import { useState, useEffect, useRef } from 'react';
 import { User, Report, Ban, GameSubmission, UserMadeGame } from '@/types';
 import { getUsers, getBannedUsers, getReports, banUser, unbanUser, updateReportStatus, saveBannedUsers, ADMIN_ACCOUNTS_LIST, getBanAppeals, updateBanAppealStatus, getMessages, sendMessage, getGameSubmissions, saveUserMadeGame, deleteGameSubmission } from '@/lib/storage';
 
-import { toast } from '@/lib/toast';
 interface AdminPanelTabProps {
   user: User;
   editMode: boolean;
@@ -31,11 +30,11 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
   useEffect(() => {
     // Ensure we're in browser environment
     if (typeof window === 'undefined') return;
-    
+
     // Try to load data, with error handling
     loadData().catch((error) => {
       console.error('Error loading admin panel data:', error);
-      toast.error('Error loading admin panel data. Please refresh the page.');
+      alert('Error loading admin panel data. Please refresh the page.');
     });
   }, []);
 
@@ -48,61 +47,88 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
         getReports(),
         getGameSubmissions()
       ]);
-      
+
       setAppeals(appealsData);
       setGameSubmissions(submissionsData);
-    
-    // Create a map of existing usernames for quick lookup
-    const existingUsernames = new Set(storedUsers.map(u => u.username.toLowerCase()));
-    
-    // Add admin accounts that haven't logged in yet (so they appear in the list even if never logged in)
-    const adminAccountsNotInStorage = ADMIN_ACCOUNTS_LIST
-      .filter(admin => !existingUsernames.has(admin.username.toLowerCase()))
-      .map(admin => ({
-        username: admin.username,
-        password: '', // Never expose passwords - they're stored securely in the database
-        gender: 'N/A',
-        role: 'admin' as const,
-        coins: 99999,
-        ownedSkins: ['starter_classic'],
-        equippedSkin: 'starter_classic',
-        isDonor: false,
-        ownedAccessories: [],
-        equippedAccessories: {}
-      }));
-    
-    // Combine: ALL stored users (regular + admins who logged in) + admin accounts that never logged in
-    // Start with stored users (these are the real accounts)
-    const uniqueUsers: User[] = [...storedUsers];
-    
-    // Add admin accounts that haven't logged in yet (so they appear in the list)
-    adminAccountsNotInStorage.forEach(admin => {
-      // Only add if not already in the list
-      if (!uniqueUsers.some(u => u.username.toLowerCase() === admin.username.toLowerCase())) {
-        uniqueUsers.push(admin);
-      }
-    });
-    
-    // Sort: admins first, then alphabetically
-    uniqueUsers.sort((a, b) => {
-      if (a.role === 'admin' && b.role !== 'admin') return -1;
-      if (a.role !== 'admin' && b.role === 'admin') return 1;
-      return a.username.localeCompare(b.username);
-    });
-    
+
+      // Old admin accounts that should be filtered out (not in current ADMIN_ACCOUNTS_LIST)
+      const oldAdminUsernames = new Set([
+        'number 9',
+        'number5',
+        'the goat',
+        'usernotfound',
+        'yoUr 8',
+        'admin2',
+        '345',
+        '67'
+      ].map(u => u.toLowerCase()));
+
+      // Current admin usernames (case-insensitive)
+      const currentAdminUsernames = new Set(
+        ADMIN_ACCOUNTS_LIST.map(a => a.username.toLowerCase())
+      );
+
+      // Filter out old admin accounts from stored users
+      const filteredStoredUsers = storedUsers.filter(user => {
+        const usernameLower = user.username.toLowerCase();
+        // Remove if it's an old admin account that's not in the current list
+        if (oldAdminUsernames.has(usernameLower) && !currentAdminUsernames.has(usernameLower)) {
+          return false;
+        }
+        return true;
+      });
+
+      // Create a map of existing usernames for quick lookup
+      const existingUsernames = new Set(filteredStoredUsers.map(u => u.username.toLowerCase()));
+
+      // Add admin accounts that haven't logged in yet (so they appear in the list even if never logged in)
+      const adminAccountsNotInStorage = ADMIN_ACCOUNTS_LIST
+        .filter(admin => !existingUsernames.has(admin.username.toLowerCase()))
+        .map(admin => ({
+          username: admin.username,
+          password: admin.password,
+          gender: 'N/A',
+          role: 'admin' as const,
+          coins: 99999,
+          ownedSkins: ['starter_classic'],
+          equippedSkin: 'starter_classic',
+          isDonor: false,
+          ownedAccessories: [],
+          equippedAccessories: {}
+        }));
+
+      // Combine: ALL stored users (regular + admins who logged in) + admin accounts that never logged in
+      // Start with filtered stored users (these are the real accounts, with old admins removed)
+      const uniqueUsers: User[] = [...filteredStoredUsers];
+
+      // Add admin accounts that haven't logged in yet (so they appear in the list)
+      adminAccountsNotInStorage.forEach(admin => {
+        // Only add if not already in the list
+        if (!uniqueUsers.some(u => u.username.toLowerCase() === admin.username.toLowerCase())) {
+          uniqueUsers.push(admin);
+        }
+      });
+
+      // Sort: admins first, then alphabetically
+      uniqueUsers.sort((a, b) => {
+        if (a.role === 'admin' && b.role !== 'admin') return -1;
+        if (a.role !== 'admin' && b.role === 'admin') return 1;
+        return a.username.localeCompare(b.username);
+      });
+
       setAllUsers(uniqueUsers);
       setBans(bansData);
       setReports(reportsData);
     } catch (error) {
       console.error('Error in loadData:', error);
-      toast.error('Error loading data. Please check the browser console.');
+      alert('Error loading data. Please check the browser console.');
     }
   };
 
 
   const handleAcceptSubmission = async (submission: GameSubmission) => {
     if (!confirm(`Accept and publish "${submission.title}" by ${submission.owner}?`)) return;
-    
+
     const game: UserMadeGame = {
       id: 'game_' + Date.now(),
       title: submission.title,
@@ -112,62 +138,62 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
       sceneData: submission.sceneData,
       publishedBy: user.username
     };
-    
+
     await saveUserMadeGame(game);
-    
+
     // Update submission status
     submission.status = 'approved';
     submission.reviewedBy = user.username;
     submission.adminNotes = 'Game accepted and published to Games tab.';
-    
+
     // Delete the submission
     await deleteGameSubmission(submission.id);
-    
+
     await loadData();
-    toast.info(`Game "${submission.title}" has been published to the Games tab!`);
+    alert(`Game "${submission.title}" has been published to the Games tab!`);
   };
 
   const handleRejectSubmission = async (submission: GameSubmission) => {
     const notes = prompt('Enter rejection reason (optional):');
     if (notes === null) return; // User cancelled
-    
+
     submission.status = 'rejected';
     submission.reviewedBy = user.username;
     submission.adminNotes = notes || 'Game rejected.';
-    
+
     await deleteGameSubmission(submission.id);
     await loadData();
-    toast.info(`Game submission "${submission.title}" has been rejected.`);
+    alert(`Game submission "${submission.title}" has been rejected.`);
   };
 
   const handleBan = async () => {
     if (!banUsername.trim()) {
-      toast.info('Please enter a username to ban.');
+      alert('Please enter a username to ban.');
       return;
     }
     if (!banReason.trim()) {
-      toast.info('Please enter a reason for the ban.');
+      alert('Please enter a reason for the ban.');
       return;
     }
 
     const usernameToBan = banUsername.trim().toLowerCase();
-    
+
     // Check if user is an admin (only check if user exists in system)
     const targetUser = allUsers.find(u => u.username.toLowerCase() === usernameToBan);
     if (targetUser && targetUser.role === 'admin') {
-      toast.error('Cannot ban administrators. Admins are protected from bans.');
+      alert('Cannot ban administrators. Admins are protected from bans.');
       return;
     }
 
     const usernameToBanFinal = banUsername.trim();
     const days = banPermanent ? undefined : banDays;
     const success = await banUser(usernameToBanFinal, user.username, banReason.trim(), banPermanent, days);
-    
+
     if (success) {
       // Verify the ban was actually saved
       const updatedBans = await getBannedUsers();
       const banExists = updatedBans.some(b => b.username.toLowerCase() === usernameToBanFinal.toLowerCase());
-      
+
       if (banExists) {
         setBanUsername('');
         setBanReason('');
@@ -175,10 +201,10 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
         await loadData();
         alert(`User "${usernameToBanFinal}" has been ${banPermanent ? 'permanently' : `temporarily (${banDays} days)`} banned.`);
       } else {
-        toast.error('Error: Ban was not saved properly. Please try again.');
+        alert('Error: Ban was not saved properly. Please try again.');
       }
     } else {
-      toast.error('Cannot ban administrators. Admins are protected from bans.');
+      alert('Cannot ban administrators. Admins are protected from bans.');
     }
   };
 
@@ -186,14 +212,14 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
     if (confirm(`Unban user "${username}"?`)) {
       await unbanUser(username);
       await loadData();
-      toast.info(`User "${username}" has been unbanned.`);
+      alert(`User "${username}" has been unbanned.`);
     }
   };
 
   const handleReportAction = async (reportId: string, action: 'resolved' | 'dismissed', notes?: string) => {
     await updateReportStatus(reportId, action, user.username, notes);
     await loadData();
-    toast.info(`Report marked as ${action}.`);
+    alert(`Report marked as ${action}.`);
   };
 
   const loadChatMessages = async (bannedUsername: string) => {
@@ -210,7 +236,7 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
       await loadChatMessages(toUsername);
     } catch (error) {
       console.error('Error sending message:', error);
-      toast.error('Error sending message. Please try again.');
+      alert('Error sending message. Please try again.');
     } finally {
       setSendingChatMessage(false);
     }
@@ -230,11 +256,11 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
     }
   }, [chatMessages]);
 
-  const filteredUsers = allUsers.filter(u => 
+  const filteredUsers = allUsers.filter(u =>
     u.username.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const filteredReports = reports.filter(r => 
+  const filteredReports = reports.filter(r =>
     r.reportedUsername.toLowerCase().includes(searchTerm.toLowerCase()) ||
     r.reporterUsername.toLowerCase().includes(searchTerm.toLowerCase()) ||
     r.reason.toLowerCase().includes(searchTerm.toLowerCase())
@@ -255,17 +281,17 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
   }
 
   return (
-    <>
-      <h2 className="section-title">🛡️ Admin Panel</h2>
-      
-      <div className="ai-box" style={{ marginBottom: '20px', background: 'rgba(46, 204, 113, 0.1)', border: '1px solid #2ecc71' }}>
-        <div className="ai-label">🔒 Secure Backend</div>
+    <div style={{ marginBottom: 0, paddingBottom: 0 }}>
+      <h2 className="section-title" style={{ marginBottom: '12px' }}>🛡️ Admin Panel</h2>
+
+      <div className="ai-box" style={{ marginBottom: '16px', background: 'rgba(46, 204, 113, 0.1)', border: '1px solid #2ecc71' }}>
+        <div className="ai-label">✅ Shared Storage</div>
         <div className="ai-output" style={{ fontSize: '13px' }}>
-          <strong>All data is securely stored in the backend database!</strong> User accounts, bans, reports, and appeals are protected with encrypted passwords and JWT authentication. The <code>/data</code> folder is not accessible to clients.
+          <strong>Data is now shared across all browsers!</strong> All accounts, bans, reports, and appeals are stored in the <code>/data</code> folder and work in Chrome, Safari, and Cursor.
         </div>
       </div>
 
-      <div style={{ display: 'flex', gap: '8px', marginBottom: '20px', flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', gap: '8px', marginBottom: '16px', flexWrap: 'wrap' }}>
         <button
           className={`btn ${activeTab === 'users' ? 'active' : ''}`}
           onClick={() => setActiveTab('users')}
@@ -316,16 +342,9 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
       </div>
 
       {activeTab === 'users' && (
-        <div className="ai-box">
+        <div className="ai-box" style={{ marginBottom: 0 }}>
           <div className="ai-label">
             All Users ({filteredUsers.length} of {allUsers.length} total)
-            <button 
-              className="btn" 
-              onClick={loadData}
-              style={{ marginLeft: '12px', padding: '4px 12px', fontSize: '12px' }}
-            >
-              Refresh
-            </button>
           </div>
           <div className="ai-output" style={{ maxHeight: '500px', overflowY: 'auto' }}>
             {filteredUsers.length === 0 ? (
@@ -351,7 +370,7 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
                         {u.role === 'admin' && <span style={{ color: '#ff4d4d', marginLeft: '8px' }}>👑 ADMIN</span>}
                       </div>
                       <div className="smalltext">
-                        Role: {u.role} • Coins: {u.coins} • Gender: {u.gender}
+                        Role: {u.role} • Coins: {u.coins} • Gender: Boy
                       </div>
                     </div>
                     {u.role !== 'admin' ? (
@@ -378,7 +397,7 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
 
       {activeTab === 'bans' && (
         <div>
-          <div className="ai-box" style={{ marginBottom: '20px' }}>
+          <div className="ai-box" style={{ marginBottom: '16px' }}>
             <div className="ai-label">Ban a User</div>
             <div className="ai-output">
               <div style={{ display: 'grid', gap: '12px' }}>
@@ -453,16 +472,9 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
             </div>
           </div>
 
-          <div className="ai-box">
+          <div className="ai-box" style={{ marginBottom: 0 }}>
             <div className="ai-label">
               Banned Users ({bans.length})
-              <button 
-                className="btn" 
-                onClick={loadData}
-                style={{ marginLeft: '12px', padding: '4px 12px', fontSize: '12px' }}
-              >
-                Refresh
-              </button>
             </div>
             <div className="ai-output" style={{ maxHeight: '500px', overflowY: 'auto' }}>
               {bans.length === 0 ? (
@@ -520,90 +532,90 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
                         </div>
                       </div>
                       {chattingWith === ban.username && (
-                      <div style={{
-                        marginTop: '12px',
-                        padding: '16px',
-                        background: 'var(--panel)',
-                        borderRadius: '8px',
-                        border: '1px solid var(--border)',
-                        maxHeight: '400px',
-                        display: 'flex',
-                        flexDirection: 'column'
-                      }}>
-                        <div style={{ fontSize: '14px', fontWeight: 600, marginBottom: '12px', color: 'var(--text)' }}>
-                          Chat with {ban.username}
-                        </div>
                         <div style={{
-                          flex: 1,
-                          overflowY: 'auto',
-                          marginBottom: '12px',
-                          minHeight: '200px',
-                          maxHeight: '300px',
-                          padding: '8px',
-                          background: 'var(--panel-soft)',
-                          borderRadius: '4px'
+                          marginTop: '12px',
+                          padding: '16px',
+                          background: 'var(--panel)',
+                          borderRadius: '8px',
+                          border: '1px solid var(--border)',
+                          maxHeight: '400px',
+                          display: 'flex',
+                          flexDirection: 'column'
                         }}>
-                          {chatMessages.length === 0 ? (
-                            <div style={{ textAlign: 'center', color: 'var(--text-dim)', padding: '20px' }}>
-                              No messages yet. Start the conversation!
-                            </div>
-                          ) : (
-                            chatMessages.map((msg) => (
-                              <div
-                                key={msg.id}
-                                style={{
-                                  marginBottom: '12px',
-                                  padding: '8px 12px',
-                                  borderRadius: '8px',
-                                  background: msg.fromUsername === user.username ? 'rgba(46, 204, 113, 0.2)' : 'rgba(100, 100, 100, 0.2)',
-                                  textAlign: msg.fromUsername === user.username ? 'right' : 'left',
-                                  alignSelf: msg.fromUsername === user.username ? 'flex-end' : 'flex-start',
-                                  maxWidth: '80%'
-                                }}
-                              >
-                                <div style={{ fontSize: '12px', color: 'var(--text-dim)', marginBottom: '4px' }}>
-                                  {msg.fromUsername === user.username ? 'You' : ban.username} • {new Date(msg.timestamp).toLocaleTimeString()}
-                                </div>
-                                <div style={{ fontSize: '14px', color: 'var(--text)' }}>
-                                  {msg.message}
-                                </div>
+                          <div style={{ fontSize: '14px', fontWeight: 600, marginBottom: '12px', color: 'var(--text)' }}>
+                            Chat with {ban.username}
+                          </div>
+                          <div style={{
+                            flex: 1,
+                            overflowY: 'auto',
+                            marginBottom: '12px',
+                            minHeight: '200px',
+                            maxHeight: '300px',
+                            padding: '8px',
+                            background: 'var(--panel-soft)',
+                            borderRadius: '4px'
+                          }}>
+                            {chatMessages.length === 0 ? (
+                              <div style={{ textAlign: 'center', color: 'var(--text-dim)', padding: '20px' }}>
+                                No messages yet. Start the conversation!
                               </div>
-                            ))
-                          )}
-                          <div ref={chatEndRef} />
+                            ) : (
+                              chatMessages.map((msg) => (
+                                <div
+                                  key={msg.id}
+                                  style={{
+                                    marginBottom: '12px',
+                                    padding: '8px 12px',
+                                    borderRadius: '8px',
+                                    background: msg.fromUsername === user.username ? 'rgba(46, 204, 113, 0.2)' : 'rgba(100, 100, 100, 0.2)',
+                                    textAlign: msg.fromUsername === user.username ? 'right' : 'left',
+                                    alignSelf: msg.fromUsername === user.username ? 'flex-end' : 'flex-start',
+                                    maxWidth: '80%'
+                                  }}
+                                >
+                                  <div style={{ fontSize: '12px', color: 'var(--text-dim)', marginBottom: '4px' }}>
+                                    {msg.fromUsername === user.username ? 'You' : ban.username} • {new Date(msg.timestamp).toLocaleTimeString()}
+                                  </div>
+                                  <div style={{ fontSize: '14px', color: 'var(--text)' }}>
+                                    {msg.message}
+                                  </div>
+                                </div>
+                              ))
+                            )}
+                            <div ref={chatEndRef} />
+                          </div>
+                          <div style={{ display: 'flex', gap: '8px' }}>
+                            <input
+                              type="text"
+                              value={newChatMessage}
+                              onChange={(e) => setNewChatMessage(e.target.value)}
+                              onKeyPress={(e) => e.key === 'Enter' && !sendingChatMessage && handleSendChatMessage(ban.username)}
+                              placeholder="Type your message..."
+                              style={{
+                                flex: 1,
+                                padding: '10px',
+                                borderRadius: '8px',
+                                border: '1px solid var(--border)',
+                                background: 'var(--panel-soft)',
+                                color: 'var(--text)',
+                                fontSize: '14px'
+                              }}
+                            />
+                            <button
+                              className="btn"
+                              onClick={() => handleSendChatMessage(ban.username)}
+                              disabled={sendingChatMessage || !newChatMessage.trim()}
+                              style={{
+                                padding: '10px 20px',
+                                opacity: (sendingChatMessage || !newChatMessage.trim()) ? 0.5 : 1,
+                                cursor: (sendingChatMessage || !newChatMessage.trim()) ? 'not-allowed' : 'pointer'
+                              }}
+                            >
+                              {sendingChatMessage ? 'Sending...' : 'Send'}
+                            </button>
+                          </div>
                         </div>
-                        <div style={{ display: 'flex', gap: '8px' }}>
-                          <input
-                            type="text"
-                            value={newChatMessage}
-                            onChange={(e) => setNewChatMessage(e.target.value)}
-                            onKeyPress={(e) => e.key === 'Enter' && !sendingChatMessage && handleSendChatMessage(ban.username)}
-                            placeholder="Type your message..."
-                            style={{
-                              flex: 1,
-                              padding: '10px',
-                              borderRadius: '8px',
-                              border: '1px solid var(--border)',
-                              background: 'var(--panel-soft)',
-                              color: 'var(--text)',
-                              fontSize: '14px'
-                            }}
-                          />
-                          <button
-                            className="btn"
-                            onClick={() => handleSendChatMessage(ban.username)}
-                            disabled={sendingChatMessage || !newChatMessage.trim()}
-                            style={{
-                              padding: '10px 20px',
-                              opacity: (sendingChatMessage || !newChatMessage.trim()) ? 0.5 : 1,
-                              cursor: (sendingChatMessage || !newChatMessage.trim()) ? 'not-allowed' : 'pointer'
-                            }}
-                          >
-                            {sendingChatMessage ? 'Sending...' : 'Send'}
-                          </button>
-                        </div>
-                      </div>
-                    )}
+                      )}
                     </>
                   ))}
 
@@ -651,9 +663,9 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
                             <br />
                             Date: {new Date(report.timestamp).toLocaleString()}
                             <br />
-                            Status: <span style={{ 
-                              color: report.status === 'pending' ? '#ffd76a' : 
-                                     report.status === 'resolved' ? '#2ecc71' : '#999'
+                            Status: <span style={{
+                              color: report.status === 'pending' ? '#ffd76a' :
+                                report.status === 'resolved' ? '#2ecc71' : '#999'
                             }}>
                               {report.status.toUpperCase()}
                             </span>
@@ -692,12 +704,12 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
                               onClick={async () => {
                                 const reportedUser = allUsers.find(u => u.username.toLowerCase() === report.reportedUsername.toLowerCase());
                                 const isAdminAccount = ADMIN_ACCOUNTS_LIST.some(a => a.username.toLowerCase() === report.reportedUsername.toLowerCase());
-                                
+
                                 if (reportedUser?.role === 'admin' || isAdminAccount) {
-                                  toast.error('Cannot ban administrators. Admins are protected from bans.');
+                                  alert('Cannot ban administrators. Admins are protected from bans.');
                                   return;
                                 }
-                                
+
                                 if (confirm(`Ban user "${report.reportedUsername}" based on this report?`)) {
                                   const reason = prompt('Ban reason:', `Reported for: ${report.reason}`);
                                   if (reason) {
@@ -706,7 +718,7 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
                                       await handleReportAction(report.id, 'resolved', `User banned based on report`);
                                       await loadData();
                                     } else {
-                                      toast.error('Cannot ban administrators. Admins are protected from bans.');
+                                      alert('Cannot ban administrators. Admins are protected from bans.');
                                     }
                                   }
                                 }
@@ -718,9 +730,9 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
                           </div>
                         )}
                       </div>
-                      <div style={{ 
-                        padding: '8px', 
-                        background: 'var(--panel)', 
+                      <div style={{
+                        padding: '8px',
+                        background: 'var(--panel)',
                         borderRadius: '4px',
                         marginTop: '8px'
                       }}>
@@ -742,16 +754,9 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
       )}
 
       {activeTab === 'appeals' && (
-        <div className="ai-box">
+        <div className="ai-box" style={{ marginBottom: 0 }}>
           <div className="ai-label">
             Ban Appeals ({appeals.filter(a => a.status === 'pending').length} pending, {appeals.length} total)
-            <button 
-              className="btn" 
-              onClick={loadData}
-              style={{ marginLeft: '12px', padding: '4px 12px', fontSize: '12px' }}
-            >
-              Refresh
-            </button>
           </div>
           <div className="ai-output" style={{ maxHeight: '500px', overflowY: 'auto' }}>
             {appeals.length === 0 ? (
@@ -787,9 +792,9 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
                             <br />
                             Appeal Date: {new Date(appeal.timestamp).toLocaleString()}
                             <br />
-                            Status: <span style={{ 
-                              color: appeal.status === 'pending' ? '#ffd76a' : 
-                                     appeal.status === 'approved' ? '#2ecc71' : '#ff4d4d'
+                            Status: <span style={{
+                              color: appeal.status === 'pending' ? '#ffd76a' :
+                                appeal.status === 'approved' ? '#2ecc71' : '#ff4d4d'
                             }}>
                               {appeal.status.toUpperCase()}
                             </span>
@@ -809,7 +814,7 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
                                 if (confirm(`Approve appeal from "${appeal.username}" and unban them?`)) {
                                   await updateBanAppealStatus(appeal.id, 'approved', user.username, 'Appeal approved', true);
                                   await loadData();
-                                  toast.info(`Appeal approved. User "${appeal.username}" has been unbanned.`);
+                                  alert(`Appeal approved. User "${appeal.username}" has been unbanned.`);
                                 }
                               }}
                               style={{ background: '#2ecc71', fontSize: '12px', padding: '6px 12px' }}
@@ -822,7 +827,7 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
                                 const notes = prompt('Add notes (optional):');
                                 await updateBanAppealStatus(appeal.id, 'denied', user.username, notes || undefined, false);
                                 await loadData();
-                                toast.info('Appeal denied.');
+                                alert('Appeal denied.');
                               }}
                               style={{ background: '#ff4d4d', fontSize: '12px', padding: '6px 12px' }}
                             >
@@ -831,9 +836,9 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
                           </div>
                         )}
                       </div>
-                      <div style={{ 
-                        padding: '8px', 
-                        background: 'var(--panel)', 
+                      <div style={{
+                        padding: '8px',
+                        background: 'var(--panel)',
                         borderRadius: '4px',
                         marginTop: '8px'
                       }}>
@@ -855,16 +860,9 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
       )}
 
       {activeTab === 'gamesubmissions' && (
-        <div className="ai-box">
+        <div className="ai-box" style={{ marginBottom: 0 }}>
           <div className="ai-label">
             Game Submissions ({gameSubmissions.filter(s => s.status === 'pending').length} pending, {gameSubmissions.length} total)
-            <button 
-              className="btn" 
-              onClick={loadData}
-              style={{ marginLeft: '12px', padding: '4px 12px', fontSize: '12px' }}
-            >
-              Refresh
-            </button>
           </div>
           <div className="ai-output" style={{ maxHeight: '500px', overflowY: 'auto' }}>
             {gameSubmissions.length === 0 ? (
@@ -935,7 +933,6 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
           </div>
         </div>
       )}
-
-    </>
+    </div>
   );
 }

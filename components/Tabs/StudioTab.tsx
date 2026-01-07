@@ -26,10 +26,10 @@ const PRESET_MESSAGES = [
   'GG!',
   'Well played!',
   'Thanks!',
-  'You're welcome!',
+  'You are welcome!',
   'Good luck!',
   'Have fun!',
-  'Let's go!',
+  'Lets go!',
 ];
 
 // Control schemes

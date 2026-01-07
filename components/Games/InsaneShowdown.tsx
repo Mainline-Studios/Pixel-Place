@@ -1,0 +1,1784 @@
+import React, { useEffect, useRef, useState } from "react";
+
+/**
+ * SuperShowdownCombined
+ *
+ * Combines SuperShowdown (3D arena + original powers/entities) and
+ * SuperShowdown2 (newer powers: mud/parasite/harmony/regen/hex/lunar/soleil/doppelganger
+ * along with improved regen/midnight/soleil visuals).
+ *
+ * Adjustments made per request:
+ * - Whirlpools now pull nearby fighters toward their center.
+ * - Black holes explode 3 seconds after being placed (deal area damage then removed).
+ * - Doppelganger replicas are created invulnerable and persist (never expire).
+ */
+
+/* ---------------------------
+   Shared types & utilities
+   --------------------------- */
+
+type Vec2 = { x: number; y: number };
+
+const randInt = (min: number, max: number) =>
+  Math.floor(Math.random() * (max - min + 1)) + min;
+const distance = (a: Vec2, b: Vec2) => Math.hypot(a.x - b.x, a.y - b.y);
+
+type Statuses = {
+  burn?: number;
+  poison?: number;
+  regen?: number;
+  stunned?: number;
+  invisible?: number;
+  slow?: number;
+  atkBuffTurns?: number;
+  defBuffTurns?: number;
+  invincible?: number;
+  hexStacks?: number;
+  hexLastAt?: number;
+};
+
+/* ---------------------------
+   Powers (union of both files)
+   --------------------------- */
+
+type Power =
+  | "fire"
+  | "water"
+  | "wind"
+  | "earth"
+  | "electricity"
+  | "fauna"
+  | "fleur"
+  | "poison"
+  | "celestial"
+  | "ice"
+  | "invisible"
+  // SuperShowdown2 custom powers
+  | "mud"
+  | "parasite"
+  | "harmony"
+  | "berserker"
+  | "regen"
+  | "hex"
+  | "lunar"
+  | "soleil"
+  | "doppelganger";
+
+const POWERS: Power[] = [
+  "fire",
+  "water",
+  "wind",
+  "earth",
+  "electricity",
+  "fauna",
+  "fleur",
+  "poison",
+  "celestial",
+  "ice",
+  "invisible",
+  "mud",
+  "parasite",
+  "harmony",
+  "berserker",
+  "regen",
+  "hex",
+  "lunar",
+  "soleil",
+  "doppelganger",
+];
+
+/* ---------------------------
+   Map / rendering constants
+   --------------------------- */
+
+const MAP_SIZE = 60; // studs (square)
+const CANVAS_SIZE_PX = 700;
+const STUD_TO_PX = CANVAS_SIZE_PX / MAP_SIZE;
+
+/* ---------------------------
+   Game types for entities
+   --------------------------- */
+
+type Fighter = {
+  id: string;
+  name: string;
+  pos: Vec2;
+  hp: number;
+  maxHp: number;
+  attack: number;
+  defense: number;
+  power: Power;
+  specialReady: boolean;
+  statuses: Statuses;
+  atkBuff: number;
+  defBuff: number;
+};
+
+type Bear = { id: string; ownerId: string; pos: Vec2; hp: number; range: number; dmgPerSec: number; alive: boolean };
+type Whirlpool = { id: string; pos: Vec2; radius: number; durationMs: number; createdAt: number };
+type Plant = { id: string; ownerId: string; pos: Vec2; radius: number; durationMs: number; createdAt: number };
+// BlackHole now includes explodeAt and active flags
+type BlackHole = { id: string; ownerId: string; pos: Vec2; radius: number; createdAt: number; explodeAt: number; active: boolean };
+
+type MudPatch = { id: string; pos: Vec2; radius: number; createdAt: number; durationMs: number };
+type ParasiteEntity = { id: string; ownerId: string; targetEnemyId: string; nextAttackAt: number; expireAt: number };
+// Doppel with invulnerable flag; we'll create them invulnerable so they persist forever per request
+type Doppel = { id: string; pos: Vec2; hp: number; createdAt: number; durationMs: number; nextAttackAt: number; invulnerable?: boolean };
+
+/* ---------------------------
+   Default ammo for powers
+   --------------------------- */
+
+const DEFAULT_AMMO: Record<string, number> = {
+  fire: 20,
+  electricity: 10,
+  ice: 7,
+  invisible: 4,
+  poison: 6,
+  earth: 4,
+  mud: 6,
+  parasite: 2,
+  harmony: 3,
+  berserker: 4,
+  regen: 3,
+  hex: 4,
+  lunar: 4,
+  soleil: 8,
+  doppelganger: 2,
+};
+
+/* ---------------------------
+   Component
+   --------------------------- */
+
+export default function SuperShowdownCombined(): JSX.Element {
+  // Setup & start state
+  const [chooseDeathPower, setChooseDeathPower] = useState(false);
+  const [deathPower, setDeathPower] = useState<Power>("fire");
+  const [startConfirmed, setStartConfirmed] = useState(false);
+  const [autoRespawn, setAutoRespawn] = useState(true);
+
+  const playerStart: Vec2 = { x: MAP_SIZE * 0.25, y: MAP_SIZE / 2 };
+  const enemyStart: Vec2 = { x: MAP_SIZE * 0.75, y: MAP_SIZE / 2 };
+
+  const [player, setPlayer] = useState<Fighter>(() => ({
+    id: "player-1",
+    name: "You",
+    pos: playerStart,
+    hp: 100,
+    maxHp: 100,
+    attack: 18,
+    defense: 6,
+    power: "fire",
+    specialReady: true,
+    statuses: {},
+    atkBuff: 0,
+    defBuff: 0,
+  }));
+
+  const [enemy, setEnemy] = useState<Fighter>(() => ({
+    id: "enemy-1",
+    name: "Champion",
+    pos: enemyStart,
+    hp: 100,
+    maxHp: 100,
+    attack: 16,
+    defense: 5,
+    power: POWERS[randInt(0, POWERS.length - 1)],
+    specialReady: true,
+    statuses: {},
+    atkBuff: 0,
+    defBuff: 0,
+  }));
+
+  const [turnLog, setTurnLog] = useState<string[]>(() => ["A challenger prepares to enter the 3D arena..."]);
+  const pushLog = (s: string) => setTurnLog((l) => [s, ...l].slice(0, 200));
+
+  const [waiting, setWaiting] = useState(false);
+  const [gameOver, setGameOver] = useState(false);
+
+  // Aiming
+  const [aimTarget, setAimTarget] = useState<Vec2>({ x: playerStart.x + 10, y: playerStart.y });
+  const [isAiming, setIsAiming] = useState(false);
+
+  // Entities (combined)
+  const [bears, setBears] = useState<Bear[]>([]);
+  const [whirlpools, setWhirlpools] = useState<Whirlpool[]>([]);
+  const [plants, setPlants] = useState<Plant[]>([]);
+  const [blackHoles, setBlackHoles] = useState<BlackHole[]>([]);
+  const [mudPatches, setMudPatches] = useState<MudPatch[]>([]);
+  const [parasites, setParasites] = useState<ParasiteEntity[]>([]);
+  const [doppels, setDoppels] = useState<Doppel[]>([]);
+
+  // Cooldowns & ammo
+  const cooldownsRef = useRef<Record<string, number>>({});
+  const ammoRef = useRef<Record<string, number>>({});
+  useEffect(() => {
+    ammoRef.current = { ...DEFAULT_AMMO };
+  }, []);
+
+  // Canvas & drawing (keeps accurate click mapping)
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+
+  useEffect(() => {
+    drawCanvas();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [player, enemy, aimTarget, bears, whirlpools, plants, blackHoles, mudPatches, parasites, doppels, startConfirmed]);
+
+  function toPx(v: Vec2) {
+    return { x: v.x * STUD_TO_PX, y: v.y * STUD_TO_PX };
+  }
+  function clampPos(pos: Vec2) {
+    return {
+      x: Math.max(0, Math.min(MAP_SIZE, pos.x)),
+      y: Math.max(0, Math.min(MAP_SIZE, pos.y)),
+    };
+  }
+
+  function isInBeam(source: Vec2, dir: Vec2, width: number, range: number, targetPos: Vec2) {
+    const toT = { x: targetPos.x - source.x, y: targetPos.y - source.y };
+    const proj = toT.x * dir.x + toT.y * dir.y;
+    if (proj < 0 || proj > range) return false;
+    const perpSq = toT.x * toT.x + toT.y * toT.y - proj * proj;
+    const perp = Math.sqrt(Math.max(0, perpSq));
+    return perp <= width / 2;
+  }
+  function inCircle(center: Vec2, radius: number, targetPos: Vec2) {
+    return distance(center, targetPos) <= radius;
+  }
+
+  // Track last time player attacked or took damage (ms since epoch)
+  const lastPlayerCombatAtRef = useRef<number>(Date.now());
+  // Track whether regen is currently active (to avoid spamming start logs)
+  const regenActiveRef = useRef<boolean>(false);
+
+  /* ---------------------------
+     Status ticks (combined; 500ms tick to support SuperShowdown2 timing)
+     --------------------------- */
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const ts = Date.now();
+
+      // Player statuses (500ms tick)
+      setPlayer((p) => {
+        let changed = false;
+        let np = { ...p };
+        const s = { ...(np.statuses || {}) };
+
+        if (s.burn && s.burn > 0) {
+          const dmg = randInt(1, 4); // combine behavior
+          np.hp = Math.max(0, np.hp - dmg);
+          pushLog(`${np.name} suffers ${dmg} burn damage.`);
+          s.burn!--;
+          lastPlayerCombatAtRef.current = Date.now();
+          regenActiveRef.current = false;
+          changed = true;
+        }
+        if (s.poison && s.poison > 0) {
+          const dmg = 1;
+          np.hp = Math.max(0, np.hp - dmg);
+          pushLog(`${np.name} takes ${dmg} poison damage.`);
+          s.poison!--;
+          lastPlayerCombatAtRef.current = Date.now();
+          regenActiveRef.current = false;
+          changed = true;
+        }
+        // Regen status: support both strong regen (2HP/tick) and small regen (1HP/tick)
+        if (s.regen && s.regen > 0) {
+          const isStrong = p.power === "regen";
+          const heal = isStrong ? 2 : 1;
+          np.hp = Math.min(np.maxHp, np.hp + heal);
+          pushLog(`${np.name} regenerates ${heal} HP.`);
+          s.regen!--;
+          changed = true;
+        }
+        if (s.invincible && s.invincible > 0) {
+          s.invincible!--;
+          changed = true;
+        }
+
+        np.statuses = s;
+        if (np.hp <= 0) checkGameOver(np, enemy);
+        return changed ? np : p;
+      });
+
+      // Enemy statuses
+      setEnemy((e) => {
+        let ne = { ...e };
+        const s = { ...(ne.statuses || {}) };
+        let changed = false;
+        if (s.burn && s.burn > 0) {
+          const dmg = randInt(1, 3);
+          ne.hp = Math.max(0, ne.hp - dmg);
+          pushLog(`${ne.name} suffers ${dmg} burn damage.`);
+          s.burn!--;
+          changed = true;
+        }
+        if (s.poison && s.poison > 0) {
+          const dmg = 1;
+          ne.hp = Math.max(0, ne.hp - dmg);
+          pushLog(`${ne.name} takes ${dmg} poison damage.`);
+          s.poison!--;
+          changed = true;
+        }
+        if (s.regen && s.regen > 0) {
+          const heal = 1;
+          ne.hp = Math.min(ne.maxHp, ne.hp + heal);
+          pushLog(`${ne.name} regenerates ${heal} HP.`);
+          s.regen!--;
+          changed = true;
+        }
+
+        // Hex expiry (SuperShowdown2)
+        if (s.hexLastAt && s.hexStacks && ts - s.hexLastAt > 6000) {
+          s.hexStacks = 0;
+          delete s.hexLastAt;
+          pushLog(`${ne.name} has hex fade away.`);
+          changed = true;
+        }
+
+        ne.statuses = s;
+        if (ne.hp <= 0) checkGameOver(player, ne);
+        return changed ? ne : e;
+      });
+
+      // Mud patches damage enemy when standing on them
+      setMudPatches((mps) => {
+        const alive = mps.filter((mp) => ts < mp.createdAt + mp.durationMs);
+        alive.forEach((mp) => {
+          const tickDmg = 2; // slightly reduced for balance
+          if (inCircle(mp.pos, mp.radius, enemy.pos)) {
+            setEnemy((e) => {
+              const ne = { ...e, hp: Math.max(0, e.hp - tickDmg) };
+              pushLog(`${ne.name} is bogged by mud and takes ${tickDmg} damage.`);
+              return ne;
+            });
+          }
+        });
+        return alive;
+      });
+
+      // Parasites
+      setParasites((ps) => {
+        const alive = ps.filter((p) => p.expireAt > ts);
+        alive.forEach((p) => {
+          if (ts >= p.nextAttackAt) {
+            setEnemy((e) => {
+              const ne = { ...e, hp: Math.max(0, e.hp - 6) };
+              pushLog(`${ne.name} is drained by a parasite for 6 damage.`);
+              return ne;
+            });
+            setPlayer((pl) => {
+              const healed = Math.min(pl.maxHp, pl.hp + 3);
+              pushLog(`The parasite restores 3 HP to ${pl.name}.`);
+              return { ...pl, hp: healed };
+            });
+            p.nextAttackAt = ts + 4500;
+          }
+        });
+        return alive;
+      });
+
+      // Doppels (persisting if invulnerable)
+      setDoppels((ds) => {
+        const alive = ds.filter((d) => d.invulnerable || d.createdAt + d.durationMs > ts);
+        alive.forEach((d) => {
+          if (ts >= d.nextAttackAt) {
+            if (distance(d.pos, enemy.pos) <= 2) {
+              setEnemy((e) => ({ ...e, hp: Math.max(0, e.hp - 12) }));
+              pushLog("A doppelganger slices the enemy for 12 damage.");
+            } else {
+              d.pos = clampPos({
+                x: d.pos.x + (enemy.pos.x - d.pos.x) * 0.12,
+                y: d.pos.y + (enemy.pos.y - d.pos.y) * 0.12,
+              });
+            }
+            d.nextAttackAt = ts + 1000;
+          }
+        });
+        return alive;
+      });
+
+      /* ---------------------------
+         Whirlpool pull behavior
+         - Pulls ANY fighter within the whirlpool radius inward by a fraction each tick.
+         --------------------------- */
+      whirlpools.forEach((w) => {
+        // pull strength per tick (studs)
+        const pullFraction = 0.16; // fraction of the distance per tick
+        // Player
+        if (distance(w.pos, player.pos) <= w.radius * 1.2) {
+          setPlayer((p) => {
+            const dx = w.pos.x - p.pos.x;
+            const dy = w.pos.y - p.pos.y;
+            // small step toward center
+            const nx = p.pos.x + dx * pullFraction;
+            const ny = p.pos.y + dy * pullFraction;
+            pushLog(`You are pulled by a whirlpool!`);
+            return { ...p, pos: clampPos({ x: nx, y: ny }) };
+          });
+        }
+        // Enemy
+        if (distance(w.pos, enemy.pos) <= w.radius * 1.2) {
+          setEnemy((e) => {
+            const dx = w.pos.x - e.pos.x;
+            const dy = w.pos.y - e.pos.y;
+            const nx = e.pos.x + dx * pullFraction;
+            const ny = e.pos.y + dy * pullFraction;
+            pushLog(`${enemy.name} is pulled by a whirlpool!`);
+            return { ...e, pos: clampPos({ x: nx, y: ny }) };
+          });
+        }
+      });
+
+      /* ---------------------------
+         Black hole explosion after 3s
+         - When explodeAt <= now, deal AoE damage then remove the black hole.
+         --------------------------- */
+      setBlackHoles((bhs) => {
+        const remaining: BlackHole[] = [];
+        bhs.forEach((bh) => {
+          if (bh.active && ts >= bh.explodeAt) {
+            // Explosion: damage anything within radius * 1.4
+            const explosionRadius = bh.radius * 1.4;
+            const explosionDamage = 22;
+            if (inCircle(bh.pos, explosionRadius, player.pos)) {
+              setPlayer((p) => applyDamageToFighter(p, explosionDamage));
+              pushLog(`A black hole explodes and hits you for ${explosionDamage} damage!`);
+            }
+            if (inCircle(bh.pos, explosionRadius, enemy.pos)) {
+              setEnemy((e) => applyDamageToFighter(e, explosionDamage));
+              pushLog(`A black hole explodes and hits ${enemy.name} for ${explosionDamage} damage!`);
+            }
+            // mark as inactive (removed) - do not keep
+            pushLog("A black hole collapses in a violent explosion.");
+            // optionally, we could spawn smaller lingering effects here
+          } else {
+            // keep it
+            remaining.push(bh);
+          }
+        });
+        return remaining;
+      });
+
+    }, 500);
+
+    return () => clearInterval(interval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [player, enemy, whirlpools, blackHoles]);
+
+  /* ---------------------------
+     Idle regen (from SuperShowdown): after 10s idle heal rapidly
+     --------------------------- */
+  useEffect(() => {
+    const regenInterval = setInterval(() => {
+      setPlayer((prev) => {
+        const now = Date.now();
+        const idleMs = now - (lastPlayerCombatAtRef.current || 0);
+        const canRegen =
+          startConfirmed &&
+          !gameOver &&
+          prev.hp > 0 &&
+          prev.hp < prev.maxHp &&
+          idleMs >= 10000; // 10s idle
+        if (canRegen) {
+          if (!regenActiveRef.current) {
+            regenActiveRef.current = true;
+            pushLog("You begin regenerating health (idle regen).");
+          }
+          const newHp = Math.min(prev.maxHp, prev.hp + 1);
+          return { ...prev, hp: newHp };
+        } else {
+          if (regenActiveRef.current && idleMs < 10000) {
+            regenActiveRef.current = false;
+          }
+        }
+        return prev;
+      });
+    }, 100);
+    return () => clearInterval(regenInterval);
+  }, [startConfirmed, gameOver]);
+
+  /* ---------------------------
+     Drawing the canvas for precise clicks (and some visual hints)
+     --------------------------- */
+  function drawCanvas() {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // background
+    ctx.fillStyle = "#071221";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // grid
+    ctx.strokeStyle = "#0f1a2b";
+    ctx.lineWidth = 1;
+    for (let i = 0; i <= MAP_SIZE; i += 5) {
+      const px = i * STUD_TO_PX;
+      ctx.beginPath();
+      ctx.moveTo(px, 0);
+      ctx.lineTo(px, canvas.height);
+      ctx.stroke();
+    }
+
+    // mud patches
+    mudPatches.forEach((mp) => {
+      const p = toPx(mp.pos);
+      ctx.beginPath();
+      ctx.fillStyle = "rgba(80,50,20,0.45)";
+      ctx.arc(p.x, p.y, mp.radius * STUD_TO_PX, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = "rgba(110,80,40,0.7)";
+      ctx.stroke();
+    });
+
+    // whirlpools (visual)
+    whirlpools.forEach((w) => {
+      const p = toPx(w.pos);
+      ctx.beginPath();
+      ctx.fillStyle = "rgba(10,120,220,0.28)";
+      ctx.arc(p.x, p.y, w.radius * STUD_TO_PX, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = "rgba(30,160,255,0.6)";
+      ctx.stroke();
+      // inner swirl indicator
+      ctx.beginPath();
+      ctx.strokeStyle = "rgba(255,255,255,0.06)";
+      ctx.arc(p.x, p.y, (w.radius * STUD_TO_PX) * 0.5, 0, Math.PI * 2);
+      ctx.stroke();
+    });
+
+    // parasites indicator (near enemy)
+    parasites.forEach(() => {
+      const ePx = toPx(enemy.pos);
+      ctx.fillStyle = "#7e2b7e";
+      ctx.beginPath();
+      ctx.arc(ePx.x + 12, ePx.y - 12, 6, 0, Math.PI * 2);
+      ctx.fill();
+    });
+
+    // doppels
+    doppels.forEach((d) => {
+      const p = toPx(d.pos);
+      ctx.fillStyle = d.invulnerable ? "rgba(240,240,240,0.9)" : "rgba(200,200,200,0.7)";
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, 8, 0, Math.PI * 2);
+      ctx.fill();
+    });
+
+    // blackholes (visual as dark circle)
+    blackHoles.forEach((bh) => {
+      const p = toPx(bh.pos);
+      ctx.beginPath();
+      ctx.fillStyle = "rgba(10,10,10,0.95)";
+      ctx.arc(p.x, p.y, bh.radius * STUD_TO_PX, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = "rgba(120,60,200,0.8)";
+      ctx.stroke();
+      // small countdown ring
+      const remain = Math.max(0, bh.explodeAt - Date.now());
+      const fraction = Math.max(0, Math.min(1, remain / 3000));
+      ctx.beginPath();
+      ctx.strokeStyle = `rgba(255,255,255,${0.4 * fraction})`;
+      ctx.lineWidth = 2;
+      ctx.arc(p.x, p.y, (bh.radius + 0.6) * STUD_TO_PX, 0, Math.PI * 2 * fraction);
+      ctx.stroke();
+    });
+
+    // enemy
+    const ePx = toPx(enemy.pos);
+    ctx.fillStyle = "#d25a5a";
+    ctx.beginPath();
+    ctx.arc(ePx.x, ePx.y, 10, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = "#fff";
+    ctx.font = "10px Arial";
+    ctx.fillText(`${enemy.name} (${enemy.hp})`, ePx.x - 24, ePx.y - 14);
+
+    // player
+    const pPx = toPx(player.pos);
+    ctx.fillStyle = "#4f8fd2";
+    ctx.beginPath();
+    ctx.arc(pPx.x, pPx.y, 10, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = "#fff";
+    ctx.font = "10px Arial";
+    ctx.fillText(`${player.name} (${player.hp})`, pPx.x - 20, pPx.y - 14);
+
+    // aim line
+    ctx.strokeStyle = "rgba(220,220,60,0.9)";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(pPx.x, pPx.y);
+    const aimPx = toPx(aimTarget);
+    ctx.lineTo(aimPx.x, aimPx.y);
+    ctx.stroke();
+  }
+
+  // Click/aim mapping uses the canvas
+  function handleCanvasClick(e: React.MouseEvent<HTMLCanvasElement>) {
+    if (!canvasRef.current) return;
+    const rect = canvasRef.current.getBoundingClientRect();
+    const x = (e.clientX - rect.left) / STUD_TO_PX;
+    const y = (e.clientY - rect.top) / STUD_TO_PX;
+    setAimTarget(clampPos({ x, y }));
+  }
+  function handleMouseMove(e: React.MouseEvent<HTMLCanvasElement>) {
+    if (!canvasRef.current) return;
+    if (!isAiming) return;
+    const rect = canvasRef.current.getBoundingClientRect();
+    const x = (e.clientX - rect.left) / STUD_TO_PX;
+    const y = (e.clientY - rect.top) / STUD_TO_PX;
+    setAimTarget(clampPos({ x, y }));
+  }
+
+  /* ---------------------------
+     Combat helpers (combined)
+     --------------------------- */
+
+  function applyDamageToFighter(f: Fighter, amount: number) {
+    if (f.statuses?.invincible && f.statuses.invincible > 0) return f;
+    return { ...f, hp: Math.max(0, Math.round(f.hp - amount)) };
+  }
+  function healFighter(f: Fighter, amount: number) {
+    const cap = f.power === "fleur" ? Math.min(120, f.maxHp) : f.maxHp;
+    return { ...f, hp: Math.min(cap, Math.round(f.hp + amount)) };
+  }
+
+  /* ---------------------------
+     Player simple actions
+     --------------------------- */
+
+  function playerPunch() {
+    if (waiting || gameOver || !startConfirmed) return;
+    lastPlayerCombatAtRef.current = Date.now();
+    regenActiveRef.current = false;
+    const range = 1;
+    if (distance(player.pos, enemy.pos) <= range) {
+      setEnemy((e) => applyDamageToFighter(e, 10));
+      pushLog("You punch the enemy for 10 damage.");
+    } else {
+      pushLog("You swing at the air — out of range for fists.");
+    }
+    setTimeout(() => {
+      if (!checkGameOver(player, enemy)) enemyAIAction();
+    }, 300);
+  }
+
+  // Berserker specialized attack (from SuperShowdown2)
+  function berserkerAttack() {
+    if (!canUseCooldown("berserk")) {
+      pushLog("Berserker attack reloading...");
+      return;
+    }
+    const hpNow = player.hp;
+    let dmg = 10;
+    let reloadMs = 1000;
+    const range = 7;
+    if (hpNow < 10) {
+      dmg = 20;
+      reloadMs = 500;
+    } else if (hpNow < 50) {
+      dmg = 15;
+      reloadMs = 800;
+    }
+    const dir = { x: aimTarget.x - player.pos.x, y: aimTarget.y - player.pos.y };
+    const len = Math.hypot(dir.x, dir.y) || 0.0001;
+    const norm = { x: dir.x / len, y: dir.y / len };
+    const width = 4;
+    if (isInBeam(player.pos, norm, width, range, enemy.pos)) {
+      setEnemy((e) => applyDamageToFighter(e, dmg));
+      pushLog(`Berserker hits for ${dmg} damage.`);
+    } else {
+      pushLog("Berserker swings and misses.");
+    }
+    setCooldown("berserk", reloadMs);
+    setTimeout(() => {
+      if (!checkGameOver(player, enemy)) enemyAIAction();
+    }, 300);
+  }
+
+  /* ---------------------------
+     Aim-fire handling (merged)
+     --------------------------- */
+  function playerFireAim() {
+    if (waiting || gameOver || !startConfirmed) return;
+
+    // reset idle regen tracking
+    lastPlayerCombatAtRef.current = Date.now();
+    regenActiveRef.current = false;
+
+    if (player.power === "doppelganger") {
+      const sliceRange = 2;
+      if (distance(player.pos, enemy.pos) <= sliceRange) {
+        setEnemy((e) => applyDamageToFighter(e, 40));
+        pushLog("You (Doppelganger) slice the enemy for 40 damage.");
+      } else {
+        pushLog("Your slice missed.");
+      }
+      setTimeout(() => {
+        if (!checkGameOver(player, enemy)) enemyAIAction();
+      }, 300);
+      return;
+    }
+
+    if (player.power === "berserker") return berserkerAttack();
+
+    if (player.power === "regen") {
+      const dir = { x: aimTarget.x - player.pos.x, y: aimTarget.y - player.pos.y };
+      const len = Math.hypot(dir.x, dir.y) || 0.0001;
+      const norm = { x: dir.x / len, y: dir.y / len };
+      if (isInBeam(player.pos, norm, 3, 7, enemy.pos)) {
+        setEnemy((e) => {
+          const ne = applyDamageToFighter(e, 10);
+          pushLog("Regen beam hits for 10 damage.");
+          return ne;
+        });
+      } else {
+        pushLog("Regen beam missed.");
+      }
+      setIsAiming(false);
+      setTimeout(() => {
+        if (!checkGameOver(player, enemy)) enemyAIAction();
+      }, 300);
+      return;
+    }
+
+    const dir = { x: aimTarget.x - player.pos.x, y: aimTarget.y - player.pos.y };
+    const len = Math.hypot(dir.x, dir.y) || 0.0001;
+    const norm = { x: dir.x / len, y: dir.y / len };
+    const range = 20;
+    const width = 2;
+    if (isInBeam(player.pos, norm, width, range, enemy.pos)) {
+      setEnemy((e) => applyDamageToFighter(e, 14));
+      pushLog("You fire and hit the enemy for 14 damage.");
+    } else {
+      pushLog(`You fire toward (${aimTarget.x.toFixed(1)}, ${aimTarget.y.toFixed(1)}) and hit nothing.`);
+    }
+    setIsAiming(false);
+    setTimeout(() => {
+      if (!checkGameOver(player, enemy)) enemyAIAction();
+    }, 300);
+  }
+
+  /* ---------------------------
+     Use power (combined logic)
+     --------------------------- */
+  const harmonyRef = useRef({ magRemaining: 4, lastShotAt: 0, consecutiveHits: 0, lastHitAt: 0, reloadUntil: 0 });
+  const hexStateRef = useRef({ hitsSinceReload: 0, reloadUntil: 0 });
+  const lunarRef = useRef({ magRemaining: 2, reloadUntil: 0 });
+  const regenRef = useRef({ reloadUntil: 0 });
+  const lunarStateRef = useRef({ lastMidnightAt: 0, midnightActiveUntil: 0 });
+  const soleilStateRef = useRef({ lastTeleportAt: 0 });
+  const swapRef = useRef({ nextSwapAt: 0 });
+
+  const [lunarActive, setLunarActive] = useState(false);
+
+  function playerUsePower() {
+    if (waiting || gameOver || !startConfirmed) return;
+    const pw = player.power;
+    const ammo = ammoRef.current[pw] ?? 0;
+    if (ammo <= 0) {
+      pushLog("No ammo for your power.");
+      return;
+    }
+
+    switch (pw) {
+      case "fire":
+      case "water":
+      case "wind":
+      case "earth":
+      case "electricity":
+      case "fauna":
+      case "fleur":
+      case "poison":
+      case "celestial":
+      case "ice":
+      case "invisible": {
+        const dir = { x: aimTarget.x - player.pos.x, y: aimTarget.y - player.pos.y };
+        const len = Math.hypot(dir.x, dir.y) || 0.0001;
+        const norm = { x: dir.x / len, y: dir.y / len };
+        if (isInBeam(player.pos, norm, 2, 18, enemy.pos)) {
+          setEnemy((e) => applyDamageToFighter(e, 12));
+          pushLog(`${pw} strikes true and deals 12 damage.`);
+        } else {
+          pushLog(`${pw} fires and misses.`);
+        }
+        ammoRef.current[pw] = Math.max(0, ammo - 1);
+        break;
+      }
+
+      case "mud": {
+        const patch: MudPatch = { id: `mud-${Date.now()}`, pos: clampPos(aimTarget), radius: 3.5, createdAt: Date.now(), durationMs: 8000 };
+        setMudPatches((m) => [...m, patch]);
+        ammoRef.current["mud"] = Math.max(0, ammo - 1);
+        pushLog("You create a muddy pool beneath your target.");
+        break;
+      }
+
+      case "parasite": {
+        const dir = { x: aimTarget.x - player.pos.x, y: aimTarget.y - player.pos.y };
+        const len = Math.hypot(dir.x, dir.y) || 0.0001;
+        const norm = { x: dir.x / len, y: dir.y / len };
+        if (isInBeam(player.pos, norm, 4, 10, enemy.pos)) {
+          setEnemy((e) => applyDamageToFighter(e, 10));
+          setPlayer((p) => ({ ...p, hp: Math.min(p.maxHp, p.hp + 3) }));
+          const pe: ParasiteEntity = { id: `par-${Date.now()}`, ownerId: player.id, targetEnemyId: enemy.id, nextAttackAt: Date.now() + 4500, expireAt: Date.now() + 18000 };
+          setParasites((ps) => [...ps, pe]);
+          ammoRef.current["parasite"] = Math.max(0, ammo - 1);
+          pushLog("You latch on as a parasite, draining your foe.");
+        } else {
+          pushLog("Parasite latch missed.");
+        }
+        break;
+      }
+
+      case "harmony": {
+        const hs = harmonyRef.current;
+        const ts = Date.now();
+        if (hs.reloadUntil > ts) {
+          pushLog("Harmony reloading...");
+          return;
+        }
+        const dir = { x: aimTarget.x - player.pos.x, y: aimTarget.y - player.pos.y };
+        const len = Math.hypot(dir.x, dir.y) || 0.0001;
+        const norm = { x: dir.x / len, y: dir.y / len };
+        const range = 16;
+        const width = 3.2;
+        let hit = false;
+        if (isInBeam(player.pos, norm, width, range, enemy.pos)) {
+          setEnemy((e) => applyDamageToFighter(e, 3));
+          pushLog("Harmony's note hits for 3 damage.");
+          hit = true;
+        } else {
+          pushLog("Harmony's note misses.");
+        }
+        hs.magRemaining = Math.max(0, hs.magRemaining - 1);
+        hs.lastShotAt = ts;
+        if (hit) {
+          if (ts - hs.lastHitAt <= 2000) {
+            hs.consecutiveHits += 1;
+          } else {
+            hs.consecutiveHits = 1;
+          }
+          hs.lastHitAt = ts;
+          if (hs.consecutiveHits >= 6) {
+            setPlayer((pl) => ({ ...pl, statuses: { ...(pl.statuses || {}), invincible: Math.max(0, (pl.statuses?.invincible || 0) + 4) } }));
+            pushLog("Harmony's cadence grants you a short invincibility!");
+            hs.consecutiveHits = 0;
+          }
+        }
+        if (hs.magRemaining <= 0) {
+          hs.reloadUntil = ts + 1000;
+          hs.magRemaining = 4;
+        }
+        harmonyRef.current = hs;
+        ammoRef.current["harmony"] = Math.max(0, ammo - 1);
+        break;
+      }
+
+      case "berserker": {
+        pushLog("Berserker is passive; use Berserker aim-fire for its active attack.");
+        break;
+      }
+
+      case "regen": {
+        setTimeout(() => {
+          setPlayer((p) => ({ ...p, statuses: { ...(p.statuses || {}), regen: Math.max(0, (p.statuses?.regen || 0) + 8) } }));
+          pushLog("Regen begins to mend your wounds (stronger).");
+        }, 5000);
+        ammoRef.current["regen"] = Math.max(0, ammo - 1);
+        pushLog("You prepare to regenerate; healing will begin shortly.");
+        break;
+      }
+
+      case "hex": {
+        if (hexStateRef.current.reloadUntil > Date.now()) {
+          pushLog("Hex is reloading...");
+          return;
+        }
+        const dir = { x: aimTarget.x - player.pos.x, y: aimTarget.y - player.pos.y };
+        const len = Math.hypot(dir.x, dir.y) || 0.0001;
+        const norm = { x: dir.x / len, y: dir.y / len };
+        const hit = isInBeam(player.pos, norm, 2, 10, enemy.pos);
+        if (hit) {
+          setEnemy((e) => {
+            const ne = applyDamageToFighter(e, 7);
+            const s = { ...(ne.statuses || {}) };
+            s.hexStacks = Math.min(10, (s.hexStacks || 0) + 1);
+            s.hexLastAt = Date.now();
+            ne.statuses = s;
+            pushLog(`Hex hits: ${s.hexStacks} stack(s) applied.`);
+            return ne;
+          });
+          hexStateRef.current.hitsSinceReload += 1;
+        } else {
+          pushLog("Hex spell misses.");
+        }
+        if (hexStateRef.current.hitsSinceReload >= 3) {
+          hexStateRef.current.reloadUntil = Date.now() + 1900;
+          hexStateRef.current.hitsSinceReload = 0;
+        }
+        ammoRef.current["hex"] = Math.max(0, ammo - 1);
+        break;
+      }
+
+      case "lunar": {
+        const lr = lunarRef.current;
+        const ts = Date.now();
+        if (lr.reloadUntil > ts) {
+          pushLog("Lunar is reloading...");
+          return;
+        }
+        const dir = { x: aimTarget.x - player.pos.x, y: aimTarget.y - player.pos.y };
+        const len = Math.hypot(dir.x, dir.y) || 0.0001;
+        const norm = { x: dir.x / len, y: dir.y / len };
+        let dmg = 12;
+        const lunarState = lunarStateRef.current;
+        if (ts < lunarState.midnightActiveUntil) dmg *= 2;
+        if (isInBeam(player.pos, norm, 4, 16, enemy.pos)) {
+          setEnemy((e) => applyDamageToFighter(e, dmg));
+          pushLog(`Lunar hits for ${dmg} damage.`);
+          lr.magRemaining -= 1;
+        } else {
+          pushLog("Lunar misses.");
+          lr.magRemaining -= 1;
+        }
+        if (lr.magRemaining <= 0) {
+          const reload = ts < lunarState.midnightActiveUntil ? 1000 : 2000;
+          lr.reloadUntil = ts + reload;
+          lr.magRemaining = 2;
+        }
+        lunarRef.current = lr;
+        ammoRef.current["lunar"] = Math.max(0, ammo - 1);
+        break;
+      }
+
+      case "soleil": {
+        const ts = Date.now();
+        if (soleilStateRef.current.lastTeleportAt && ts - soleilStateRef.current.lastTeleportAt < 120000) {
+          pushLog("Soleil teleport not ready yet.");
+          return;
+        }
+        const dist = distance(player.pos, aimTarget);
+        if (dist <= 30) {
+          setPlayer((p) => ({ ...p, pos: clampPos(aimTarget) }));
+          soleilStateRef.current.lastTeleportAt = ts;
+          ammoRef.current["soleil"] = Math.max(0, ammo - 1);
+          pushLog("Soleil teleports to a nearby location.");
+        } else {
+          pushLog("Teleport target too far for Soleil (must be within 30 studs).");
+        }
+        break;
+      }
+
+      case "doppelganger": {
+        const existing = doppels[0];
+        if (!existing) {
+          const d: Doppel = {
+            id: `dup-${Date.now()}`,
+            pos: clampPos({ x: player.pos.x + 1.5, y: player.pos.y }),
+            hp: 60,
+            createdAt: Date.now(),
+            durationMs: Infinity, // persists forever
+            nextAttackAt: Date.now() + 1000,
+            invulnerable: true, // make it persist and never die
+          };
+          setDoppels((ds) => [...ds, d]);
+          ammoRef.current["doppelganger"] = Math.max(0, ammo - 1);
+          pushLog("A doppelganger replica has been summoned and is invulnerable (will not expire).");
+        } else {
+          const ts = Date.now();
+          if (swapRef.current.nextSwapAt > ts) {
+            pushLog("Swap is on cooldown.");
+            return;
+          }
+          swapRef.current.nextSwapAt = ts + 30000;
+          setPlayer((p) => {
+            setDoppels((ds) => ds.map((dd, i) => (i === 0 ? { ...dd, pos: { ...p.pos } } : dd)));
+            pushLog("You swap places with your doppelganger!");
+            return { ...p, pos: existing.pos };
+          });
+        }
+        break;
+      }
+
+      default:
+        pushLog("Power not implemented.");
+    }
+
+    setTimeout(() => {
+      if (!checkGameOver(player, enemy)) enemyAIAction();
+    }, 300);
+  }
+
+  /* ---------------------------
+     Black hole creation helper
+     - Example usage (if some power creates one) should set explodeAt = createdAt + 3000 ms and active true.
+     --------------------------- */
+  function createBlackHole(origin: Vec2, radius = 3) {
+    const now = Date.now();
+    const bh: BlackHole = {
+      id: `bh-${now}`,
+      ownerId: player.id,
+      pos: clampPos(origin),
+      radius,
+      createdAt: now,
+      explodeAt: now + 3000, // explode after 3 seconds
+      active: true,
+    };
+    setBlackHoles((b) => [...b, bh]);
+    pushLog("A black hole was placed and will collapse shortly...");
+  }
+
+  /* ---------------------------
+     Lunar Midnight (special)
+     --------------------------- */
+  function callMidnight() {
+    if (player.power !== "lunar") {
+      pushLog("Only Lunar can call Midnight.");
+      return;
+    }
+    const ts = Date.now();
+    if (ts - lunarStateRef.current.lastMidnightAt < 80000) {
+      const remain = Math.ceil((80000 - (ts - lunarStateRef.current.lastMidnightAt)) / 1000);
+      pushLog(`Midnight not ready. ${remain}s remaining.`);
+      return;
+    }
+    lunarStateRef.current.lastMidnightAt = ts;
+    lunarStateRef.current.midnightActiveUntil = ts + 10000;
+    setLunarActive(true);
+    pushLog("Midnight rises — Lunar power doubled for 10 seconds!");
+    setTimeout(() => {
+      setLunarActive(false);
+    }, 10000);
+  }
+
+  /* ---------------------------
+     Respawn & Game over
+     --------------------------- */
+  function respawnPlayer(immediate = true) {
+    const appliedPower = chooseDeathPower ? deathPower : player.power;
+    const maxHp = appliedPower === "soleil" ? 120 : 100;
+    setPlayer((prev) => ({
+      ...prev,
+      pos: clampPos(playerStart),
+      hp: maxHp,
+      maxHp,
+      statuses: {},
+      specialReady: true,
+      atkBuff: 0,
+      defBuff: 0,
+      power: appliedPower,
+    }));
+    setMudPatches([]);
+    setParasites([]);
+    // don't remove doppels (they persist forever per request)
+    setBlackHoles([]);
+    pushLog(`You have respawned${chooseDeathPower ? ` with ${appliedPower}` : ""}.`);
+    if (!gameOver) {
+      setTimeout(() => {
+        enemyAIAction();
+      }, 500);
+    }
+    lastPlayerCombatAtRef.current = Date.now();
+    regenActiveRef.current = false;
+  }
+
+  function checkGameOver(p: Fighter, e: Fighter) {
+    if (p.hp <= 0 && e.hp <= 0) {
+      pushLog("Both fighters die — a double KO.");
+      setGameOver(true);
+      return true;
+    }
+    if (p.hp <= 0) {
+      pushLog(`${p.name} has died.`);
+      if (autoRespawn) {
+        setTimeout(() => {
+          respawnPlayer(true);
+        }, 500);
+        return false;
+      } else {
+        setGameOver(true);
+        return true;
+      }
+    }
+    if (e.hp <= 0) {
+      pushLog(`${e.name} has been defeated. You win!`);
+      setGameOver(true);
+      return true;
+    }
+    return false;
+  }
+
+  /* ---------------------------
+     Enemy AI (merged behavior including hex effect)
+     --------------------------- */
+  function enemyAIAction() {
+    if (gameOver) return;
+    const delay = 700 + randInt(0, 400);
+    setTimeout(() => {
+      if (gameOver) return;
+      if (enemy.statuses?.stunned && enemy.statuses.stunned > 0) {
+        setEnemy((e) => ({ ...e, statuses: { ...(e.statuses || {}), stunned: Math.max(0, (e.statuses?.stunned || 0) - 1) } }));
+        pushLog(`${enemy.name} is stunned and misses a turn.`);
+        return;
+      }
+
+      const hexStacks = enemy.statuses?.hexStacks || 0;
+      const dmgMult = 1 - Math.min(0.5, 0.05 * hexStacks);
+
+      if (distance(enemy.pos, player.pos) <= 3) {
+        const baseDmg = 6;
+        const realDmg = Math.max(0, Math.round(baseDmg * dmgMult));
+        setPlayer((p) => applyDamageToFighter(p, realDmg));
+        pushLog(`${enemy.name} strikes you for ${realDmg} damage (hex applied).`);
+      } else {
+        setEnemy((e) => {
+          const dir = { x: player.pos.x - e.pos.x, y: player.pos.y - e.pos.y };
+          const len = Math.hypot(dir.x, dir.y) || 0.0001;
+          const step = 0.8;
+          return {
+            ...e,
+            pos: clampPos({ x: e.pos.x + (dir.x / len) * step, y: e.pos.y + (dir.y / len) * step }),
+          };
+        });
+        pushLog(`${enemy.name} advances.`);
+      }
+    }, delay);
+  }
+
+  /* ---------------------------
+     Reset match
+     --------------------------- */
+  function resetMatch() {
+    const startingPower = chooseDeathPower && startConfirmed ? deathPower : "fire";
+    setPlayer({
+      id: "player-1",
+      name: "You",
+      pos: clampPos(playerStart),
+      hp: 100,
+      maxHp: 100,
+      attack: 18,
+      defense: 6,
+      power: startingPower,
+      specialReady: true,
+      statuses: {},
+      atkBuff: 0,
+      defBuff: 0,
+    });
+    setEnemy({
+      id: "enemy-1",
+      name: "Champion",
+      pos: clampPos(enemyStart),
+      hp: 100,
+      maxHp: 100,
+      attack: 16,
+      defense: 5,
+      power: POWERS[randInt(0, POWERS.length - 1)],
+      specialReady: true,
+      statuses: {},
+      atkBuff: 0,
+      defBuff: 0,
+    });
+    setTurnLog(["A challenger enters the arena... prepare to fight to the death!"]);
+    setWaiting(false);
+    setGameOver(false);
+    setBears([]);
+    setWhirlpools([]);
+    setPlants([]);
+    setBlackHoles([]);
+    setMudPatches([]);
+    setParasites([]);
+    // Preserve existing doppels? Per request they persist forever.
+    // If you'd rather clear them on reset, setDoppels([]) here.
+    cooldownsRef.current = {};
+    ammoRef.current = { ...DEFAULT_AMMO };
+    lastPlayerCombatAtRef.current = Date.now();
+    regenActiveRef.current = false;
+  }
+
+  /* ---------------------------
+     Input handling (keyboard / mouse / mobile joystick)
+     --------------------------- */
+  const isTouchDevice =
+    typeof window !== "undefined" && ("ontouchstart" in window || navigator.maxTouchPoints > 0);
+
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      // prevent space
+      if (e.code === "Space" || e.key === " " || e.key === "Spacebar") {
+        e.preventDefault();
+        e.stopPropagation();
+        return;
+      }
+      // E toggles aiming
+      if (e.key === "e" || e.key === "E") {
+        if (!isTouchDevice && startConfirmed && !gameOver) {
+          setIsAiming((v) => {
+            const next = !v;
+            pushLog(`Aiming ${next ? "enabled" : "disabled"}.`);
+            return next;
+          });
+        }
+        e.preventDefault();
+        e.stopPropagation();
+        return;
+      }
+      if (gameOver || !startConfirmed) return;
+      const speed = 0.9;
+      let moved = false;
+      if (e.key === "ArrowUp" || e.key === "w") {
+        setPlayer((p) => ({ ...p, pos: clampPos({ x: p.pos.x, y: p.pos.y - speed }) }));
+        moved = true;
+      }
+      if (e.key === "ArrowDown" || e.key === "s") {
+        setPlayer((p) => ({ ...p, pos: clampPos({ x: p.pos.x, y: p.pos.y + speed }) }));
+        moved = true;
+      }
+      if (e.key === "ArrowLeft" || e.key === "a") {
+        setPlayer((p) => ({ ...p, pos: clampPos({ x: p.pos.x - speed, y: p.pos.y }) }));
+        moved = true;
+      }
+      if (e.key === "ArrowRight" || e.key === "d") {
+        setPlayer((p) => ({ ...p, pos: clampPos({ x: p.pos.x + speed, y: p.pos.y }) }));
+        moved = true;
+      }
+      if (moved) {
+        setAimTarget((t) => clampPos(t));
+      }
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [gameOver, startConfirmed, isAiming]);
+
+  useEffect(() => {
+    function onMouseUp() {
+      if (isAiming && !isTouchDevice) {
+        playerFireAim();
+      }
+    }
+    window.addEventListener("mouseup", onMouseUp);
+    return () => window.removeEventListener("mouseup", onMouseUp);
+  }, [isAiming, isTouchDevice, aimTarget, player, enemy, startConfirmed, gameOver]);
+
+  const [joystickActive, setJoystickActive] = useState(false);
+  const joystickOriginRef = useRef<{ x: number; y: number } | null>(null);
+
+  function onJoystickTouchStart(e: React.TouchEvent) {
+    if (!startConfirmed || gameOver) return;
+    const t = e.touches[0];
+    joystickOriginRef.current = { x: t.clientX, y: t.clientY };
+    setJoystickActive(true);
+  }
+  function onJoystickTouchMove(e: React.TouchEvent) {
+    if (!joystickActive || !joystickOriginRef.current) return;
+    const t = e.touches[0];
+    const dx = t.clientX - joystickOriginRef.current.x;
+    const dy = t.clientY - joystickOriginRef.current.y;
+    const deltaStuds = { x: dx / STUD_TO_PX, y: dy / STUD_TO_PX };
+    const newAim = clampPos({
+      x: player.pos.x + deltaStuds.x,
+      y: player.pos.y + deltaStuds.y,
+    });
+    setAimTarget(newAim);
+  }
+  function onJoystickTouchEnd() {
+    if (!joystickActive) return;
+    setJoystickActive(false);
+    joystickOriginRef.current = null;
+    lastPlayerCombatAtRef.current = Date.now();
+    regenActiveRef.current = false;
+    playerFireAim();
+  }
+
+  /* ---------------------------
+     Helpers: start, setPower, cooldowns
+     --------------------------- */
+  function confirmStart() {
+    setStartConfirmed(true);
+    pushLog("Match started. Choose an aim on the map and use your power.");
+  }
+  function setPlayerPower(pw: Power) {
+    const newMax = pw === "soleil" ? 120 : pw === "fleur" ? 120 : 100;
+    setPlayer((p) => ({ ...p, power: pw, maxHp: newMax, hp: Math.min(newMax, p.hp) }));
+  }
+
+  function canUseCooldown(key: string) {
+    return (cooldownsRef.current[key] || 0) <= Date.now();
+  }
+  function setCooldown(key: string, msFromNow: number) {
+    cooldownsRef.current[key] = Date.now() + msFromNow;
+  }
+
+  /* ---------------------------
+     3D Scene helpers (visuals)
+     --------------------------- */
+  const toScenePx = (v: Vec2) => {
+    const xPx = (v.x / MAP_SIZE) * CANVAS_SIZE_PX;
+    const zPx = (v.y / MAP_SIZE) * CANVAS_SIZE_PX;
+    return { xPx, zPx };
+  };
+
+  function Aim3D({ target }: { target: Vec2 }) {
+    const start = toScenePx(player.pos);
+    const end = toScenePx(target);
+    const dx = end.xPx - start.xPx;
+    const dz = end.zPx - start.zPx;
+    const dist = Math.hypot(dx, dz);
+    const angle = (Math.atan2(dz, dx) * 180) / Math.PI;
+    const ringSize = 18;
+    const transform = `translate3d(${start.xPx}px, 0px, ${start.zPx}px) rotateZ(${angle}deg)`;
+    const endTransform = `translate3d(${end.xPx - ringSize / 2}px, 0px, ${end.zPx - ringSize / 2}px)`;
+    return (
+      <>
+        <div
+          style={{
+            position: "absolute",
+            left: 0,
+            top: 0,
+            transform,
+            width: dist,
+            height: 10,
+            transformOrigin: "0 50%",
+            pointerEvents: "none",
+            opacity: 0.45,
+            background:
+              "linear-gradient(90deg, rgba(255,255,120,0.0), rgba(255,255,120,0.35), rgba(255,255,120,0.0))",
+            borderRadius: 6,
+          }}
+        />
+        <div
+          style={{
+            position: "absolute",
+            left: 0,
+            top: 0,
+            transform: endTransform,
+            width: ringSize,
+            height: ringSize,
+            borderRadius: "50%",
+            border: "2px solid rgba(255,255,200,0.5)",
+            boxShadow: "0 0 10px rgba(255,255,120,0.2)",
+            pointerEvents: "none",
+          }}
+        />
+      </>
+    );
+  }
+
+  function Player3D({ f, size = 30 }: { f: Fighter; size?: number }) {
+    const { xPx, zPx } = toScenePx(f.pos);
+    const transform = `translate3d(${xPx - size / 2}px, 0px, ${zPx - size / 2}px)`;
+    const hpPct = Math.max(0, Math.round((f.hp / f.maxHp) * 100));
+    return (
+      <div
+        className="scene-object player-3d"
+        style={{
+          position: "absolute",
+          transformStyle: "preserve-3d",
+          transform,
+          width: size,
+          height: size * 1.6,
+          pointerEvents: "none",
+        }}
+        title={`${f.name} — ${f.hp}/${f.maxHp}`}
+      >
+        <div
+          style={{
+            transform: `translateZ(0px)`,
+            width: "100%",
+            height: "70%",
+            borderRadius: 8,
+            background: f.id === player.id ? "linear-gradient(#4f8fd2,#2b6fb0)" : "linear-gradient(#d25a5a,#a83737)",
+            boxShadow: "0 8px 20px rgba(0,0,0,0.6)",
+            border: "1px solid rgba(255,255,255,0.06)",
+          }}
+        />
+        <div
+          style={{
+            position: "absolute",
+            top: -8,
+            left: "50%",
+            transform: "translateX(-50%)",
+            width: size * 0.7,
+            height: size * 0.45,
+            borderRadius: "50% 50% 40% 40%",
+            background: "rgba(255,255,255,0.06)",
+            boxShadow: "inset 0 2px 4px rgba(255,255,255,0.06)",
+          }}
+        />
+        <div
+          style={{
+            position: "absolute",
+            bottom: -6,
+            left: "50%",
+            transform: "translateX(-50%) rotateX(90deg) translateZ(-0.1px)",
+            width: size,
+            height: size * 0.25,
+            borderRadius: "50%",
+            background: "rgba(0,0,0,0.45)",
+            filter: "blur(6px)",
+            opacity: 0.6,
+          }}
+        />
+        <div
+          style={{
+            position: "absolute",
+            top: -18,
+            left: "50%",
+            transform: "translateX(-50%)",
+            width: size * 1.2,
+            height: 6,
+            background: "rgba(0,0,0,0.5)",
+            borderRadius: 6,
+            overflow: "hidden",
+            border: "1px solid rgba(255,255,255,0.04)",
+          }}
+        >
+          <div
+            style={{
+              width: `${hpPct}%`,
+              height: "100%",
+              background: hpPct > 50 ? "#4caf50" : hpPct > 20 ? "#ff9800" : "#f44336",
+              transition: "width 200ms linear",
+            }}
+          />
+        </div>
+      </div>
+    );
+  }
+
+  /* ---------------------------
+     UI & render
+     --------------------------- */
+  return (
+    <div style={{ maxWidth: 1100, margin: "0 auto", fontFamily: "Inter, Arial, sans-serif", color: "#cfe" }}>
+      <h2>Super Showdown — Combined (All Powers)</h2>
+
+      {!startConfirmed && (
+        <div style={{ border: "1px solid #334", padding: 12, marginBottom: 12, borderRadius: 8 }}>
+          <h3>Match Setup</h3>
+          <label style={{ display: "block", marginBottom: 8 }}>
+            <input type="checkbox" checked={chooseDeathPower} onChange={(e) => setChooseDeathPower(e.target.checked)} /> Choose a power to have when you die (applies on next respawn)
+          </label>
+          {chooseDeathPower && (
+            <label style={{ display: "block", marginBottom: 8 }}>
+              Power on death:
+              <select style={{ marginLeft: 8 }} value={deathPower} onChange={(e) => setDeathPower(e.target.value as Power)}>
+                {POWERS.map((p) => (
+                  <option key={p} value={p}>
+                    {p}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
+          <label style={{ display: "block", marginBottom: 8 }}>
+            Starting power:
+            <select value={player.power} onChange={(e) => setPlayerPower(e.target.value as Power)} style={{ marginLeft: 8 }}>
+              {POWERS.map((p) => (
+                <option key={p} value={p}>
+                  {p}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label style={{ display: "block", marginBottom: 8 }}>
+            <input type="checkbox" checked={autoRespawn} onChange={(e) => setAutoRespawn(e.target.checked)} /> Auto-respawn immediately upon death (join back into same server)
+          </label>
+
+          <button onClick={confirmStart} style={{ padding: "8px 12px" }}>
+            Confirm & Start Match
+          </button>
+        </div>
+      )}
+
+      <div style={{ display: "flex", gap: 12 }}>
+        <div style={{ flex: 1 }}>
+          {/* 3D Scene */}
+          <div style={{ perspective: 1100, marginBottom: 8 }}>
+            <div
+              aria-hidden
+              style={{
+                width: CANVAS_SIZE_PX,
+                height: CANVAS_SIZE_PX,
+                margin: "0 auto",
+                position: "relative",
+                transformStyle: "preserve-3d",
+                background: "linear-gradient(#071018,#041018)",
+                borderRadius: 8,
+                boxShadow: "0 12px 40px rgba(0,0,0,0.7)",
+                overflow: "hidden",
+              }}
+            >
+              {/* ground plane container */}
+              <div
+                style={{
+                  position: "absolute",
+                  left: 0,
+                  top: 0,
+                  width: "100%",
+                  height: "100%",
+                  transformStyle: "preserve-3d",
+                  transform: `rotateX(60deg) translateZ(-${CANVAS_SIZE_PX * 0.15}px)`,
+                  transformOrigin: "center center",
+                  pointerEvents: "none",
+                }}
+              >
+                {/* baselate */}
+                <div style={{ position: "absolute", left: 0, top: 0, width: "100%", height: "100%", backgroundColor: "#7f7f7f", transform: "translateZ(0px)" }} />
+
+                {/* Entities */}
+                {whirlpools.map((w) => {
+                  const { xPx, zPx } = toScenePx(w.pos);
+                  const size = w.radius * 2 * STUD_TO_PX;
+                  const transform = `translate3d(${xPx - size / 2}px, 0px, ${zPx - size / 2}px)`;
+                  return (
+                    <div key={w.id} style={{ position: "absolute", transform, width: size, height: size, pointerEvents: "none" }}>
+                      <div style={{ width: "100%", height: "100%", borderRadius: "50%", background: "radial-gradient(circle at 30% 30%, rgba(140,200,255,0.45), rgba(20,60,120,0.12))", boxShadow: "inset 0 8px 24px rgba(10,120,220,0.28)", transform: "rotateX(60deg)" }} />
+                    </div>
+                  );
+                })}
+
+                {plants.map((pl) => {
+                  const { xPx, zPx } = toScenePx(pl.pos);
+                  const size = pl.radius * 2 * STUD_TO_PX * 0.5;
+                  const transform = `translate3d(${xPx - size / 2}px, 0px, ${zPx - size / 2}px)`;
+                  return (
+                    <div key={pl.id} style={{ position: "absolute", transform, width: size, height: size, pointerEvents: "none" }}>
+                      <div style={{ width: "100%", height: "100%", background: "linear-gradient(#9fe29f,#68b268)", borderRadius: 6 }} />
+                    </div>
+                  );
+                })}
+
+                {blackHoles.map((bh) => {
+                  const { xPx, zPx } = toScenePx(bh.pos);
+                  const size = bh.radius * 2 * STUD_TO_PX;
+                  const transform = `translate3d(${xPx - size / 2}px, 0px, ${zPx - size / 2}px)`;
+                  const remain = Math.max(0, bh.explodeAt - Date.now());
+                  const readyPct = 1 - Math.max(0, Math.min(1, remain / 3000));
+                  return (
+                    <div key={bh.id} style={{ position: "absolute", transform, width: size, height: size, pointerEvents: "none" }}>
+                      <div style={{ width: "100%", height: "100%", borderRadius: "50%", background: "radial-gradient(ellipse at center, #111 0%, #000 70%)", boxShadow: "0 0 30px rgba(120,60,200,0.5) inset" }} />
+                      <div style={{ position: "absolute", left: "50%", top: "50%", transform: "translate(-50%,-50%)", width: size * readyPct, height: 4, background: "rgba(255,255,255,0.18)", borderRadius: 2 }} />
+                    </div>
+                  );
+                })}
+
+                {bears.map((b) => {
+                  const { xPx, zPx } = toScenePx(b.pos);
+                  const size = 22;
+                  const transform = `translate3d(${xPx - size / 2}px, 0px, ${zPx - size / 2}px)`;
+                  return (
+                    <div key={b.id} style={{ position: "absolute", transform, width: size, height: size, pointerEvents: "none" }}>
+                      <div style={{ width: "100%", height: "100%", borderRadius: 6, background: "linear-gradient(#7b4a28,#5a2f1a)" }} />
+                    </div>
+                  );
+                })}
+
+                {/* Mud patches */}
+                {mudPatches.map((m) => {
+                  const { xPx, zPx } = toScenePx(m.pos);
+                  const size = m.radius * 2 * STUD_TO_PX;
+                  const transform = `translate3d(${xPx - size / 2}px, 0px, ${zPx - size / 2}px)`;
+                  return (
+                    <div key={m.id} style={{ position: "absolute", transform, width: size, height: size, pointerEvents: "none" }}>
+                      <div style={{ width: "100%", height: "100%", borderRadius: "50%", background: "linear-gradient(#5a3d26,#3b2a19)", opacity: 0.9 }} />
+                    </div>
+                  );
+                })}
+
+                {/* Parasites indicator (near enemy) */}
+                {parasites.map((p) => {
+                  const { xPx, zPx } = toScenePx(enemy.pos);
+                  const transform = `translate3d(${xPx}px, 0px, ${zPx}px)`;
+                  return (
+                    <div key={p.id} style={{ position: "absolute", left: 0, top: 0, transform, pointerEvents: "none" }}>
+                      <div style={{ transform: "translate3d(12px,-12px,0)", width: 12, height: 12, borderRadius: 6, background: "#7e2b7e" }} />
+                    </div>
+                  );
+                })}
+
+                {/* Doppel */}
+                {doppels.map((d) => {
+                  const { xPx, zPx } = toScenePx(d.pos);
+                  const size = 14;
+                  const transform = `translate3d(${xPx - size / 2}px, 0px, ${zPx - size / 2}px)`;
+                  return (
+                    <div key={d.id} style={{ position: "absolute", transform, width: size, height: size, pointerEvents: "none" }}>
+                      <div style={{ width: "100%", height: "100%", borderRadius: 6, background: d.invulnerable ? "#fff" : "#ddd" }} />
+                    </div>
+                  );
+                })}
+
+                {/* Soleil teleport emblem at aimTarget if Soleil */}
+                {player.power === "soleil" && (() => {
+                  const { xPx, zPx } = toScenePx(aimTarget);
+                  const transform = `translate3d(${xPx - 12}px, 0px, ${zPx - 12}px)`;
+                  const ready = !soleilStateRef.current.lastTeleportAt || Date.now() - soleilStateRef.current.lastTeleportAt >= 120000;
+                  return (
+                    <div key="soleil-sigil" style={{ position: "absolute", left: 0, top: 0, transform, pointerEvents: "none" }}>
+                      <div style={{ width: 24, height: 24, borderRadius: "50%", background: ready ? "radial-gradient(circle at 30% 30%, #fff8d1, #ffd36a)" : "radial-gradient(circle at 30% 30%, #bbbbbb,#888888)", boxShadow: "0 6px 14px rgba(255,200,80,0.25)" }} />
+                    </div>
+                  );
+                })()}
+
+                {/* Enemy & Player */}
+                <Player3D f={enemy} size={36} />
+                <Player3D f={player} size={40} />
+
+                {(isAiming || joystickActive) && <Aim3D target={aimTarget} />}
+              </div>
+            </div>
+          </div>
+
+          {/* Hidden canvas layer for accurate clicks */}
+          <div style={{ textAlign: "center", marginTop: -CANVAS_SIZE_PX - 6 }}>
+            <canvas
+              ref={canvasRef}
+              width={CANVAS_SIZE_PX}
+              height={CANVAS_SIZE_PX}
+              style={{ opacity: 0, pointerEvents: "auto", cursor: isAiming ? "crosshair" : "crosshair" }}
+              onClick={handleCanvasClick}
+              onMouseMove={handleMouseMove}
+            />
+            <div style={{ marginTop: 6, color: "#9fb", fontSize: 12 }}>
+              Click the arena (hidden hit canvas) to set aim. On PC press E to enter aiming mode, move the mouse to adjust direction and release to fire. On mobile use the joystick.
+            </div>
+          </div>
+
+          <div style={{ marginTop: 10, display: "flex", gap: 8 }}>
+            <button onClick={playerPunch} disabled={waiting || gameOver || !startConfirmed} style={{ padding: "8px 12px" }}>
+              Punch (Fist) — 10 dmg, range 1
+            </button>
+            <button onClick={playerFireAim} disabled={waiting || gameOver || !startConfirmed} style={{ padding: "8px 12px" }}>
+              Aim Fire
+            </button>
+            <button onClick={playerUsePower} disabled={waiting || gameOver || !startConfirmed} style={{ padding: "8px 12px" }}>
+              Use Power ({player.power}) — ammo: {ammoRef.current[player.power] ?? 0}
+            </button>
+
+            {player.power === "lunar" && (
+              <button onClick={callMidnight} disabled={Date.now() - lunarStateRef.current.lastMidnightAt < 80000} style={{ padding: "8px 12px" }}>
+                Call Midnight {Date.now() - lunarStateRef.current.lastMidnightAt < 80000 ? `(${Math.ceil((80000 - (Date.now() - lunarStateRef.current.lastMidnightAt)) / 1000)}s)` : ""}
+              </button>
+            )}
+
+            <button onClick={resetMatch} style={{ marginLeft: "auto", padding: "8px 12px" }}>
+              Reset Match
+            </button>
+          </div>
+
+          <div style={{ marginTop: 8, fontSize: 13 }}>
+            <div>
+              Map: {MAP_SIZE} x {MAP_SIZE} studs
+            </div>
+            <div>
+              Aim: click on the arena to set target (current: {aimTarget.x.toFixed(1)}, {aimTarget.y.toFixed(1)})
+            </div>
+            <div style={{ marginTop: 6 }}>Controls: Move with arrow keys / WASD. Enemy will act after your turn.</div>
+          </div>
+
+          {isTouchDevice && startConfirmed && (
+            <div
+              onTouchStart={onJoystickTouchStart}
+              onTouchMove={onJoystickTouchMove}
+              onTouchEnd={onJoystickTouchEnd}
+              style={{
+                position: "fixed",
+                right: 18,
+                bottom: 18,
+                width: 110,
+                height: 110,
+                borderRadius: 999,
+                background: "rgba(255,255,255,0.03)",
+                border: "1px solid rgba(255,255,255,0.04)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                touchAction: "none",
+              }}
+            >
+              <div style={{ width: 60, height: 60, borderRadius: 999, background: "rgba(255,255,255,0.06)" }} />
+            </div>
+          )}
+        </div>
+
+        <div style={{ width: 360 }}>
+          <div style={{ background: "#06101a", padding: 10, borderRadius: 8 }}>
+            <h3 style={{ margin: "4px 0" }}>{player.name}</h3>
+            <div>
+              HP: {player.hp}/{player.maxHp}
+            </div>
+            <div>
+              Power: <strong style={{ textTransform: "capitalize" }}>{player.power}</strong>
+            </div>
+            <div>Special Ready: {player.specialReady ? "Yes" : "No"}</div>
+            <div style={{ marginTop: 6 }}>
+              <label>
+                Change power:
+                <select value={player.power} onChange={(e) => setPlayerPower(e.target.value as Power)} disabled={waiting || gameOver} style={{ marginLeft: 8 }}>
+                  {POWERS.map((p) => (
+                    <option key={p} value={p}>
+                      {p}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+            <hr style={{ border: "none", borderTop: "1px solid #123" }} />
+            <h4 style={{ margin: "6px 0" }}>Enemy</h4>
+            <div>{enemy.name}</div>
+            <div>
+              HP: {enemy.hp}/{enemy.maxHp}
+            </div>
+            <div>
+              Power: <strong style={{ textTransform: "capitalize" }}>{enemy.power}</strong>
+            </div>
+            <hr style={{ border: "none", borderTop: "1px solid #123" }} />
+            <h4 style={{ margin: "6px 0" }}>Entities</h4>
+            <div>Bears: {bears.length}</div>
+            <div>Whirlpools: {whirlpools.length}</div>
+            <div>Plants: {plants.length}</div>
+            <div>Black Holes: {blackHoles.length}</div>
+            <div>Mud patches: {mudPatches.length}</div>
+            <div>Parasites: {parasites.length}</div>
+            <div>Doppelgangers: {doppels.length} (persistent)</div>
+          </div>
+
+          <div style={{ marginTop: 12, background: "#04101a", padding: 10, borderRadius: 8, minHeight: 220 }}>
+            <h4 style={{ margin: "6px 0" }}>Battle Log</h4>
+            <div style={{ maxHeight: 180, overflowY: "auto", color: "#bcd" }}>
+              <ul style={{ paddingLeft: 16 }}>{turnLog.map((t, i) => <li key={i} style={{ marginBottom: 6 }}>{t}</li>)}</ul>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {gameOver && (
+        <div style={{ marginTop: 12, padding: 12, background: "#170a0f", borderRadius: 6 }}>
+          <strong>Match finished.</strong> {player.hp <= 0 ? "You died." : "Match over."}
+          <div style={{ marginTop: 8 }}>
+            <button
+              onClick={() => {
+                if (chooseDeathPower) {
+                  setPlayer((p) => ({ ...p, power: deathPower }));
+                  pushLog(`On respawn you will wield ${deathPower}.`);
+                }
+                respawnPlayer();
+                setGameOver(false);
+              }}
+              style={{ padding: "8px 12px" }}
+            >
+              Respawn / Reset (join back)
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

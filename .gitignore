@@ -1,64 +1,56 @@
-!/data/.gitkeep
-# Data folder - ignore real data files, but allow example files
-/data/*
-!/data/.gitkeep
-!/data/*.example.json
-!/data/README.md
-
-# Specifically ignore sensitive JSON files (real data)
-/data/users.json
-/data/bans.json
-/data/reports.json
-/data/appeals.json
-/data/games/*.json
-/data/published.json
-/data/scene.json
-
-# But allow example files
-!/data/users.example.json
-!/data/bans.example.json
-!/data/reports.example.json
-!/data/appeals.example.json
-
-# Database files (never commit these)
-/data/*.db
-/data/*.db-wal
-/data/*.db-shm
-/data/database.db
-/data/database.db-wal
-/data/database.db-shm
-
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
-# debug
+
 # dependencies
-# local env files
-# misc
-# next.js
-# production
-# testing
-# typescript
-# vercel
-*.pem
-*.tsbuildinfo
-.DS_Store
-.env*.local
-.pnp.js
-.vercel
-.yarn/install-state.gz
-/.next/
-/.pnp
-/build
-/coverage
 /node_modules
+/.pnp
+.pnp.js
+.yarn/install-state.gz
+
+# testing
+/coverage
+
+# next.js
+/.next/
 /out/
-dist-electron/
-next-env.d.ts
+
+# production
+/build
+
+# misc
+.DS_Store
+*.pem
+
+# debug
 npm-debug.log*
-public/downloads/*.AppImage
-public/downloads/*.dmg
-public/downloads/*.exe
 yarn-debug.log*
 yarn-error.log*
 
-# Database and environment files
-.env.local
+# local env files
+.env*.local
+
+# vercel
+.vercel
+
+# typescript
+*.tsbuildinfo
+next-env.d.ts
+
+# Data folder (contains user accounts, bans, reports, appeals)
+/data/*.json
+!/data/.gitkeep
+
+# VS Code extensions and user data
+.vscode/extensions/
+AppData/
+
+
+
+
+
+
+
+
+
+
+
+

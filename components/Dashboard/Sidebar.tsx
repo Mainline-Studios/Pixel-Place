@@ -1,32 +1,22 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { User, Skin } from '@/types';
-import { getSkins, getAccessories, findSkin } from '@/lib/storage';
+import { User } from '@/types';
+import { getSkins, getAccessories } from '@/lib/storage';
 import Avatar3DViewer from '@/components/Avatar3DViewer';
 
 interface SidebarProps {
   user: User;
+  onNavigate?: (tab: string) => void;
 }
 
-export default function Sidebar({ user }: SidebarProps) {
-  const [skins, setSkins] = useState<Skin[]>([]);
+export default function Sidebar({ user, onNavigate }: SidebarProps) {
+  const skins = getSkins();
   const accessories = getAccessories();
-
-  useEffect(() => {
-    const loadSkins = async () => {
-      const skinsData = await getSkins();
-      setSkins(skinsData);
-    };
-    loadSkins();
-  }, []);
-
-  const equippedSkin = findSkin(skins, user.equippedSkin);
-  // Handle equippedAccessories as object (e.g., { chain: 'acc_gold_chain', hat: 'acc_red_cap' })
-  const equippedAccessoriesObj = user.equippedAccessories || {};
-  const equippedAccessoriesList = Array.isArray(equippedAccessoriesObj) 
-    ? equippedAccessoriesObj.map(id => accessories.find(a => a.id === id)).filter(Boolean)
-    : Object.values(equippedAccessoriesObj).map(id => accessories.find(a => a.id === id)).filter(Boolean) as any[];
+  const equippedSkin = skins.find(s => s.id === user.equippedSkin) || skins.find(s => s.id === 'starter_classic') || skins[0];
+  // equippedAccessories is an object, not an array: { hat: 'id', glasses: 'id', ... }
+  const equippedAccessoriesList = Object.values(user.equippedAccessories || {}).map(id => 
+    accessories.find(a => a.id === id)
+  ).filter(Boolean) as any[];
 
   // Merge equipped accessories into skin for display
   const skinWithAccessories = equippedSkin ? {
@@ -58,12 +48,29 @@ export default function Sidebar({ user }: SidebarProps) {
       </div>
       <div className="info-name">{user.username}</div>
       <div className="info-role">Role: {user.role}</div>
-      <div className="info-gender">Gender: {user.gender || 'N/A'}</div>
+      <div className="info-gender">Gender: Boy</div>
       <div className="sidebar-sep"></div>
-      <div className="sidebar-link">Profile</div>
-      <div className="sidebar-link">Inventory</div>
-      <div className="sidebar-link">Badges</div>
-      <div className="sidebar-link">Messages</div>
+      <div 
+        className="sidebar-link" 
+        onClick={() => onNavigate?.('friends')}
+        style={{ cursor: 'pointer' }}
+      >
+        Friends
+      </div>
+      <div 
+        className="sidebar-link" 
+        onClick={() => onNavigate?.('coins')}
+        style={{ cursor: 'pointer' }}
+      >
+        Coins
+      </div>
+      <div 
+        className="sidebar-link" 
+        onClick={() => onNavigate?.('settings')}
+        style={{ cursor: 'pointer' }}
+      >
+        Settings
+      </div>
     </aside>
   );
 }

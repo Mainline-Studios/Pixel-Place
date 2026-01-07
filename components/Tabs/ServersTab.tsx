@@ -1,12 +1,11 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { User, ServerPlan, GameServer, PublishedGame } from '@/types';
-import { getServerPlans, getServers, saveServers, getPublished, getUsers, saveUsers, savePublished, findUser} from '@/lib/storage';
+import { getServerPlans, getServers, saveServers, getPublished, getUsers, saveUsers } from '@/lib/storage';
 import { useUser } from '@/contexts/UserContext';
 import { escapeHTML } from '@/lib/utils';
 
-import { toast } from '@/lib/toast';
 interface ServersTabProps {
   user: User;
   editMode: boolean;
@@ -16,44 +15,26 @@ export default function ServersTab({ user, editMode }: ServersTabProps) {
   const { updateUser } = useUser();
   const [serverPlans] = useState(getServerPlans());
   const [servers, setServers] = useState(getServers());
-  const [publishedGames, setPublishedGames] = useState<PublishedGame[]>([]);
+  const [publishedGames] = useState(getPublished());
   const [selectedGame, setSelectedGame] = useState<string>('');
-  const [loading, setLoading] = useState(true);
-
-  // Load published games on mount
-  useEffect(() => {
-    const loadGames = async () => {
-      try {
-        const games = await getPublished();
-        setPublishedGames(games);
-      } catch (error) {
-        console.error('Error loading published games:', error);
-        // Set empty array on error to prevent infinite loading
-        setPublishedGames([]);
-      } finally {
-        setLoading(false);
-      }
-    };
-    loadGames();
-  }, []);
 
   const userServers = servers.filter(s => s.purchasedBy === user.username);
   const availableServers = servers.filter(s => !s.purchased);
 
-  const handlePurchaseServer = async (plan: ServerPlan, gameId?: string) => {
+  const handlePurchaseServer = (plan: ServerPlan, gameId?: string) => {
     if (!gameId) {
-      toast.info('Please select a game first');
+      alert('Please select a game first');
       return;
     }
 
     const game = publishedGames.find(g => g.ts.toString() === gameId);
     if (!game) {
-      toast.info('Game not found');
+      alert('Game not found');
       return;
     }
 
     if ((user.coins || 0) < plan.price) {
-      toast.error(`You don't have enough coins. Need ${plan.price}, have ${user.coins || 0}`);
+      alert(`You don't have enough coins. Need ${plan.price}, have ${user.coins || 0}`);
       return;
     }
 
@@ -79,33 +60,32 @@ export default function ServersTab({ user, editMode }: ServersTabProps) {
       setServers(updatedServers);
 
       // Deduct coins
-      const users = await getUsers();
+      const users = getUsers();
       const userIndex = users.findIndex(u => u.username === user.username);
       if (userIndex !== -1) {
         users[userIndex].coins = (users[userIndex].coins || 0) - plan.price;
         users[userIndex].ownedServers = [...(users[userIndex].ownedServers || []), newServer.id];
-        await saveUsers(users);
+        saveUsers(users);
         updateUser({ coins: users[userIndex].coins, ownedServers: users[userIndex].ownedServers });
       }
 
       // Update game to enable multiplayer
-      const games = await getPublished();
+      const games = getPublished();
       const gameIndex = games.findIndex(g => g.ts.toString() === gameId);
       if (gameIndex !== -1) {
         games[gameIndex].multiplayer = true;
         games[gameIndex].maxPlayers = plan.maxPlayers;
         games[gameIndex].serverId = newServer.id;
-        await savePublished(games);
-        setPublishedGames(games);
+        require('@/lib/storage').savePublished(games);
       }
 
-      toast.info(`Server purchased! Your game "${game.title}" is now online.`);
+      alert(`Server purchased! Your game "${game.title}" is now online.`);
     }
   };
 
   const handleDeleteServer = (server: GameServer) => {
     if (server.purchasedBy !== user.username && user.role !== 'admin') {
-      toast.info('You can only delete your own servers');
+      alert('You can only delete your own servers');
       return;
     }
 
@@ -113,22 +93,11 @@ export default function ServersTab({ user, editMode }: ServersTabProps) {
       const updatedServers = servers.filter(s => s.id !== server.id);
       saveServers(updatedServers);
       setServers(updatedServers);
-      toast.info('Server deleted.');
+      alert('Server deleted.');
     }
   };
 
   const multiplayerGames = publishedGames.filter(g => g.multiplayer);
-
-  if (loading) {
-    return (
-      <>
-        <h2 className="section-title">Game Servers</h2>
-        <div className="ai-box">
-          <div className="smalltext">Loading...</div>
-        </div>
-      </>
-    );
-  }
 
   return (
     <>

@@ -46,3 +46,12 @@
 - Offline functionality
 - App icons and splash screens
 
+
+
+
+
+
+
+
+
+

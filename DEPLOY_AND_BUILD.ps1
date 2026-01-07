@@ -45,3 +45,12 @@ Write-Host "  npm run electron:dist" -ForegroundColor White
 Write-Host ""
 Write-Host "The installer will be in the 'dist-electron' folder!" -ForegroundColor Green
 
+
+
+
+
+
+
+
+
+

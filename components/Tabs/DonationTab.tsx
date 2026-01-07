@@ -4,7 +4,6 @@ import { useState } from 'react';
 import { User } from '@/types';
 import { useUser } from '@/contexts/UserContext';
 
-import { toast } from '@/lib/toast';
 interface DonationTabProps {
   user: User;
   editMode: boolean;
@@ -37,7 +36,7 @@ export default function DonationTab({ user, editMode }: DonationTabProps) {
       
       setSelectedTier(tier.amount);
       setTimeout(() => {
-        toast.info(`Thank you for your ${tier.label} donation! You now have access to Full AI Coder and received ${tier.coins} coins.`);
+        alert(`Thank you for your ${tier.label} donation! You now have access to Full AI Coder and received ${tier.coins} coins.`);
         setSelectedTier(null);
       }, 100);
     }
@@ -57,7 +56,7 @@ export default function DonationTab({ user, editMode }: DonationTabProps) {
         }}>
           <div className="ai-label">🎉 Donor Status</div>
           <div className="ai-output">
-            Thank you for your support! You've donated ${totalDonated.toFixed(2)} total.
+            Thank you for your support! You&apos;ve donated ${totalDonated.toFixed(2)} total.
             <br />
             <strong>You have Full AI Coder access!</strong>
           </div>

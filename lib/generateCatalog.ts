@@ -1,6 +1,53 @@
 import { Skin, Accessory } from '@/types';
-import { ROBOX_COLORS } from '@/components/RobloxColorPicker';
 import { getSkins, saveSkins, getAccessories, saveAccessories } from '@/lib/storage';
+
+// Roblox-style colors - Expanded palette with more pixel colors
+const ROBOX_COLORS = [
+  '#FFFFFF', // White
+  '#F2F2F2', // Light gray
+  '#E6E6E6', // Very light gray
+  '#CCCCCC', // Light gray
+  '#B3B3B3', // Medium gray
+  '#999999', // Gray
+  '#808080', // Dark gray
+  '#666666', // Darker gray
+  '#4D4D4D', // Very dark gray
+  '#333333', // Almost black
+  '#000000', // Black
+  '#FF0000', // Red
+  '#FF3333', // Light red
+  '#CC0000', // Dark red
+  '#FF8000', // Orange
+  '#FF9900', // Bright orange
+  '#FFBF00', // Gold
+  '#FFCC00', // Bright gold
+  '#FFFF00', // Yellow
+  '#CCFF00', // Yellow-green
+  '#80FF00', // Lime
+  '#66FF00', // Bright lime
+  '#00FF00', // Green
+  '#00CC00', // Dark green
+  '#00FF80', // Teal
+  '#00FFCC', // Bright teal
+  '#00FFFF', // Cyan
+  '#00CCFF', // Bright cyan
+  '#0080FF', // Blue
+  '#0066FF', // Bright blue
+  '#0000FF', // Navy
+  '#3333FF', // Bright navy
+  '#8000FF', // Purple
+  '#9900FF', // Bright purple
+  '#BF00FF', // Magenta
+  '#CC00FF', // Bright magenta
+  '#FF00FF', // Pink
+  '#FF00CC', // Bright pink
+  '#FF0080', // Rose
+  '#FF0066', // Bright rose
+  '#8B4513', // Brown
+  '#A0522D', // Sienna
+  '#CD853F', // Peru
+  '#D2691E', // Chocolate
+];
 
 // Roblox-style name generators
 const skinNamePrefixes = [
@@ -236,5 +283,14 @@ export function populateCatalog(): { skins: Skin[]; accessories: Accessory[] } {
 
   return { skins: allSkins, accessories: allAccessories };
 }
+
+
+
+
+
+
+
+
+
 
 

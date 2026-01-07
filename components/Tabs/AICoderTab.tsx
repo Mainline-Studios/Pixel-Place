@@ -186,8 +186,8 @@ ${prompt.toLowerCase().replace(/\s+/g, '_')}();`;
       <div className="ai-box">
         <div className="ai-label">AI Coder Tips</div>
         <div className="ai-output" style={{ fontSize: '13px', lineHeight: '1.8' }}>
-          • <strong>Be specific:</strong> "Create a health bar UI" works better than "make a UI"
-          <br />• <strong>Include context:</strong> Mention if it's for 3D games, multiplayer, or specific mechanics
+          • <strong>Be specific:</strong> &quot;Create a health bar UI&quot; works better than &quot;make a UI&quot;
+          <br />• <strong>Include context:</strong> Mention if it&apos;s for 3D games, multiplayer, or specific mechanics
           <br />• <strong>Iterate:</strong> Generate code, test it, then ask for improvements
           <br />• <strong>Combine features:</strong> You can ask for multiple systems in one prompt
           <br />• <strong>Customize:</strong> The generated code is a starting point - modify it to fit your game
