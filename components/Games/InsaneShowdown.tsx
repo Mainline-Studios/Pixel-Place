@@ -11,6 +11,11 @@ import React, { useEffect, useRef, useState } from "react";
  * - Whirlpools now pull nearby fighters toward their center.
  * - Black holes explode 3 seconds after being placed (deal area damage then removed).
  * - Doppelganger replicas are created invulnerable and persist (never expire).
+ *
+ * Added: ownership / store / pixelcoins logic borrowed from SuperShowdown / SuperShowdown2:
+ * - pixelcoins state, ownedPowers persistence (localStorage + optional server sync)
+ * - buyPower, buyFromStore / isOwned helpers
+ * - UI store to buy/equip powers (store purchases persist)
  */
 
 /* ---------------------------
@@ -88,6 +93,32 @@ const POWERS: Power[] = [
 ];
 
 /* ---------------------------
+   Power costs (pixelcoins) - taken from SuperShowdown conventions + new powers
+   --------------------------- */
+const POWER_COSTS: Record<Power, number> = {
+  fire: 0,
+  water: 0,
+  wind: 30,
+  earth: 0,
+  electricity: 0,
+  fauna: 45,
+  fleur: 50,
+  poison: 30,
+  celestial: 30,
+  ice: 30,
+  invisible: 45,
+  mud: 15,
+  parasite: 30,
+  harmony: 25,
+  berserker: 24,
+  regen: 20,
+  hex: 26,
+  lunar: 34,
+  soleil: 38,
+  doppelganger: 50,
+};
+
+/* ---------------------------
    Map / rendering constants
    --------------------------- */
 
@@ -122,7 +153,6 @@ type BlackHole = { id: string; ownerId: string; pos: Vec2; radius: number; creat
 
 type MudPatch = { id: string; pos: Vec2; radius: number; createdAt: number; durationMs: number };
 type ParasiteEntity = { id: string; ownerId: string; targetEnemyId: string; nextAttackAt: number; expireAt: number };
-// Doppel with invulnerable flag; we'll create them invulnerable so they persist forever per request
 type Doppel = { id: string; pos: Vec2; hp: number; createdAt: number; durationMs: number; nextAttackAt: number; invulnerable?: boolean };
 
 /* ---------------------------
@@ -157,6 +187,98 @@ export default function SuperShowdownCombined(): JSX.Element {
   const [deathPower, setDeathPower] = useState<Power>("fire");
   const [startConfirmed, setStartConfirmed] = useState(false);
   const [autoRespawn, setAutoRespawn] = useState(true);
+
+  // Pixelcoins & owned powers (persistence like SuperShowdown)
+  const [pixelcoins, setPixelcoins] = useState<number>(100);
+  const [ownedPowers, setOwnedPowers] = useState<Record<Power, boolean>>(() => {
+    const initial = {} as Record<Power, boolean>;
+    // Mark free powers as owned
+    for (const p of POWERS) initial[p] = POWER_COSTS[p] === 0;
+    // Provide a sensible default: ensure common ones are owned
+    initial.fire = true;
+    initial.water = true;
+    initial.earth = true;
+    initial.electricity = true;
+    return initial;
+  });
+  const [serverAvailable, setServerAvailable] = useState(false);
+
+  // Try to load saved data from server (if API endpoint exists). Graceful fallback to localStorage.
+  useEffect(() => {
+    let mounted = true;
+    async function tryServerLoad() {
+      if (typeof window === "undefined") return;
+      try {
+        const res = await fetch("/api/supershowdown/player", { method: "GET", credentials: "same-origin" });
+        if (!mounted) return;
+        if (res.ok) {
+          const json = await res.json();
+          if (json && typeof json.pixelcoins === "number" && typeof json.ownedPowers === "object") {
+            setPixelcoins(json.pixelcoins);
+            const merged: Record<Power, boolean> = { ...ownedPowers };
+            for (const p of POWERS) {
+              if (typeof json.ownedPowers[p] === "boolean") merged[p] = json.ownedPowers[p];
+            }
+            setOwnedPowers(merged);
+            setServerAvailable(true);
+            return;
+          }
+        }
+      } catch (e) {
+        // ignore errors — fallback below
+      }
+
+      // Server failed or returned unexpected data -> attempt to load localStorage
+      try {
+        const saved = localStorage.getItem("supershowdown_ownedPowers");
+        if (saved) {
+          const parsed = JSON.parse(saved) as Record<string, boolean>;
+          const merged: Record<Power, boolean> = { ...ownedPowers };
+          for (const p of POWERS) {
+            if (typeof parsed[p] === "boolean") merged[p] = parsed[p];
+          }
+          setOwnedPowers(merged);
+        }
+        const pc = localStorage.getItem("supershowdown_pixelcoins");
+        if (pc) {
+          const v = parseInt(pc, 10);
+          if (!Number.isNaN(v)) setPixelcoins(v);
+        }
+      } catch (e) {
+        // ignore parse errors
+      }
+    }
+    tryServerLoad();
+    return () => {
+      mounted = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Persist locally when ownedPowers or pixelcoins changes AND if server is not available.
+  useEffect(() => {
+    if (serverAvailable) {
+      (async () => {
+        try {
+          await fetch("/api/supershowdown/player", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            credentials: "same-origin",
+            body: JSON.stringify({ pixelcoins, ownedPowers }),
+          });
+        } catch (e) {
+          // ignore
+        }
+      })();
+    } else {
+      try {
+        localStorage.setItem("supershowdown_ownedPowers", JSON.stringify(ownedPowers));
+        localStorage.setItem("supershowdown_pixelcoins", String(pixelcoins));
+      } catch (e) {
+        // ignore
+      }
+    }
+  }, [ownedPowers, pixelcoins, serverAvailable]);
 
   const playerStart: Vec2 = { x: MAP_SIZE * 0.25, y: MAP_SIZE / 2 };
   const enemyStart: Vec2 = { x: MAP_SIZE * 0.75, y: MAP_SIZE / 2 };
@@ -452,7 +574,6 @@ export default function SuperShowdownCombined(): JSX.Element {
             }
             // mark as inactive (removed) - do not keep
             pushLog("A black hole collapses in a violent explosion.");
-            // optionally, we could spawn smaller lingering effects here
           } else {
             // keep it
             remaining.push(bh);
@@ -1016,6 +1137,43 @@ export default function SuperShowdownCombined(): JSX.Element {
   }
 
   /* ---------------------------
+     Shop / Ownership helpers (from SuperShowdown)
+     --------------------------- */
+  const isOwned = (p: Power) => Boolean(ownedPowers[p]);
+
+  // Attempt to buy a power. Returns true if owned after the call.
+  function buyPower(pw: Power): boolean {
+    if (isOwned(pw)) return true;
+    const cost = POWER_COSTS[pw] ?? 0;
+    if (cost <= 0) {
+      setOwnedPowers((prev) => ({ ...prev, [pw]: true }));
+      pushLog(`Unlocked ${pw} (free).`);
+      return true;
+    }
+    if (pixelcoins >= cost) {
+      setPixelcoins((prev) => prev - cost);
+      setOwnedPowers((prev) => ({ ...prev, [pw]: true }));
+      pushLog(`Purchased ${pw} for ${cost} pixelcoins.`);
+      return true;
+    } else {
+      pushLog(`Not enough pixelcoins to purchase ${pw} (need ${cost}).`);
+      return false;
+    }
+  }
+
+  // Simple Store UI action: buy without equipping
+  function buyFromStore(pw: Power) {
+    if (isOwned(pw)) {
+      pushLog(`${pw} is already owned.`);
+      return;
+    }
+    const ok = buyPower(pw);
+    if (ok) {
+      pushLog(`You now own ${pw}. You can equip it from the Change Power dropdown.`);
+    }
+  }
+
+  /* ---------------------------
      Black hole creation helper
      - Example usage (if some power creates one) should set explodeAt = createdAt + 3000 ms and active true.
      --------------------------- */
@@ -1058,11 +1216,22 @@ export default function SuperShowdownCombined(): JSX.Element {
   }
 
   /* ---------------------------
-     Respawn & Game over
+     Respawn & Game over (attempt purchases like SuperShowdown)
      --------------------------- */
   function respawnPlayer(immediate = true) {
-    const appliedPower = chooseDeathPower ? deathPower : player.power;
-    const maxHp = appliedPower === "soleil" ? 120 : 100;
+    let appliedPower = chooseDeathPower ? deathPower : player.power;
+    const cost = POWER_COSTS[appliedPower];
+
+    // If not owned, attempt to buy at respawn time. If fails, fallback to fire.
+    if (!isOwned(appliedPower) && cost > 0) {
+      const ok = buyPower(appliedPower);
+      if (!ok) {
+        pushLog(`Not enough pixelcoins for ${appliedPower} on respawn. Respawning with Fire instead.`);
+        appliedPower = "fire";
+      }
+    }
+
+    const maxHp = appliedPower === "fleur" ? 120 : 100;
     setPlayer((prev) => ({
       ...prev,
       pos: clampPos(playerStart),
@@ -1088,6 +1257,9 @@ export default function SuperShowdownCombined(): JSX.Element {
     regenActiveRef.current = false;
   }
 
+  /* ---------------------------
+     Game over check
+     --------------------------- */
   function checkGameOver(p: Fighter, e: Fighter) {
     if (p.hp <= 0 && e.hp <= 0) {
       pushLog("Both fighters die — a double KO.");
@@ -1193,8 +1365,7 @@ export default function SuperShowdownCombined(): JSX.Element {
     setBlackHoles([]);
     setMudPatches([]);
     setParasites([]);
-    // Preserve existing doppels? Per request they persist forever.
-    // If you'd rather clear them on reset, setDoppels([]) here.
+    // Preserve existing doppels (persist per earlier request)
     cooldownsRef.current = {};
     ammoRef.current = { ...DEFAULT_AMMO };
     lastPlayerCombatAtRef.current = Date.now();
@@ -1297,14 +1468,32 @@ export default function SuperShowdownCombined(): JSX.Element {
 
   /* ---------------------------
      Helpers: start, setPower, cooldowns
+     (setPlayerPower tries to buy if not owned)
      --------------------------- */
   function confirmStart() {
+    const cost = POWER_COSTS[player.power];
+    if (!isOwned(player.power) && cost > 0) {
+      const ok = buyPower(player.power);
+      if (!ok) {
+        pushLog(`Starting-power purchase failed. Starting with Fire instead.`);
+        setPlayer((p) => ({ ...p, power: "fire" }));
+      }
+    }
+
     setStartConfirmed(true);
     pushLog("Match started. Choose an aim on the map and use your power.");
   }
   function setPlayerPower(pw: Power) {
-    const newMax = pw === "soleil" ? 120 : pw === "fleur" ? 120 : 100;
-    setPlayer((p) => ({ ...p, power: pw, maxHp: newMax, hp: Math.min(newMax, p.hp) }));
+    if (isOwned(pw)) {
+      setPlayer((p) => ({ ...p, power: pw }));
+      pushLog(`Equipped ${pw}.`);
+      return;
+    }
+    // Attempt immediate purchase+equip
+    const ok = buyPower(pw);
+    if (ok) {
+      setPlayer((p) => ({ ...p, power: pw }));
+    }
   }
 
   function canUseCooldown(key: string) {
@@ -1461,6 +1650,13 @@ export default function SuperShowdownCombined(): JSX.Element {
       {!startConfirmed && (
         <div style={{ border: "1px solid #334", padding: 12, marginBottom: 12, borderRadius: 8 }}>
           <h3>Match Setup</h3>
+          <div style={{ display: "flex", gap: 12, alignItems: "center", marginBottom: 8 }}>
+            <div>Pixelcoins: <strong>{pixelcoins}</strong></div>
+            <div style={{ color: serverAvailable ? "#8f8" : "#999", fontSize: 12 }}>
+              {serverAvailable ? "Saved to server" : "Local (or server unreachable)"}
+            </div>
+          </div>
+
           <label style={{ display: "block", marginBottom: 8 }}>
             <input type="checkbox" checked={chooseDeathPower} onChange={(e) => setChooseDeathPower(e.target.checked)} /> Choose a power to have when you die (applies on next respawn)
           </label>
@@ -1470,18 +1666,19 @@ export default function SuperShowdownCombined(): JSX.Element {
               <select style={{ marginLeft: 8 }} value={deathPower} onChange={(e) => setDeathPower(e.target.value as Power)}>
                 {POWERS.map((p) => (
                   <option key={p} value={p}>
-                    {p}
+                    {p} {isOwned(p) ? "(owned)" : POWER_COSTS[p] ? `(${POWER_COSTS[p]} PC)` : "(free)"}
                   </option>
                 ))}
               </select>
             </label>
           )}
+
           <label style={{ display: "block", marginBottom: 8 }}>
             Starting power:
             <select value={player.power} onChange={(e) => setPlayerPower(e.target.value as Power)} style={{ marginLeft: 8 }}>
               {POWERS.map((p) => (
-                <option key={p} value={p}>
-                  {p}
+                <option key={p} value={p} disabled={!isOwned(p) && POWER_COSTS[p] > pixelcoins}>
+                  {p} {isOwned(p) ? "(owned)" : POWER_COSTS[p] ? `(${POWER_COSTS[p]} PC)` : "(free)"}
                 </option>
               ))}
             </select>
@@ -1491,9 +1688,17 @@ export default function SuperShowdownCombined(): JSX.Element {
             <input type="checkbox" checked={autoRespawn} onChange={(e) => setAutoRespawn(e.target.checked)} /> Auto-respawn immediately upon death (join back into same server)
           </label>
 
-          <button onClick={confirmStart} style={{ padding: "8px 12px" }}>
-            Confirm & Start Match
-          </button>
+          <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+            <button onClick={confirmStart} style={{ padding: "8px 12px" }}>
+              Confirm & Start Match
+            </button>
+            <button onClick={() => { setPixelcoins((p) => p + 50); pushLog("Added 50 pixelcoins (dev)."); }} style={{ padding: "8px 12px" }}>
+              +50 PC (dev)
+            </button>
+            <button onClick={() => { localStorage.removeItem("supershowdown_ownedPowers"); localStorage.removeItem("supershowdown_pixelcoins"); setOwnedPowers((prev) => prev); pushLog("Cleared local SuperShowdown save."); }} style={{ padding: "8px 12px" }}>
+              Clear Local Save
+            </button>
+          </div>
         </div>
       )}
 
@@ -1529,7 +1734,6 @@ export default function SuperShowdownCombined(): JSX.Element {
                   pointerEvents: "none",
                 }}
               >
-                {/* baselate */}
                 <div style={{ position: "absolute", left: 0, top: 0, width: "100%", height: "100%", backgroundColor: "#7f7f7f", transform: "translateZ(0px)" }} />
 
                 {/* Entities */}
@@ -1539,7 +1743,7 @@ export default function SuperShowdownCombined(): JSX.Element {
                   const transform = `translate3d(${xPx - size / 2}px, 0px, ${zPx - size / 2}px)`;
                   return (
                     <div key={w.id} style={{ position: "absolute", transform, width: size, height: size, pointerEvents: "none" }}>
-                      <div style={{ width: "100%", height: "100%", borderRadius: "50%", background: "radial-gradient(circle at 30% 30%, rgba(140,200,255,0.45), rgba(20,60,120,0.12))", boxShadow: "inset 0 8px 24px rgba(10,120,220,0.28)", transform: "rotateX(60deg)" }} />
+                      <div style={{ width: "100%", height: "100%", borderRadius: "50%", background: "radial-gradient(circle at 30% 30%, rgba(140,200,255,0.45), rgba(20,60,120,0.12))", boxShadow: "0 0 40px rgba(30,160,255,0.08)" }} />
                     </div>
                   );
                 })}
@@ -1563,8 +1767,8 @@ export default function SuperShowdownCombined(): JSX.Element {
                   const readyPct = 1 - Math.max(0, Math.min(1, remain / 3000));
                   return (
                     <div key={bh.id} style={{ position: "absolute", transform, width: size, height: size, pointerEvents: "none" }}>
-                      <div style={{ width: "100%", height: "100%", borderRadius: "50%", background: "radial-gradient(ellipse at center, #111 0%, #000 70%)", boxShadow: "0 0 30px rgba(120,60,200,0.5) inset" }} />
-                      <div style={{ position: "absolute", left: "50%", top: "50%", transform: "translate(-50%,-50%)", width: size * readyPct, height: 4, background: "rgba(255,255,255,0.18)", borderRadius: 2 }} />
+                      <div style={{ width: "100%", height: "100%", borderRadius: "50%", background: "radial-gradient(ellipse at center, #111 0%, #000 70%)", boxShadow: "0 0 30px rgba(120,60,200,0.6)" }} />
+                      <div style={{ position: "absolute", left: "50%", top: "50%", transform: "translate(-50%,-50%)", width: size * readyPct, height: 4, background: "rgba(255,255,255,0.18)", borderRadius: 4 }} />
                     </div>
                   );
                 })}
@@ -1622,7 +1826,7 @@ export default function SuperShowdownCombined(): JSX.Element {
                   const ready = !soleilStateRef.current.lastTeleportAt || Date.now() - soleilStateRef.current.lastTeleportAt >= 120000;
                   return (
                     <div key="soleil-sigil" style={{ position: "absolute", left: 0, top: 0, transform, pointerEvents: "none" }}>
-                      <div style={{ width: 24, height: 24, borderRadius: "50%", background: ready ? "radial-gradient(circle at 30% 30%, #fff8d1, #ffd36a)" : "radial-gradient(circle at 30% 30%, #bbbbbb,#888888)", boxShadow: "0 6px 14px rgba(255,200,80,0.25)" }} />
+                      <div style={{ width: 24, height: 24, borderRadius: "50%", background: ready ? "radial-gradient(circle at 30% 30%, #fff8d1, #ffd36a)" : "radial-gradient(circle at 30% 30%, #6b5d4a, #3d2f21)" }} />
                     </div>
                   );
                 })()}
@@ -1715,22 +1919,58 @@ export default function SuperShowdownCombined(): JSX.Element {
               HP: {player.hp}/{player.maxHp}
             </div>
             <div>
-              Power: <strong style={{ textTransform: "capitalize" }}>{player.power}</strong>
+              Pixelcoins: <strong>{pixelcoins}</strong>
+            </div>
+            <div>
+              Power: <strong style={{ textTransform: "capitalize" }}>{player.power} {isOwned(player.power) ? "(owned)" : `(${POWER_COSTS[player.power]} PC)`}</strong>
             </div>
             <div>Special Ready: {player.specialReady ? "Yes" : "No"}</div>
+
             <div style={{ marginTop: 6 }}>
               <label>
                 Change power:
                 <select value={player.power} onChange={(e) => setPlayerPower(e.target.value as Power)} disabled={waiting || gameOver} style={{ marginLeft: 8 }}>
                   {POWERS.map((p) => (
-                    <option key={p} value={p}>
-                      {p}
+                    <option key={p} value={p} disabled={!isOwned(p) && POWER_COSTS[p] > pixelcoins}>
+                      {p} {isOwned(p) ? "(owned)" : POWER_COSTS[p] ? `(${POWER_COSTS[p]} PC)` : "(free)"}
                     </option>
                   ))}
                 </select>
               </label>
             </div>
+
             <hr style={{ border: "none", borderTop: "1px solid #123" }} />
+            <h4 style={{ margin: "6px 0" }}>Store</h4>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 110px", gap: 8 }}>
+              {POWERS.map((p) => (
+                <React.Fragment key={p}>
+                  <div style={{ alignSelf: "center" }}>
+                    <strong style={{ textTransform: "capitalize" }}>{p}</strong>
+                    <div style={{ fontSize: 12, color: "#9ab" }}>
+                      {isOwned(p) ? "Owned" : `${POWER_COSTS[p]} pixelcoins`}
+                    </div>
+                  </div>
+                  <div style={{ display: "flex", gap: 6 }}>
+                    <button
+                      onClick={() => buyFromStore(p)}
+                      disabled={isOwned(p) || POWER_COSTS[p] > pixelcoins}
+                      style={{ flex: 1, padding: "6px 8px" }}
+                    >
+                      {isOwned(p) ? "Owned" : `Buy (${POWER_COSTS[p]})`}
+                    </button>
+                    <button
+                      onClick={() => { if (isOwned(p)) { setPlayer((pl) => ({ ...pl, power: p })); pushLog(`Equipped ${p}.`); } }}
+                      disabled={!isOwned(p)}
+                      style={{ padding: "6px 8px" }}
+                    >
+                      Equip
+                    </button>
+                  </div>
+                </React.Fragment>
+              ))}
+            </div>
+
+            <hr style={{ border: "none", borderTop: "1px solid #123", marginTop: 8 }} />
             <h4 style={{ margin: "6px 0" }}>Enemy</h4>
             <div>{enemy.name}</div>
             <div>
