@@ -7,7 +7,9 @@ import React, { useEffect, useRef, useState } from "react";
  * - Lunar Midnight: visual moon + sky darkening overlay while Midnight is active (callable every 80s, lasts 10s).
  * - Soleil teleport indicator: sun emblem rendered at the chosen aimTarget (shows if player.power === 'soleil').
  *
- * Applies only to SuperShowdown2.
+ * This variant now also includes a simple in-game Store and persistent owned-powers/pixelcoins
+ * (from the SuperShowdown file) so players can purchase powers and persist them locally or
+ * attempt to sync to /api/supershowdown/player when available.
  */
 
 // Map config
@@ -99,6 +101,19 @@ const POWERS: Power[] = [
   "doppelganger",
 ];
 
+// Small store cost map so players can buy powers and persist ownership. Free for common basics.
+const POWER_COSTS: Record<Power, number> = {
+  mud: 0,
+  parasite: 30,
+  harmony: 0,
+  berserker: 45,
+  regen: 30,
+  hex: 30,
+  lunar: 45,
+  soleil: 50,
+  doppelganger: 60,
+};
+
 const DEFAULT_AMMO: Record<string, number> = {
   mud: 6,
   parasite: 5,
@@ -117,6 +132,103 @@ export default function SuperShowdown2(): JSX.Element {
   const [deathPower, setDeathPower] = useState<Power>("mud");
   const [startConfirmed, setStartConfirmed] = useState(false);
   const [autoRespawn, setAutoRespawn] = useState(true);
+
+  // --- Store / persistence ---
+  const [pixelcoins, setPixelcoins] = useState<number>(120);
+  const [ownedPowers, setOwnedPowers] = useState<Record<Power, boolean>>(() => {
+    const initial: Record<Power, boolean> = {
+      mud: true,
+      parasite: false,
+      harmony: true,
+      berserker: false,
+      regen: false,
+      hex: false,
+      lunar: false,
+      soleil: false,
+      doppelganger: false,
+    };
+    return initial;
+  });
+  const [serverAvailable, setServerAvailable] = useState(false);
+
+  // Try to load saved data from server (if API endpoint exists). Graceful fallback to localStorage.
+  useEffect(() => {
+    let mounted = true;
+    async function tryServerLoad() {
+      if (typeof window === "undefined") return;
+      try {
+        const res = await fetch("/api/supershowdown/player", { method: "GET", credentials: "same-origin" });
+        if (!mounted) return;
+        if (res.ok) {
+          const json = await res.json();
+          // expected shape: { pixelcoins: number, ownedPowers: Record<string, boolean> }
+          if (json && typeof json.pixelcoins === "number" && typeof json.ownedPowers === "object") {
+            setPixelcoins(json.pixelcoins);
+            const merged: Record<Power, boolean> = { ...ownedPowers };
+            for (const p of POWERS) {
+              if (typeof json.ownedPowers[p] === "boolean") merged[p] = json.ownedPowers[p];
+            }
+            setOwnedPowers(merged);
+            setServerAvailable(true);
+            return;
+          }
+        }
+      } catch (e) {
+        // ignore errors — fallback below
+      }
+
+      // Server failed or returned unexpected data -> attempt to load localStorage
+      try {
+        const saved = localStorage.getItem("supershowdown2_ownedPowers");
+        if (saved) {
+          const parsed = JSON.parse(saved) as Record<string, boolean>;
+          const merged: Record<Power, boolean> = { ...ownedPowers };
+          for (const p of POWERS) {
+            if (typeof parsed[p] === "boolean") merged[p] = parsed[p];
+          }
+          setOwnedPowers(merged);
+        }
+        const pc = localStorage.getItem("supershowdown2_pixelcoins");
+        if (pc) {
+          const v = parseInt(pc, 10);
+          if (!Number.isNaN(v)) setPixelcoins(v);
+        }
+      } catch (e) {
+        // ignore parse errors
+      }
+    }
+    tryServerLoad();
+    return () => {
+      mounted = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Persist locally when ownedPowers or pixelcoins changes AND if server is not available.
+  useEffect(() => {
+    if (serverAvailable) {
+      // If server is available, also POST updates there (best-effort).
+      (async () => {
+        try {
+          await fetch("/api/supershowdown/player", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            credentials: "same-origin",
+            body: JSON.stringify({ pixelcoins, ownedPowers }),
+          });
+        } catch (e) {
+          // ignore
+        }
+      })();
+    } else {
+      try {
+        localStorage.setItem("supershowdown2_ownedPowers", JSON.stringify(ownedPowers));
+        localStorage.setItem("supershowdown2_pixelcoins", String(pixelcoins));
+      } catch (e) {
+        // ignore
+      }
+    }
+  }, [ownedPowers, pixelcoins, serverAvailable]);
 
   const playerStart: Vec2 = { x: MAP_SIZE * 0.25, y: MAP_SIZE / 2 };
   const enemyStart: Vec2 = { x: MAP_SIZE * 0.75, y: MAP_SIZE / 2 };
@@ -733,7 +845,7 @@ export default function SuperShowdown2(): JSX.Element {
       }
 
       case "regen": {
-        // Stronger regen: after 5 seconds grant 8 ticks of 2HP per tick (8 * 2 = 16HP)
+        // Stronger regen: after 5 seconds grant 8 ticks of 2HP per 500ms tick (8 * 2 = 16HP)
         setTimeout(() => {
           setPlayer((p) => ({ ...p, statuses: { ...(p.statuses || {}), regen: Math.max(0, (p.statuses?.regen || 0) + 8) } }));
           pushLog("Regen begins to mend your wounds (stronger).");
@@ -877,6 +989,37 @@ export default function SuperShowdown2(): JSX.Element {
     }, 10000);
   }
 
+  // Ownership helpers (store)
+  function isOwned(p: Power) {
+    return Boolean(ownedPowers[p]);
+  }
+  function buyPower(pw: Power): boolean {
+    if (isOwned(pw)) return true;
+    const cost = POWER_COSTS[pw] ?? 0;
+    if (cost <= 0) {
+      setOwnedPowers((prev) => ({ ...prev, [pw]: true }));
+      pushLog(`Unlocked ${pw} (free).`);
+      return true;
+    }
+    if (pixelcoins >= cost) {
+      setPixelcoins((prev) => prev - cost);
+      setOwnedPowers((prev) => ({ ...prev, [pw]: true }));
+      pushLog(`Purchased ${pw} for ${cost} pixelcoins.`);
+      return true;
+    } else {
+      pushLog(`Not enough pixelcoins to purchase ${pw} (need ${cost}).`);
+      return false;
+    }
+  }
+  function buyFromStore(pw: Power) {
+    if (isOwned(pw)) {
+      pushLog(`${pw} is already owned.`);
+      return;
+    }
+    const ok = buyPower(pw);
+    if (ok) pushLog(`You now own ${pw}. You can equip it from the Change Power dropdown.`);
+  }
+
   // Respawn logic
   function respawnPlayer(immediate = true) {
     const appliedPower = chooseDeathPower ? deathPower : player.power;
@@ -961,13 +1104,6 @@ export default function SuperShowdown2(): JSX.Element {
     setDoppels([]);
     cooldownsRef.current = {};
     ammoRef.current = { ...DEFAULT_AMMO };
-    harmonyRef.current = { magRemaining: 4, lastShotAt: 0, consecutiveHits: 0, lastHitAt: 0, reloadUntil: 0 };
-    hexStateRef.current = { hitsSinceReload: 0, reloadUntil: 0 };
-    lunarRef.current = { magRemaining: 2, reloadUntil: 0 };
-    regenRef.current = { reloadUntil: 0 };
-    lunarStateRef.current = { lastMidnightAt: 0, midnightActiveUntil: 0 };
-    soleilStateRef.current = { lastTeleportAt: 0 };
-    swapRef.current = { nextSwapAt: 0 };
   }
 
   // Mobile detection & input handlers (same as previous)
@@ -1051,13 +1187,28 @@ export default function SuperShowdown2(): JSX.Element {
   }
 
   function confirmStart() {
+    const cost = POWER_COSTS[player.power];
+    if (!isOwned(player.power) && cost > 0) {
+      const ok = buyPower(player.power);
+      if (!ok) {
+        pushLog(`Starting-power purchase failed. Starting with Mud instead.`);
+        setPlayer((p) => ({ ...p, power: "mud" }));
+      }
+    }
+
     setStartConfirmed(true);
     pushLog("Match started. Choose an aim and use your power or fists.");
   }
 
   function setPlayerPower(pw: Power) {
     const newMax = pw === "soleil" ? 120 : 90;
-    setPlayer((p) => ({ ...p, power: pw, maxHp: newMax, hp: Math.min(newMax, p.hp) }));
+    if (isOwned(pw)) {
+      setPlayer((p) => ({ ...p, power: pw, maxHp: newMax, hp: Math.min(newMax, p.hp) }));
+      pushLog(`Equipped ${pw}.`);
+      return;
+    }
+    const ok = buyPower(pw);
+    if (ok) setPlayer((p) => ({ ...p, power: pw, maxHp: newMax, hp: Math.min(newMax, p.hp) }));
   }
 
   function Aim3D({ target }: { target: Vec2 }) {
@@ -1072,8 +1223,8 @@ export default function SuperShowdown2(): JSX.Element {
     const endTransform = `translate3d(${end.xPx - ringSize / 2}px, 0px, ${end.zPx - ringSize / 2}px)`;
     return (
       <>
-        <div style={{ position: "absolute", left: 0, top: 0, transform, width: dist, height: 10, transformOrigin: "0 50%", pointerEvents: "none", opacity: 0.45, background: "linear-gradient(90deg, rgba(255,255,150,0.9), rgba(255,255,150,0.2))" }} />
-        <div style={{ position: "absolute", left: 0, top: 0, transform: endTransform, width: ringSize, height: ringSize, borderRadius: "50%", border: "2px solid rgba(255,255,200,0.6)", boxShadow: "0 0 8px rgba(255,220,120,0.25)", pointerEvents: "none" }} />
+        <div style={{ position: "absolute", left: 0, top: 0, transform, width: dist, height: 10, transformOrigin: "0 50%", pointerEvents: "none", opacity: 0.45, background: "linear-gradient(90deg, rgba(255,255,120,0.0), rgba(255,255,120,0.35), rgba(255,255,120,0.0))", borderRadius: 6 }} />
+        <div style={{ position: "absolute", left: 0, top: 0, transform: endTransform, width: ringSize, height: ringSize, borderRadius: "50%", border: "2px solid rgba(255,255,200,0.6)", boxShadow: "0 0 10px rgba(255,255,120,0.2)", pointerEvents: "none" }} />
       </>
     );
   }
@@ -1085,11 +1236,11 @@ export default function SuperShowdown2(): JSX.Element {
     const shadowScale = 1 + (zPx / CANVAS_SIZE_PX) * 0.4;
     const hpPct = Math.max(0, Math.round((f.hp / f.maxHp) * 100));
     return (
-      <div className="scene-object player-3d" style={{ position: "absolute", transformStyle: "preserve-3d", transform, width: size, height: size * 1.6, pointerEvents: "none" }} title={`${f.name} (${f.hp}/${f.maxHp})`}>
-        <div style={{ transform: `translateZ(0px)`, width: "100%", height: "70%", borderRadius: 8, background: f.id === player.id ? "linear-gradient(#4f8fd2,#2b6fb0)" : "linear-gradient(#d25a5a,#a83f3f)" }} />
-        <div style={{ position: "absolute", top: -8, left: "50%", transform: "translateX(-50%)", width: size * 0.7, height: size * 0.45, borderRadius: "50% 50% 40% 40%", background: "rgba(255,255,255,0.06)" }} />
-        <div style={{ position: "absolute", bottom: -6, left: "50%", transform: "translateX(-50%) rotateX(90deg) translateZ(-0.1px)", width: size * shadowScale, height: size * 0.25, borderRadius: 999, background: "rgba(0,0,0,0.5)" }} />
-        <div style={{ position: "absolute", top: -18, left: "50%", transform: "translateX(-50%)", width: size * 1.2, height: 6, background: "rgba(0,0,0,0.5)", borderRadius: 6, overflow: "hidden" }}>
+      <div className="scene-object player-3d" style={{ position: "absolute", transformStyle: "preserve-3d", transform, width: size, height: size * 1.6, pointerEvents: "none" }} title={`${f.name} — ${f.hp}/${f.maxHp}`}>
+        <div style={{ transform: `translateZ(0px)`, width: "100%", height: "70%", borderRadius: 8, background: f.id === player.id ? "linear-gradient(#4f8fd2,#2b6fb0)" : "linear-gradient(#d25a5a,#a83737)", boxShadow: "0 8px 20px rgba(0,0,0,0.6)", border: "1px solid rgba(255,255,255,0.06)" }} />
+        <div style={{ position: "absolute", top: -8, left: "50%", transform: "translateX(-50%)", width: size * 0.7, height: size * 0.45, borderRadius: "50% 50% 40% 40%", background: "rgba(255,255,255,0.06)", boxShadow: "inset 0 2px 4px rgba(255,255,255,0.06)" }} />
+        <div style={{ position: "absolute", bottom: -6, left: "50%", transform: "translateX(-50%) rotateX(90deg) translateZ(-0.1px)", width: size * shadowScale, height: size * 0.25, borderRadius: "50%", background: "rgba(0,0,0,0.45)", filter: "blur(6px)", opacity: 0.6 }} />
+        <div style={{ position: "absolute", top: -18, left: "50%", transform: "translateX(-50%)", width: size * 1.2, height: 6, background: "rgba(0,0,0,0.5)", borderRadius: 6, overflow: "hidden", border: "1px solid rgba(255,255,255,0.04)" }}>
           <div style={{ width: `${hpPct}%`, height: "100%", background: hpPct > 50 ? "#4caf50" : hpPct > 20 ? "#ff9800" : "#f44336", transition: "width 200ms linear" }} />
         </div>
       </div>
@@ -1099,7 +1250,7 @@ export default function SuperShowdown2(): JSX.Element {
   // UI render (includes Midnight overlay and Soleil teleport emblem)
   return (
     <div style={{ maxWidth: 1100, margin: "0 auto", fontFamily: "Inter, Arial, sans-serif", color: "#cfe", position: "relative" }}>
-      <h2>Super Showdown 2 — Custom Powers</h2>
+      <h2>Super Showdown 2 — Custom Powers + Store</h2>
 
       {/* MIDNIGHT OVERLAY (moon + darkening) */}
       {lunarActive && (
@@ -1107,13 +1258,19 @@ export default function SuperShowdown2(): JSX.Element {
           {/* darken */}
           <div style={{ position: "absolute", left: 0, top: 0, right: 0, bottom: 0, background: "rgba(2,8,25,0.55)", transition: "opacity 400ms" }} />
           {/* moon rising (simple animated effect) */}
-          <div style={{ position: "absolute", left: "50%", transform: "translateX(-50%)", bottom: "64%", width: 120, height: 120, borderRadius: "50%", background: "radial-gradient(circle at 30% 30%, #fff8e6, #ddd)" }} />
+          <div style={{ position: "absolute", left: "50%", transform: "translateX(-50%)", bottom: "64%", width: 120, height: 120, borderRadius: "50%", background: "radial-gradient(circle at 30% 30%, #fff, #ddd)", opacity: 0.95 }} />
         </div>
       )}
 
       {!startConfirmed && (
         <div style={{ border: "1px solid #334", padding: 12, marginBottom: 12, borderRadius: 8 }}>
           <h3>Match Setup</h3>
+
+          <div style={{ display: "flex", gap: 12, alignItems: "center", marginBottom: 8 }}>
+            <div>Pixelcoins: <strong>{pixelcoins}</strong></div>
+            <div style={{ color: serverAvailable ? "#8f8" : "#999", fontSize: 12 }}>{serverAvailable ? "Saved to server" : "Local (or server unreachable)"}</div>
+          </div>
+
           <label style={{ display: "block", marginBottom: 8 }}>
             <input type="checkbox" checked={chooseDeathPower} onChange={(e) => setChooseDeathPower(e.target.checked)} /> Choose a power to have when you die (applies on next respawn)
           </label>
@@ -1128,7 +1285,7 @@ export default function SuperShowdown2(): JSX.Element {
           <label style={{ display: "block", marginBottom: 8 }}>
             Starting power:
             <select value={player.power} onChange={(e) => setPlayerPower(e.target.value as Power)} style={{ marginLeft: 8 }}>
-              {POWERS.map((p) => (<option key={p} value={p}>{p}</option>))}
+              {POWERS.map((p) => (<option key={p} value={p} disabled={!isOwned(p) && POWER_COSTS[p] > pixelcoins}>{p}{!isOwned(p) && POWER_COSTS[p] > 0 ? ` (${POWER_COSTS[p]} PC)` : isOwned(p) ? ' (owned)' : ''}</option>))}
             </select>
           </label>
 
@@ -1136,7 +1293,11 @@ export default function SuperShowdown2(): JSX.Element {
             <input type="checkbox" checked={autoRespawn} onChange={(e) => setAutoRespawn(e.target.checked)} /> Auto-respawn immediately upon death
           </label>
 
-          <button onClick={confirmStart} style={{ padding: "8px 12px" }}>Confirm & Start Match</button>
+          <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+            <button onClick={confirmStart} style={{ padding: "8px 12px" }}>Confirm & Start Match</button>
+            <button onClick={() => { setPixelcoins((p) => p + 50); pushLog("Added 50 pixelcoins (dev)."); }} style={{ padding: "8px 12px" }}>+50 PC (dev)</button>
+            <button onClick={() => { localStorage.removeItem("supershowdown2_ownedPowers"); localStorage.removeItem("supershowdown2_pixelcoins"); setOwnedPowers((prev) => ({ ...prev })); pushLog("Cleared local save (dev)."); }} style={{ padding: "8px 12px" }}>Clear Local Save</button>
+          </div>
         </div>
       )}
 
@@ -1144,15 +1305,16 @@ export default function SuperShowdown2(): JSX.Element {
         <div style={{ flex: 1 }}>
           {/* 3D Scene */}
           <div style={{ perspective: 1100, marginBottom: 8, position: "relative", zIndex: 10 }}>
-            <div aria-hidden style={{ width: CANVAS_SIZE_PX, height: CANVAS_SIZE_PX, margin: "0 auto", position: "relative", transformStyle: "preserve-3d", background: "linear-gradient(#071018,#061123)" }}>
+            <div aria-hidden style={{ width: CANVAS_SIZE_PX, height: CANVAS_SIZE_PX, margin: "0 auto", position: "relative", transformStyle: "preserve-3d", background: "linear-gradient(#071018,#041018)", borderRadius: 8, boxShadow: "0 12px 40px rgba(0,0,0,0.7)", overflow: "hidden" }}>
+
               {/* Sky darkening for lunarActive inside scene container as subtle overlay */}
               {lunarActive && (
                 <div style={{ position: "absolute", left: 0, top: 0, width: "100%", height: "100%", background: "rgba(0,0,40,0.28)", zIndex: 5, pointerEvents: "none" }} />
               )}
 
               {/* Ground plane */}
-              <div style={{ position: "absolute", left: 0, top: 0, width: "100%", height: "100%", transformStyle: "preserve-3d", transform: `rotateX(60deg) translateZ(-${CANVAS_SIZE_PX * 0.15}px)`, overflow: "hidden" }}>
-                <div style={{ position: "absolute", left: 0, top: 0, width: "100%", height: "100%", backgroundImage: "linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px)", backgroundSize: "40px 40px, 40px 40px" }} />
+              <div style={{ position: "absolute", left: 0, top: 0, width: "100%", height: "100%", transformStyle: "preserve-3d", transform: `rotateX(60deg) translateZ(-${CANVAS_SIZE_PX * 0.15}px)`, transformOrigin: "center center", pointerEvents: "none" }}>
+                <div style={{ position: "absolute", left: 0, top: 0, width: "100%", height: "100%", backgroundImage: "linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px)", backgroundSize: "18px 18px", transform: "translateZ(0px)" }} />
 
                 {/* Mud patches (3D) */}
                 {mudPatches.map((m) => {
@@ -1168,7 +1330,7 @@ export default function SuperShowdown2(): JSX.Element {
 
                 {/* Parasite icon near enemy */}
                 {parasites.map((p) => (
-                  <div key={p.id} style={{ position: "absolute", left: toScenePx(enemy.pos).xPx, top: toScenePx(enemy.pos).zPx, transform: `translate3d(${toScenePx(enemy.pos).xPx}px,0px,${toScenePx(enemy.pos).zPx}px)`, pointerEvents: "none" }}>
+                  <div key={p.id} style={{ position: "absolute", left: toScenePx(enemy.pos).xPx, top: toScenePx(enemy.pos).zPx, pointerEvents: "none", transform: `translate3d(${toScenePx(enemy.pos).xPx}px,0px,${toScenePx(enemy.pos).zPx}px)` }}>
                     <div style={{ transform: "translate3d(12px,-12px,0)", width: 12, height: 12, borderRadius: 6, background: "#7e2b7e" }} />
                   </div>
                 ))}
@@ -1178,7 +1340,7 @@ export default function SuperShowdown2(): JSX.Element {
                   const { xPx, zPx } = toScenePx(d.pos);
                   const size = 14;
                   const transform = `translate3d(${xPx - size / 2}px, 0px, ${zPx - size / 2}px)`;
-                  return <div key={d.id} style={{ position: "absolute", transform, width: size, height: size, pointerEvents: "none" }}><div style={{ width: "100%", height: "100%", borderRadius: 8, background: d.invulnerable ? "linear-gradient(#fff,#ddd)" : "linear-gradient(#ddd,#bbb)" }} /></div>;
+                  return <div key={d.id} style={{ position: "absolute", transform, width: size, height: size, pointerEvents: "none" }}><div style={{ width: "100%", height: "100%", borderRadius: 6, background: d.invulnerable ? "linear-gradient(#fff,#ddd)" : "linear-gradient(#c8c8c8,#a8a8a8)" }} /></div>;
                 })}
 
                 {/* Soleil teleport emblem (sun) at aimTarget when player is Soleil */}
@@ -1188,7 +1350,7 @@ export default function SuperShowdown2(): JSX.Element {
                   const ready = !soleilStateRef.current.lastTeleportAt || (Date.now() - soleilStateRef.current.lastTeleportAt) >= 120000;
                   return (
                     <div key="soleil-sigil" style={{ position: "absolute", left: 0, top: 0, transform, pointerEvents: "none" }}>
-                      <div style={{ width: 24, height: 24, borderRadius: "50%", background: ready ? "radial-gradient(circle at 30% 30%, #fff8d1, #ffd36a)" : "radial-gradient(circle at 30% 30%, #d6d6d6, #b8b8b8)", boxShadow: "0 0 10px rgba(255,200,80,0.25)" }} />
+                      <div style={{ width: 24, height: 24, borderRadius: "50%", background: ready ? "radial-gradient(circle at 30% 30%, #fff8d1, #ffd36a)" : "radial-gradient(circle at 30% 30%, #ddd, #999)", boxShadow: "0 0 8px rgba(255,180,64,0.28)", border: "1px solid rgba(255,200,90,0.6)" }} />
                     </div>
                   );
                 })()}
@@ -1204,7 +1366,7 @@ export default function SuperShowdown2(): JSX.Element {
 
           {/* Visible canvas for accurate clicks and 3D styled representation (was hidden before) */}
           <div style={{ textAlign: "center", marginTop: -CANVAS_SIZE_PX - 6 }}>
-            <canvas ref={canvasRef} width={CANVAS_SIZE_PX} height={CANVAS_SIZE_PX} style={{ opacity: 0.98, pointerEvents: "auto", cursor: isAiming ? "crosshair" : "crosshair", transform: `translateZ(0)` }} onClick={handleCanvasClick} onMouseMove={handleMouseMove} />
+            <canvas ref={canvasRef} width={CANVAS_SIZE_PX} height={CANVAS_SIZE_PX} style={{ opacity: 0.98, pointerEvents: "auto", cursor: isAiming ? "crosshair" : "crosshair", transform: `translateZ(0px)` }} onClick={handleCanvasClick} onMouseMove={handleMouseMove} />
             <div style={{ marginTop: 6, color: "#9fb", fontSize: 12 }}>Click the arena to set aim. On PC press E to enter aiming mode. Space and common jump keys are blocked to avoid page scrolling.</div>
           </div>
 
@@ -1230,7 +1392,7 @@ export default function SuperShowdown2(): JSX.Element {
           </div>
 
           {isTouchDevice && startConfirmed && (
-            <div onTouchStart={onJoystickTouchStart} onTouchMove={onJoystickTouchMove} onTouchEnd={onJoystickTouchEnd} style={{ position: "fixed", right: 18, bottom: 18, width: 110, height: 110, borderRadius: 8, pointerEvents: "auto" }}>
+            <div onTouchStart={onJoystickTouchStart} onTouchMove={onJoystickTouchMove} onTouchEnd={onJoystickTouchEnd} style={{ position: "fixed", right: 18, bottom: 18, width: 110, height: 110, borderRadius: 999, background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.04)", display: "flex", alignItems: "center", justifyContent: "center", touchAction: "none" }}>
               <div style={{ width: 60, height: 60, borderRadius: 999, background: "rgba(255,255,255,0.06)" }} />
             </div>
           )}
@@ -1245,9 +1407,27 @@ export default function SuperShowdown2(): JSX.Element {
             <div style={{ marginTop: 6 }}>
               <label>Change power:
                 <select value={player.power} onChange={(e) => setPlayerPower(e.target.value as Power)} disabled={waiting || gameOver} style={{ marginLeft: 8 }}>
-                  {POWERS.map((p) => (<option key={p} value={p}>{p}</option>))}
+                  {POWERS.map((p) => (<option key={p} value={p}>{p}{isOwned(p) ? ' (owned)' : POWER_COSTS[p] ? ` (${POWER_COSTS[p]} PC)` : ''}</option>))}
                 </select>
               </label>
+            </div>
+
+            <hr style={{ border: "none", borderTop: "1px solid #123" }} />
+
+            <h4 style={{ margin: "6px 0" }}>Store</h4>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 110px", gap: 8 }}>
+              {POWERS.map((p) => (
+                <React.Fragment key={p}>
+                  <div style={{ alignSelf: "center" }}>
+                    <strong style={{ textTransform: "capitalize" }}>{p}</strong>
+                    <div style={{ fontSize: 12, color: "#9ab" }}>{isOwned(p) ? "Owned" : `${POWER_COSTS[p]} pixelcoins`}</div>
+                  </div>
+                  <div style={{ display: "flex", gap: 6 }}>
+                    <button onClick={() => buyFromStore(p)} disabled={isOwned(p) || POWER_COSTS[p] > pixelcoins} style={{ flex: 1, padding: "6px 8px" }}>{isOwned(p) ? "Owned" : `Buy (${POWER_COSTS[p]})`}</button>
+                    <button onClick={() => { if (isOwned(p)) { setPlayer((pl) => ({ ...pl, power: p })); pushLog(`Equipped ${p}.`); } }} disabled={!isOwned(p)} style={{ padding: "6px 8px" }}>Equip</button>
+                  </div>
+                </React.Fragment>
+              ))}
             </div>
 
             <hr style={{ border: "none", borderTop: "1px solid #123" }} />
@@ -1276,7 +1456,7 @@ export default function SuperShowdown2(): JSX.Element {
         <div style={{ marginTop: 12, padding: 12, background: "#170a0f", borderRadius: 6 }}>
           <strong>Match finished.</strong> {player.hp <= 0 ? "You died." : "Match over."}
           <div style={{ marginTop: 8 }}>
-            <button onClick={() => { if (chooseDeathPower) { setPlayer((p) => ({ ...p, power: deathPower })); pushLog(`On respawn you will wield ${deathPower}.`); } respawnPlayer(); setGameOver(false); }} style={{ padding: "8px 12px" }}>Respawn</button>
+            <button onClick={() => { if (chooseDeathPower) { setPlayer((p) => ({ ...p, power: deathPower })); pushLog(`On respawn you will wield ${deathPower}.`); } respawnPlayer(); setGameOver(false); }} style={{ padding: "8px 12px" }}>Respawn / Reset (join back)</button>
           </div>
         </div>
       )}
