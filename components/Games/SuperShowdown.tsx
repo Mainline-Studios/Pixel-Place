@@ -48,13 +48,13 @@ const POWER_COSTS: Record<Power, number> = {
   water: 0,
   earth: 0,
   electricity: 0,
-  wind: 30,
+  wind: 25,
   poison: 30,
-  ice: 30,
+  ice: 25,
   celestial: 30,
   invisible: 45,
   fauna: 45,
-  fleur: 50,
+  fleur: 60,
 };
 
 const MAP_SIZE = 30;
