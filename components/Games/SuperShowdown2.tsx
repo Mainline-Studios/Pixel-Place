@@ -108,10 +108,10 @@ const POWER_COSTS: Record<Power, number> = {
   harmony: 0,
   berserker: 45,
   regen: 30,
-  hex: 30,
-  lunar: 45,
+  hex: 75,
+  lunar: 60,
   soleil: 50,
-  doppelganger: 60,
+  doppelganger: 50,
 };
 
 const DEFAULT_AMMO: Record<string, number> = {
