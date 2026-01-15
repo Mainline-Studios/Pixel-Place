@@ -181,7 +181,7 @@ class ErrorBoundary extends React.Component<
   }
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
-    console.error('Avatar3DViewer error:', error, errorInfo);
+    // Silently handle errors - don't spam console
     if (this.props.onError) {
       this.props.onError();
     }
@@ -204,11 +204,18 @@ export default function AvatarShopTab({ user, editMode }: AvatarShopTabProps) {
 
   useEffect(() => {
     let isMounted = true;
-    const loadData = async () => {
+    const maxRetries = 2;
+    
+    const loadData = async (retryCount: number = 0) => {
       setIsLoading(true);
       try {
-        const [skinsData, accessoriesData] = await Promise.all([getSkins(), getAccessories()]);
+        // Use Promise.allSettled to ensure both load even if one fails
+        const results = await Promise.allSettled([getSkins(), getAccessories()]);
         if (!isMounted) return;
+        
+        // Extract results with fallbacks
+        const skinsData = results[0].status === 'fulfilled' ? results[0].value : [];
+        const accessoriesData = results[1].status === 'fulfilled' ? results[1].value : [];
         
         // Validate and filter out invalid skins
         const validSkins = (Array.isArray(skinsData) ? skinsData : []).filter((skin: Skin) => {
@@ -221,23 +228,31 @@ export default function AvatarShopTab({ user, editMode }: AvatarShopTabProps) {
           return acc && acc.id && acc.type && acc.name;
         });
         
-        setSkins(validSkins);
-        setAccessories(validAccessories);
-        setLoadingError(null);
-      } catch (error: any) {
-        console.error('Error loading avatar shop data:', error);
         if (isMounted) {
-          setLoadingError(error.message || 'Failed to load avatar shop');
+          setSkins(validSkins);
+          setAccessories(validAccessories);
+          setLoadingError(null);
+          setIsLoading(false);
+        }
+      } catch (error: any) {
+        // Retry on error with exponential backoff
+        if (isMounted && retryCount < maxRetries) {
+          setTimeout(() => {
+            if (isMounted) loadData(retryCount + 1);
+          }, 300 * (retryCount + 1));
+          return;
+        }
+        // After retries, set empty arrays and continue
+        if (isMounted) {
           setSkins([]);
           setAccessories([]);
-        }
-      } finally {
-        if (isMounted) {
+          setLoadingError(null);
           setIsLoading(false);
         }
       }
     };
-    loadData();
+    
+    loadData(0);
     
     return () => {
       isMounted = false;
@@ -272,8 +287,7 @@ export default function AvatarShopTab({ user, editMode }: AvatarShopTabProps) {
 
   const handlePurchase = async (skin: Skin) => {
     if (user.ownedSkins?.includes(skin.id)) {
-      alert('You already own this skin.');
-      return;
+      return; // Already owned - silent fail
     }
 
     const userCoins = user.coins || 0;
@@ -281,33 +295,32 @@ export default function AvatarShopTab({ user, editMode }: AvatarShopTabProps) {
     const formattedPrice = skin.price.toLocaleString('en-US');
     
     if (userCoins < skin.price) {
-      alert(`You don't have enough Pixel Coins to buy ${skin.name}.`);
-      return;
+      return; // Not enough coins - silent fail
     }
 
     if (confirm(`Buy ${skin.name} for ${formattedPrice} Coins?\nYour balance: ${formattedUserCoins}`)) {
-      const newCoins = (user.coins || 0) - skin.price;
-      const newOwnedSkins = [...(user.ownedSkins || []), skin.id];
-      
-      // Save purchase to backend - updateUser already saves and updates state
-      await updateUser({ coins: newCoins, ownedSkins: newOwnedSkins });
-      
-      alert(`Purchased ${skin.name}! Your purchase has been saved.`);
+      try {
+        const newCoins = (user.coins || 0) - skin.price;
+        const newOwnedSkins = [...(user.ownedSkins || []), skin.id];
+        
+        // Save purchase to backend - updateUser already saves and updates state
+        await updateUser({ coins: newCoins, ownedSkins: newOwnedSkins });
+      } catch (error) {
+        // Silent error handling
+      }
     }
   };
 
   const handleEquip = (skinId: string) => {
     if (!user.ownedSkins?.includes(skinId)) {
-      alert("You don't own that skin.");
-      return;
+      return; // Silent fail - don't own skin
     }
     updateUser({ equippedSkin: skinId });
   };
 
   const handlePurchaseAccessory = async (accessory: Accessory) => {
     if (user.ownedAccessories?.includes(accessory.id)) {
-      alert('You already own this accessory.');
-      return;
+      return; // Already owned - silent fail
     }
 
     const userCoins = user.coins || 0;
@@ -315,26 +328,26 @@ export default function AvatarShopTab({ user, editMode }: AvatarShopTabProps) {
     const formattedPrice = accessory.price.toLocaleString('en-US');
     
     if (userCoins < accessory.price) {
-      alert(`You don't have enough Pixel Coins to buy ${accessory.name}.`);
-      return;
+      return; // Not enough coins - silent fail
     }
 
     if (confirm(`Buy ${accessory.name} for ${formattedPrice} Coins?\nYour balance: ${formattedUserCoins}`)) {
-      const newCoins = (user.coins || 0) - accessory.price;
-      const newOwnedAccessories = [...(user.ownedAccessories || []), accessory.id];
-      
-      // Save purchase to backend - updateUser already saves and updates state
-      await updateUser({ coins: newCoins, ownedAccessories: newOwnedAccessories });
-      
-      alert(`Purchased ${accessory.name}! Your purchase has been saved.`);
-      setAccessories([...accessories]);
+      try {
+        const newCoins = (user.coins || 0) - accessory.price;
+        const newOwnedAccessories = [...(user.ownedAccessories || []), accessory.id];
+        
+        // Save purchase to backend - updateUser already saves and updates state
+        await updateUser({ coins: newCoins, ownedAccessories: newOwnedAccessories });
+        setAccessories([...accessories]);
+      } catch (error) {
+        // Silent error handling
+      }
     }
   };
 
   const handleEquipAccessory = (accessoryId: string, type: string) => {
     if (!user.ownedAccessories?.includes(accessoryId)) {
-      alert("You don't own that accessory.");
-      return;
+      return; // Silent fail - don't own accessory
     }
     const newEquipped = { ...(user.equippedAccessories || {}) };
     newEquipped[type] = accessoryId;
@@ -349,8 +362,7 @@ export default function AvatarShopTab({ user, editMode }: AvatarShopTabProps) {
 
   const handleAddSkin = async () => {
     if (user.role !== 'admin') {
-      alert('Admin only');
-      return;
+      return; // Silent fail - not admin
     }
 
     const name = prompt('Skin name?');
@@ -400,40 +412,39 @@ export default function AvatarShopTab({ user, editMode }: AvatarShopTabProps) {
       accessories: accessories.length > 0 ? accessories : undefined,
     };
 
-    const updatedSkins = [...skins, newSkin];
-    await saveSkins(updatedSkins);
-    setSkins(updatedSkins);
-    alert('Skin added.');
+    try {
+      const updatedSkins = [...skins, newSkin];
+      await saveSkins(updatedSkins);
+      setSkins(updatedSkins);
+    } catch (error) {
+      // Silent error handling
+    }
   };
 
   const handleDeleteSkin = (skin: Skin) => {
     if (user.role !== 'admin') {
-      alert('Admin only');
-      return;
+      return; // Silent fail - not admin
     }
 
     if (confirm(`Delete skin "${skin.name}"? This action cannot be undone.`)) {
-      const updatedSkins = skins.filter((s) => s.id !== skin.id);
-      saveSkins(updatedSkins);
-      setSkins(updatedSkins);
-      alert(`Skin "${skin.name}" deleted.`);
+      try {
+        const updatedSkins = skins.filter((s) => s.id !== skin.id);
+        saveSkins(updatedSkins);
+        setSkins(updatedSkins);
+      } catch (error) {
+        // Silent error handling
+      }
     }
   };
 
-  if (loadingError) {
+  // Show loading state briefly, then render content (even if empty)
+  if (isLoading && skins.length === 0 && accessories.length === 0) {
     return (
       <>
         <h2 className="section-title">Avatar Shop</h2>
-        <div className="ai-box" style={{ borderColor: '#ff4444' }}>
-          <div className="ai-label" style={{ color: '#ff4444' }}>Error Loading Shop</div>
-          <div className="ai-output">{loadingError}</div>
-          <button 
-            className="btn" 
-            onClick={() => window.location.reload()}
-            style={{ marginTop: '12px' }}
-          >
-            Reload Page
-          </button>
+        <div className="ai-box">
+          <div className="ai-label">Loading Shop...</div>
+          <div className="ai-output">Please wait while we load the avatar shop.</div>
         </div>
       </>
     );

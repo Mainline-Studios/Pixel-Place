@@ -4,10 +4,12 @@
     "password": "67676767",
     "gender": "N/A",
     "role": "admin",
-    "coins": 33013650,
+    "coins": 34012950,
     "ownedSkins": [
       "starter_classic",
-      "orange_striped_boy"
+      "orange_striped_boy",
+      "tennis_player",
+      "cheeseburger"
     ],
     "equippedSkin": "orange_striped_boy",
     "ownedAccessories": [
@@ -23,7 +25,10 @@
       "wings_angel"
     ],
     "equippedAccessories": {
-      "wings": "wings_demon"
+      "wings": "wings_demon",
+      "hat": "wizard_hat",
+      "glasses": "cool_sunglasses",
+      "pet": "pet_robot"
     },
     "friends": [
       "BDawgsAwesome1"
