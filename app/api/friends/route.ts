@@ -30,6 +30,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Username is required' }, { status: 400 });
     }
 
+    // Always read fresh data from file
     const users = await readUsers();
     const user = users.find(u => u.username.toLowerCase() === username.toLowerCase());
 
@@ -41,15 +42,22 @@ export async function GET(request: NextRequest) {
     const friendRequests = user.friendRequests || [];
     const sentFriendRequests = user.sentFriendRequests || [];
 
-    // Get full friend user objects
+    // Get full friend user objects (fresh data)
     const friendUsers = friends
       .map(friendUsername => users.find(u => u.username.toLowerCase() === friendUsername.toLowerCase()))
       .filter(Boolean) as User[];
 
+    // Return response with no-cache headers
     return NextResponse.json({
       friends: friendUsers,
       incomingRequests: friendRequests,
       sentRequests: sentFriendRequests
+    }, {
+      headers: {
+        'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0'
+      }
     });
   } catch (error) {
     console.error('Error getting friends:', error);
@@ -86,17 +94,37 @@ export async function POST(request: NextRequest) {
     if (!toUser.friendRequests) toUser.friendRequests = [];
 
     if (action === 'send') {
-      // Check if already friends
-      if (fromUser.friends.some(f => f.toLowerCase() === toUsername.toLowerCase())) {
+      // Check if already friends (bidirectional check)
+      const isAlreadyFriend = fromUser.friends.some(f => f.toLowerCase() === toUsername.toLowerCase()) ||
+                              toUser.friends.some(f => f.toLowerCase() === fromUsername.toLowerCase());
+      
+      if (isAlreadyFriend) {
+        // Clean up - remove from sentFriendRequests if exists
+        fromUser.sentFriendRequests = fromUser.sentFriendRequests?.filter(
+          f => f.toLowerCase() !== toUsername.toLowerCase()
+        ) || [];
+        await writeUsers(users);
         return NextResponse.json({ error: 'Already friends' }, { status: 400 });
       }
 
-      // Check if request already sent
+      // Check if request already sent (but clean up if user is already in sent list)
       if (fromUser.sentFriendRequests.some(f => f.toLowerCase() === toUsername.toLowerCase())) {
-        return NextResponse.json({ error: 'Friend request already sent' }, { status: 400 });
+        // Check if there's a pending request on the other side
+        const hasPendingRequest = toUser.friendRequests?.some(
+          (req: FriendRequest) => req.from.toLowerCase() === fromUsername.toLowerCase() && req.status === 'pending'
+        );
+        
+        if (hasPendingRequest) {
+          return NextResponse.json({ error: 'Friend request already sent' }, { status: 400 });
+        } else {
+          // Clean up stale sent request
+          fromUser.sentFriendRequests = fromUser.sentFriendRequests.filter(
+            f => f.toLowerCase() !== toUsername.toLowerCase()
+          );
+        }
       }
 
-      // Check if there's already an incoming request
+      // Check if there's already an incoming request (bidirectional - maybe they sent one to us)
       const existingRequest = toUser.friendRequests?.find(
         (req: FriendRequest) => req.from.toLowerCase() === fromUsername.toLowerCase() && req.status === 'pending'
       );
@@ -119,7 +147,11 @@ export async function POST(request: NextRequest) {
       fromUser.sentFriendRequests.push(toUsername);
 
       await writeUsers(users);
-      return NextResponse.json({ success: true, message: 'Friend request sent' });
+      return NextResponse.json({ success: true, message: 'Friend request sent' }, {
+        headers: {
+          'Cache-Control': 'no-store'
+        }
+      });
 
     } else if (action === 'accept') {
       // Find the friend request
@@ -136,17 +168,20 @@ export async function POST(request: NextRequest) {
         toUser.friendRequests[requestIndex].status = 'accepted';
       }
 
-      // Add to friends lists
-      if (!toUser.friends.includes(fromUsername)) {
+      // Add to friends lists (bidirectional - case insensitive check)
+      if (!toUser.friends.some(f => f.toLowerCase() === fromUsername.toLowerCase())) {
         toUser.friends.push(fromUsername);
       }
-      if (!fromUser.friends.includes(toUsername)) {
+      if (!fromUser.friends.some(f => f.toLowerCase() === toUsername.toLowerCase())) {
         fromUser.friends.push(toUsername);
       }
 
-      // Remove from sent requests
+      // Remove from sent requests (both users)
       fromUser.sentFriendRequests = fromUser.sentFriendRequests?.filter(
         f => f.toLowerCase() !== toUsername.toLowerCase()
+      ) || [];
+      toUser.sentFriendRequests = toUser.sentFriendRequests?.filter(
+        f => f.toLowerCase() !== fromUsername.toLowerCase()
       ) || [];
 
       // Remove the accepted request from incoming requests

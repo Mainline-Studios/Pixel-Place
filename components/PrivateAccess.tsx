@@ -1,28 +1,37 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useUser } from '@/contexts/UserContext';
 
 interface PrivateAccessProps {
   children: React.ReactNode;
 }
 
 export default function PrivateAccess({ children }: PrivateAccessProps) {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
-  const [isChecking, setIsChecking] = useState(true);
-
   // Get access password from environment or use default
   const ACCESS_PASSWORD = process.env.NEXT_PUBLIC_ACCESS_PASSWORD || 'pixelplace2026';
-
-  useEffect(() => {
-    // Check if user has already authenticated in this session
-    const sessionAuth = sessionStorage.getItem('pixelPlaceAccess');
-    if (sessionAuth === 'granted') {
-      setIsAuthenticated(true);
+  
+  // Check auth immediately - no loading state needed
+  const checkAuth = () => {
+    if (typeof window === 'undefined') return false;
+    try {
+      return window.sessionStorage?.getItem('pixelPlaceAccess') === 'granted';
+    } catch {
+      return false;
     }
-    setIsChecking(false);
+  };
+
+  const [isAuthenticated, setIsAuthenticated] = useState(checkAuth);
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+
+  // Update auth status on mount (client-side only)
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const auth = checkAuth();
+      if (auth) {
+        setIsAuthenticated(true);
+      }
+    }
   }, []);
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -30,27 +39,19 @@ export default function PrivateAccess({ children }: PrivateAccessProps) {
     setError('');
 
     if (password === ACCESS_PASSWORD) {
-      sessionStorage.setItem('pixelPlaceAccess', 'granted');
-      setIsAuthenticated(true);
+      try {
+        if (typeof window !== 'undefined' && window.sessionStorage) {
+          window.sessionStorage.setItem('pixelPlaceAccess', 'granted');
+        }
+        setIsAuthenticated(true);
+      } catch (error) {
+        console.error('Error saving session:', error);
+        setIsAuthenticated(true);
+      }
     } else {
       setError('Incorrect access password. Please contact the owner for access.');
     }
   };
-
-  if (isChecking) {
-    return (
-      <div style={{
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'center',
-        height: '100vh',
-        background: '#0d1019',
-        color: '#fff'
-      }}>
-        <div>Loading...</div>
-      </div>
-    );
-  }
 
   if (!isAuthenticated) {
     return (

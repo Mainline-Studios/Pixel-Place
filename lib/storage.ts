@@ -1,4 +1,4 @@
-import { User, Skin, PublishedGame, DraftGame, SceneData, TabContent, GameServer, ServerPlan, FriendRequest, Message, Accessory } from '@/types';
+import { User, Skin, PublishedGame, DraftGame, SceneData, TabContent, GameServer, ServerPlan, FriendRequest, Message, Accessory, PrebuiltGame, Ban, BanAppeal, UserMadeGame, GameSubmission, Report } from '@/types';
 import { NEW_SKINS, NEW_ACCESSORIES } from './newCatalog';
 
 const ADMIN_ACCOUNTS = [
@@ -20,7 +20,7 @@ export const ADMIN_ACCOUNTS_LIST = ADMIN_ACCOUNTS;
 // Initialize localStorage data
 export function initializeStorage() {
   if (typeof window === 'undefined') return;
-  
+
   // Ensure localStorage is available
   try {
     if (!window.localStorage) {
@@ -34,7 +34,7 @@ export function initializeStorage() {
 
   // Replace ALL skins with new collection based on images - DELETE EVERYTHING FIRST
   const initialSkins: Skin[] = [...NEW_SKINS];
-  
+
   // REPLACE ALL skins - completely delete old ones, no merging
   localStorage.setItem("skinsCatalog", JSON.stringify(initialSkins));
   console.log(`Deleted all old skins and replaced with ${initialSkins.length} new skins.`);
@@ -48,7 +48,7 @@ export function initializeStorage() {
       studio: "Use the 3D Studio to build, move, and save objects in your world.",
       coins: "Get Pixel Coins to spend on skins.",
       friends: "Add friends, party up, and message each other.",
-      settings: "Account details, admin tools."
+      settings: "Account details, ."
     };
     localStorage.setItem("tabContent", JSON.stringify(tabContent));
   }
@@ -113,13 +113,13 @@ export function initializeStorage() {
 
   // DELETE ALL GAMES - Start completely fresh
   const existingGames: PublishedGame[] = [];
-  
+
   localStorage.setItem("publishedGames", JSON.stringify(existingGames));
   console.log('Deleted all games.');
 
   // REPLACE ALL accessories with new collection - DELETE EVERYTHING FIRST
   const initialAccessories: Accessory[] = [...NEW_ACCESSORIES];
-  
+
   // Always replace accessories - completely delete old ones, no merging
   localStorage.setItem("accessoriesCatalog", JSON.stringify(initialAccessories));
   console.log(`Deleted all old accessories and replaced with ${initialAccessories.length} new accessories.`);
@@ -140,15 +140,15 @@ export async function getUsers(): Promise<User[]> {
       throw new Error('Failed to fetch users');
     }
     const apiUsers = await response.json();
-    
+
     // Ensure we got an array
     if (!Array.isArray(apiUsers)) {
       console.error('API returned non-array:', apiUsers);
       return [];
     }
-    
+
     console.log(`getUsers: Fetched ${apiUsers.length} users from API`);
-    
+
     // Migration: Move localStorage data to API if it exists
     try {
       const localData = localStorage.getItem("pixelPlaceUsers");
@@ -158,7 +158,7 @@ export async function getUsers(): Promise<User[]> {
           // Check if users need to be migrated
           const apiUsernames = new Set(apiUsers.map((u: User) => u.username.toLowerCase()));
           const usersToMigrate = localUsers.filter(u => !apiUsernames.has(u.username.toLowerCase()));
-          
+
           if (usersToMigrate.length > 0) {
             console.log(`Migrating ${usersToMigrate.length} users from localStorage to API`);
             // Migrate users that don't exist in API
@@ -167,7 +167,7 @@ export async function getUsers(): Promise<User[]> {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(user)
-              }).catch(() => {});
+              }).catch(() => { });
             }
             // Remove from localStorage after successful migration
             localStorage.removeItem("pixelPlaceUsers");
@@ -184,7 +184,7 @@ export async function getUsers(): Promise<User[]> {
     } catch (migrationError) {
       console.error('Error migrating users:', migrationError);
     }
-    
+
     return apiUsers;
   } catch (e) {
     console.error('Error reading users from API:', e);
@@ -200,12 +200,12 @@ export async function getUsers(): Promise<User[]> {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify(user)
-            }).catch(() => {});
+            }).catch(() => { });
           }
         }
         return Array.isArray(users) ? users : [];
       }
-    } catch {}
+    } catch { }
     return [];
   }
 }
@@ -219,7 +219,7 @@ export async function saveUsers(users: User[]): Promise<void> {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(user)
-      }).catch(() => {});
+      }).catch(() => { });
     }
   } catch (e) {
     console.error('Error saving users to API:', e);
@@ -244,7 +244,7 @@ export async function getTabContent(): Promise<TabContent> {
     const response = await fetch('/api/tabcontent');
     if (!response.ok) throw new Error('Failed to fetch tab content');
     const apiContent = await response.json();
-    
+
     // Migration: Move localStorage data to API if it exists
     try {
       const localData = localStorage.getItem("tabContent");
@@ -255,7 +255,7 @@ export async function getTabContent(): Promise<TabContent> {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(localContent)
-          }).catch(() => {});
+          }).catch(() => { });
           localStorage.removeItem("tabContent");
           const updatedResponse = await fetch('/api/tabcontent');
           if (updatedResponse.ok) return await updatedResponse.json();
@@ -264,14 +264,14 @@ export async function getTabContent(): Promise<TabContent> {
     } catch (migrationError) {
       console.error('Error migrating tab content:', migrationError);
     }
-    
+
     return apiContent;
   } catch (e) {
     console.error('Error reading tab content from API:', e);
     try {
       const data = localStorage.getItem("tabContent");
       if (data) return JSON.parse(data);
-    } catch {}
+    } catch { }
     return {} as TabContent;
   }
 }
@@ -296,7 +296,7 @@ export async function getDraft(): Promise<DraftGame> {
     const response = await fetch('/api/draft');
     if (!response.ok) throw new Error('Failed to fetch draft');
     const apiDraft = await response.json();
-    
+
     // Migration: Move localStorage data to API if it exists
     try {
       const localData = localStorage.getItem("draftGame");
@@ -307,7 +307,7 @@ export async function getDraft(): Promise<DraftGame> {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(localDraft)
-          }).catch(() => {});
+          }).catch(() => { });
           localStorage.removeItem("draftGame");
           const updatedResponse = await fetch('/api/draft');
           if (updatedResponse.ok) return await updatedResponse.json();
@@ -316,14 +316,14 @@ export async function getDraft(): Promise<DraftGame> {
     } catch (migrationError) {
       console.error('Error migrating draft:', migrationError);
     }
-    
+
     return apiDraft;
   } catch (e) {
     console.error('Error reading draft from API:', e);
     try {
       const data = localStorage.getItem("draftGame");
       if (data) return JSON.parse(data);
-    } catch {}
+    } catch { }
     return { title: "", desc: "", owner: "" };
   }
 }
@@ -346,7 +346,7 @@ export async function getPublished(): Promise<PublishedGame[]> {
   if (typeof window === 'undefined') return [];
   // Get all games from localStorage
   let games = JSON.parse(localStorage.getItem("publishedGames") || "[]");
-  
+
   // Remove duplicates - keep only the most recent version of each System game
   const seen = new Map<string, PublishedGame>();
   games.forEach((game: PublishedGame) => {
@@ -355,15 +355,15 @@ export async function getPublished(): Promise<PublishedGame[]> {
       seen.set(key, game);
     }
   });
-  
+
   // Convert back to array and remove any Tic Ti Toe duplicates
   const uniqueGames = Array.from(seen.values());
-  
+
   // Filter out Tic Tac Toe and Capture the Flag games permanently
-  const filtered = uniqueGames.filter(g => 
+  const filtered = uniqueGames.filter(g =>
     !((g.title === 'Tic Ti Toe' || g.title === 'Tic Tac Toe' || g.title === 'Capture de Flag') && g.owner === 'System')
   );
-  
+
   // Save the cleaned list back to localStorage
   localStorage.setItem("publishedGames", JSON.stringify(filtered));
   return filtered;
@@ -389,7 +389,7 @@ export async function getSceneData(): Promise<SceneData> {
     const response = await fetch('/api/scene');
     if (!response.ok) throw new Error('Failed to fetch scene');
     const apiScene = await response.json();
-    
+
     // Migration: Move localStorage data to API if it exists
     try {
       const localData = localStorage.getItem("sceneStore");
@@ -400,7 +400,7 @@ export async function getSceneData(): Promise<SceneData> {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(localScene)
-          }).catch(() => {});
+          }).catch(() => { });
           localStorage.removeItem("sceneStore");
           const updatedResponse = await fetch('/api/scene');
           if (updatedResponse.ok) return await updatedResponse.json();
@@ -409,14 +409,14 @@ export async function getSceneData(): Promise<SceneData> {
     } catch (migrationError) {
       console.error('Error migrating scene:', migrationError);
     }
-    
+
     return apiScene;
   } catch (e) {
     console.error('Error reading scene from API:', e);
     try {
       const data = localStorage.getItem("sceneStore");
       if (data) return JSON.parse(data);
-    } catch {}
+    } catch { }
     return { objects: [] };
   }
 }
@@ -441,7 +441,7 @@ export async function getPrebuiltGames(): Promise<PrebuiltGame[]> {
     const response = await fetch('/api/prebuilt');
     if (!response.ok) throw new Error('Failed to fetch prebuilt games');
     const apiGames = await response.json();
-    
+
     // Migration: Move localStorage data to API if it exists
     try {
       const localData = localStorage.getItem("prebuiltGames");
@@ -452,7 +452,7 @@ export async function getPrebuiltGames(): Promise<PrebuiltGame[]> {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(localGames)
-          }).catch(() => {});
+          }).catch(() => { });
           localStorage.removeItem("prebuiltGames");
           const updatedResponse = await fetch('/api/prebuilt');
           if (updatedResponse.ok) return await updatedResponse.json();
@@ -461,14 +461,14 @@ export async function getPrebuiltGames(): Promise<PrebuiltGame[]> {
     } catch (migrationError) {
       console.error('Error migrating prebuilt games:', migrationError);
     }
-    
+
     return apiGames;
   } catch (e) {
     console.error('Error reading prebuilt games from API:', e);
     try {
       const data = localStorage.getItem("prebuiltGames");
       if (data) return JSON.parse(data);
-    } catch {}
+    } catch { }
     return [];
   }
 }
@@ -513,7 +513,7 @@ export async function getBannedUsers(): Promise<Ban[]> {
     try {
       const data = localStorage.getItem("bannedUsers");
       if (data) return JSON.parse(data);
-    } catch {}
+    } catch { }
     return [];
   }
 }
@@ -527,7 +527,7 @@ export async function saveBannedUsers(bans: Ban[]): Promise<void> {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(ban)
-      }).catch(() => {});
+      }).catch(() => { });
     }
   } catch (e) {
     console.error('Error saving bans to API:', e);
@@ -537,7 +537,7 @@ export async function saveBannedUsers(bans: Ban[]): Promise<void> {
 export async function isUserBanned(username: string): Promise<boolean> {
   if (typeof window === 'undefined') return false;
   if (!username || !username.trim()) return false;
-  
+
   const usernameLower = username.trim().toLowerCase();
   const bans = await getBannedUsers();
   const ban = bans.find(b => b.username.toLowerCase() === usernameLower);
@@ -547,7 +547,7 @@ export async function isUserBanned(username: string): Promise<boolean> {
 export async function getBanForUser(username: string): Promise<Ban | null> {
   if (typeof window === 'undefined') return null;
   if (!username || !username.trim()) return null;
-  
+
   const usernameLower = username.trim().toLowerCase();
   const bans = await getBannedUsers();
   return bans.find(b => b.username.toLowerCase() === usernameLower) || null;
@@ -567,21 +567,21 @@ export function getBannedUsersSync(): Ban[] {
 
 export async function banUser(username: string, bannedBy: string, reason: string, permanent: boolean = true, days?: number): Promise<boolean> {
   if (typeof window === 'undefined') return false;
-  
+
   const usernameLower = username.trim().toLowerCase();
-  
+
   // Check if trying to ban an admin
   const users = await getUsers();
   const targetUser = users.find(u => u.username.toLowerCase() === usernameLower);
   if (targetUser && targetUser.role === 'admin') {
     return false;
   }
-  
+
   const isAdminAccount = ADMIN_ACCOUNTS_LIST.some(a => a.username.toLowerCase() === usernameLower);
   if (isAdminAccount) {
     return false;
   }
-  
+
   const newBan: Ban = {
     username: username.trim(),
     bannedBy,
@@ -590,7 +590,7 @@ export async function banUser(username: string, bannedBy: string, reason: string
     permanent,
     expiresAt: permanent ? undefined : (days ? Date.now() + (days * 24 * 60 * 60 * 1000) : undefined)
   };
-  
+
   try {
     const response = await fetch('/api/bans', {
       method: 'POST',
@@ -627,7 +627,7 @@ export async function getReports(): Promise<Report[]> {
     try {
       const data = localStorage.getItem("reports");
       if (data) return JSON.parse(data);
-    } catch {}
+    } catch { }
     return [];
   }
 }
@@ -648,7 +648,7 @@ export async function createReport(reportedUsername: string, reporterUsername: s
     timestamp: Date.now(),
     status: 'pending'
   };
-  
+
   try {
     const response = await fetch('/api/reports', {
       method: 'POST',
@@ -690,7 +690,7 @@ export async function getBanAppeals(): Promise<BanAppeal[]> {
     try {
       const data = localStorage.getItem("banAppeals");
       if (data) return JSON.parse(data);
-    } catch {}
+    } catch { }
     return [];
   }
 }
@@ -702,19 +702,19 @@ export async function saveBanAppeals(appeals: BanAppeal[]): Promise<void> {
 
 export async function createBanAppeal(username: string, ban: Ban, appealMessage: string): Promise<string> {
   if (typeof window === 'undefined') return '';
-  
+
   // Check if user already has a pending appeal
   const existingAppeals = await getBanAppeals();
   const existingAppeal = existingAppeals.find(
-    a => a.username.toLowerCase() === username.toLowerCase() && 
-         a.status === 'pending' &&
-         a.ban.username.toLowerCase() === ban.username.toLowerCase()
+    a => a.username.toLowerCase() === username.toLowerCase() &&
+      a.status === 'pending' &&
+      a.ban.username.toLowerCase() === ban.username.toLowerCase()
   );
-  
+
   if (existingAppeal) {
     return existingAppeal.id;
   }
-  
+
   const newAppeal: BanAppeal = {
     id: `appeal_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
     username,
@@ -723,7 +723,7 @@ export async function createBanAppeal(username: string, ban: Ban, appealMessage:
     timestamp: Date.now(),
     status: 'pending'
   };
-  
+
   try {
     const response = await fetch('/api/appeals', {
       method: 'POST',
@@ -816,7 +816,7 @@ export function saveAccessories(accessories: Accessory[]): void {
 export async function getMessagesAPI(username: string, withUsername?: string): Promise<any[]> {
   if (typeof window === 'undefined') return [];
   try {
-    const url = withUsername 
+    const url = withUsername
       ? `/api/messages?username=${encodeURIComponent(username)}&with=${encodeURIComponent(withUsername)}`
       : `/api/messages?username=${encodeURIComponent(username)}`;
     const response = await fetch(url);
