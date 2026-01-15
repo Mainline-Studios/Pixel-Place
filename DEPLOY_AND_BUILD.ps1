@@ -54,3 +54,10 @@ Write-Host "The installer will be in the 'dist-electron' folder!" -ForegroundCol
 
 
 
+
+
+
+
+
+
+

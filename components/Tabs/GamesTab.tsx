@@ -5,6 +5,15 @@ import { User, UserMadeGame } from '@/types';
 import { getUserMadeGames, deleteUserMadeGame } from '@/lib/storage';
 import UserMadeGamePlayer from '../Games/UserMadeGamePlayer';
 import GymPumpEngine from '../Games/GymPumpEngine';
+import Hypnosia from '../Games/Hypnosia';
+import UnderwaterOddyseySeries from '../Games/UnderwaterOddyseySeries';
+import SuperShowdown2 from '../Games/SuperShowdown2';
+import SuperShowdown from '../Games/SuperShowdown';
+import RedRover from '../Games/RedRover';
+import JungleJourneySeries from '../Games/JungleJourneySeries';
+import Chess from '../Games/Chess';
+import FloorIsLava from '../Games/FloorIsLava';
+import SuperShowdownCombined from '../Games/InsaneShowdown';
 
 interface GamesTabProps {
   user: User;
@@ -18,10 +27,11 @@ interface GameInfo {
   icon: string;
   category: string;
   is3D?: boolean;
-  component: React.ComponentType<{ user?: User; onClose?: () => void }>;
+  component: React.ComponentType<any>;
+  props?: any;
 }
 
-// Only Gym Pump game
+// All available games
 const games: GameInfo[] = [
   {
     id: 'gymPump',
@@ -30,6 +40,78 @@ const games: GameInfo[] = [
     icon: '💪',
     category: 'Action',
     component: GymPumpEngine,
+  },
+  {
+    id: 'hypnosia',
+    name: 'Hypnosia',
+    description: 'Test your deduction skills in this mysterious game!',
+    icon: '🔮',
+    category: 'Puzzle',
+    component: Hypnosia,
+  },
+  {
+    id: 'underwaterOdyssey',
+    name: 'Underwater Odyssey',
+    description: 'Explore the depths of the ocean in this adventure series!',
+    icon: '🌊',
+    category: 'Adventure',
+    component: UnderwaterOddyseySeries,
+  },
+  {
+    id: 'superShowdown2',
+    name: 'Super Showdown 2',
+    description: 'Epic arena battles with powerful abilities!',
+    icon: '⚔️',
+    category: 'Action',
+    component: SuperShowdown2,
+  },
+  {
+    id: 'superShowdown',
+    name: 'Super Showdown',
+    description: 'Original arena combat experience!',
+    icon: '🎯',
+    category: 'Action',
+    component: SuperShowdown,
+  },
+  {
+    id: 'redRover',
+    name: 'Red Rover',
+    description: 'Classic team-based multiplayer game!',
+    icon: '🏃',
+    category: 'Multiplayer',
+    component: RedRover,
+  },
+  {
+    id: 'jungleJourney',
+    name: 'Jungle Journey',
+    description: 'Navigate through the jungle and collect fruits!',
+    icon: '🌴',
+    category: 'Adventure',
+    component: JungleJourneySeries,
+  },
+  {
+    id: 'chess',
+    name: 'Chess',
+    description: 'Classic chess game - challenge yourself or play online!',
+    icon: '♟️',
+    category: 'Strategy',
+    component: Chess,
+  },
+  {
+    id: 'floorIsLava',
+    name: 'Floor Is Lava',
+    description: 'Jump from platform to platform - don\'t touch the lava!',
+    icon: '🌋',
+    category: 'Platformer',
+    component: FloorIsLava,
+  },
+  {
+    id: 'insaneShowdown',
+    name: 'Insane Showdown',
+    description: 'Ultimate combined arena battle experience!',
+    icon: '🔥',
+    category: 'Action',
+    component: SuperShowdownCombined,
   },
 ];
 
@@ -66,9 +148,43 @@ export default function GamesTab({ user, editMode }: GamesTabProps) {
   }
 
   if (selectedGame && GameComponent) {
+    const handleClose = () => setSelectedGame(null);
+    const gameInfo = games.find(g => g.id === selectedGame);
+    
+    // Components that support onClose prop
+    const supportsOnClose = ['gymPump', 'hypnosia'].includes(selectedGame);
+    
     return (
-      <div>
-        <GameComponent user={user} onClose={() => setSelectedGame(null)} />
+      <div style={{ position: 'relative', width: '100%', minHeight: '100%' }}>
+        {!supportsOnClose && (
+          <button
+            onClick={handleClose}
+            style={{
+              position: 'absolute',
+              top: '16px',
+              right: '16px',
+              zIndex: 1000,
+              padding: '8px 16px',
+              background: '#00a2ff',
+              color: '#ffffff',
+              border: 'none',
+              borderRadius: '6px',
+              cursor: 'pointer',
+              fontSize: '14px',
+              fontWeight: '600',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.3)'
+            }}
+          >
+            ← Back
+          </button>
+        )}
+        {selectedGame === 'gymPump' ? (
+          <GameComponent user={user} onClose={handleClose} />
+        ) : selectedGame === 'hypnosia' ? (
+          <GameComponent onClose={handleClose} />
+        ) : (
+          <GameComponent />
+        )}
       </div>
     );
   }

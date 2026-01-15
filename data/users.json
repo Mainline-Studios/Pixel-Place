@@ -23,19 +23,13 @@
       "wings_angel"
     ],
     "equippedAccessories": {
-      "hat": "wizard_hat",
-      "glasses": "cool_sunglasses",
-      "wings": "wings_demon",
-      "pet": "pet_cat"
+      "wings": "wings_demon"
     },
     "friends": [
       "BDawgsAwesome1"
     ],
     "sentFriendRequests": [
-      "number5",
-      "BDawgsAwesome1",
-      "number 9",
-      "67"
+      "admin"
     ],
     "recentlyPlayed": [
       "builtin_tag",
@@ -59,7 +53,9 @@
       "desert_operative"
     ],
     "equippedSkin": "neon_runner",
-    "friends": [],
+    "friends": [
+      "6767kid"
+    ],
     "ownedAccessories": [],
     "sentFriendRequests": []
   },
@@ -69,6 +65,30 @@
     "gender": "N/A",
     "role": "admin",
     "coins": 99999,
+    "ownedSkins": [
+      "starter_classic"
+    ],
+    "equippedSkin": "starter_classic",
+    "isDonor": false,
+    "ownedAccessories": [],
+    "equippedAccessories": {},
+    "friends": [],
+    "sentFriendRequests": [],
+    "friendRequests": [
+      {
+        "from": "6767kid",
+        "to": "admin",
+        "timestamp": 1767354864480,
+        "status": "pending"
+      }
+    ]
+  },
+  {
+    "username": "laird",
+    "password": "boehm111",
+    "gender": "Male",
+    "role": "user",
+    "coins": 0,
     "ownedSkins": [
       "starter_classic"
     ],

@@ -69,3 +69,10 @@ export default function CaptureTheFlagThumbnail({ width = 160, height = 120 }: C
 
 
 
+
+
+
+
+
+
+

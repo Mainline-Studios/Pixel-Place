@@ -27,11 +27,17 @@ export default function FriendsTab({ user, editMode }: FriendsTabProps) {
   const [activeTab, setActiveTab] = useState<'friends' | 'requests' | 'search'>('friends');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messageInputRef = useRef<HTMLInputElement>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
 
   // Load friends data
   const loadFriendsData = async () => {
     try {
-      const response = await fetch(`/api/friends?username=${encodeURIComponent(user.username)}`);
+      const response = await fetch(`/api/friends?username=${encodeURIComponent(user.username)}`, {
+        cache: 'no-store', // Always fetch fresh data
+        headers: {
+          'Cache-Control': 'no-cache'
+        }
+      });
       if (response.ok) {
         const data = await response.json();
         setFriendsData(data);
@@ -44,6 +50,7 @@ export default function FriendsTab({ user, editMode }: FriendsTabProps) {
   // Load all users for search
   const loadAllUsers = async () => {
     try {
+      // Always fetch fresh users data
       const users = await getUsers();
       setAllUsers(users.filter(u => u.username.toLowerCase() !== user.username.toLowerCase()));
     } catch (error) {
@@ -94,7 +101,18 @@ export default function FriendsTab({ user, editMode }: FriendsTabProps) {
   }, [selectedFriend]);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    // Scroll to bottom when new messages arrive, but only scroll the container, not the page
+    if (messages.length > 0 && messagesContainerRef.current) {
+      const container = messagesContainerRef.current;
+      const shouldScroll = container.scrollHeight - container.scrollTop - container.clientHeight < 200;
+      if (shouldScroll) {
+        setTimeout(() => {
+          if (messagesContainerRef.current) {
+            messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
+          }
+        }, 50);
+      }
+    }
   }, [messages]);
 
   // Send friend request
@@ -109,16 +127,22 @@ export default function FriendsTab({ user, editMode }: FriendsTabProps) {
           toUsername
         })
       });
+      
+      const result = await response.json();
+      
       if (response.ok) {
         await loadFriendsData();
         await loadAllUsers();
+        // Show success message
+        // Don't show alert on success to avoid annoying user
       } else {
-        const error = await response.json();
-        alert(error.error || 'Failed to send friend request');
+        // Show error message
+        console.error('Friend request error:', result.error);
+        alert(result.error || 'Failed to send friend request');
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error sending friend request:', error);
-      alert('Failed to send friend request');
+      alert('Failed to send friend request: ' + (error.message || 'Network error'));
     }
   };
 
@@ -136,8 +160,11 @@ export default function FriendsTab({ user, editMode }: FriendsTabProps) {
       });
       if (response.ok) {
         await loadFriendsData();
+        await loadAllUsers(); // Refresh user list too
         // Update user context
-        const updatedFriendsData = await fetch(`/api/friends?username=${encodeURIComponent(user.username)}`).then(r => r.json());
+        const updatedFriendsData = await fetch(`/api/friends?username=${encodeURIComponent(user.username)}`, {
+          cache: 'no-store'
+        }).then(r => r.json());
         updateUser({ friends: updatedFriendsData.friends.map((f: User) => f.username) });
       }
     } catch (error) {
@@ -180,12 +207,15 @@ export default function FriendsTab({ user, editMode }: FriendsTabProps) {
       });
       if (response.ok) {
         await loadFriendsData();
+        await loadAllUsers(); // Refresh user list too
         if (selectedFriend?.username === friendUsername) {
           setSelectedFriend(null);
           setMessages([]);
         }
         // Update user context
-        const updatedFriendsData = await fetch(`/api/friends?username=${encodeURIComponent(user.username)}`).then(r => r.json());
+        const updatedFriendsData = await fetch(`/api/friends?username=${encodeURIComponent(user.username)}`, {
+          cache: 'no-store'
+        }).then(r => r.json());
         updateUser({ friends: updatedFriendsData.friends.map((f: User) => f.username) });
       }
     } catch (error) {
@@ -219,10 +249,18 @@ export default function FriendsTab({ user, editMode }: FriendsTabProps) {
 
   // Filter users for search
   const filteredUsers = allUsers.filter(u => {
-    const query = searchQuery.toLowerCase();
+    if (!u || !u.username) return false;
+    const query = searchQuery.toLowerCase().trim();
     const username = u.username.toLowerCase();
-    const isFriend = friendsData.friends.some(f => f.username.toLowerCase() === username);
-    const isPending = friendsData.sentRequests.some(r => r.toLowerCase() === username);
+    const isFriend = friendsData.friends.some(f => f && f.username && f.username.toLowerCase() === username);
+    const isPending = friendsData.sentRequests.some(r => r && r.toLowerCase() === username);
+    
+    // If search query is empty, show all users (except self, friends, and pending)
+    if (!query) {
+      return !isFriend && !isPending && username !== user.username.toLowerCase();
+    }
+    
+    // If search query exists, filter by it
     return username.includes(query) && !isFriend && !isPending && username !== user.username.toLowerCase();
   });
 
@@ -316,7 +354,7 @@ export default function FriendsTab({ user, editMode }: FriendsTabProps) {
         </button>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: selectedFriend ? '300px 1fr' : '1fr', gap: '20px', minHeight: '500px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: selectedFriend ? '300px 1fr' : '1fr', gap: '20px', minHeight: '500px', alignContent: 'start' }}>
         {/* Left Panel: Friends List / Requests / Search */}
         <div style={{
           background: 'var(--panel-alt)',
@@ -340,7 +378,10 @@ export default function FriendsTab({ user, editMode }: FriendsTabProps) {
                   {friendsData.friends.map((friend) => (
                     <div
                       key={friend.username}
-                      onClick={() => setSelectedFriend(friend)}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        setSelectedFriend(friend);
+                      }}
                       style={{
                         padding: '12px',
                         background: selectedFriend?.username === friend.username ? 'var(--accent-bg)' : 'var(--panel-soft)',
@@ -543,7 +584,17 @@ export default function FriendsTab({ user, editMode }: FriendsTabProps) {
                 ))}
                 {filteredUsers.length === 0 && searchQuery && (
                   <div style={{ color: 'var(--text-dim)', textAlign: 'center', padding: '20px' }}>
-                    No users found
+                    No users found matching "{searchQuery}"
+                  </div>
+                )}
+                {filteredUsers.length === 0 && !searchQuery && allUsers.length === 0 && (
+                  <div style={{ color: 'var(--text-dim)', textAlign: 'center', padding: '20px' }}>
+                    No other users found
+                  </div>
+                )}
+                {filteredUsers.length === 0 && !searchQuery && allUsers.length > 0 && (
+                  <div style={{ color: 'var(--text-dim)', textAlign: 'center', padding: '20px' }}>
+                    Type a username to search for friends
                   </div>
                 )}
               </div>
@@ -592,14 +643,17 @@ export default function FriendsTab({ user, editMode }: FriendsTabProps) {
             </div>
 
             {/* Messages */}
-            <div style={{
-              flex: 1,
-              overflowY: 'auto',
-              padding: '16px',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '12px'
-            }}>
+            <div 
+              ref={messagesContainerRef}
+              style={{
+                flex: 1,
+                overflowY: 'auto',
+                padding: '16px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '12px'
+              }}
+            >
               {messages.length === 0 ? (
                 <div style={{ color: 'var(--text-dim)', textAlign: 'center', padding: '40px 20px' }}>
                   No messages yet. Start the conversation!

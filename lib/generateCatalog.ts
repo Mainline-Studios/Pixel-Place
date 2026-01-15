@@ -2,7 +2,7 @@ import { Skin, Accessory } from '@/types';
 import { getSkins, saveSkins, getAccessories, saveAccessories } from '@/lib/storage';
 
 // Roblox-style colors - Expanded palette with more pixel colors
-const ROBOX_COLORS = [
+const COLORS = [
   '#FFFFFF', // White
   '#F2F2F2', // Light gray
   '#E6E6E6', // Very light gray
@@ -49,7 +49,7 @@ const ROBOX_COLORS = [
   '#D2691E', // Chocolate
 ];
 
-// Roblox-style name generators
+//name generators
 const skinNamePrefixes = [
   'Neon', 'Crimson', 'Galaxy', 'Urban', 'Desert', 'Arctic', 'Tropical', 'Cyber', 'Steam', 'Retro',
   'Classic', 'Elite', 'Pro', 'Ultra', 'Mega', 'Super', 'Hyper', 'Turbo', 'Nitro', 'Blast',
