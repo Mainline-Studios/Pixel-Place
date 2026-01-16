@@ -95,6 +95,7 @@ export interface Skin {
   animations?: Animation[];
   accessories?: Accessory[];
   defaultAnimation?: string; // Name of default animation
+  adminOnly?: boolean; // Whether this skin is only available to admins
 
   // Roblox-style enhancements
   materials?: {

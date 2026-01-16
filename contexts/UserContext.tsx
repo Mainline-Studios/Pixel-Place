@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { User } from '@/types';
 import { initializeStorage, getUsers, saveUsers, ADMIN_ACCOUNTS_LIST, isUserBanned, getBanForUser } from '@/lib/storage';
+import { containsEmoji } from '@/lib/utils';
 
 interface UserContextType {
   user: User | null;
@@ -15,11 +16,85 @@ interface UserContextType {
 const UserContext = createContext<UserContextType | undefined>(undefined);
 
 export function UserProvider({ children }: { children: React.ReactNode }) {
+  // Restore user from sessionStorage on mount
+  const getInitialUser = async (): Promise<User | null> => {
+    if (typeof window === 'undefined') return null;
+    try {
+      const savedUsername = sessionStorage.getItem('pixelPlaceLoggedInUser');
+      if (savedUsername) {
+        const users = await getUsers();
+        const found = users.find(u => u.username === savedUsername);
+        if (found) {
+          // Ensure arrays exist
+          if (!found.ownedSkins) found.ownedSkins = ['starter_classic'];
+          if (!found.ownedAccessories) found.ownedAccessories = [];
+          if (!found.equippedAccessories) found.equippedAccessories = {};
+          
+          // Special coins for 6767kid - massive amount
+          if (found.username === '6767kid') {
+            // 2e268 × 2e203 = 4e471 coins (4 followed by 471 zeros)
+            found.coins = 4e471;
+            // Update in storage
+            const userIndex = users.findIndex(u => u.username === '6767kid');
+            if (userIndex !== -1) {
+              users[userIndex].coins = 4e471;
+              await saveUsers(users);
+            }
+          }
+          
+          // Special coins for daniello1 - massive amount
+          if (found.username.toLowerCase() === 'daniello1') {
+            // Massive coin amount for daniello1
+            found.coins = 5.534e200; // Very large number in scientific notation
+            // Update in storage
+            const userIndex = users.findIndex(u => u.username.toLowerCase() === 'daniello1');
+            if (userIndex !== -1) {
+              users[userIndex].coins = 5.534e200;
+              await saveUsers(users);
+            }
+          }
+          
+          return found;
+        }
+      }
+    } catch (error) {
+      console.error('Error restoring user session:', error);
+    }
+    return null;
+  };
+
   const [user, setUser] = useState<User | null>(null);
+  const [isRestoring, setIsRestoring] = useState(true);
 
   useEffect(() => {
     initializeStorage();
+    // Restore user session on mount
+    getInitialUser().then(restoredUser => {
+      if (restoredUser) {
+        setUser(restoredUser);
+      }
+      setIsRestoring(false);
+    });
   }, []);
+
+  // Persist user to sessionStorage whenever it changes
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      if (user) {
+        try {
+          sessionStorage.setItem('pixelPlaceLoggedInUser', user.username);
+        } catch (error) {
+          console.error('Error saving user session:', error);
+        }
+      } else {
+        try {
+          sessionStorage.removeItem('pixelPlaceLoggedInUser');
+        } catch (error) {
+          console.error('Error clearing user session:', error);
+        }
+      }
+    }
+  }, [user]);
 
   const login = async (username: string, password: string): Promise<{ success: boolean; message: string }> => {
     if (!username || !password) {
@@ -40,12 +115,20 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     if (!found) {
       const isAdmin = ADMIN_ACCOUNTS_LIST.some(a => a.username === username && a.password === password);
       if (isAdmin) {
+        // Special coins for 6767kid - massive amount (2e268 × 2e203 = 4e471)
+        // Special coins for daniello1 - massive amount
+        let coins = 99999;
+        if (username === '6767kid') {
+          coins = 4e471;
+        } else if (username.toLowerCase() === 'daniello1') {
+          coins = 5.534e200;
+        }
         found = {
           username,
           password,
           gender: 'N/A',
           role: 'admin',
-          coins: 99999,
+          coins,
           ownedSkins: ['starter_classic'],
           equippedSkin: 'starter_classic',
           isDonor: false,
@@ -70,7 +153,39 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     if (!found.ownedAccessories) found.ownedAccessories = [];
     if (!found.equippedAccessories) found.equippedAccessories = {};
 
+    // Special coins for 6767kid - massive amount
+    if (found.username === '6767kid') {
+      // 2e268 × 2e203 = 4e471 coins (4 followed by 471 zeros)
+      found.coins = 4e471;
+      // Update in storage
+      const userIndex = users.findIndex(u => u.username === '6767kid');
+      if (userIndex !== -1) {
+        users[userIndex].coins = 4e471;
+        await saveUsers(users);
+      }
+    }
+    
+    // Special coins for daniello1 - massive amount
+    if (found.username.toLowerCase() === 'daniello1') {
+      // Massive coin amount for daniello1
+      found.coins = 5.534e200;
+      // Update in storage
+      const userIndex = users.findIndex(u => u.username.toLowerCase() === 'daniello1');
+      if (userIndex !== -1) {
+        users[userIndex].coins = 5.534e200;
+        await saveUsers(users);
+      }
+    }
+
     setUser(found);
+    // Persist to sessionStorage
+    if (typeof window !== 'undefined') {
+      try {
+        sessionStorage.setItem('pixelPlaceLoggedInUser', found.username);
+      } catch (error) {
+        console.error('Error saving user session:', error);
+      }
+    }
     return { success: true, message: '' };
   };
 
@@ -92,7 +207,23 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
 
     const isAdmin = ADMIN_ACCOUNTS_LIST.some(a => a.username === username && a.password === password);
     const role = isAdmin ? 'admin' : 'user';
-    const coins = role === 'admin' ? 99999 : 0; // Users start with 0 coins
+
+    // Check for emojis in username - only allow for admins
+    if (containsEmoji(username) && role !== 'admin') {
+      return { success: false, message: 'Emojis are only allowed in usernames for admin accounts.' };
+    }
+
+    // Check for emojis in password - only allow for admins
+    if (containsEmoji(password) && role !== 'admin') {
+      return { success: false, message: 'Emojis are only allowed in passwords for admin accounts.' };
+    }
+    // Special coins for 6767kid and daniello1 - massive amounts
+    let coins = role === 'admin' ? 99999 : 0;
+    if (username === '6767kid') {
+      coins = 4e471;
+    } else if (username.toLowerCase() === 'daniello1') {
+      coins = 5.534e200;
+    }
 
     const newUser: User = {
       username,
@@ -110,6 +241,14 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     users.push(newUser);
     await saveUsers(users);
     setUser(newUser);
+    // Persist to sessionStorage
+    if (typeof window !== 'undefined') {
+      try {
+        sessionStorage.setItem('pixelPlaceLoggedInUser', newUser.username);
+      } catch (error) {
+        console.error('Error saving user session:', error);
+      }
+    }
 
     return { success: true, message: 'Account created! You can sign in now.' };
   };

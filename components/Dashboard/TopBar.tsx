@@ -4,6 +4,7 @@ import { TabType, User } from '@/types';
 import Image from 'next/image';
 import { getSkins, getAccessories } from '@/lib/storage';
 import Avatar3DViewer from '@/components/Avatar3DViewer';
+import { useUser } from '@/contexts/UserContext';
 
 interface TopBarProps {
   currentTab: TabType;
@@ -20,6 +21,8 @@ const tabs: { key: TabType; label: string; adminOnly?: boolean }[] = [
 ];
 
 export default function TopBar({ currentTab, onTabChange, user }: TopBarProps) {
+  const { setUser } = useUser();
+
   // Guard against undefined user
   if (!user) {
     return (
@@ -45,7 +48,7 @@ export default function TopBar({ currentTab, onTabChange, user }: TopBarProps) {
   const accessories = getAccessories();
   const equippedSkin = skins.find(s => s.id === user.equippedSkin) || skins.find(s => s.id === 'starter_classic') || skins[0];
   // equippedAccessories is an object, not an array: { hat: 'id', glasses: 'id', ... }
-  const equippedAccessoriesList = Object.values(user.equippedAccessories || {}).map(id => 
+  const equippedAccessoriesList = Object.values(user.equippedAccessories || {}).map(id =>
     accessories.find(a => a.id === id)
   ).filter(Boolean) as any[];
 
@@ -57,6 +60,19 @@ export default function TopBar({ currentTab, onTabChange, user }: TopBarProps) {
       ...equippedAccessoriesList
     ]
   } : null;
+
+  const handleLogout = () => {
+    // Clear user session
+    setUser(null);
+    // Clear sessionStorage (which will be done automatically by UserContext useEffect, but we can also do it here)
+    if (typeof window !== 'undefined') {
+      try {
+        sessionStorage.removeItem('pixelPlaceLoggedInUser');
+      } catch (error) {
+        console.error('Error clearing session:', error);
+      }
+    }
+  };
 
   return (
     <div className="topbar">
@@ -87,16 +103,29 @@ export default function TopBar({ currentTab, onTabChange, user }: TopBarProps) {
             ))}
         </div>
         <div className="userbox">
-          <div className="avatar-top" style={{ 
-            width: '40px', 
-            height: '40px', 
-            borderRadius: '50%', 
-            overflow: 'hidden',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            background: 'transparent'
-          }}>
+          <div
+            className="avatar-top"
+            onClick={handleLogout}
+            style={{
+              width: '40px',
+              height: '40px',
+              borderRadius: '50%',
+              overflow: 'hidden',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              background: 'transparent',
+              cursor: 'pointer',
+              transition: 'opacity 0.2s'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.opacity = '0.8';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.opacity = '1';
+            }}
+            title="Click to log out"
+          >
             {skinWithAccessories && (
               <Avatar3DViewer
                 skin={skinWithAccessories}

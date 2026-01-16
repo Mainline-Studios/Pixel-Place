@@ -57,7 +57,7 @@ export default function CoinsTab({ user, editMode }: CoinsTabProps) {
     const canceledParam = urlParams.get('canceled');
     
     if (successParam === 'true') {
-      alert('Payment successful! Your coins have been added to your account.');
+      // Silent success - no alert
       // Clear URL params and ensure we stay on coins tab
       window.history.replaceState({}, '', window.location.pathname + '#coins');
       // Refresh user data - the webhook should have already updated the coins
@@ -71,7 +71,7 @@ export default function CoinsTab({ user, editMode }: CoinsTabProps) {
         }
       }, 1500);
     } else if (canceledParam === 'true') {
-      alert('Payment was canceled.');
+      // Silent cancel - no alert
       // Clear URL params and ensure we stay on coins tab
       window.history.replaceState({}, '', window.location.pathname + '#coins');
     }
@@ -108,11 +108,11 @@ export default function CoinsTab({ user, editMode }: CoinsTabProps) {
         // Update user balance locally
         const newBalance = bal + pack.coins;
         updateUser({ coins: newBalance });
-        alert(`Successfully added ${formatNumber(pack.coins)} coins! Your new balance is ${formatNumber(newBalance)} coins.`);
+        // Silent success - no alert
         setLoading(null);
       } catch (error: any) {
         console.error('Add coins error:', error);
-        alert(`Error: ${error.message || 'Something went wrong'}`);
+        // Silent error - no alert
         setLoading(null);
       }
       return;
@@ -161,7 +161,7 @@ export default function CoinsTab({ user, editMode }: CoinsTabProps) {
         }
       } catch (error: any) {
         console.error('Checkout error:', error);
-        alert(`Payment error: ${error.message || 'Something went wrong'}`);
+        // Silent error - no alert
         setLoading(null);
       }
       return;
@@ -209,7 +209,7 @@ export default function CoinsTab({ user, editMode }: CoinsTabProps) {
       }
     } catch (error: any) {
       console.error('Checkout error:', error);
-      alert(`Payment error: ${error.message || 'Something went wrong'}`);
+      // Silent error - no alert
       setLoading(null);
     }
   };
