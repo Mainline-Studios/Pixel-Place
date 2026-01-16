@@ -218,10 +218,19 @@ export default function AvatarShopTab({ user, editMode }: AvatarShopTabProps) {
         const accessoriesData = results[1].status === 'fulfilled' ? results[1].value : [];
         
         // Validate and filter out invalid skins
+        // Also filter out admin-only skins for non-admins
         const validSkins = (Array.isArray(skinsData) ? skinsData : []).filter((skin: Skin) => {
-          return skin && skin.id && skin.colors && 
-                 skin.colors.head && skin.colors.torso && 
-                 skin.colors.arm && skin.colors.legs;
+          // Check if skin is valid
+          if (!skin || !skin.id || !skin.colors || 
+              !skin.colors.head || !skin.colors.torso || 
+              !skin.colors.arm || !skin.colors.legs) {
+            return false;
+          }
+          // Filter out admin-only skins for non-admins
+          if (skin.adminOnly && user.role !== 'admin') {
+            return false;
+          }
+          return true;
         });
         
         const validAccessories = (Array.isArray(accessoriesData) ? accessoriesData : []).filter((acc: Accessory) => {

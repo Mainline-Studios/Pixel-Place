@@ -241,6 +241,34 @@ export const NEW_SKINS: Skin[] = [
                 scale: { x: 1.0, y: 0.6, z: 0.1 }
             }
         ]
+    },
+    // Admin-only skin: ixel ace
+    {
+        id: "ixel_ace",
+        name: "ixel ace",
+        price: 0,
+        img: "",
+        use3d: true,
+        defaultAnimation: 'idle',
+        adminOnly: true,
+        colors: {
+            head: "#E8BEAC",
+            torso: "#E8BEAC",
+            arm: "#E8BEAC",
+            legs: "#E8BEAC"
+        },
+        materials: {
+            head: { type: 'skin', roughness: 0.7, metalness: 0.0 },
+            torso: { type: 'skin', roughness: 0.7, metalness: 0.0 },
+            arm: { type: 'skin', roughness: 0.7, metalness: 0.0 },
+            legs: { type: 'skin', roughness: 0.7, metalness: 0.0 }
+        },
+        textures: {
+            head: { base: 'smooth' },
+            torso: { base: 'smooth' },
+            arm: { base: 'smooth' },
+            legs: { base: 'smooth' }
+        }
     }
 ];
 
@@ -300,56 +328,5 @@ export const NEW_ACCESSORIES: Accessory[] = [
         img: "",
         color: "#808080",
         position: { x: 0, y: -1.6, z: -1.5 }
-    },
-    // Tennis Player - exact match to image
-    {
-        id: "tennis_player",
-        name: "Tennis Player",
-        rarity: "rare",
-        price: 450,
-        img: "",
-        use3d: true,
-        defaultAnimation: 'idle',
-        theme: "sports",
-        colors: {
-            head: "#D4A574",
-            torso: "#FFFFFF",
-            arm: "#D4A574",
-            legs: "#FFFFFF"
-        },
-        materials: {
-            head: { type: 'skin', roughness: 0.6, metalness: 0.0 },
-            torso: { type: 'cloth', roughness: 0.8, metalness: 0.0 },
-            arm: { type: 'skin', roughness: 0.6, metalness: 0.0 },
-            legs: { type: 'cloth', roughness: 0.8, metalness: 0.0 }
-        },
-        textures: {
-            head: { base: 'dots' },
-            torso: { base: 'stripes' },
-            arm: { base: 'dots' },
-            legs: { base: 'stripes' }
-        },
-        highlights: {
-            head: "#E8C5A0",
-            torso: "#F5F5F5",
-            arm: "#E8C5A0",
-            legs: "#F5F5F5"
-        },
-        skinAccessories: [
-            {
-                type: 'hat',
-                position: { x: 0, y: 0.3, z: 0 },
-                color: "#FFFFFF",
-                material: { type: 'cloth', roughness: 0.7, metalness: 0.0 },
-                scale: { x: 1.2, y: 0.4, z: 1.2 }
-            },
-            {
-                type: 'goggles',
-                position: { x: 0, y: 0, z: 0.1 },
-                color: "#000000",
-                material: { type: 'plastic', roughness: 0.1, metalness: 0.8 },
-                scale: { x: 1.0, y: 0.6, z: 0.1 }
-            }
-        ]
     }
 ];

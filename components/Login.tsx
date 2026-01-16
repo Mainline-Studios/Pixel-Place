@@ -32,6 +32,17 @@ export default function Login() {
     }
   };
 
+  // Note: We can't reliably filter emojis during typing for login/signup
+  // because we don't know if they're admin until they submit.
+  // Validation happens on submission in createAccount/login functions.
+  const handleUsernameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setUsername(e.target.value);
+  };
+
+  const handlePasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setPassword(e.target.value);
+  };
+
   const handleSignUp = async () => {
     if (!username || !password) {
       setMessage('Username and password are required.');
@@ -94,7 +105,7 @@ export default function Login() {
                 id="user"
                 placeholder="Username/Email/Phone"
                 value={username}
-                onChange={(e) => setUsername(e.target.value)}
+                onChange={handleUsernameChange}
                 onKeyPress={(e) => e.key === 'Enter' && handleSignIn()}
               />
               <input
@@ -102,7 +113,7 @@ export default function Login() {
                 type="password"
                 placeholder="Password"
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                onChange={handlePasswordChange}
                 onKeyPress={(e) => e.key === 'Enter' && handleSignIn()}
               />
               <button className="btn auth-btn signin-btn" onClick={handleSignIn}>
@@ -175,7 +186,7 @@ export default function Login() {
                 id="user"
                 placeholder="Username"
                 value={username}
-                onChange={(e) => setUsername(e.target.value)}
+                onChange={handleUsernameChange}
               />
               <div className="input-hint">not you name!</div>
 
@@ -184,7 +195,7 @@ export default function Login() {
                 type="password"
                 placeholder="Password"
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                onChange={handlePasswordChange}
               />
               <div className="input-hint">At least 8 characters</div>
 

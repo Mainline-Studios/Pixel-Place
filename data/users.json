@@ -4,14 +4,22 @@
     "password": "67676767",
     "gender": "N/A",
     "role": "admin",
-    "coins": 34012950,
+    "coins": null,
     "ownedSkins": [
       "starter_classic",
       "orange_striped_boy",
       "tennis_player",
-      "cheeseburger"
+      "cheeseburger",
+      "skin_1768515367911",
+      "blue_blob",
+      "pink_girl",
+      "green_nature",
+      "blue_star_boy",
+      "skin_1768516225295",
+      "ixel_ace",
+      "banana_man"
     ],
-    "equippedSkin": "orange_striped_boy",
+    "equippedSkin": "cheeseburger",
     "ownedAccessories": [
       "wizard_hat",
       "cool_sunglasses",
@@ -22,26 +30,33 @@
       "wings_white",
       "wings_black",
       "wings_demon",
-      "wings_angel"
+      "wings_angel",
+      "textured_underwear"
     ],
     "equippedAccessories": {
       "wings": "wings_demon",
+      "pet": "pet_robot",
       "hat": "wizard_hat",
       "glasses": "cool_sunglasses",
-      "pet": "pet_robot"
+      "pants": "textured_underwear"
     },
     "friends": [
-      "BDawgsAwesome1"
+      "BDawgsAwesome1",
+      "Daniello1"
     ],
     "sentFriendRequests": [
-      "admin"
+      "admin",
+      "laird",
+      "6767kid✅",
+      "laird000"
     ],
     "recentlyPlayed": [
       "builtin_tag",
       "builtin_avatarRunner",
       "builtin_snake",
       "builtin_schoolAdventure"
-    ]
+    ],
+    "friendRequests": []
   },
   {
     "username": "BDawgsAwesome1",
@@ -62,7 +77,15 @@
       "6767kid"
     ],
     "ownedAccessories": [],
-    "sentFriendRequests": []
+    "sentFriendRequests": [],
+    "friendRequests": [
+      {
+        "from": "Daniello1",
+        "to": "BDawgsAwesome1",
+        "timestamp": 1768515774627,
+        "status": "pending"
+      }
+    ]
   },
   {
     "username": "admin",
@@ -85,6 +108,12 @@
         "to": "admin",
         "timestamp": 1767354864480,
         "status": "pending"
+      },
+      {
+        "from": "Daniello1",
+        "to": "admin",
+        "timestamp": 1768515772791,
+        "status": "pending"
       }
     ]
   },
@@ -102,6 +131,153 @@
     "ownedAccessories": [],
     "equippedAccessories": {},
     "friends": [],
-    "sentFriendRequests": []
+    "sentFriendRequests": [],
+    "friendRequests": [
+      {
+        "from": "Daniello1",
+        "to": "laird",
+        "timestamp": 1768515773864,
+        "status": "pending"
+      },
+      {
+        "from": "6767kid",
+        "to": "laird",
+        "timestamp": 1768575750526,
+        "status": "pending"
+      }
+    ]
+  },
+  {
+    "username": "Daniello1",
+    "password": "Daniel",
+    "gender": "N/A",
+    "role": "admin",
+    "coins": 5.534e+200,
+    "ownedSkins": [
+      "starter_classic",
+      "blue_blob",
+      "pink_girl",
+      "green_nature",
+      "blue_star_boy",
+      "orange_striped_boy",
+      "banana_man",
+      "cheeseburger",
+      "tennis_player",
+      "ixel_ace"
+    ],
+    "equippedSkin": "ixel_ace",
+    "isDonor": false,
+    "ownedAccessories": [
+      "cool_sunglasses",
+      "wizard_hat",
+      "pet_slime",
+      "pet_dog",
+      "pet_cat",
+      "pet_robot"
+    ],
+    "equippedAccessories": {
+      "glasses": "cool_sunglasses",
+      "hat": "wizard_hat",
+      "pet": "pet_slime"
+    },
+    "friends": [
+      "6767kid"
+    ],
+    "sentFriendRequests": [
+      "admin",
+      "laird",
+      "BDawgsAwesome1"
+    ]
+  },
+  {
+    "username": "6767kid✅",
+    "password": "67676767",
+    "gender": "N/A",
+    "role": "admin",
+    "coins": null,
+    "ownedSkins": [
+      "starter_classic",
+      "orange_striped_boy",
+      "tennis_player",
+      "cheeseburger",
+      "skin_1768515367911",
+      "blue_blob",
+      "pink_girl",
+      "green_nature",
+      "blue_star_boy",
+      "skin_1768516225295",
+      "ixel_ace"
+    ],
+    "equippedSkin": "ixel_ace",
+    "ownedAccessories": [
+      "wizard_hat",
+      "cool_sunglasses",
+      "pet_slime",
+      "pet_robot",
+      "pet_cat",
+      "pet_dog",
+      "wings_white",
+      "wings_black",
+      "wings_demon",
+      "wings_angel",
+      "textured_underwear"
+    ],
+    "equippedAccessories": {
+      "wings": "wings_demon",
+      "pet": "pet_robot",
+      "hat": "wizard_hat",
+      "glasses": "cool_sunglasses",
+      "pants": "textured_underwear"
+    },
+    "friends": [
+      "BDawgsAwesome1"
+    ],
+    "sentFriendRequests": [
+      "admin"
+    ],
+    "recentlyPlayed": [
+      "builtin_tag",
+      "builtin_avatarRunner",
+      "builtin_snake",
+      "builtin_schoolAdventure"
+    ],
+    "friendRequests": [
+      {
+        "from": "Daniello1",
+        "to": "6767kid",
+        "timestamp": 1768515771843,
+        "status": "pending"
+      },
+      {
+        "from": "6767kid",
+        "to": "6767kid✅",
+        "timestamp": 1768575752178,
+        "status": "pending"
+      }
+    ]
+  },
+  {
+    "username": "laird000",
+    "password": "laird000",
+    "gender": "Male",
+    "role": "user",
+    "coins": 0,
+    "ownedSkins": [
+      "starter_classic"
+    ],
+    "equippedSkin": "starter_classic",
+    "isDonor": false,
+    "ownedAccessories": [],
+    "equippedAccessories": {},
+    "friends": [],
+    "sentFriendRequests": [],
+    "friendRequests": [
+      {
+        "from": "6767kid",
+        "to": "laird000",
+        "timestamp": 1768575757731,
+        "status": "pending"
+      }
+    ]
   }
 ]

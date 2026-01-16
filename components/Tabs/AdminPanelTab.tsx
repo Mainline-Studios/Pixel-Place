@@ -34,7 +34,7 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
     // Try to load data, with error handling
     loadData().catch((error) => {
       console.error('Error loading admin panel data:', error);
-      alert('Error loading admin panel data. Please refresh the page.');
+      // Silent error - no alert
     });
   }, []);
 
@@ -121,7 +121,7 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
       setReports(reportsData);
     } catch (error) {
       console.error('Error in loadData:', error);
-      alert('Error loading data. Please check the browser console.');
+      // Silent error - no alert
     }
   };
 
@@ -150,7 +150,7 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
     await deleteGameSubmission(submission.id);
 
     await loadData();
-    alert(`Game "${submission.title}" has been published to the Games tab!`);
+    // Silent success - no alert
   };
 
   const handleRejectSubmission = async (submission: GameSubmission) => {
@@ -163,16 +163,16 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
 
     await deleteGameSubmission(submission.id);
     await loadData();
-    alert(`Game submission "${submission.title}" has been rejected.`);
+    // Silent success - no alert
   };
 
   const handleBan = async () => {
     if (!banUsername.trim()) {
-      alert('Please enter a username to ban.');
+      // Silent validation - no alert
       return;
     }
     if (!banReason.trim()) {
-      alert('Please enter a reason for the ban.');
+      // Silent validation - no alert
       return;
     }
 
@@ -181,7 +181,7 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
     // Check if user is an admin (only check if user exists in system)
     const targetUser = allUsers.find(u => u.username.toLowerCase() === usernameToBan);
     if (targetUser && targetUser.role === 'admin') {
-      alert('Cannot ban administrators. Admins are protected from bans.');
+      // Silent error - no alert
       return;
     }
 
@@ -199,12 +199,14 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
         setBanReason('');
         setBanPermanent(true);
         await loadData();
-        alert(`User "${usernameToBanFinal}" has been ${banPermanent ? 'permanently' : `temporarily (${banDays} days)`} banned.`);
+        // Silent success - no alert
       } else {
-        alert('Error: Ban was not saved properly. Please try again.');
+        // Silent error - no alert
+        console.error('Error: Ban was not saved properly.');
       }
     } else {
-      alert('Cannot ban administrators. Admins are protected from bans.');
+      // Silent error - no alert
+      console.error('Cannot ban administrators. Admins are protected from bans.');
     }
   };
 
@@ -212,14 +214,14 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
     if (confirm(`Unban user "${username}"?`)) {
       await unbanUser(username);
       await loadData();
-      alert(`User "${username}" has been unbanned.`);
+      // Silent success - no alert
     }
   };
 
   const handleReportAction = async (reportId: string, action: 'resolved' | 'dismissed', notes?: string) => {
     await updateReportStatus(reportId, action, user.username, notes);
     await loadData();
-    alert(`Report marked as ${action}.`);
+    // Silent success - no alert
   };
 
   const loadChatMessages = async (bannedUsername: string) => {
@@ -236,7 +238,7 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
       await loadChatMessages(toUsername);
     } catch (error) {
       console.error('Error sending message:', error);
-      alert('Error sending message. Please try again.');
+      // Silent error - no alert
     } finally {
       setSendingChatMessage(false);
     }
@@ -283,13 +285,6 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
   return (
     <div style={{ marginBottom: 0, paddingBottom: 0 }}>
       <h2 className="section-title" style={{ marginBottom: '12px' }}>🛡️ Admin Panel</h2>
-
-      <div className="ai-box" style={{ marginBottom: '16px', background: 'rgba(46, 204, 113, 0.1)', border: '1px solid #2ecc71' }}>
-        <div className="ai-label">✅ Shared Storage</div>
-        <div className="ai-output" style={{ fontSize: '13px' }}>
-          <strong>Data is now shared across all browsers!</strong> All accounts, bans, reports, and appeals are stored in the <code>/data</code> folder and work in Chrome, Safari, and Cursor.
-        </div>
-      </div>
 
       <div style={{ display: 'flex', gap: '8px', marginBottom: '16px', flexWrap: 'wrap' }}>
         <button
@@ -706,7 +701,7 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
                                 const isAdminAccount = ADMIN_ACCOUNTS_LIST.some(a => a.username.toLowerCase() === report.reportedUsername.toLowerCase());
 
                                 if (reportedUser?.role === 'admin' || isAdminAccount) {
-                                  alert('Cannot ban administrators. Admins are protected from bans.');
+                                  // Silent error - no alert
                                   return;
                                 }
 
@@ -718,7 +713,8 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
                                       await handleReportAction(report.id, 'resolved', `User banned based on report`);
                                       await loadData();
                                     } else {
-                                      alert('Cannot ban administrators. Admins are protected from bans.');
+                                      // Silent error - no alert
+                                      console.error('Cannot ban administrators. Admins are protected from bans.');
                                     }
                                   }
                                 }
@@ -814,7 +810,7 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
                                 if (confirm(`Approve appeal from "${appeal.username}" and unban them?`)) {
                                   await updateBanAppealStatus(appeal.id, 'approved', user.username, 'Appeal approved', true);
                                   await loadData();
-                                  alert(`Appeal approved. User "${appeal.username}" has been unbanned.`);
+                                  // Silent success - no alert
                                 }
                               }}
                               style={{ background: '#2ecc71', fontSize: '12px', padding: '6px 12px' }}
@@ -827,7 +823,7 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
                                 const notes = prompt('Add notes (optional):');
                                 await updateBanAppealStatus(appeal.id, 'denied', user.username, notes || undefined, false);
                                 await loadData();
-                                alert('Appeal denied.');
+                                // Silent success - no alert
                               }}
                               style={{ background: '#ff4d4d', fontSize: '12px', padding: '6px 12px' }}
                             >

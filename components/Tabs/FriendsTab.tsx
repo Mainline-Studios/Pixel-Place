@@ -136,13 +136,12 @@ export default function FriendsTab({ user, editMode }: FriendsTabProps) {
         // Show success message
         // Don't show alert on success to avoid annoying user
       } else {
-        // Show error message
+        // Silent error - no alert
         console.error('Friend request error:', result.error);
-        alert(result.error || 'Failed to send friend request');
       }
     } catch (error: any) {
       console.error('Error sending friend request:', error);
-      alert('Failed to send friend request: ' + (error.message || 'Network error'));
+      // Silent error - no alert
     }
   };
 
