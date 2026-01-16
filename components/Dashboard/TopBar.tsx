@@ -46,7 +46,7 @@ export default function TopBar({ currentTab, onTabChange, user }: TopBarProps) {
 
   const skins = getSkins();
   const accessories = getAccessories();
-  const equippedSkin = skins.find(s => s.id === user.equippedSkin) || skins.find(s => s.id === 'starter_classic') || skins[0];
+  const equippedSkin = skins.find(s => s.id === user.equippedSkin) || skins.find(s => s.id === 'starter_classic') || (skins.length > 0 ? skins[0] : null);
   // equippedAccessories is an object, not an array: { hat: 'id', glasses: 'id', ... }
   const equippedAccessoriesList = Object.values(user.equippedAccessories || {}).map(id =>
     accessories.find(a => a.id === id)
