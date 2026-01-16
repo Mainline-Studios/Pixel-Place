@@ -199,74 +199,41 @@ export default function AvatarShopTab({ user, editMode }: AvatarShopTabProps) {
   const { updateUser } = useUser();
   const [skins, setSkins] = useState<Skin[]>([]);
   const [accessories, setAccessories] = useState<Accessory[]>([]);
-  const [loadingError, setLoadingError] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-
+  // Load data synchronously - getSkins and getAccessories are synchronous functions
   useEffect(() => {
-    let isMounted = true;
-    const maxRetries = 2;
-    
-    const loadData = async (retryCount: number = 0) => {
-      setIsLoading(true);
-      try {
-        // Use Promise.allSettled to ensure both load even if one fails
-        const results = await Promise.allSettled([getSkins(), getAccessories()]);
-        if (!isMounted) return;
-        
-        // Extract results with fallbacks
-        const skinsData = results[0].status === 'fulfilled' ? results[0].value : [];
-        const accessoriesData = results[1].status === 'fulfilled' ? results[1].value : [];
-        
-        // Validate and filter out invalid skins
-        // Also filter out admin-only skins for non-admins
-        const validSkins = (Array.isArray(skinsData) ? skinsData : []).filter((skin: Skin) => {
-          // Check if skin is valid
-          if (!skin || !skin.id || !skin.colors || 
-              !skin.colors.head || !skin.colors.torso || 
-              !skin.colors.arm || !skin.colors.legs) {
-            return false;
-          }
-          // Filter out admin-only skins for non-admins
-          if (skin.adminOnly && user.role !== 'admin') {
-            return false;
-          }
-          return true;
-        });
-        
-        const validAccessories = (Array.isArray(accessoriesData) ? accessoriesData : []).filter((acc: Accessory) => {
-          return acc && acc.id && acc.type && acc.name;
-        });
-        
-        if (isMounted) {
-          setSkins(validSkins);
-          setAccessories(validAccessories);
-          setLoadingError(null);
-          setIsLoading(false);
+    try {
+      // These are synchronous localStorage calls - instant
+      const skinsData = getSkins();
+      const accessoriesData = getAccessories();
+      
+      // Validate and filter out invalid skins
+      // Also filter out admin-only skins for non-admins
+      const validSkins = (Array.isArray(skinsData) ? skinsData : []).filter((skin: Skin) => {
+        // Check if skin is valid
+        if (!skin || !skin.id || !skin.colors || 
+            !skin.colors.head || !skin.colors.torso || 
+            !skin.colors.arm || !skin.colors.legs) {
+          return false;
         }
-      } catch (error: any) {
-        // Retry on error with exponential backoff
-        if (isMounted && retryCount < maxRetries) {
-          setTimeout(() => {
-            if (isMounted) loadData(retryCount + 1);
-          }, 300 * (retryCount + 1));
-          return;
+        // Filter out admin-only skins for non-admins
+        if (skin.adminOnly && user.role !== 'admin') {
+          return false;
         }
-        // After retries, set empty arrays and continue
-        if (isMounted) {
-          setSkins([]);
-          setAccessories([]);
-          setLoadingError(null);
-          setIsLoading(false);
-        }
-      }
-    };
-    
-    loadData(0);
-    
-    return () => {
-      isMounted = false;
-    };
-  }, []);
+        return true;
+      });
+      
+      const validAccessories = (Array.isArray(accessoriesData) ? accessoriesData : []).filter((acc: Accessory) => {
+        return acc && acc.id && acc.type && acc.name;
+      });
+      
+      setSkins(validSkins);
+      setAccessories(validAccessories);
+    } catch (error: any) {
+      // Silent error - don't block UI, just use empty arrays
+      setSkins([]);
+      setAccessories([]);
+    }
+  }, [user.role]);
   const ownedSkins = skins.filter((s) => user.ownedSkins?.includes(s.id));
   const ownedAccessories = accessories.filter((a) => user.ownedAccessories?.includes(a.id));
   
@@ -446,18 +413,6 @@ export default function AvatarShopTab({ user, editMode }: AvatarShopTabProps) {
     }
   };
 
-  // Show loading state briefly, then render content (even if empty)
-  if (isLoading && skins.length === 0 && accessories.length === 0) {
-    return (
-      <>
-        <h2 className="section-title">Avatar Shop</h2>
-        <div className="ai-box">
-          <div className="ai-label">Loading Shop...</div>
-          <div className="ai-output">Please wait while we load the avatar shop.</div>
-        </div>
-      </>
-    );
-  }
 
   return (
     <>

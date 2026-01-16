@@ -29,11 +29,11 @@ export default function FriendsTab({ user, editMode }: FriendsTabProps) {
   const messageInputRef = useRef<HTMLInputElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
 
-  // Load friends data
+  // Load friends data - non-blocking
   const loadFriendsData = async () => {
     try {
       const response = await fetch(`/api/friends?username=${encodeURIComponent(user.username)}`, {
-        cache: 'no-store', // Always fetch fresh data
+        cache: 'no-store',
         headers: {
           'Cache-Control': 'no-cache'
         }
@@ -43,18 +43,17 @@ export default function FriendsTab({ user, editMode }: FriendsTabProps) {
         setFriendsData(data);
       }
     } catch (error) {
-      console.error('Error loading friends:', error);
+      // Silent error - don't block UI
     }
   };
 
-  // Load all users for search
+  // Load all users for search - non-blocking
   const loadAllUsers = async () => {
     try {
-      // Always fetch fresh users data
       const users = await getUsers();
       setAllUsers(users.filter(u => u.username.toLowerCase() !== user.username.toLowerCase()));
     } catch (error) {
-      console.error('Error loading users:', error);
+      // Silent error - don't block UI
     }
   };
 
@@ -82,15 +81,16 @@ export default function FriendsTab({ user, editMode }: FriendsTabProps) {
   };
 
   useEffect(() => {
+    // Load immediately without blocking - start both in parallel
     loadFriendsData();
     loadAllUsers();
-    // Refresh every 3 seconds
+    // Refresh every 5 seconds (less frequent to reduce load)
     const interval = setInterval(() => {
       loadFriendsData();
       if (selectedFriend) {
         loadMessages(selectedFriend.username);
       }
-    }, 3000);
+    }, 5000);
     return () => clearInterval(interval);
   }, [user.username]);
 

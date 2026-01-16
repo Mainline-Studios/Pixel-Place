@@ -22,33 +22,37 @@ export default function HomeTab({ user, editMode, onResetPublished }: HomeTabPro
   const [users, setUsers] = useState<User[]>([]);
   const [skins, setSkins] = useState(getSkins());
 
-  // Refresh data
+  // Refresh data - non-blocking, load immediately
   useEffect(() => {
     const refreshData = async () => {
       try {
-        const publishedData = await getPublished();
-        const usersData = await getUsers();
+        // Load in parallel without blocking
+        const [publishedData, usersData] = await Promise.all([
+          getPublished().catch(() => []),
+          getUsers().catch(() => [])
+        ]);
         const skinsData = getSkins();
 
         setPublished(Array.isArray(publishedData) ? publishedData : []);
         setUsers(Array.isArray(usersData) ? usersData : []);
         setSkins(Array.isArray(skinsData) ? skinsData : []);
       } catch (error) {
-        console.error('Error refreshing data:', error);
+        // Silent error - don't block UI
         setPublished([]);
         setUsers([]);
         setSkins([]);
       }
     };
+    // Load immediately
     refreshData();
-    // Refresh every 2 seconds to catch updates
-    const interval = setInterval(refreshData, 2000);
+    // Refresh every 5 seconds (less frequent to reduce load)
+    const interval = setInterval(refreshData, 5000);
     return () => clearInterval(interval);
   }, [user]);
 
-  // Include preloaded games - only Gym Pump
+  // Include preloaded games
   const publishedArray = Array.isArray(published) ? published : [];
-  const allGames = [GYM_PUMP_PRELOADED_GAME, ...publishedArray];
+  const allGames = [...publishedArray];
   const sortedGames = allGames.slice().sort((a, b) => b.ts - a.ts);
 
   // Get friends - show first 8
