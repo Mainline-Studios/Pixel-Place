@@ -135,7 +135,7 @@
 
 1. **Clone the repository**
    ```bash
-   git clone https://github.com/boehmlaird0/Pixel-Place.git
+   git clone https://github.com/Mainline-Studios/Pixel-Place.git
    cd Pixel-Place
    ```
 
