@@ -199,6 +199,8 @@ export default function AvatarShopTab({ user, editMode }: AvatarShopTabProps) {
   const { updateUser } = useUser();
   const [skins, setSkins] = useState<Skin[]>([]);
   const [accessories, setAccessories] = useState<Accessory[]>([]);
+  // TODO: Remove this banner when new currency is released - set to false or delete the banner code
+  const [showCurrencyBanner, setShowCurrencyBanner] = useState(true);
   // Load data synchronously - getSkins and getAccessories are synchronous functions
   useEffect(() => {
     try {
@@ -417,6 +419,84 @@ export default function AvatarShopTab({ user, editMode }: AvatarShopTabProps) {
   return (
     <>
       <h2 className="section-title">Avatar Shop</h2>
+      
+      {/* NEW CURRENCY BANNER - Easy to remove: set showCurrencyBanner to false or delete this block */}
+      {showCurrencyBanner && (
+        <div style={{
+          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+          border: '2px solid rgba(255, 255, 255, 0.3)',
+          borderRadius: '12px',
+          padding: '16px 20px',
+          marginBottom: '24px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          boxShadow: '0 4px 20px rgba(102, 126, 234, 0.4)',
+          position: 'relative',
+          overflow: 'hidden'
+        }}>
+          <div style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent)',
+            animation: 'shimmer 3s infinite',
+            pointerEvents: 'none'
+          }} />
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', zIndex: 1 }}>
+            <span style={{ fontSize: '28px' }}>💎</span>
+            <div>
+              <div style={{ 
+                fontSize: '16px', 
+                fontWeight: 'bold', 
+                color: '#ffffff',
+                textShadow: '0 2px 4px rgba(0, 0, 0, 0.3)'
+              }}>
+                NEW CURRENCY COMING SOON
+              </div>
+              <div style={{ 
+                fontSize: '12px', 
+                color: 'rgba(255, 255, 255, 0.9)',
+                marginTop: '4px'
+              }}>
+                Stay tuned for exciting updates!
+              </div>
+            </div>
+          </div>
+          <button
+            onClick={() => setShowCurrencyBanner(false)}
+            style={{
+              background: 'rgba(255, 255, 255, 0.2)',
+              border: '1px solid rgba(255, 255, 255, 0.3)',
+              borderRadius: '6px',
+              color: '#ffffff',
+              padding: '6px 12px',
+              cursor: 'pointer',
+              fontSize: '14px',
+              fontWeight: 'bold',
+              transition: 'all 0.2s',
+              zIndex: 1
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = 'rgba(255, 255, 255, 0.3)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = 'rgba(255, 255, 255, 0.2)';
+            }}
+          >
+            ✕
+          </button>
+          <style>{`
+            @keyframes shimmer {
+              0% { transform: translateX(-100%); }
+              100% { transform: translateX(100%); }
+            }
+          `}</style>
+        </div>
+      )}
+      
       {user.role === 'admin' && (
         <div className="section-block">
           <div className="section-header">

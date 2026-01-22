@@ -503,6 +503,89 @@ textarea {
   color: #FF69B4;
 }
 
+/* Rainbow glow for non-binary/other button when selected */
+.gender-other.selected {
+  border-color: #ff00ff;
+  background: rgba(255, 0, 255, 0.2);
+  box-shadow: 
+    0 0 20px rgba(255, 0, 0, 0.8),
+    0 0 30px rgba(255, 127, 0, 0.7),
+    0 0 40px rgba(255, 255, 0, 0.6),
+    0 0 50px rgba(0, 255, 0, 0.5),
+    0 0 60px rgba(0, 0, 255, 0.4),
+    0 0 70px rgba(75, 0, 130, 0.3),
+    0 0 80px rgba(148, 0, 211, 0.2);
+  animation: rainbowGlow 2s ease-in-out infinite;
+}
+
+.gender-other.selected .gender-symbol {
+  color: #ffffff;
+  filter: drop-shadow(0 0 10px rgba(255, 0, 255, 0.8));
+}
+
+@keyframes rainbowGlow {
+  0%, 100% {
+    box-shadow: 
+      0 0 20px rgba(255, 0, 0, 0.8),
+      0 0 30px rgba(255, 127, 0, 0.7),
+      0 0 40px rgba(255, 255, 0, 0.6),
+      0 0 50px rgba(0, 255, 0, 0.5),
+      0 0 60px rgba(0, 0, 255, 0.4),
+      0 0 70px rgba(75, 0, 130, 0.3),
+      0 0 80px rgba(148, 0, 211, 0.2);
+  }
+  16.66% {
+    box-shadow: 
+      0 0 20px rgba(255, 127, 0, 0.8),
+      0 0 30px rgba(255, 255, 0, 0.7),
+      0 0 40px rgba(0, 255, 0, 0.6),
+      0 0 50px rgba(0, 0, 255, 0.5),
+      0 0 60px rgba(75, 0, 130, 0.4),
+      0 0 70px rgba(148, 0, 211, 0.3),
+      0 0 80px rgba(255, 0, 0, 0.2);
+  }
+  33.33% {
+    box-shadow: 
+      0 0 20px rgba(255, 255, 0, 0.8),
+      0 0 30px rgba(0, 255, 0, 0.7),
+      0 0 40px rgba(0, 0, 255, 0.6),
+      0 0 50px rgba(75, 0, 130, 0.5),
+      0 0 60px rgba(148, 0, 211, 0.4),
+      0 0 70px rgba(255, 0, 0, 0.3),
+      0 0 80px rgba(255, 127, 0, 0.2);
+  }
+  50% {
+    box-shadow: 
+      0 0 20px rgba(0, 255, 0, 0.8),
+      0 0 30px rgba(0, 0, 255, 0.7),
+      0 0 40px rgba(75, 0, 130, 0.6),
+      0 0 50px rgba(148, 0, 211, 0.5),
+      0 0 60px rgba(255, 0, 0, 0.4),
+      0 0 70px rgba(255, 127, 0, 0.3),
+      0 0 80px rgba(255, 255, 0, 0.2);
+  }
+  66.66% {
+    box-shadow: 
+      0 0 20px rgba(0, 0, 255, 0.8),
+      0 0 30px rgba(75, 0, 130, 0.7),
+      0 0 40px rgba(148, 0, 211, 0.6),
+      0 0 50px rgba(255, 0, 0, 0.5),
+      0 0 60px rgba(255, 127, 0, 0.4),
+      0 0 70px rgba(255, 255, 0, 0.3),
+      0 0 80px rgba(0, 255, 0, 0.2);
+  }
+  83.33% {
+    box-shadow: 
+      0 0 20px rgba(75, 0, 130, 0.8),
+      0 0 30px rgba(148, 0, 211, 0.7),
+      0 0 40px rgba(255, 0, 0, 0.6),
+      0 0 50px rgba(255, 127, 0, 0.5),
+      0 0 60px rgba(255, 255, 0, 0.4),
+      0 0 70px rgba(0, 255, 0, 0.3),
+      0 0 80px rgba(0, 0, 255, 0.2);
+  }
+}
+
 .gender-symbol {
   font-size: 28px;
   color: rgba(255, 255, 255, 0.9);
