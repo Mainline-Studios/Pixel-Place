@@ -317,7 +317,7 @@ For issues, questions, or suggestions:
 
 - [ ] Multiplayer support for Tag Game
 - [ ] More 3D games
-- [ ] Enhanced avatar customization
+- [x] Enhanced avatar customization
 - [ ] Mobile app version
 - [ ] Leaderboards and achievements
 - [ ] Social features expansion
