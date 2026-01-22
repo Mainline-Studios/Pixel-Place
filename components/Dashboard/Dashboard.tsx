@@ -8,6 +8,7 @@ import TopBar from './TopBar';
 import Sidebar from './Sidebar';
 import HomeTab from '../Tabs/HomeTab';
 // DiscoverTab removed - merged into HomeTab
+import PlayTab from '../Tabs/PlayTab';
 import AvatarShopTab from '../Tabs/AvatarShopTab';
 import CreateTab from '../Tabs/CreateTab';
 import StudioTab from '../Tabs/StudioTab';
@@ -39,6 +40,8 @@ export default function Dashboard({ user }: DashboardProps) {
       case 'home':
         return <HomeTab user={user} editMode={editMode} />;
       // Discover tab was merged into Home tab - removed
+      case 'play':
+        return <PlayTab user={user} editMode={editMode} />;
       case 'avatarShop':
         return <AvatarShopTab user={user} editMode={editMode} />;
       case 'createGame':

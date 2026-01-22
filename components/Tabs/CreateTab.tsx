@@ -11,12 +11,14 @@ interface CreateTabProps {
   editMode: boolean;
 }
 
-type StudioMode = 'code' | 'ai';
+type StudioMode = 'code' | 'ai' | 'pixelPlacer';
+type PixelPlacerMode = 'realism' | '3d' | '2d';
 
 export default function CreateTab({ user, editMode }: CreateTabProps) {
   const codeEditorRef = useRef<HTMLTextAreaElement>(null);
   const thumbnailInputRef = useRef<HTMLInputElement>(null);
-  const [studioMode, setStudioMode] = useState<StudioMode>('code');
+  const [studioMode, setStudioMode] = useState<StudioMode>('pixelPlacer');
+  const [pixelPlacerMode, setPixelPlacerMode] = useState<PixelPlacerMode>('realism');
   const [draft, setDraft] = useState<DraftGame>({
     title: '',
     desc: '',
@@ -167,10 +169,31 @@ export function createGame(container: HTMLElement) {
     <>
       <h2 className="section-title">Game Studio</h2>
 
-      {/* Mode Selector - Two Clear Options */}
+      {/* Mode Selector - Three Options */}
       <div className="ai-box" style={{ marginBottom: '24px' }}>
         <div className="ai-label">Choose Your Creation Method</div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginTop: '12px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px', marginTop: '12px' }}>
+          <button
+            className="btn"
+            onClick={() => setStudioMode('pixelPlacer')}
+            style={{
+              padding: '20px',
+              fontSize: '16px',
+              fontWeight: 'bold',
+              background: studioMode === 'pixelPlacer' ? 'var(--accent-bg-hover)' : 'var(--panel-alt)',
+              border: studioMode === 'pixelPlacer' ? '2px solid var(--accent)' : '2px solid var(--border)',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              gap: '8px'
+            }}
+          >
+            <span style={{ fontSize: '32px' }}>🎮</span>
+            <div>Pixel Placer</div>
+            <div className="smalltext" style={{ textAlign: 'center', marginTop: '4px' }}>
+              Visual game engine with 3D/2D editors
+            </div>
+          </button>
           <button
             className="btn"
             onClick={() => setStudioMode('code')}
@@ -215,6 +238,110 @@ export function createGame(container: HTMLElement) {
           </button>
         </div>
       </div>
+
+      {/* Pixel Placer Mode */}
+      {studioMode === 'pixelPlacer' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <div className="ai-box">
+            <div className="ai-label">Pixel Placer - Game Engine</div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px', marginTop: '12px' }}>
+              <button
+                className="btn"
+                onClick={() => setPixelPlacerMode('realism')}
+                style={{
+                  padding: '16px',
+                  background: pixelPlacerMode === 'realism' ? 'var(--accent-bg-hover)' : 'var(--panel-alt)',
+                  border: pixelPlacerMode === 'realism' ? '2px solid var(--accent)' : '2px solid var(--border)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  gap: '8px'
+                }}
+              >
+                <span style={{ fontSize: '24px' }}>🌟</span>
+                <div style={{ fontWeight: 'bold' }}>Realism Pixel</div>
+                <div className="smalltext" style={{ textAlign: 'center', fontSize: '11px' }}>
+                  Realistic full game engine
+                </div>
+              </button>
+              <button
+                className="btn"
+                onClick={() => setPixelPlacerMode('3d')}
+                style={{
+                  padding: '16px',
+                  background: pixelPlacerMode === '3d' ? 'var(--accent-bg-hover)' : 'var(--panel-alt)',
+                  border: pixelPlacerMode === '3d' ? '2px solid var(--accent)' : '2px solid var(--border)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  gap: '8px'
+                }}
+              >
+                <span style={{ fontSize: '24px' }}>🎯</span>
+                <div style={{ fontWeight: 'bold' }}>3D Pixel</div>
+                <div className="smalltext" style={{ textAlign: 'center', fontSize: '11px' }}>
+                  Custom realism game engine
+                </div>
+              </button>
+              <button
+                className="btn"
+                onClick={() => setPixelPlacerMode('2d')}
+                style={{
+                  padding: '16px',
+                  background: pixelPlacerMode === '2d' ? 'var(--accent-bg-hover)' : 'var(--panel-alt)',
+                  border: pixelPlacerMode === '2d' ? '2px solid var(--accent)' : '2px solid var(--border)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  gap: '8px'
+                }}
+              >
+                <span style={{ fontSize: '24px' }}>📐</span>
+                <div style={{ fontWeight: 'bold' }}>2D Pixel</div>
+                <div className="smalltext" style={{ textAlign: 'center', fontSize: '11px' }}>
+                  2D game engine
+                </div>
+              </button>
+            </div>
+            <div style={{ marginTop: '20px', padding: '16px', background: 'var(--panel-soft)', borderRadius: '8px', border: '1px solid var(--border)' }}>
+              <div style={{ fontSize: '14px', fontWeight: 'bold', marginBottom: '8px' }}>
+                {pixelPlacerMode === 'realism' && '🌟 Realism Pixel Mode'}
+                {pixelPlacerMode === '3d' && '🎯 3D Pixel Mode'}
+                {pixelPlacerMode === '2d' && '📐 2D Pixel Mode'}
+              </div>
+              <div className="smalltext" style={{ lineHeight: '1.6' }}>
+                {pixelPlacerMode === 'realism' && (
+                  <>
+                    Build realistic 3D games with advanced rendering, physics, audio, and networking. 
+                    Full-featured game engine with professional tools.
+                  </>
+                )}
+                {pixelPlacerMode === '3d' && (
+                  <>
+                    Create custom 3D games with shapes, sculpting tools, and visual editing. 
+                    Perfect for building interactive 3D experiences.
+                  </>
+                )}
+                {pixelPlacerMode === '2d' && (
+                  <>
+                    Design 2D games with canvas-based rendering and scripting. 
+                    Ideal for platformers, puzzles, and classic arcade games.
+                  </>
+                )}
+              </div>
+              <button
+                className="btn"
+                onClick={() => {
+                  alert('Full-screen Pixel Placer editor coming soon! This will open a comprehensive game development studio.');
+                }}
+                style={{ width: '100%', marginTop: '12px' }}
+              >
+                🖥️ Enter Full Screen Studio
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
 
       {/* Code Editor Mode - Write Your Game */}
