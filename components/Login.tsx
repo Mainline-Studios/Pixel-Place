@@ -8,7 +8,7 @@ export default function Login() {
   const [mode, setMode] = useState<'signin' | 'signup'>('signin');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const [gender, setGender] = useState<'Male' | 'Female' | ''>('');
+  const [gender, setGender] = useState<'Male' | 'Female' | 'Other' | ''>('');
   const [birthMonth, setBirthMonth] = useState('');
   const [birthDay, setBirthDay] = useState('');
   const [birthYear, setBirthYear] = useState('');
@@ -250,6 +250,61 @@ export default function Login() {
                       <circle cx="46" cy="78" r="5" fill="currentColor" />
                       <line x1="54" y1="52" x2="54" y2="78" stroke="currentColor" strokeWidth="8" strokeLinecap="round" />
                       <circle cx="54" cy="78" r="5" fill="currentColor" />
+                    </svg>
+                  </button>
+                  <button
+                    type="button"
+                    className={`gender-btn gender-other ${gender === 'Other' ? 'selected' : ''}`}
+                    onClick={() => {
+                      if (gender === 'Other') {
+                        setGender('');
+                      } else {
+                        setGender('Other');
+                      }
+                    }}
+                  >
+                    <svg className="gender-symbol" viewBox="0 0 100 100" width="40" height="40">
+                      <defs>
+                        <linearGradient id="rainbowGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                          <stop offset="0%" stopColor="#ff0000" />
+                          <stop offset="16.66%" stopColor="#ff7f00" />
+                          <stop offset="33.33%" stopColor="#ffff00" />
+                          <stop offset="50%" stopColor="#00ff00" />
+                          <stop offset="66.66%" stopColor="#0000ff" />
+                          <stop offset="83.33%" stopColor="#4b0082" />
+                          <stop offset="100%" stopColor="#9400d3" />
+                        </linearGradient>
+                        <clipPath id="leftHalfOther">
+                          <rect x="0" y="0" width="50" height="100" />
+                        </clipPath>
+                        <clipPath id="rightHalfOther">
+                          <rect x="50" y="0" width="50" height="100" />
+                        </clipPath>
+                      </defs>
+                      {/* Left half - Male symbol (clipped) */}
+                      <g clipPath="url(#leftHalfOther)">
+                        <circle cx="50" cy="15" r="11" fill="currentColor" />
+                        <rect x="38" y="26" width="24" height="24" fill="currentColor" />
+                        <line x1="38" y1="36" x2="24" y2="36" stroke="currentColor" strokeWidth="8" strokeLinecap="round" />
+                        <circle cx="24" cy="36" r="4" fill="currentColor" />
+                        <line x1="44" y1="50" x2="44" y2="78" stroke="currentColor" strokeWidth="8" strokeLinecap="round" />
+                        <circle cx="44" cy="78" r="5" fill="currentColor" />
+                        <line x1="56" y1="50" x2="56" y2="78" stroke="currentColor" strokeWidth="8" strokeLinecap="round" />
+                        <circle cx="56" cy="78" r="5" fill="currentColor" />
+                      </g>
+                      {/* Right half - Female symbol (clipped) */}
+                      <g clipPath="url(#rightHalfOther)">
+                        <circle cx="50" cy="15" r="11" fill="currentColor" />
+                        <path d="M 36 26 L 50 52 L 64 26 Z" fill="currentColor" />
+                        <line x1="64" y1="30" x2="76" y2="40" stroke="currentColor" strokeWidth="8" strokeLinecap="round" />
+                        <circle cx="76" cy="40" r="4" fill="currentColor" />
+                        <line x1="46" y1="52" x2="46" y2="78" stroke="currentColor" strokeWidth="8" strokeLinecap="round" />
+                        <circle cx="46" cy="78" r="5" fill="currentColor" />
+                        <line x1="54" y1="52" x2="54" y2="78" stroke="currentColor" strokeWidth="8" strokeLinecap="round" />
+                        <circle cx="54" cy="78" r="5" fill="currentColor" />
+                      </g>
+                      {/* Vertical divider line */}
+                      <line x1="50" y1="0" x2="50" y2="100" stroke="currentColor" strokeWidth="2" opacity="0.5" />
                     </svg>
                   </button>
                 </div>
