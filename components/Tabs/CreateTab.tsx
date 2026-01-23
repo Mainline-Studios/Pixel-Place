@@ -5,6 +5,7 @@ import { User, DraftGame, PublishedGame } from '@/types';
 import { getDraft, saveDraft, getPublished, savePublished } from '@/lib/storage';
 import { useUser } from '@/contexts/UserContext';
 import AIGameGenerator from '@/components/AIGameGenerator';
+import FullScreenStudio from '@/components/FullScreenStudio';
 
 interface CreateTabProps {
   user: User;
@@ -19,6 +20,7 @@ export default function CreateTab({ user, editMode }: CreateTabProps) {
   const thumbnailInputRef = useRef<HTMLInputElement>(null);
   const [studioMode, setStudioMode] = useState<StudioMode>('pixelPlacer');
   const [pixelPlacerMode, setPixelPlacerMode] = useState<PixelPlacerMode>('realism');
+  const [showFullScreenStudio, setShowFullScreenStudio] = useState(false);
   const [draft, setDraft] = useState<DraftGame>({
     title: '',
     desc: '',
@@ -167,6 +169,13 @@ export function createGame(container: HTMLElement) {
 
   return (
     <>
+      {showFullScreenStudio && (
+        <FullScreenStudio
+          mode={pixelPlacerMode}
+          onClose={() => setShowFullScreenStudio(false)}
+        />
+      )}
+      
       <h2 className="section-title">Game Studio</h2>
 
       {/* Mode Selector - Three Options */}
@@ -332,7 +341,7 @@ export function createGame(container: HTMLElement) {
               <button
                 className="btn"
                 onClick={() => {
-                  alert('Full-screen Pixel Placer editor coming soon! This will open a comprehensive game development studio.');
+                  setShowFullScreenStudio(true);
                 }}
                 style={{ width: '100%', marginTop: '12px' }}
               >

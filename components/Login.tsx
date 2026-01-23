@@ -116,12 +116,22 @@ export default function Login() {
                 onChange={handlePasswordChange}
                 onKeyPress={(e) => e.key === 'Enter' && handleSignIn()}
               />
-              <button className="btn auth-btn signin-btn" onClick={handleSignIn}>
+              <button 
+                className="btn auth-btn signin-btn" 
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  handleSignIn();
+                }}
+                type="button"
+              >
                 Sign In
               </button>
               <button 
                 className="btn auth-btn" 
-                onClick={() => {
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
                   setMode('signup');
                   setMessage('');
                   setUsername('');
@@ -131,6 +141,7 @@ export default function Login() {
                   setBirthDay('');
                   setBirthYear('');
                 }}
+                type="button"
                 style={{
                   marginTop: '12px',
                   background: 'var(--accent)',
@@ -322,7 +333,15 @@ export default function Login() {
                 .
               </div>
 
-              <button className="btn auth-btn signup-submit-btn" onClick={handleSignUp}>
+              <button 
+                className="btn auth-btn signup-submit-btn" 
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  handleSignUp();
+                }}
+                type="button"
+              >
                 Sign Up
               </button>
             </>
