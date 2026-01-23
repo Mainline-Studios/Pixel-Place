@@ -118,17 +118,38 @@ export default function PlayTab({ user, editMode }: PlayTabProps) {
   const selectedGameInfo = games.find(g => g.id === selectedGame);
   const GameComponent = selectedGameInfo?.component;
 
+  // #region agent log
   useEffect(() => {
+    fetch('http://127.0.0.1:7242/ingest/002741fb-cb98-444e-83cd-7086902151aa',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'PlayTab.tsx:120',message:'PlayTab render',data:{selectedGame,hasGameComponent:!!GameComponent,isLoading,loadError},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+  }, [selectedGame, GameComponent, isLoading, loadError]);
+  // #endregion
+
+  useEffect(() => {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/002741fb-cb98-444e-83cd-7086902151aa',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'PlayTab.tsx:123',message:'selectedGame changed',data:{selectedGame,isLoading},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+    // #endregion
     // Reset loading state when game changes
     if (selectedGame) {
       setIsLoading(true);
       setLoadError(null);
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/002741fb-cb98-444e-83cd-7086902151aa',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'PlayTab.tsx:127',message:'Setting isLoading to true',data:{selectedGame},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+      // #endregion
       // Set a timeout to prevent infinite loading
       const timeout = setTimeout(() => {
-        if (isLoading) {
-          setIsLoading(false);
-          setLoadError('Game is taking longer than expected to load. Please try again.');
-        }
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/002741fb-cb98-444e-83cd-7086902151aa',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'PlayTab.tsx:132',message:'Timeout fired',data:{selectedGame},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+        // #endregion
+        setIsLoading((currentLoading) => {
+          // #region agent log
+          fetch('http://127.0.0.1:7242/ingest/002741fb-cb98-444e-83cd-7086902151aa',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'PlayTab.tsx:135',message:'Checking isLoading in timeout',data:{currentLoading},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+          // #endregion
+          if (currentLoading) {
+            setLoadError('Game is taking longer than expected to load. Please try again.');
+            return false;
+          }
+          return currentLoading;
+        });
       }, 10000); // 10 second timeout
 
       return () => clearTimeout(timeout);
@@ -140,9 +161,15 @@ export default function PlayTab({ user, editMode }: PlayTabProps) {
 
   // Handle game component mount
   useEffect(() => {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/002741fb-cb98-444e-83cd-7086902151aa',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'PlayTab.tsx:150',message:'GameComponent mount effect',data:{hasGameComponent:!!GameComponent,selectedGame,isLoading},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+    // #endregion
     if (GameComponent && selectedGame) {
       // Give component a moment to render
       const timer = setTimeout(() => {
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/002741fb-cb98-444e-83cd-7086902151aa',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'PlayTab.tsx:155',message:'Setting isLoading to false after 500ms',data:{selectedGame},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+        // #endregion
         setIsLoading(false);
       }, 500);
       return () => clearTimeout(timer);
@@ -158,8 +185,13 @@ export default function PlayTab({ user, editMode }: PlayTabProps) {
     
     const supportsOnClose = ['gymPump', 'hypnosia'].includes(selectedGame);
     
+    // #region agent log
+    useEffect(() => {
+      fetch('http://127.0.0.1:7242/ingest/002741fb-cb98-444e-83cd-7086902151aa',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'PlayTab.tsx:170',message:'Rendering game container',data:{selectedGame,isLoading,hasGameComponent:!!GameComponent},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
+    }, [selectedGame, isLoading, GameComponent]);
+    // #endregion
     return (
-      <div style={{ position: 'relative', width: '100%', minHeight: '100%' }}>
+      <div style={{ position: 'relative', width: '100%', minHeight: '100%', background: 'var(--bg-main)' }}>
         {isLoading && (
           <div style={{
             position: 'absolute',
