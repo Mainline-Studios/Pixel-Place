@@ -1,0 +1,17 @@
+version: 0.1.0
+files:
+  - url: Pixel-Place-0.1.0-mac.zip
+    sha512: RT4HJqpvFUAKZUQlk/owznpHcB+NGNMygUzYzQhuzsCZntqtTay1F7dkGjGr0EYeUHQQx+rl/d7jH4TIz5UwVg==
+    size: 689046518
+  - url: Pixel-Place-0.1.0-arm64-mac.zip
+    sha512: npaVfyu56ql5ijJHunV1AMdheMBq5qAuK6QoSWv1Hu2ABZz6td9SsLlcnkTt/XR5hEHJJgvU8zavUON3ZA5dyA==
+    size: 683910067
+  - url: Pixel-Place-0.1.0.dmg
+    sha512: fRUEW2PAiCxn+7FxtsLaIrqYgCJew5uzt+djKK95w03ZKWOQaSg6KQnUW17i9vWVlM47kODCGAcHZyEG6XcBFg==
+    size: 697163838
+  - url: Pixel-Place-0.1.0-arm64.dmg
+    sha512: DZEjxhKCdroi2wZqO+lvRd3jYTTIk/veMdHMeDr26MshkWHOrDbTeI6yoFBjy/pYh68R3IsMJ3kuxSDJc80eog==
+    size: 692116197
+path: Pixel-Place-0.1.0-mac.zip
+sha512: RT4HJqpvFUAKZUQlk/owznpHcB+NGNMygUzYzQhuzsCZntqtTay1F7dkGjGr0EYeUHQQx+rl/d7jH4TIz5UwVg==
+releaseDate: '2025-12-17T22:28:43.132Z'
