@@ -1,4 +1,17 @@
 import React, { useEffect, useRef, useState } from "react";
+import {
+  POWER_STATS,
+  ATTACK_RANGES,
+  ATTACK_WIDTHS,
+  ATTACK_RADII,
+  DURATIONS,
+  DAMAGE_VALUES,
+  GAMEPLAY_CONSTANTS,
+  isInBeam,
+  inCircle,
+  distance,
+  type Vec2 as GameVec2,
+} from "@/lib/gameScaling";
 
 /**
  * SuperShowdown2 — updated powers with stronger Regen and visual indicators
@@ -19,7 +32,6 @@ const STUD_TO_PX = CANVAS_SIZE_PX / MAP_SIZE; // scale studs -> px
 
 const randInt = (min: number, max: number) =>
   Math.floor(Math.random() * (max - min + 1)) + min;
-const distance = (a: Vec2, b: Vec2) => Math.hypot(a.x - b.x, a.y - b.y);
 
 type Vec2 = { x: number; y: number };
 
@@ -314,17 +326,7 @@ export default function SuperShowdown2(): JSX.Element {
     return { x: Math.max(0, Math.min(MAP_SIZE, pos.x)), y: Math.max(0, Math.min(MAP_SIZE, pos.y)) };
   }
 
-  function isInBeam(source: Vec2, dir: Vec2, width: number, range: number, targetPos: Vec2) {
-    const toT = { x: targetPos.x - source.x, y: targetPos.y - source.y };
-    const proj = toT.x * dir.x + toT.y * dir.y;
-    if (proj < 0 || proj > range) return false;
-    const perpSq = toT.x * toT.x + toT.y * toT.y - proj * proj;
-    const perp = Math.sqrt(Math.max(0, perpSq));
-    return perp <= width / 2;
-  }
-  function inCircle(center: Vec2, radius: number, targetPos: Vec2) {
-    return distance(center, targetPos) <= radius;
-  }
+  // isInBeam and inCircle functions now imported from @/lib/gameScaling
 
   // Harmony/heavy state refs
   const harmonyRef = useRef({ magRemaining: 4, lastShotAt: 0, consecutiveHits: 0, lastHitAt: 0, reloadUntil: 0 });
@@ -771,7 +773,7 @@ export default function SuperShowdown2(): JSX.Element {
 
     switch (pw) {
       case "mud": {
-        const patch: MudPatch = { id: `mud-${Date.now()}`, pos: clampPos(aimTarget), radius: 3.5, createdAt: Date.now(), durationMs: 8000 };
+        const patch: MudPatch = { id: `mud-${Date.now()}`, pos: clampPos(aimTarget), radius: ATTACK_RADII.MUD_PATCH, createdAt: Date.now(), durationMs: DURATIONS.MUD_PATCH };
         setMudPatches((m) => [...m, patch]);
         ammoRef.current["mud"] = Math.max(0, ammo - 1);
         pushLog("You create a muddy pool beneath your target.");
@@ -782,10 +784,10 @@ export default function SuperShowdown2(): JSX.Element {
         const dir = { x: aimTarget.x - player.pos.x, y: aimTarget.y - player.pos.y };
         const len = Math.hypot(dir.x, dir.y) || 0.0001;
         const norm = { x: dir.x / len, y: dir.y / len };
-        if (isInBeam(player.pos, norm, 4, 10, enemy.pos)) {
-          setEnemy((e) => applyDamageToFighter(e, 10));
-          setPlayer((p) => ({ ...p, hp: Math.min(p.maxHp, p.hp + 3) }));
-          const pe: ParasiteEntity = { id: `par-${Date.now()}`, ownerId: player.id, targetEnemyId: enemy.id, nextAttackAt: Date.now() + 4500, expireAt: Date.now() + 18000 };
+        if (isInBeam(player.pos, norm, ATTACK_WIDTHS.PARASITE, ATTACK_RANGES.PARASITE, enemy.pos)) {
+          setEnemy((e) => applyDamageToFighter(e, DAMAGE_VALUES.PARASITE_INITIAL));
+          setPlayer((p) => ({ ...p, hp: Math.min(p.maxHp, p.hp + DAMAGE_VALUES.PARASITE_HEAL) }));
+          const pe: ParasiteEntity = { id: `par-${Date.now()}`, ownerId: player.id, targetEnemyId: enemy.id, nextAttackAt: Date.now() + DURATIONS.PARASITE_ATTACK_INTERVAL, expireAt: Date.now() + DURATIONS.PARASITE_LIFETIME };
           setParasites((ps) => [...ps, pe]);
           ammoRef.current["parasite"] = Math.max(0, ammo - 1);
           pushLog("You latch on as a parasite, draining your foe.");
@@ -805,12 +807,10 @@ export default function SuperShowdown2(): JSX.Element {
         const dir = { x: aimTarget.x - player.pos.x, y: aimTarget.y - player.pos.y };
         const len = Math.hypot(dir.x, dir.y) || 0.0001;
         const norm = { x: dir.x / len, y: dir.y / len };
-        const range = 16;
-        const width = 3.2;
         let hit = false;
-        if (isInBeam(player.pos, norm, width, range, enemy.pos)) {
-          setEnemy((e) => applyDamageToFighter(e, 3));
-          pushLog("Harmony's note hits for 3 damage.");
+        if (isInBeam(player.pos, norm, ATTACK_WIDTHS.HARMONY, ATTACK_RANGES.HARMONY, enemy.pos)) {
+          setEnemy((e) => applyDamageToFighter(e, DAMAGE_VALUES.HARMONY));
+          pushLog(`Harmony's note hits for ${DAMAGE_VALUES.HARMONY} damage.`);
           hit = true;
         } else {
           pushLog("Harmony's note misses.");
@@ -818,21 +818,21 @@ export default function SuperShowdown2(): JSX.Element {
         hs.magRemaining = Math.max(0, hs.magRemaining - 1);
         hs.lastShotAt = ts;
         if (hit) {
-          if (ts - hs.lastHitAt <= 2000) {
+          if (ts - hs.lastHitAt <= GAMEPLAY_CONSTANTS.HARMONY_COMBO_WINDOW) {
             hs.consecutiveHits += 1;
           } else {
             hs.consecutiveHits = 1;
           }
           hs.lastHitAt = ts;
-          if (hs.consecutiveHits >= 6) {
-            setPlayer((pl) => ({ ...pl, statuses: { ...(pl.statuses || {}), invincible: Math.max(0, (pl.statuses?.invincible || 0) + 4) } }));
+          if (hs.consecutiveHits >= GAMEPLAY_CONSTANTS.HARMONY_COMBO_REQUIREMENT) {
+            setPlayer((pl) => ({ ...pl, statuses: { ...(pl.statuses || {}), invincible: Math.max(0, (pl.statuses?.invincible || 0) + GAMEPLAY_CONSTANTS.HARMONY_INVINCIBILITY_DURATION) } }));
             pushLog("Harmony's cadence grants you a 2-second invincibility!");
             hs.consecutiveHits = 0;
           }
         }
         if (hs.magRemaining <= 0) {
-          hs.reloadUntil = ts + 1000;
-          hs.magRemaining = 4;
+          hs.reloadUntil = ts + DURATIONS.HARMONY_RELOAD;
+          hs.magRemaining = GAMEPLAY_CONSTANTS.HARMONY_MAG_SIZE;
         }
         harmonyRef.current = hs;
         ammoRef.current["harmony"] = Math.max(0, ammo - 1);
@@ -847,9 +847,9 @@ export default function SuperShowdown2(): JSX.Element {
       case "regen": {
         // Stronger regen: after 5 seconds grant 8 ticks of 2HP per 500ms tick (8 * 2 = 16HP)
         setTimeout(() => {
-          setPlayer((p) => ({ ...p, statuses: { ...(p.statuses || {}), regen: Math.max(0, (p.statuses?.regen || 0) + 8) } }));
+          setPlayer((p) => ({ ...p, statuses: { ...(p.statuses || {}), regen: Math.max(0, (p.statuses?.regen || 0) + POWER_STATS.REGEN.totalTicks) } }));
           pushLog("Regen begins to mend your wounds (stronger).");
-        }, 5000);
+        }, DURATIONS.REGEN_ACTIVATION_DELAY);
         ammoRef.current["regen"] = Math.max(0, ammo - 1);
         pushLog("You prepare to regenerate; healing will begin shortly.");
         break;
@@ -863,15 +863,15 @@ export default function SuperShowdown2(): JSX.Element {
         const dir = { x: aimTarget.x - player.pos.x, y: aimTarget.y - player.pos.y };
         const len = Math.hypot(dir.x, dir.y) || 0.0001;
         const norm = { x: dir.x / len, y: dir.y / len };
-        const hit = isInBeam(player.pos, norm, 2, 10, enemy.pos);
+        const hit = isInBeam(player.pos, norm, ATTACK_WIDTHS.HEX, ATTACK_RANGES.HEX, enemy.pos);
         if (hit) {
           setEnemy((e) => {
-            const ne = applyDamageToFighter(e, 7);
+            const ne = applyDamageToFighter(e, DAMAGE_VALUES.HEX);
             const s = { ...(ne.statuses || {}) };
-            s.hexStacks = Math.min(10, (s.hexStacks || 0) + 1);
+            s.hexStacks = Math.min(GAMEPLAY_CONSTANTS.HEX_MAX_STACKS, (s.hexStacks || 0) + 1);
             s.hexLastAt = Date.now();
             ne.statuses = s;
-            pushLog(`Hex hits: ${s.hexStacks} stack(s) applied (-${(s.hexStacks || 0) * 5}% dmg).`);
+            pushLog(`Hex hits: ${s.hexStacks} stack(s) applied (-${(s.hexStacks || 0) * (GAMEPLAY_CONSTANTS.HEX_DAMAGE_REDUCTION_PER_STACK * 100)}% dmg).`);
             return ne;
           });
           hexStateRef.current.hitsSinceReload += 1;
@@ -879,7 +879,7 @@ export default function SuperShowdown2(): JSX.Element {
           pushLog("Hex spell misses.");
         }
         if (hexStateRef.current.hitsSinceReload >= 3) {
-          hexStateRef.current.reloadUntil = Date.now() + 1900;
+          hexStateRef.current.reloadUntil = Date.now() + DURATIONS.HEX_RELOAD;
           hexStateRef.current.hitsSinceReload = 0;
         }
         ammoRef.current["hex"] = Math.max(0, ammo - 1);
@@ -896,10 +896,10 @@ export default function SuperShowdown2(): JSX.Element {
         const dir = { x: aimTarget.x - player.pos.x, y: aimTarget.y - player.pos.y };
         const len = Math.hypot(dir.x, dir.y) || 0.0001;
         const norm = { x: dir.x / len, y: dir.y / len };
-        let dmg = 12;
+        let dmg = DAMAGE_VALUES.LUNAR_NORMAL;
         const lunarState = lunarStateRef.current;
-        if (ts < lunarState.midnightActiveUntil) dmg *= 2;
-        if (isInBeam(player.pos, norm, 4, 16, enemy.pos)) {
+        if (ts < lunarState.midnightActiveUntil) dmg = DAMAGE_VALUES.LUNAR_MIDNIGHT;
+        if (isInBeam(player.pos, norm, ATTACK_WIDTHS.LUNAR, ATTACK_RANGES.LUNAR, enemy.pos)) {
           setEnemy((e) => applyDamageToFighter(e, dmg));
           pushLog(`Lunar hits for ${dmg} damage.`);
           lr.magRemaining -= 1;
@@ -908,9 +908,9 @@ export default function SuperShowdown2(): JSX.Element {
           lr.magRemaining -= 1;
         }
         if (lr.magRemaining <= 0) {
-          const reload = ts < lunarState.midnightActiveUntil ? 1000 : 2000;
+          const reload = ts < lunarState.midnightActiveUntil ? DURATIONS.LUNAR_RELOAD_MIDNIGHT : DURATIONS.LUNAR_RELOAD_NORMAL;
           lr.reloadUntil = ts + reload;
-          lr.magRemaining = 2;
+          lr.magRemaining = GAMEPLAY_CONSTANTS.LUNAR_MAG_SIZE;
         }
         lunarRef.current = lr;
         ammoRef.current["lunar"] = Math.max(0, ammo - 1);
@@ -919,18 +919,18 @@ export default function SuperShowdown2(): JSX.Element {
 
       case "soleil": {
         const ts = Date.now();
-        if (soleilStateRef.current.lastTeleportAt && ts - soleilStateRef.current.lastTeleportAt < 120000) {
+        if (soleilStateRef.current.lastTeleportAt && ts - soleilStateRef.current.lastTeleportAt < DURATIONS.SOLEIL_TELEPORT_COOLDOWN) {
           pushLog("Soleil teleport not ready yet.");
           return;
         }
         const dist = distance(player.pos, aimTarget);
-        if (dist <= 30) {
+        if (dist <= ATTACK_RANGES.SOLEIL_TELEPORT) {
           setPlayer((p) => ({ ...p, pos: clampPos(aimTarget) }));
           soleilStateRef.current.lastTeleportAt = ts;
           ammoRef.current["soleil"] = Math.max(0, ammo - 1);
           pushLog("Soleil teleports to a nearby location.");
         } else {
-          pushLog("Teleport target too far for Soleil (must be within 30 studs).");
+          pushLog(`Teleport target too far for Soleil (must be within ${ATTACK_RANGES.SOLEIL_TELEPORT} studs).`);
         }
         break;
       }
@@ -938,7 +938,7 @@ export default function SuperShowdown2(): JSX.Element {
       case "doppelganger": {
         const existing = doppels[0];
         if (!existing) {
-          const d: Doppel = { id: `dup-${Date.now()}`, pos: clampPos({ x: player.pos.x + 1.5, y: player.pos.y }), hp: 60, createdAt: Date.now(), durationMs: 24 * 60 * 60 * 1000, nextAttackAt: Date.now() + 1000, invulnerable: true };
+          const d: Doppel = { id: `dup-${Date.now()}`, pos: clampPos({ x: player.pos.x + 1.5, y: player.pos.y }), hp: GAMEPLAY_CONSTANTS.DOPPELGANGER_HP, createdAt: Date.now(), durationMs: DURATIONS.DOPPELGANGER_LIFETIME, nextAttackAt: Date.now() + DURATIONS.DOPPELGANGER_ATTACK_INTERVAL, invulnerable: true };
           setDoppels((ds) => [...ds, d]);
           ammoRef.current["doppelganger"] = Math.max(0, ammo - 1);
           pushLog("A doppelganger replica has been summoned and is invulnerable.");
@@ -948,7 +948,7 @@ export default function SuperShowdown2(): JSX.Element {
             pushLog("Swap is on cooldown.");
             return;
           }
-          swapRef.current.nextSwapAt = ts + 30000;
+          swapRef.current.nextSwapAt = ts + DURATIONS.DOPPELGANGER_SWAP_COOLDOWN;
           setPlayer((p) => {
             setDoppels((ds) => ds.map((dd, i) => (i === 0 ? { ...dd, pos: { ...p.pos } } : dd)));
             pushLog("You swap places with your doppelganger!");
