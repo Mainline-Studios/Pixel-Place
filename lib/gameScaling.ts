@@ -9,6 +9,10 @@
 // Scaling constant
 export const STUD_TO_PX = 2;
 
+// Standard attack values for most powers
+const STANDARD_POWER_RANGE = 18;
+const STANDARD_POWER_WIDTH = 2;
+
 /**
  * Power Types
  */
@@ -39,28 +43,28 @@ export type Power =
  */
 export const POWER_RANGES: Record<Power, number> = {
   // Standard powers - 11 original powers with same range
-  fire: 18,
-  water: 18,
-  wind: 18,
-  earth: 18,
-  electricity: 18,
-  fauna: 18,
-  fleur: 18,
-  poison: 18,
-  celestial: 18,
-  ice: 18,
-  invisible: 18,
+  fire: STANDARD_POWER_RANGE,
+  water: STANDARD_POWER_RANGE,
+  wind: STANDARD_POWER_RANGE,
+  earth: STANDARD_POWER_RANGE,
+  electricity: STANDARD_POWER_RANGE,
+  fauna: STANDARD_POWER_RANGE,
+  fleur: STANDARD_POWER_RANGE,
+  poison: STANDARD_POWER_RANGE,
+  celestial: STANDARD_POWER_RANGE,
+  ice: STANDARD_POWER_RANGE,
+  invisible: STANDARD_POWER_RANGE,
   
   // Special powers with custom ranges
-  mud: 18,           // Creates AoE patch at range
-  parasite: 10,      // Latch-on drain attack
-  harmony: 16,       // Musical projectile
-  berserker: 7,      // Melee swing
-  regen: 7,          // Healing beam
-  hex: 10,           // Hexing spell
-  lunar: 16,         // Moon-powered beam
-  soleil: 0,         // Sun explosion (AoE only, no beam)
-  doppelganger: 2,   // Close-range slice (radius-based)
+  mud: STANDARD_POWER_RANGE, // Creates AoE patch at range
+  parasite: 10,              // Latch-on drain attack
+  harmony: 16,               // Musical projectile
+  berserker: 7,              // Melee swing
+  regen: 7,                  // Healing beam
+  hex: 10,                   // Hexing spell
+  lunar: 16,                 // Moon-powered beam
+  soleil: 0,                 // Sun explosion (AoE only, no beam)
+  doppelganger: 2,           // Close-range slice (radius-based)
 };
 
 /**
@@ -68,25 +72,25 @@ export const POWER_RANGES: Record<Power, number> = {
  */
 export const POWER_WIDTHS: Record<Power, number> = {
   // Standard powers
-  fire: 2,
-  water: 2,
-  wind: 2,
-  earth: 2,
-  electricity: 2,
-  fauna: 2,
-  fleur: 2,
-  poison: 2,
-  celestial: 2,
-  ice: 2,
-  invisible: 2,
+  fire: STANDARD_POWER_WIDTH,
+  water: STANDARD_POWER_WIDTH,
+  wind: STANDARD_POWER_WIDTH,
+  earth: STANDARD_POWER_WIDTH,
+  electricity: STANDARD_POWER_WIDTH,
+  fauna: STANDARD_POWER_WIDTH,
+  fleur: STANDARD_POWER_WIDTH,
+  poison: STANDARD_POWER_WIDTH,
+  celestial: STANDARD_POWER_WIDTH,
+  ice: STANDARD_POWER_WIDTH,
+  invisible: STANDARD_POWER_WIDTH,
   
   // Special powers
-  mud: 2,
+  mud: STANDARD_POWER_WIDTH,
   parasite: 4,
   harmony: 3.2,
   berserker: 4,
   regen: 3,
-  hex: 2,
+  hex: STANDARD_POWER_WIDTH,
   lunar: 4,
   soleil: 0,         // Not beam-based
   doppelganger: 0,   // Not beam-based (uses radius)

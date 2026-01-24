@@ -4,6 +4,7 @@ import {
   POWER_WIDTHS,
   POWER_RADII,
   AOE_RADII,
+  DEFAULT_ATTACK,
   getPowerRange,
   getPowerWidth,
   getPowerRadius,
@@ -708,7 +709,7 @@ export default function SuperShowdown2(): JSX.Element {
     if (waiting || gameOver || !startConfirmed) return;
 
     if (player.power === "doppelganger") {
-      const sliceRange = getPowerRadius("doppelganger") || POWER_RADII.doppelganger || 2;
+      const sliceRange = getPowerRadius("doppelganger") || 2;
       if (distance(player.pos, enemy.pos) <= sliceRange) {
         setEnemy((e) => applyDamageToFighter(e, 40));
         pushLog("You (Doppelganger) slice the enemy for 40 damage.");
@@ -754,8 +755,8 @@ export default function SuperShowdown2(): JSX.Element {
     const dir = { x: aimTarget.x - player.pos.x, y: aimTarget.y - player.pos.y };
     const len = Math.hypot(dir.x, dir.y) || 0.0001;
     const norm = { x: dir.x / len, y: dir.y / len };
-    const range = 20; // Default firing range for non-specific powers
-    const width = 2;  // Default firing width
+    const range = DEFAULT_ATTACK.range;
+    const width = DEFAULT_ATTACK.width;
     if (isInBeam(player.pos, norm, width, range, enemy.pos)) {
       setEnemy((e) => applyDamageToFighter(e, 14));
       pushLog("You fire and hit the enemy for 14 damage.");
