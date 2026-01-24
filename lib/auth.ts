@@ -1,6 +1,6 @@
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import { getDb } from './db';
+import { getDocument, setDocument, queryDocuments, addDocument, COLLECTIONS } from './firestore';
 import { User } from '@/types';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
@@ -18,6 +18,25 @@ export interface AuthUser {
   ownedServers: string[];
   friends: string[];
   isDonor: boolean;
+}
+
+function userFromDoc(doc: any): User {
+  return {
+    username: doc.username || doc.id,
+    password: doc.password_hash || doc.password || '',
+    gender: doc.gender || '',
+    role: (doc.role || 'user') as 'admin' | 'user',
+    coins: doc.coins || 0,
+    ownedSkins: Array.isArray(doc.owned_skins) ? doc.owned_skins : (typeof doc.owned_skins === 'string' ? JSON.parse(doc.owned_skins || '[]') : []),
+    equippedSkin: doc.equipped_skin || '',
+    ownedAccessories: Array.isArray(doc.owned_accessories) ? doc.owned_accessories : (typeof doc.owned_accessories === 'string' ? JSON.parse(doc.owned_accessories || '[]') : []),
+    equippedAccessories: Array.isArray(doc.equipped_accessories) ? doc.equipped_accessories : (typeof doc.equipped_accessories === 'string' ? JSON.parse(doc.equipped_accessories || '[]') : []),
+    ownedServers: Array.isArray(doc.owned_servers) ? doc.owned_servers : (typeof doc.owned_servers === 'string' ? JSON.parse(doc.owned_servers || '[]') : []),
+    friends: Array.isArray(doc.friends) ? doc.friends : (typeof doc.friends === 'string' ? JSON.parse(doc.friends || '[]') : []),
+    friendRequests: Array.isArray(doc.friend_requests) ? doc.friend_requests : (typeof doc.friend_requests === 'string' ? JSON.parse(doc.friend_requests || '[]') : []),
+    sentFriendRequests: Array.isArray(doc.sent_friend_requests) ? doc.sent_friend_requests : (typeof doc.sent_friend_requests === 'string' ? JSON.parse(doc.sent_friend_requests || '[]') : []),
+    isDonor: doc.is_donor === 1 || doc.is_donor === true
+  };
 }
 
 // Hash password
@@ -65,180 +84,144 @@ export function verifyToken(token: string): AuthUser | null {
   }
 }
 
-// Get user from database
-export function getUserFromDb(username: string): User | null {
-  const db = getDb();
-  const stmt = db.prepare('SELECT * FROM users WHERE username = ?');
-  const row = stmt.get(username.toLowerCase()) as any;
-  
-  if (!row) return null;
-  
-  return {
-    username: row.username,
-    password: '',
-    gender: row.gender || '',
-    role: row.role || 'user',
-    coins: row.coins || 0,
-    ownedSkins: JSON.parse(row.owned_skins || '[]'),
-    equippedSkin: row.equipped_skin || '',
-    ownedAccessories: JSON.parse(row.owned_accessories || '[]'),
-    equippedAccessories: JSON.parse(row.equipped_accessories || '[]'),
-    ownedServers: JSON.parse(row.owned_servers || '[]'),
-    friends: JSON.parse(row.friends || '[]'),
-    friendRequests: JSON.parse(row.friend_requests || '[]'),
-    sentFriendRequests: JSON.parse(row.sent_friend_requests || '[]'),
-    isDonor: row.is_donor === 1,
-  };
+// Get user from Firestore
+export async function getUserFromDb(username: string): Promise<User | null> {
+  try {
+    const doc = await getDocument(COLLECTIONS.USERS, username.toLowerCase());
+    if (!doc) return null;
+    return userFromDoc(doc);
+  } catch (error) {
+    console.error('Error getting user from Firestore:', error);
+    return null;
+  }
 }
 
-// Get user by ID
-export function getUserByIdFromDb(id: number): User | null {
-  const db = getDb();
-  const stmt = db.prepare('SELECT * FROM users WHERE id = ?');
-  const row = stmt.get(id) as any;
-  
-  if (!row) return null;
-  
-  return {
-    username: row.username,
-    password: '',
-    gender: row.gender || '',
-    role: row.role || 'user',
-    coins: row.coins || 0,
-    ownedSkins: JSON.parse(row.owned_skins || '[]'),
-    equippedSkin: row.equipped_skin || '',
-    ownedAccessories: JSON.parse(row.owned_accessories || '[]'),
-    equippedAccessories: JSON.parse(row.equipped_accessories || '[]'),
-    ownedServers: JSON.parse(row.owned_servers || '[]'),
-    friends: JSON.parse(row.friends || '[]'),
-    friendRequests: JSON.parse(row.friend_requests || '[]'),
-    sentFriendRequests: JSON.parse(row.sent_friend_requests || '[]'),
-    isDonor: row.is_donor === 1,
-  };
-}
-
-// Create or update user
-export async function createOrUpdateUser(user: User, password?: string): Promise<number> {
-  const db = getDb();
-  const existing = getUserFromDb(user.username);
-  
-  if (existing) {
-    const updateStmt = db.prepare(`
-      UPDATE users SET
-        gender = ?,
-        role = ?,
-        coins = ?,
-        owned_skins = ?,
-        equipped_skin = ?,
-        owned_accessories = ?,
-        equipped_accessories = ?,
-        owned_servers = ?,
-        friends = ?,
-        friend_requests = ?,
-        sent_friend_requests = ?,
-        is_donor = ?,
-        updated_at = strftime('%s', 'now')
-      WHERE username = ?
-    `);
-    
-    updateStmt.run(
-      user.gender || '',
-      user.role || 'user',
-      user.coins || 0,
-      JSON.stringify(user.ownedSkins || []),
-      user.equippedSkin || '',
-      JSON.stringify(user.ownedAccessories || []),
-      JSON.stringify(user.equippedAccessories || []),
-      JSON.stringify(user.ownedServers || []),
-      JSON.stringify(user.friends || []),
-      JSON.stringify(user.friendRequests || []),
-      JSON.stringify(user.sentFriendRequests || []),
-      user.isDonor ? 1 : 0,
-      user.username.toLowerCase()
-    );
-    
-    const getIdStmt = db.prepare('SELECT id FROM users WHERE username = ?');
-    const result = getIdStmt.get(user.username.toLowerCase()) as any;
-    return result.id;
-  } else {
-    if (!password) {
-      throw new Error('Password required for new users');
+// Get user by ID (using username as ID in Firestore)
+export async function getUserByIdFromDb(id: number | string): Promise<User | null> {
+  try {
+    // In Firestore, we use username as the document ID
+    // If id is a number, we need to find by username or use a different approach
+    // For now, we'll search all users (not ideal, but works)
+    const users = await queryDocuments(COLLECTIONS.USERS, 'username', '==', String(id));
+    if (users.length > 0) {
+      return userFromDoc(users[0]);
     }
+    return null;
+  } catch (error) {
+    console.error('Error getting user by ID from Firestore:', error);
+    return null;
+  }
+}
+
+// Create or update user in Firestore
+export async function createOrUpdateUser(user: User, password?: string): Promise<number> {
+  try {
+    const existing = await getUserFromDb(user.username);
+    const usernameLower = user.username.toLowerCase();
     
-    const passwordHash = await hashPassword(password);
-    const insertStmt = db.prepare(`
-      INSERT INTO users (
-        username, password_hash, gender, role, coins, owned_skins, equipped_skin,
-        owned_accessories, equipped_accessories, owned_servers, friends,
-        friend_requests, sent_friend_requests, is_donor
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `);
-    
-    const result = insertStmt.run(
-      user.username.toLowerCase(),
-      passwordHash,
-      user.gender || '',
-      user.role || 'user',
-      user.coins || 0,
-      JSON.stringify(user.ownedSkins || []),
-      user.equippedSkin || '',
-      JSON.stringify(user.ownedAccessories || []),
-      JSON.stringify(user.equippedAccessories || []),
-      JSON.stringify(user.ownedServers || []),
-      JSON.stringify(user.friends || []),
-      JSON.stringify(user.friendRequests || []),
-      JSON.stringify(user.sentFriendRequests || []),
-      user.isDonor ? 1 : 0
-    );
-    
-    return result.lastInsertRowid as number;
+    if (existing) {
+      // Update existing user
+      const passwordHash = password ? await hashPassword(password) : existing.password;
+      
+      await setDocument(COLLECTIONS.USERS, usernameLower, {
+        username: user.username,
+        username_lower: usernameLower,
+        password_hash: passwordHash,
+        gender: user.gender || '',
+        role: user.role || 'user',
+        coins: user.coins || 0,
+        owned_skins: user.ownedSkins || [],
+        equipped_skin: user.equippedSkin || '',
+        owned_accessories: user.ownedAccessories || [],
+        equipped_accessories: user.equippedAccessories || [],
+        owned_servers: user.ownedServers || [],
+        friends: user.friends || [],
+        friend_requests: user.friendRequests || [],
+        sent_friend_requests: user.sentFriendRequests || [],
+        is_donor: user.isDonor ? 1 : 0,
+        updated_at: Date.now()
+      });
+      
+      return 1; // Return a dummy ID (Firestore uses document IDs, not numeric IDs)
+    } else {
+      // Create new user
+      if (!password) {
+        throw new Error('Password required for new users');
+      }
+      
+      const passwordHash = await hashPassword(password);
+      
+      await setDocument(COLLECTIONS.USERS, usernameLower, {
+        username: user.username,
+        username_lower: usernameLower,
+        password_hash: passwordHash,
+        gender: user.gender || '',
+        role: user.role || 'user',
+        coins: user.coins || 0,
+        owned_skins: user.ownedSkins || [],
+        equipped_skin: user.equippedSkin || '',
+        owned_accessories: user.ownedAccessories || [],
+        equipped_accessories: user.equippedAccessories || [],
+        owned_servers: user.ownedServers || [],
+        friends: user.friends || [],
+        friend_requests: user.friendRequests || [],
+        sent_friend_requests: user.sentFriendRequests || [],
+        is_donor: user.isDonor ? 1 : 0,
+        created_at: Date.now(),
+        updated_at: Date.now()
+      });
+      
+      return 1; // Return a dummy ID
+    }
+  } catch (error) {
+    console.error('Error creating/updating user in Firestore:', error);
+    throw error;
   }
 }
 
 // Authenticate user
 export async function authenticateUser(username: string, password: string): Promise<{ user: User; token: string } | null> {
-  const db = getDb();
-  const stmt = db.prepare('SELECT * FROM users WHERE username = ?');
-  const row = stmt.get(username.toLowerCase()) as any;
-  
-  if (!row) return null;
-  
-  const isValid = await verifyPassword(password, row.password_hash);
-  if (!isValid) return null;
-  
-  const user = getUserFromDb(username);
-  if (!user) return null;
-  
-  const authUser: AuthUser = {
-    id: row.id,
-    username: user.username,
-    role: user.role,
-    coins: user.coins,
-    equippedSkin: user.equippedSkin,
-    ownedSkins: user.ownedSkins,
-    ownedAccessories: user.ownedAccessories,
-    equippedAccessories: user.equippedAccessories,
-    ownedServers: user.ownedServers,
-    friends: user.friends || [],
-    isDonor: user.isDonor || false,
-  };
-  
-  const token = generateToken(authUser);
-  
-  const sessionStmt = db.prepare(`
-    INSERT INTO sessions (id, user_id, token, expires_at)
-    VALUES (?, ?, ?, ?)
-  `);
-  
-  const expiresAt = Date.now() + (7 * 24 * 60 * 60 * 1000);
-  sessionStmt.run(
-    `${row.id}_${Date.now()}`,
-    row.id,
-    token,
-    Math.floor(expiresAt / 1000)
-  );
-  
-  return { user, token };
+  try {
+    const doc = await getDocument(COLLECTIONS.USERS, username.toLowerCase());
+    if (!doc) return null;
+    
+    const isValid = await verifyPassword(password, doc.password_hash || doc.password || '');
+    if (!isValid) return null;
+    
+    const user = userFromDoc(doc);
+    
+    const authUser: AuthUser = {
+      id: 1, // Dummy ID (Firestore doesn't use numeric IDs)
+      username: user.username,
+      role: user.role,
+      coins: user.coins,
+      equippedSkin: user.equippedSkin,
+      ownedSkins: user.ownedSkins,
+      ownedAccessories: user.ownedAccessories,
+      equippedAccessories: user.equippedAccessories,
+      ownedServers: user.ownedServers,
+      friends: user.friends || [],
+      isDonor: user.isDonor || false,
+    };
+    
+    const token = generateToken(authUser);
+    
+    // Store session in Firestore
+    const sessionId = `${username}_${Date.now()}`;
+    const expiresAt = Date.now() + (7 * 24 * 60 * 60 * 1000);
+    await addDocument('sessions', {
+      id: sessionId,
+      user_id: username,
+      token: token,
+      expires_at: Math.floor(expiresAt / 1000),
+      created_at: Date.now()
+    });
+    
+    return { user, token };
+  } catch (error) {
+    console.error('Error authenticating user:', error);
+    return null;
+  }
 }
 
 // Get authenticated user from request

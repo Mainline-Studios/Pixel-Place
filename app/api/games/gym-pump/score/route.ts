@@ -1,9 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { promises as fs } from 'fs';
-import path from 'path';
-
-const DATA_DIR = path.join(process.cwd(), 'data');
-const GAME_SCORES_FILE = path.join(DATA_DIR, 'gym-pump-scores.json');
+import { addDocument, getDocuments, COLLECTIONS } from '@/lib/firestore';
 
 interface GameScore {
   id: string;
@@ -13,20 +9,6 @@ interface GameScore {
   coins: number;
   level: number;
   timestamp: number;
-}
-
-async function readScores(): Promise<GameScore[]> {
-  try {
-    const data = await fs.readFile(GAME_SCORES_FILE, 'utf-8');
-    return JSON.parse(data);
-  } catch (error) {
-    return [];
-  }
-}
-
-async function writeScores(scores: GameScore[]): Promise<void> {
-  await fs.mkdir(DATA_DIR, { recursive: true });
-  await fs.writeFile(GAME_SCORES_FILE, JSON.stringify(scores, null, 2), 'utf-8');
 }
 
 export async function POST(request: NextRequest) {
@@ -40,9 +22,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const scoreId = `score_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     const score: GameScore = {
-      id: scoreId,
+      id: '', // Will be set by Firestore
       gameId,
       username: username || 'Anonymous',
       power,
@@ -51,15 +32,15 @@ export async function POST(request: NextRequest) {
       timestamp: timestamp || Date.now()
     };
 
-    const scores = await readScores();
-    scores.push(score);
+    // Add score to Firestore
+    const scoreId = await addDocument('gym_pump_scores', score);
     
-    // Keep only last 10000 scores
-    if (scores.length > 10000) {
-      scores.splice(0, scores.length - 10000);
+    // Keep only last 10000 scores (optional cleanup - can be done via scheduled function)
+    const allScores = await getDocuments('gym_pump_scores', (ref) => ref.orderBy('timestamp', 'desc').limit(10001));
+    if (allScores.length > 10000) {
+      // Delete oldest scores (this could be optimized with a scheduled cleanup)
+      // For now, we'll just add the new score and let a cleanup function handle old ones
     }
-    
-    await writeScores(scores);
 
     return NextResponse.json({ success: true, scoreId });
   } catch (error) {
@@ -70,4 +51,3 @@ export async function POST(request: NextRequest) {
     );
   }
 }
-

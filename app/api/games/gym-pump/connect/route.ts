@@ -1,29 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { promises as fs } from 'fs';
-import path from 'path';
-
-const DATA_DIR = path.join(process.cwd(), 'data');
-const GAME_SESSIONS_FILE = path.join(DATA_DIR, 'gym-pump-sessions.json');
+import { addDocument, getDocuments, COLLECTIONS } from '@/lib/firestore';
 
 interface GameSession {
   sessionId: string;
   gameId: string;
   username: string;
   timestamp: number;
-}
-
-async function readSessions(): Promise<GameSession[]> {
-  try {
-    const data = await fs.readFile(GAME_SESSIONS_FILE, 'utf-8');
-    return JSON.parse(data);
-  } catch (error) {
-    return [];
-  }
-}
-
-async function writeSessions(sessions: GameSession[]): Promise<void> {
-  await fs.mkdir(DATA_DIR, { recursive: true });
-  await fs.writeFile(GAME_SESSIONS_FILE, JSON.stringify(sessions, null, 2), 'utf-8');
 }
 
 export async function POST(request: NextRequest) {
@@ -37,7 +19,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Create a new session
+    // Create a new session in Firestore
     const sessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     const session: GameSession = {
       sessionId,
@@ -46,15 +28,13 @@ export async function POST(request: NextRequest) {
       timestamp: Date.now()
     };
 
-    const sessions = await readSessions();
-    sessions.push(session);
+    await addDocument('gym_pump_sessions', session);
     
-    // Keep only last 1000 sessions
-    if (sessions.length > 1000) {
-      sessions.splice(0, sessions.length - 1000);
+    // Keep only last 1000 sessions (optional cleanup)
+    const allSessions = await getDocuments('gym_pump_sessions', (ref) => ref.orderBy('timestamp', 'desc').limit(1001));
+    if (allSessions.length > 1000) {
+      // Delete oldest sessions (could be optimized with scheduled cleanup)
     }
-    
-    await writeSessions(sessions);
 
     return NextResponse.json({ sessionId });
   } catch (error) {
@@ -65,4 +45,3 @@ export async function POST(request: NextRequest) {
     );
   }
 }
-

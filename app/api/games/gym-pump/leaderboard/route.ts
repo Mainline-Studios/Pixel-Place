@@ -1,9 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { promises as fs } from 'fs';
-import path from 'path';
-
-const DATA_DIR = path.join(process.cwd(), 'data');
-const GAME_SCORES_FILE = path.join(DATA_DIR, 'gym-pump-scores.json');
+import { getDocuments, getFirestoreInstance } from '@/lib/firestore';
 
 interface GameScore {
   id: string;
@@ -15,29 +11,23 @@ interface GameScore {
   timestamp: number;
 }
 
-async function readScores(): Promise<GameScore[]> {
-  try {
-    const data = await fs.readFile(GAME_SCORES_FILE, 'utf-8');
-    return JSON.parse(data);
-  } catch (error) {
-    return [];
-  }
-}
-
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const gameId = searchParams.get('gameId') || 'gym-pump';
     const limit = parseInt(searchParams.get('limit') || '10', 10);
 
-    const scores = await readScores();
+    const db = getFirestoreInstance();
+    const scoresSnapshot = await db.collection('gym_pump_scores')
+      .where('gameId', '==', gameId)
+      .orderBy('power', 'desc')
+      .get();
     
-    // Filter by gameId and get best scores per player
-    const gameScores = scores.filter(s => s.gameId === gameId);
+    const scores = scoresSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as GameScore));
     
     // Get best score per player (highest power)
     const playerBestScores = new Map<string, GameScore>();
-    gameScores.forEach(score => {
+    scores.forEach(score => {
       const existing = playerBestScores.get(score.username);
       if (!existing || score.power > existing.power) {
         playerBestScores.set(score.username, score);
@@ -65,4 +55,3 @@ export async function GET(request: NextRequest) {
     );
   }
 }
-

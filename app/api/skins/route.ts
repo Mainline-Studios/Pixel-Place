@@ -1,29 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { promises as fs } from 'fs';
-import path from 'path';
+import { getDocument, setDocument, COLLECTIONS } from '@/lib/firestore';
 import { Skin } from '@/types';
-
-const DATA_DIR = path.join(process.cwd(), 'data');
-const SKINS_FILE = path.join(DATA_DIR, 'skins.json');
-
-async function readSkins(): Promise<Skin[]> {
-  try {
-    const data = await fs.readFile(SKINS_FILE, 'utf-8');
-    return JSON.parse(data);
-  } catch (error) {
-    return [];
-  }
-}
-
-async function writeSkins(skins: Skin[]): Promise<void> {
-  await fs.mkdir(DATA_DIR, { recursive: true });
-  await fs.writeFile(SKINS_FILE, JSON.stringify(skins, null, 2), 'utf-8');
-}
 
 export async function GET() {
   try {
-    const skins = await readSkins();
-    return NextResponse.json(skins);
+    // Get skins from Firestore (stored as a single document with array)
+    const skinsDoc = await getDocument(COLLECTIONS.SKINS_CATALOG, 'catalog');
+    if (skinsDoc && skinsDoc.skins) {
+      return NextResponse.json(skinsDoc.skins);
+    }
+    return NextResponse.json([]);
   } catch (error) {
     console.error('Error reading skins:', error);
     return NextResponse.json({ error: 'Failed to read skins' }, { status: 500 });
@@ -33,7 +19,11 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   try {
     const skins: Skin[] = await request.json();
-    await writeSkins(skins);
+    // Store skins array in Firestore
+    await setDocument(COLLECTIONS.SKINS_CATALOG, 'catalog', {
+      skins: skins,
+      updated_at: Date.now()
+    });
     return NextResponse.json(skins);
   } catch (error) {
     console.error('Error saving skins:', error);

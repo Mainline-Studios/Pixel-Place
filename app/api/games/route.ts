@@ -1,38 +1,36 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/middleware';
-import { getDb } from '@/lib/db';
+import { getDocuments, setDocument, deleteDocument, queryDocuments, COLLECTIONS } from '@/lib/firestore';
 import { UserMadeGame } from '@/types';
+
+function gameFromDoc(doc: any): UserMadeGame {
+  return {
+    id: doc.id,
+    title: doc.title,
+    desc: doc.description || '',
+    owner: doc.owner,
+    ts: doc.ts,
+    sceneData: typeof doc.scene_data === 'string' ? JSON.parse(doc.scene_data) : doc.scene_data,
+    presetMessages: typeof doc.preset_messages === 'string' ? JSON.parse(doc.preset_messages) : doc.preset_messages,
+    controls: typeof doc.controls === 'string' ? JSON.parse(doc.controls) : doc.controls,
+    publishedBy: doc.published_by
+  };
+}
 
 // Get all games (public, but can filter by owner if authenticated)
 export async function GET(request: NextRequest) {
   try {
-    const db = getDb();
     const { searchParams } = new URL(request.url);
     const owner = searchParams.get('owner');
     
-    let stmt;
-    let rows: any[];
+    let games;
     if (owner) {
-      stmt = db.prepare('SELECT * FROM games WHERE owner = ? ORDER BY ts DESC');
-      rows = stmt.all(owner) as any[];
+      games = await queryDocuments(COLLECTIONS.GAMES || 'games', 'owner', '==', owner);
     } else {
-      stmt = db.prepare('SELECT * FROM games ORDER BY ts DESC');
-      rows = stmt.all() as any[];
+      games = await getDocuments(COLLECTIONS.GAMES || 'games', (ref) => ref.orderBy('ts', 'desc'));
     }
     
-    const games: UserMadeGame[] = rows.map((row: any) => ({
-      id: row.id,
-      title: row.title,
-      desc: row.description || '',
-      owner: row.owner,
-      ts: row.ts,
-      sceneData: row.scene_data ? JSON.parse(row.scene_data) : undefined,
-      presetMessages: row.preset_messages ? JSON.parse(row.preset_messages) : undefined,
-      controls: row.controls ? JSON.parse(row.controls) : undefined,
-      publishedBy: row.published_by,
-    }));
-    
-    return NextResponse.json(games);
+    return NextResponse.json(games.map(gameFromDoc));
   } catch (error) {
     console.error('Error reading games:', error);
     return NextResponse.json({ error: 'Failed to read games' }, { status: 500 });
@@ -46,26 +44,21 @@ export async function POST(request: NextRequest) {
   
   try {
     const game: UserMadeGame = await request.json();
-    const db = getDb();
-    
     const gameId = game.id || `game_${Date.now()}`;
     
-    const stmt = db.prepare(`
-      INSERT OR REPLACE INTO games (id, title, description, owner, ts, scene_data, preset_messages, controls, published_by, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, strftime('%s', 'now'))
-    `);
-    
-    stmt.run(
-      gameId,
-      game.title,
-      game.desc || '',
-      game.owner || authResult.user.username,
-      game.ts || Date.now(),
-      game.sceneData ? JSON.stringify(game.sceneData) : null,
-      game.presetMessages ? JSON.stringify(game.presetMessages) : null,
-      game.controls ? JSON.stringify(game.controls) : null,
-      game.publishedBy || null
-    );
+    await setDocument(COLLECTIONS.GAMES || 'games', gameId, {
+      id: gameId,
+      title: game.title,
+      description: game.desc || '',
+      owner: game.owner || authResult.user.username,
+      ts: game.ts || Date.now(),
+      scene_data: game.sceneData || null,
+      preset_messages: game.presetMessages || null,
+      controls: game.controls || null,
+      published_by: game.publishedBy || null,
+      created_at: Date.now(),
+      updated_at: Date.now()
+    });
     
     const gameToSave: UserMadeGame = {
       ...game,
@@ -92,37 +85,23 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: 'Game ID is required' }, { status: 400 });
     }
     
-    const db = getDb();
-    
     // Check ownership
-    const checkStmt = db.prepare('SELECT owner FROM games WHERE id = ?');
-    const existing = checkStmt.get(game.id) as any;
+    const existingGames = await getDocuments(COLLECTIONS.GAMES || 'games');
+    const existing = existingGames.find(g => g.id === game.id);
     
     if (existing && existing.owner !== authResult.user.username && authResult.user.role !== 'admin') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
     
-    const stmt = db.prepare(`
-      UPDATE games SET
-        title = ?,
-        description = ?,
-        scene_data = ?,
-        preset_messages = ?,
-        controls = ?,
-        published_by = ?,
-        updated_at = strftime('%s', 'now')
-      WHERE id = ?
-    `);
-    
-    stmt.run(
-      game.title,
-      game.desc || '',
-      game.sceneData ? JSON.stringify(game.sceneData) : null,
-      game.presetMessages ? JSON.stringify(game.presetMessages) : null,
-      game.controls ? JSON.stringify(game.controls) : null,
-      game.publishedBy || null,
-      game.id
-    );
+    await setDocument(COLLECTIONS.GAMES || 'games', game.id, {
+      title: game.title,
+      description: game.desc || '',
+      scene_data: game.sceneData || null,
+      preset_messages: game.presetMessages || null,
+      controls: game.controls || null,
+      published_by: game.publishedBy || null,
+      updated_at: Date.now()
+    });
     
     return NextResponse.json({ success: true, game });
   } catch (error: any) {
@@ -144,18 +123,15 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: 'Game ID is required' }, { status: 400 });
     }
     
-    const db = getDb();
-    
     // Check ownership
-    const checkStmt = db.prepare('SELECT owner FROM games WHERE id = ?');
-    const existing = checkStmt.get(gameId) as any;
+    const existingGames = await getDocuments(COLLECTIONS.GAMES || 'games');
+    const existing = existingGames.find(g => g.id === gameId);
     
     if (existing && existing.owner !== authResult.user.username && authResult.user.role !== 'admin') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
     
-    const stmt = db.prepare('DELETE FROM games WHERE id = ?');
-    stmt.run(gameId);
+    await deleteDocument(COLLECTIONS.GAMES || 'games', gameId);
     
     return NextResponse.json({ success: true });
   } catch (error: any) {
