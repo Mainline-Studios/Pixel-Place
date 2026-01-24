@@ -1,7 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { promises as fs } from 'fs';
-import path from 'path';
-import { User } from '@/types';
+import { getDocuments, deleteDocument, queryDocuments, COLLECTIONS } from '@/lib/firestore';
 
 // Current admin accounts (must match lib/storage.ts)
 const ADMIN_ACCOUNTS_LIST = [
@@ -17,23 +15,6 @@ const ADMIN_ACCOUNTS_LIST = [
   { username: "Mr.Noob", password: "Tyson" },
   { username: "BDawgsAwesome1", password: "20Minecraft15" }
 ];
-
-const DATA_DIR = path.join(process.cwd(), 'data');
-const USERS_FILE = path.join(DATA_DIR, 'users.json');
-
-async function readUsers(): Promise<User[]> {
-  try {
-    const data = await fs.readFile(USERS_FILE, 'utf-8');
-    return JSON.parse(data);
-  } catch (error) {
-    return [];
-  }
-}
-
-async function writeUsers(users: User[]): Promise<void> {
-  await fs.mkdir(DATA_DIR, { recursive: true });
-  await fs.writeFile(USERS_FILE, JSON.stringify(users, null, 2), 'utf-8');
-}
 
 // Old admin accounts that should be removed (not in current ADMIN_ACCOUNTS_LIST)
 const OLD_ADMIN_ACCOUNTS = [
@@ -54,37 +35,32 @@ export async function POST(request: NextRequest) {
       ADMIN_ACCOUNTS_LIST.map(a => a.username.toLowerCase())
     );
 
-    // Read all users
-    const users = await readUsers();
+    // Get all users from Firestore
+    const users = await getDocuments(COLLECTIONS.USERS);
     
-    // Filter out old admin accounts that are not in the current admin list
-    const cleanedUsers = users.filter(user => {
-      const usernameLower = user.username.toLowerCase();
+    let removedCount = 0;
+    
+    // Delete old admin accounts that are not in the current admin list
+    for (const user of users) {
+      const usernameLower = user.username?.toLowerCase() || user.id?.toLowerCase();
       
-      // Keep if it's a current admin
+      // Skip if it's a current admin
       if (currentAdminUsernames.has(usernameLower)) {
-        return true;
+        continue;
       }
       
       // Remove if it's an old admin account
       if (OLD_ADMIN_ACCOUNTS.some(old => old.toLowerCase() === usernameLower)) {
-        return false;
+        await deleteDocument(COLLECTIONS.USERS, user.id);
+        removedCount++;
       }
-      
-      // Keep all other users
-      return true;
-    });
-
-    // Write cleaned users back
-    await writeUsers(cleanedUsers);
-
-    const removedCount = users.length - cleanedUsers.length;
+    }
 
     return NextResponse.json({
       success: true,
       message: `Removed ${removedCount} old admin account(s)`,
       removedCount,
-      totalUsers: cleanedUsers.length
+      totalUsers: users.length - removedCount
     });
   } catch (error: any) {
     console.error('Cleanup error:', error);
@@ -94,4 +70,3 @@ export async function POST(request: NextRequest) {
     );
   }
 }
-

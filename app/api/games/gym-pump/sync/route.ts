@@ -1,9 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { promises as fs } from 'fs';
-import path from 'path';
-
-const DATA_DIR = path.join(process.cwd(), 'data');
-const GAME_PROGRESS_FILE = path.join(DATA_DIR, 'gym-pump-progress.json');
+import { getDocument, setDocument, queryDocuments, COLLECTIONS } from '@/lib/firestore';
 
 interface GameProgress {
   username: string;
@@ -12,20 +8,6 @@ interface GameProgress {
   coins: number;
   level: number;
   lastSynced: number;
-}
-
-async function readProgress(): Promise<GameProgress[]> {
-  try {
-    const data = await fs.readFile(GAME_PROGRESS_FILE, 'utf-8');
-    return JSON.parse(data);
-  } catch (error) {
-    return [];
-  }
-}
-
-async function writeProgress(progress: GameProgress[]): Promise<void> {
-  await fs.mkdir(DATA_DIR, { recursive: true });
-  await fs.writeFile(GAME_PROGRESS_FILE, JSON.stringify(progress, null, 2), 'utf-8');
 }
 
 export async function POST(request: NextRequest) {
@@ -48,25 +30,23 @@ export async function POST(request: NextRequest) {
       lastSynced: Date.now()
     };
 
-    const allProgress = await readProgress();
-    const existingIndex = allProgress.findIndex(
-      p => p.username === username && p.gameId === gameId
-    );
+    // Get existing progress from Firestore
+    const progressId = `${username}_${gameId}`;
+    const existing = await getDocument('gym_pump_progress', progressId);
 
-    if (existingIndex !== -1) {
+    if (existing) {
       // Update existing progress (keep highest values)
-      const existing = allProgress[existingIndex];
-      allProgress[existingIndex] = {
+      await setDocument('gym_pump_progress', progressId, {
         ...progress,
-        power: Math.max(existing.power, progress.power),
-        coins: Math.max(existing.coins, progress.coins),
-        level: Math.max(existing.level, progress.level)
-      };
+        power: Math.max(existing.power || 0, progress.power),
+        coins: Math.max(existing.coins || 0, progress.coins),
+        level: Math.max(existing.level || 1, progress.level),
+        lastSynced: Date.now()
+      });
     } else {
-      allProgress.push(progress);
+      // Create new progress
+      await setDocument('gym_pump_progress', progressId, progress);
     }
-    
-    await writeProgress(allProgress);
 
     return NextResponse.json({ success: true });
   } catch (error) {
@@ -91,10 +71,8 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const allProgress = await readProgress();
-    const progress = allProgress.find(
-      p => p.username === username && p.gameId === gameId
-    );
+    const progressId = `${username}_${gameId}`;
+    const progress = await getDocument('gym_pump_progress', progressId);
 
     if (!progress) {
       return NextResponse.json({
@@ -105,9 +83,9 @@ export async function GET(request: NextRequest) {
     }
 
     return NextResponse.json({
-      power: progress.power,
-      coins: progress.coins,
-      level: progress.level
+      power: progress.power || 0,
+      coins: progress.coins || 0,
+      level: progress.level || 1
     });
   } catch (error) {
     console.error('Error fetching game progress:', error);
@@ -117,4 +95,3 @@ export async function GET(request: NextRequest) {
     );
   }
 }
-

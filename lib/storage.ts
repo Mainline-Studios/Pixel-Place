@@ -17,112 +17,14 @@ const ADMIN_ACCOUNTS = [
 
 export const ADMIN_ACCOUNTS_LIST = ADMIN_ACCOUNTS;
 
-// Initialize localStorage data
+// Initialize storage - All data now in Firebase cloud
+// This function is kept for backward compatibility but doesn't use localStorage
 export function initializeStorage() {
   if (typeof window === 'undefined') return;
-
-  // Ensure localStorage is available
-  try {
-    if (!window.localStorage) {
-      console.error('localStorage is not available');
-      return;
-    }
-  } catch (e) {
-    console.error('Error accessing localStorage:', e);
-    return;
-  }
-
-  // Replace ALL skins with new collection based on images - DELETE EVERYTHING FIRST
-  const initialSkins: Skin[] = [...NEW_SKINS];
-
-  // REPLACE ALL skins - completely delete old ones, no merging
-  localStorage.setItem("skinsCatalog", JSON.stringify(initialSkins));
-  console.log(`Deleted all old skins and replaced with ${initialSkins.length} new skins.`);
-
-  if (!localStorage.getItem("tabContent")) {
-    const tabContent: TabContent = {
-      home: "Welcome to Pixel Place. This is your activity hub.",
-      discover: "Discover live published games from creators.",
-      avatarShop: "Buy and equip skins here. Rarer skins cost more Pixel Coins.",
-      createGame: "Start building a new world or experience.",
-      studio: "Use the 3D Studio to build, move, and save objects in your world.",
-      coins: "Get Pixel Coins to spend on skins.",
-      friends: "Add friends, party up, and message each other.",
-      settings: "Account details, ."
-    };
-    localStorage.setItem("tabContent", JSON.stringify(tabContent));
-  }
-
-  if (!localStorage.getItem("pixelPlaceUsers")) {
-    localStorage.setItem("pixelPlaceUsers", JSON.stringify([]));
-  }
-
-  if (!localStorage.getItem("sceneStore")) {
-    localStorage.setItem("sceneStore", JSON.stringify({ objects: [] }));
-  }
-
-  if (!localStorage.getItem("draftGame")) {
-    localStorage.setItem("draftGame", JSON.stringify({ title: "", desc: "", owner: "" }));
-  }
-
-  if (!localStorage.getItem("publishedGames")) {
-    localStorage.setItem("publishedGames", JSON.stringify([]));
-  }
-
-  if (!localStorage.getItem("gameServers")) {
-    localStorage.setItem("gameServers", JSON.stringify([]));
-  }
-
-  if (!localStorage.getItem("serverPlans")) {
-    const defaultPlans: ServerPlan[] = [
-      {
-        id: 'plan_small',
-        name: 'Small Server',
-        maxPlayers: 10,
-        price: 500,
-        description: 'Perfect for small groups',
-        features: ['10 max players', 'Basic support', 'Standard performance']
-      },
-      {
-        id: 'plan_medium',
-        name: 'Medium Server',
-        maxPlayers: 25,
-        price: 1500,
-        description: 'Great for medium communities',
-        features: ['25 max players', 'Priority support', 'Enhanced performance']
-      },
-      {
-        id: 'plan_large',
-        name: 'Large Server',
-        maxPlayers: 50,
-        price: 3000,
-        description: 'For large communities',
-        features: ['50 max players', 'Premium support', 'Maximum performance']
-      }
-    ];
-    localStorage.setItem("serverPlans", JSON.stringify(defaultPlans));
-  }
-
-  if (!localStorage.getItem("friendRequests")) {
-    localStorage.setItem("friendRequests", JSON.stringify([]));
-  }
-
-  if (!localStorage.getItem("messages")) {
-    localStorage.setItem("messages", JSON.stringify([]));
-  }
-
-  // DELETE ALL GAMES - Start completely fresh
-  const existingGames: PublishedGame[] = [];
-
-  localStorage.setItem("publishedGames", JSON.stringify(existingGames));
-  console.log('Deleted all games.');
-
-  // REPLACE ALL accessories with new collection - DELETE EVERYTHING FIRST
-  const initialAccessories: Accessory[] = [...NEW_ACCESSORIES];
-
-  // Always replace accessories - completely delete old ones, no merging
-  localStorage.setItem("accessoriesCatalog", JSON.stringify(initialAccessories));
-  console.log(`Deleted all old accessories and replaced with ${initialAccessories.length} new accessories.`);
+  
+  // All data is now stored in Firebase Firestore (cloud)
+  // No local storage initialization needed
+  console.log('Storage initialized - all data stored in Firebase cloud');
 }
 
 // User functions - Now using API
@@ -227,51 +129,41 @@ export async function saveUsers(users: User[]): Promise<void> {
 }
 
 // Skin functions - Using localStorage
-export function getSkins(): Skin[] {
+// Skin functions - Using API (Firebase)
+export async function getSkins(): Promise<Skin[]> {
   if (typeof window === 'undefined') return [];
-  return JSON.parse(localStorage.getItem("skinsCatalog") || "[]");
+  try {
+    const response = await fetch('/api/skins', { cache: 'no-store' });
+    if (!response.ok) throw new Error('Failed to fetch skins');
+    return await response.json();
+  } catch (e) {
+    console.error('Error reading skins from API:', e);
+    return [];
+  }
 }
 
-export function saveSkins(skins: Skin[]): void {
+export async function saveSkins(skins: Skin[]): Promise<void> {
   if (typeof window === 'undefined') return;
-  localStorage.setItem("skinsCatalog", JSON.stringify(skins));
+  try {
+    await fetch('/api/skins', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(skins)
+    });
+  } catch (e) {
+    console.error('Error saving skins to API:', e);
+  }
 }
 
-// Tab content functions - Now using API
+// Tab content functions - Using API (Firebase)
 export async function getTabContent(): Promise<TabContent> {
   if (typeof window === 'undefined') return {} as TabContent;
   try {
-    const response = await fetch('/api/tabcontent');
+    const response = await fetch('/api/tabcontent', { cache: 'no-store' });
     if (!response.ok) throw new Error('Failed to fetch tab content');
-    const apiContent = await response.json();
-
-    // Migration: Move localStorage data to API if it exists
-    try {
-      const localData = localStorage.getItem("tabContent");
-      if (localData && Object.keys(apiContent).length === 0) {
-        const localContent: TabContent = JSON.parse(localData);
-        if (Object.keys(localContent).length > 0) {
-          await fetch('/api/tabcontent', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(localContent)
-          }).catch(() => { });
-          localStorage.removeItem("tabContent");
-          const updatedResponse = await fetch('/api/tabcontent');
-          if (updatedResponse.ok) return await updatedResponse.json();
-        }
-      }
-    } catch (migrationError) {
-      console.error('Error migrating tab content:', migrationError);
-    }
-
-    return apiContent;
+    return await response.json();
   } catch (e) {
     console.error('Error reading tab content from API:', e);
-    try {
-      const data = localStorage.getItem("tabContent");
-      if (data) return JSON.parse(data);
-    } catch { }
     return {} as TabContent;
   }
 }
@@ -289,41 +181,16 @@ export async function saveTabContent(content: TabContent): Promise<void> {
   }
 }
 
-// Draft functions - Now using API
-export async function getDraft(): Promise<DraftGame> {
+// Draft functions - Using API (Firebase)
+export async function getDraft(username?: string): Promise<DraftGame> {
   if (typeof window === 'undefined') return { title: "", desc: "", owner: "" };
   try {
-    const response = await fetch('/api/draft');
+    const url = username ? `/api/draft?username=${encodeURIComponent(username)}` : '/api/draft';
+    const response = await fetch(url, { cache: 'no-store' });
     if (!response.ok) throw new Error('Failed to fetch draft');
-    const apiDraft = await response.json();
-
-    // Migration: Move localStorage data to API if it exists
-    try {
-      const localData = localStorage.getItem("draftGame");
-      if (localData && (!apiDraft.title && !apiDraft.desc && !apiDraft.owner)) {
-        const localDraft: DraftGame = JSON.parse(localData);
-        if (localDraft.title || localDraft.desc || localDraft.owner) {
-          await fetch('/api/draft', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(localDraft)
-          }).catch(() => { });
-          localStorage.removeItem("draftGame");
-          const updatedResponse = await fetch('/api/draft');
-          if (updatedResponse.ok) return await updatedResponse.json();
-        }
-      }
-    } catch (migrationError) {
-      console.error('Error migrating draft:', migrationError);
-    }
-
-    return apiDraft;
+    return await response.json();
   } catch (e) {
     console.error('Error reading draft from API:', e);
-    try {
-      const data = localStorage.getItem("draftGame");
-      if (data) return JSON.parse(data);
-    } catch { }
     return { title: "", desc: "", owner: "" };
   }
 }
@@ -749,42 +616,33 @@ export function getServerPlans(): ServerPlan[] {
   return JSON.parse(localStorage.getItem("serverPlans") || "[]");
 }
 
-export function saveServerPlans(plans: ServerPlan[]): void {
-  if (typeof window === 'undefined') return;
-  localStorage.setItem("serverPlans", JSON.stringify(plans));
-}
+// All data now stored in Firebase - these functions are deprecated
+// Use API functions instead (getMessagesAPI, etc.)
 
-// Friend request functions
-export function getFriendRequests(): FriendRequest[] {
+// Accessory functions - Using API (Firebase)
+export async function getAccessories(): Promise<Accessory[]> {
   if (typeof window === 'undefined') return [];
-  return JSON.parse(localStorage.getItem("friendRequests") || "[]");
+  try {
+    const response = await fetch('/api/accessories', { cache: 'no-store' });
+    if (!response.ok) throw new Error('Failed to fetch accessories');
+    return await response.json();
+  } catch (e) {
+    console.error('Error reading accessories from API:', e);
+    return [];
+  }
 }
 
-export function saveFriendRequests(requests: FriendRequest[]): void {
+export async function saveAccessories(accessories: Accessory[]): Promise<void> {
   if (typeof window === 'undefined') return;
-  localStorage.setItem("friendRequests", JSON.stringify(requests));
-}
-
-// Message functions
-export function getMessages(): Message[] {
-  if (typeof window === 'undefined') return [];
-  return JSON.parse(localStorage.getItem("messages") || "[]");
-}
-
-export function saveMessages(messages: Message[]): void {
-  if (typeof window === 'undefined') return;
-  localStorage.setItem("messages", JSON.stringify(messages));
-}
-
-// Accessory functions
-export function getAccessories(): Accessory[] {
-  if (typeof window === 'undefined') return [];
-  return JSON.parse(localStorage.getItem("accessoriesCatalog") || "[]");
-}
-
-export function saveAccessories(accessories: Accessory[]): void {
-  if (typeof window === 'undefined') return;
-  localStorage.setItem("accessoriesCatalog", JSON.stringify(accessories));
+  try {
+    await fetch('/api/accessories', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(accessories)
+    });
+  } catch (e) {
+    console.error('Error saving accessories to API:', e);
+  }
 }
 
 

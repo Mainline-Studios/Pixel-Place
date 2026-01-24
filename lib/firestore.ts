@@ -54,6 +54,7 @@ export const COLLECTIONS = {
   GAME_SERVERS: 'game_servers',
   SERVER_PLANS: 'server_plans',
   PREBUILT_GAMES: 'prebuilt_games',
+  GAMES: 'games',
   SKINS_CATALOG: 'skins_catalog',
   ACCESSORIES_CATALOG: 'accessories_catalog'
 };
