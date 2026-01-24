@@ -1,28 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { promises as fs } from 'fs';
-import path from 'path';
+import { getDb } from '@/lib/db';
 import { PrebuiltGame } from '@/types';
 
-const DATA_DIR = path.join(process.cwd(), 'data');
-const PREBUILT_FILE = path.join(DATA_DIR, 'prebuilt.json');
-
-async function readPrebuilt(): Promise<PrebuiltGame[]> {
-  try {
-    const data = await fs.readFile(PREBUILT_FILE, 'utf-8');
-    return JSON.parse(data);
-  } catch (error) {
-    return [];
-  }
-}
-
-async function writePrebuilt(games: PrebuiltGame[]): Promise<void> {
-  await fs.mkdir(DATA_DIR, { recursive: true });
-  await fs.writeFile(PREBUILT_FILE, JSON.stringify(games, null, 2), 'utf-8');
+function gameFromRow(row: any): PrebuiltGame {
+  return {
+    id: row.id,
+    title: row.title,
+    description: row.description || '',
+    owner: row.owner,
+    ts: row.ts,
+    sceneData: row.scene_data ? JSON.parse(row.scene_data) : undefined
+  };
 }
 
 export async function GET() {
   try {
-    const games = await readPrebuilt();
+    const db = getDb();
+    const rows = db.prepare('SELECT * FROM prebuilt_games ORDER BY ts DESC').all();
+    const games = rows.map(gameFromRow);
     return NextResponse.json(games);
   } catch (error) {
     console.error('Error reading prebuilt games:', error);
@@ -32,8 +27,32 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
+    const db = getDb();
     const games: PrebuiltGame[] = await request.json();
-    await writePrebuilt(games);
+    
+    // Clear existing and insert new ones
+    db.prepare('DELETE FROM prebuilt_games').run();
+    
+    const insert = db.prepare(`
+      INSERT INTO prebuilt_games (id, title, description, owner, ts, scene_data)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `);
+    
+    const insertMany = db.transaction((games: PrebuiltGame[]) => {
+      for (const game of games) {
+        insert.run(
+          game.id,
+          game.title,
+          game.description || '',
+          game.owner,
+          game.ts,
+          game.sceneData ? JSON.stringify(game.sceneData) : null
+        );
+      }
+    });
+    
+    insertMany(games);
+    
     return NextResponse.json(games);
   } catch (error) {
     console.error('Error saving prebuilt games:', error);

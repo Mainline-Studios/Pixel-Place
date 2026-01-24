@@ -1,28 +1,26 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { promises as fs } from 'fs';
-import path from 'path';
+import { getDb } from '@/lib/db';
 import { Report } from '@/types';
 
-const DATA_DIR = path.join(process.cwd(), 'data');
-const REPORTS_FILE = path.join(DATA_DIR, 'reports.json');
-
-async function readReports(): Promise<Report[]> {
-  try {
-    const data = await fs.readFile(REPORTS_FILE, 'utf-8');
-    return JSON.parse(data);
-  } catch (error) {
-    return [];
-  }
-}
-
-async function writeReports(reports: Report[]): Promise<void> {
-  await fs.mkdir(DATA_DIR, { recursive: true });
-  await fs.writeFile(REPORTS_FILE, JSON.stringify(reports, null, 2), 'utf-8');
+function reportFromRow(row: any): Report {
+  return {
+    id: row.id.toString(),
+    reportedUsername: row.reported_username,
+    reportedBy: row.reported_by,
+    reason: row.reason,
+    description: row.description || '',
+    status: row.status || 'pending',
+    reviewedBy: row.reviewed_by,
+    adminNotes: row.admin_notes || undefined,
+    reviewedAt: row.reviewed_at ? row.reviewed_at * 1000 : undefined
+  };
 }
 
 export async function GET() {
   try {
-    const reports = await readReports();
+    const db = getDb();
+    const rows = db.prepare('SELECT * FROM reports ORDER BY created_at DESC').all();
+    const reports = rows.map(reportFromRow);
     return NextResponse.json(reports);
   } catch (error) {
     console.error('Error reading reports:', error);
@@ -32,11 +30,26 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
-    const reports = await readReports();
+    const db = getDb();
     const newReport: Report = await request.json();
-    reports.push(newReport);
-    await writeReports(reports);
-    return NextResponse.json(newReport);
+    
+    const result = db.prepare(`
+      INSERT INTO reports (reported_username, reported_by, reason, description, status)
+      VALUES (?, ?, ?, ?, 'pending')
+    `).run(
+      newReport.reportedUsername,
+      newReport.reportedBy,
+      newReport.reason,
+      newReport.description || ''
+    );
+    
+    const createdReport: Report = {
+      ...newReport,
+      id: result.lastInsertRowid.toString(),
+      status: 'pending'
+    };
+    
+    return NextResponse.json(createdReport);
   } catch (error) {
     console.error('Error creating report:', error);
     return NextResponse.json({ error: 'Failed to create report' }, { status: 500 });
@@ -45,20 +58,24 @@ export async function POST(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
   try {
-    const reports = await readReports();
+    const db = getDb();
     const { id, status, reviewedBy, adminNotes } = await request.json();
     
-    const report = reports.find(r => r.id === id);
-    if (!report) {
+    const row = db.prepare('SELECT * FROM reports WHERE id = ?').get(parseInt(id));
+    if (!row) {
       return NextResponse.json({ error: 'Report not found' }, { status: 404 });
     }
     
-    report.status = status;
-    if (reviewedBy) report.reviewedBy = reviewedBy;
-    if (adminNotes) report.adminNotes = adminNotes;
+    db.prepare(`
+      UPDATE reports SET
+        status = ?,
+        reviewed_by = ?,
+        reviewed_at = strftime('%s', 'now')
+      WHERE id = ?
+    `).run(status, reviewedBy, parseInt(id));
     
-    await writeReports(reports);
-    return NextResponse.json(report);
+    const updated = db.prepare('SELECT * FROM reports WHERE id = ?').get(parseInt(id));
+    return NextResponse.json(reportFromRow(updated));
   } catch (error) {
     console.error('Error updating report:', error);
     return NextResponse.json({ error: 'Failed to update report' }, { status: 500 });

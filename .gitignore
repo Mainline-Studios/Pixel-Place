@@ -35,9 +35,13 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# Data folder (contains user accounts, bans, reports, appeals)
+# Data folder (contains user accounts, bans, reports, appeals, database)
 /data/*.json
+/data/*.db
+/data/*.db-shm
+/data/*.db-wal
 !/data/.gitkeep
+!/data/README.md
 
 # VS Code extensions and user data
 .vscode/extensions/

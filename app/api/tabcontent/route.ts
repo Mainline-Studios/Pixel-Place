@@ -1,28 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { promises as fs } from 'fs';
-import path from 'path';
+import { getDb } from '@/lib/db';
 import { TabContent } from '@/types';
-
-const DATA_DIR = path.join(process.cwd(), 'data');
-const TAB_CONTENT_FILE = path.join(DATA_DIR, 'tabcontent.json');
-
-async function readTabContent(): Promise<TabContent> {
-  try {
-    const data = await fs.readFile(TAB_CONTENT_FILE, 'utf-8');
-    return JSON.parse(data);
-  } catch (error) {
-    return {} as TabContent;
-  }
-}
-
-async function writeTabContent(content: TabContent): Promise<void> {
-  await fs.mkdir(DATA_DIR, { recursive: true });
-  await fs.writeFile(TAB_CONTENT_FILE, JSON.stringify(content, null, 2), 'utf-8');
-}
 
 export async function GET() {
   try {
-    const content = await readTabContent();
+    const db = getDb();
+    const rows = db.prepare('SELECT * FROM tab_content').all() as any[];
+    const content: TabContent = {} as TabContent;
+    
+    rows.forEach(row => {
+      (content as any)[row.tab_name] = row.content;
+    });
+    
     return NextResponse.json(content);
   } catch (error) {
     console.error('Error reading tab content:', error);
@@ -32,8 +21,25 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
+    const db = getDb();
     const content: TabContent = await request.json();
-    await writeTabContent(content);
+    
+    const insert = db.prepare(`
+      INSERT INTO tab_content (tab_name, content, updated_at)
+      VALUES (?, ?, strftime('%s', 'now'))
+      ON CONFLICT(tab_name) DO UPDATE SET
+        content = excluded.content,
+        updated_at = strftime('%s', 'now')
+    `);
+    
+    const insertMany = db.transaction((content: TabContent) => {
+      for (const [tabName, tabContent] of Object.entries(content)) {
+        insert.run(tabName, tabContent);
+      }
+    });
+    
+    insertMany(content);
+    
     return NextResponse.json(content);
   } catch (error) {
     console.error('Error saving tab content:', error);

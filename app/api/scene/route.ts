@@ -1,29 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { promises as fs } from 'fs';
-import path from 'path';
+import { getDb } from '@/lib/db';
 import { SceneData } from '@/types';
 
-const DATA_DIR = path.join(process.cwd(), 'data');
-const SCENE_FILE = path.join(DATA_DIR, 'scene.json');
-
-async function readScene(): Promise<SceneData> {
+export async function GET(request: NextRequest) {
   try {
-    const data = await fs.readFile(SCENE_FILE, 'utf-8');
-    return JSON.parse(data);
-  } catch (error) {
-    return { objects: [] };
-  }
-}
-
-async function writeScene(scene: SceneData): Promise<void> {
-  await fs.mkdir(DATA_DIR, { recursive: true });
-  await fs.writeFile(SCENE_FILE, JSON.stringify(scene, null, 2), 'utf-8');
-}
-
-export async function GET() {
-  try {
-    const scene = await readScene();
-    return NextResponse.json(scene);
+    const db = getDb();
+    const { searchParams } = new URL(request.url);
+    const userId = searchParams.get('userId') || 'default';
+    
+    const row = db.prepare('SELECT * FROM scenes WHERE user_id = ? ORDER BY updated_at DESC LIMIT 1').get(userId);
+    if (row) {
+      return NextResponse.json(JSON.parse(row.scene_data));
+    }
+    return NextResponse.json({ objects: [] });
   } catch (error) {
     console.error('Error reading scene:', error);
     return NextResponse.json({ error: 'Failed to read scene' }, { status: 500 });
@@ -32,8 +21,27 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
+    const db = getDb();
     const scene: SceneData = await request.json();
-    await writeScene(scene);
+    const { searchParams } = new URL(request.url);
+    const userId = searchParams.get('userId') || 'default';
+    
+    const existing = db.prepare('SELECT * FROM scenes WHERE user_id = ?').get(userId);
+    
+    if (existing) {
+      db.prepare(`
+        UPDATE scenes SET
+          scene_data = ?,
+          updated_at = strftime('%s', 'now')
+        WHERE user_id = ?
+      `).run(JSON.stringify(scene), userId);
+    } else {
+      db.prepare(`
+        INSERT INTO scenes (user_id, scene_data)
+        VALUES (?, ?)
+      `).run(userId, JSON.stringify(scene));
+    }
+    
     return NextResponse.json(scene);
   } catch (error) {
     console.error('Error saving scene:', error);
