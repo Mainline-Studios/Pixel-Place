@@ -1,10 +1,11 @@
 'use client';
 
-import { TabType, User } from '@/types';
+import { TabType, User, Skin, Accessory } from '@/types';
 import Image from 'next/image';
 import { getSkins, getAccessories } from '@/lib/storage';
 import Avatar3DViewer from '@/components/Avatar3DViewer';
 import { useUser } from '@/contexts/UserContext';
+import { useState, useEffect } from 'react';
 
 interface TopBarProps {
   currentTab: TabType;
@@ -24,6 +25,20 @@ const tabs: { key: TabType; label: string; adminOnly?: boolean }[] = [
 
 export default function TopBar({ currentTab, onTabChange, user }: TopBarProps) {
   const { setUser } = useUser();
+  const [skins, setSkins] = useState<Skin[]>([]);
+  const [accessories, setAccessories] = useState<Accessory[]>([]);
+
+  useEffect(() => {
+    const loadData = async () => {
+      const [skinsData, accessoriesData] = await Promise.all([
+        getSkins(),
+        getAccessories()
+      ]);
+      setSkins(Array.isArray(skinsData) ? skinsData : []);
+      setAccessories(Array.isArray(accessoriesData) ? accessoriesData : []);
+    };
+    loadData();
+  }, []);
 
   // Guard against undefined user
   if (!user) {
@@ -46,8 +61,6 @@ export default function TopBar({ currentTab, onTabChange, user }: TopBarProps) {
     );
   }
 
-  const skins = getSkins();
-  const accessories = getAccessories();
   const equippedSkin = skins.find(s => s.id === user.equippedSkin) || skins.find(s => s.id === 'starter_classic') || (skins.length > 0 ? skins[0] : null);
   // equippedAccessories is an object, not an array: { hat: 'id', glasses: 'id', ... }
   const equippedAccessoriesList = Object.values(user.equippedAccessories || {}).map(id =>
