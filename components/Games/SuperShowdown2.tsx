@@ -10,7 +10,6 @@ import {
   isInBeam,
   inCircle,
   distance,
-  type Vec2 as GameVec2,
 } from "@/lib/gameScaling";
 
 /**
@@ -480,7 +479,7 @@ export default function SuperShowdown2(): JSX.Element {
         if (inCircle(player.pos, ATTACK_RADII.SOLEIL_SUN, enemy.pos)) {
           setEnemy((e) => {
             const ne = { ...e, hp: Math.max(0, e.hp - DAMAGE_VALUES.SOLEIL_SUN_TICK) };
-            pushLog(`${ne.name} scorched by Soleil's sun for ${sunTick} damage.`);
+            pushLog(`${ne.name} scorched by Soleil's sun for ${DAMAGE_VALUES.SOLEIL_SUN_TICK} damage.`);
             return ne;
           });
         }

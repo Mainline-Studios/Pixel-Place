@@ -9,7 +9,6 @@ import {
   isInBeam,
   inCircle,
   distance,
-  type Vec2 as GameVec2,
 } from "@/lib/gameScaling";
 
 /**
