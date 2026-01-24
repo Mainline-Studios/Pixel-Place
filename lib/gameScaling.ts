@@ -30,6 +30,12 @@ export const ATTACK_WIDTHS = {
 
 /**
  * Creates a STUD_TO_PX conversion factor for a given map size.
+ * 
+ * Note: Each game file currently maintains its own STUD_TO_PX calculation locally
+ * (e.g., `const STUD_TO_PX = CANVAS_SIZE_PX / MAP_SIZE`) because the MAP_SIZE
+ * varies between games (60 for InsaneShowdown, 30 for SuperShowdown, 100 for SuperShowdown2).
+ * This helper function is provided for future use if these calculations need to be centralized.
+ * 
  * @param mapSizeStuds - The size of the map in studs (square)
  * @param canvasSizePx - The size of the canvas in pixels (default: 700)
  * @returns The conversion factor from studs to pixels
