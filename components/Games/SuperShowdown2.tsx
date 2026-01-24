@@ -329,14 +329,14 @@ export default function SuperShowdown2(): JSX.Element {
   // isInBeam and inCircle functions now imported from @/lib/gameScaling
 
   // Harmony/heavy state refs
-  const harmonyRef = useRef({ magRemaining: 4, lastShotAt: 0, consecutiveHits: 0, lastHitAt: 0, reloadUntil: 0 });
+  const harmonyRef = useRef({ magRemaining: GAMEPLAY_CONSTANTS.HARMONY_MAG_SIZE, lastShotAt: 0, consecutiveHits: 0, lastHitAt: 0, reloadUntil: 0 });
   const hexStateRef = useRef({ hitsSinceReload: 0, reloadUntil: 0 });
-  const lunarRef = useRef({ magRemaining: 2, reloadUntil: 0 });
+  const lunarRef = useRef({ magRemaining: GAMEPLAY_CONSTANTS.LUNAR_MAG_SIZE, reloadUntil: 0 });
   const regenRef = useRef({ reloadUntil: 0 });
 
   // Main tick loop
   useEffect(() => {
-    const TICK_MS = 500;
+    const TICK_MS = DURATIONS.STATUS_TICK;
     const interval = setInterval(() => {
       const ts = Date.now();
 
@@ -362,11 +362,10 @@ export default function SuperShowdown2(): JSX.Element {
           changed = true;
         }
 
-        // Stronger regen for player: heal 2 HP per 500ms tick
+        // Stronger regen for player: heal ${DAMAGE_VALUES.REGEN_TICK} HP per ${DURATIONS.STATUS_TICK}ms tick
         if (s.regen && s.regen > 0) {
-          const heal = 2;
-          np.hp = Math.min(np.maxHp, np.hp + heal);
-          pushLog(`${np.name} regenerates ${heal} HP.`);
+          np.hp = Math.min(np.maxHp, np.hp + DAMAGE_VALUES.REGEN_TICK);
+          pushLog(`${np.name} regenerates ${DAMAGE_VALUES.REGEN_TICK} HP.`);
           s.regen!--;
           changed = true;
         }
@@ -410,7 +409,7 @@ export default function SuperShowdown2(): JSX.Element {
         }
 
         // Hex expiry
-        if (s.hexLastAt && s.hexStacks && ts - s.hexLastAt > 6000) {
+        if (s.hexLastAt && s.hexStacks && ts - s.hexLastAt > DURATIONS.HEX_STACK_EXPIRE) {
           s.hexStacks = 0;
           delete s.hexLastAt;
           pushLog(`${ne.name} has the hex effects fade away.`);
@@ -444,16 +443,16 @@ export default function SuperShowdown2(): JSX.Element {
         alive.forEach((p) => {
           if (ts >= p.nextAttackAt) {
             setEnemy((e) => {
-              const ne = { ...e, hp: Math.max(0, e.hp - 6) };
-              pushLog(`${ne.name} is drained by a parasite for 6 damage.`);
+              const ne = { ...e, hp: Math.max(0, e.hp - DAMAGE_VALUES.PARASITE_DRAIN) };
+              pushLog(`${ne.name} is drained by a parasite for ${DAMAGE_VALUES.PARASITE_DRAIN} damage.`);
               return ne;
             });
             setPlayer((pl) => {
-              const healed = Math.min(pl.maxHp, pl.hp + 3);
-              pushLog(`The parasite restores 3 HP to ${pl.name}.`);
+              const healed = Math.min(pl.maxHp, pl.hp + DAMAGE_VALUES.PARASITE_HEAL);
+              pushLog(`The parasite restores ${DAMAGE_VALUES.PARASITE_HEAL} HP to ${pl.name}.`);
               return { ...pl, hp: healed };
             });
-            p.nextAttackAt = ts + 4500;
+            p.nextAttackAt = ts + DURATIONS.PARASITE_ATTACK_INTERVAL;
           }
         });
         return alive;
@@ -464,13 +463,13 @@ export default function SuperShowdown2(): JSX.Element {
         const alive = ds.filter((d) => d.invulnerable || d.createdAt + d.durationMs > ts);
         alive.forEach((d) => {
           if (ts >= d.nextAttackAt) {
-            if (distance(d.pos, enemy.pos) <= 2) {
-              setEnemy((e) => ({ ...e, hp: Math.max(0, e.hp - 15) }));
-              pushLog("A doppelganger slices the enemy for 15 damage.");
+            if (distance(d.pos, enemy.pos) <= ATTACK_RANGES.DOPPELGANGER) {
+              setEnemy((e) => ({ ...e, hp: Math.max(0, e.hp - DAMAGE_VALUES.DOPPELGANGER_ATTACK) }));
+              pushLog(`A doppelganger slices the enemy for ${DAMAGE_VALUES.DOPPELGANGER_ATTACK} damage.`);
             } else {
-              d.pos = clampPos({ x: d.pos.x + (enemy.pos.x - d.pos.x) * 0.12, y: d.pos.y + (enemy.pos.y - d.pos.y) * 0.12 });
+              d.pos = clampPos({ x: d.pos.x + (enemy.pos.x - d.pos.x) * GAMEPLAY_CONSTANTS.DOPPELGANGER_CHASE_SPEED, y: d.pos.y + (enemy.pos.y - d.pos.y) * GAMEPLAY_CONSTANTS.DOPPELGANGER_CHASE_SPEED });
             }
-            d.nextAttackAt = ts + 1000;
+            d.nextAttackAt = ts + DURATIONS.DOPPELGANGER_ATTACK_INTERVAL;
           }
         });
         return alive;
@@ -478,11 +477,9 @@ export default function SuperShowdown2(): JSX.Element {
 
       // Soleil sun damage (if player is Soleil)
       if (player.power === "soleil") {
-        const sunRadius = 4;
-        if (inCircle(player.pos, sunRadius, enemy.pos)) {
-          const sunTick = 10;
+        if (inCircle(player.pos, ATTACK_RADII.SOLEIL_SUN, enemy.pos)) {
           setEnemy((e) => {
-            const ne = { ...e, hp: Math.max(0, e.hp - sunTick) };
+            const ne = { ...e, hp: Math.max(0, e.hp - DAMAGE_VALUES.SOLEIL_SUN_TICK) };
             pushLog(`${ne.name} scorched by Soleil's sun for ${sunTick} damage.`);
             return ne;
           });
@@ -626,7 +623,7 @@ export default function SuperShowdown2(): JSX.Element {
     const id = setInterval(() => {
       if (player.power === "mud") {
         if (distance(last, player.pos) >= 0.4) {
-          const patch: MudPatch = { id: `mud-${Date.now()}`, pos: { ...player.pos }, radius: 2.4, createdAt: Date.now(), durationMs: 8000 };
+          const patch: MudPatch = { id: `mud-${Date.now()}`, pos: { ...player.pos }, radius: ATTACK_RADII.MUD_PATCH_PLAYER, createdAt: Date.now(), durationMs: DURATIONS.MUD_PATCH };
           setMudPatches((m) => [...m, patch]);
         }
       }
@@ -974,19 +971,19 @@ export default function SuperShowdown2(): JSX.Element {
       return;
     }
     const ts = Date.now();
-    if (ts - lunarStateRef.current.lastMidnightAt < 80000) {
-      const remain = Math.ceil((80000 - (ts - lunarStateRef.current.lastMidnightAt)) / 1000);
+    if (ts - lunarStateRef.current.lastMidnightAt < DURATIONS.LUNAR_MIDNIGHT_COOLDOWN) {
+      const remain = Math.ceil((DURATIONS.LUNAR_MIDNIGHT_COOLDOWN - (ts - lunarStateRef.current.lastMidnightAt)) / 1000);
       pushLog(`Midnight not ready. ${remain}s remaining.`);
       return;
     }
     lunarStateRef.current.lastMidnightAt = ts;
-    lunarStateRef.current.midnightActiveUntil = ts + 10000;
+    lunarStateRef.current.midnightActiveUntil = ts + DURATIONS.LUNAR_MIDNIGHT_DURATION;
     setLunarActive(true);
-    pushLog("Midnight rises — Lunar power doubled for 10 seconds!");
+    pushLog(`Midnight rises — Lunar power doubled for ${DURATIONS.LUNAR_MIDNIGHT_DURATION / 1000} seconds!`);
     // auto-clear after duration
     setTimeout(() => {
       setLunarActive(false);
-    }, 10000);
+    }, DURATIONS.LUNAR_MIDNIGHT_DURATION);
   }
 
   // Ownership helpers (store)
@@ -1071,7 +1068,7 @@ export default function SuperShowdown2(): JSX.Element {
       }
 
       const hexStacks = enemy.statuses?.hexStacks || 0;
-      const dmgMult = 1 - Math.min(0.5, 0.05 * hexStacks);
+      const dmgMult = 1 - Math.min(GAMEPLAY_CONSTANTS.HEX_MAX_DAMAGE_REDUCTION, GAMEPLAY_CONSTANTS.HEX_DAMAGE_REDUCTION_PER_STACK * hexStacks);
 
       if (distance(enemy.pos, player.pos) <= 3) {
         const baseDmg = 6;
@@ -1377,8 +1374,8 @@ export default function SuperShowdown2(): JSX.Element {
 
             {/* Lunar: Call Midnight button */}
             {player.power === "lunar" && (
-              <button onClick={callMidnight} disabled={Date.now() - lunarStateRef.current.lastMidnightAt < 80000} style={{ padding: "8px 12px" }}>
-                Call Midnight {Date.now() - lunarStateRef.current.lastMidnightAt < 80000 ? `(${Math.ceil((80000 - (Date.now() - lunarStateRef.current.lastMidnightAt))/1000)}s)` : ""}
+              <button onClick={callMidnight} disabled={Date.now() - lunarStateRef.current.lastMidnightAt < DURATIONS.LUNAR_MIDNIGHT_COOLDOWN} style={{ padding: "8px 12px" }}>
+                Call Midnight {Date.now() - lunarStateRef.current.lastMidnightAt < DURATIONS.LUNAR_MIDNIGHT_COOLDOWN ? `(${Math.ceil((DURATIONS.LUNAR_MIDNIGHT_COOLDOWN - (Date.now() - lunarStateRef.current.lastMidnightAt))/1000)}s)` : ""}
               </button>
             )}
 
