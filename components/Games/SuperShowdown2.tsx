@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
+import { ATTACK_RANGES, ATTACK_WIDTHS } from "@/lib/gameScaling";
 
 /**
  * SuperShowdown2 — updated powers with stronger Regen and visual indicators
@@ -645,7 +646,7 @@ export default function SuperShowdown2(): JSX.Element {
   // Player punch
   function playerPunch() {
     if (waiting || gameOver || !startConfirmed) return;
-    const range = 1;
+    const range = ATTACK_RANGES.PUNCH;
     if (distance(player.pos, enemy.pos) <= range) {
       setEnemy((e) => applyDamageToFighter(e, 10));
       pushLog("You punch the enemy for 10 damage.");
@@ -666,7 +667,7 @@ export default function SuperShowdown2(): JSX.Element {
     const hpNow = player.hp;
     let dmg = 10;
     let reloadMs = 1000;
-    const range = 7;
+    const range = ATTACK_RANGES.BERSERKER;
     if (hpNow < 10) {
       dmg = 20;
       reloadMs = 500;
@@ -681,7 +682,7 @@ export default function SuperShowdown2(): JSX.Element {
     const dir = { x: aimTarget.x - player.pos.x, y: aimTarget.y - player.pos.y };
     const len = Math.hypot(dir.x, dir.y) || 0.0001;
     const norm = { x: dir.x / len, y: dir.y / len };
-    const width = 4;
+    const width = ATTACK_WIDTHS.BERSERKER;
     if (isInBeam(player.pos, norm, width, range, enemy.pos)) {
       setEnemy((e) => applyDamageToFighter(e, dmg));
       pushLog(`Berserker hits for ${dmg} damage.`);
@@ -745,8 +746,8 @@ export default function SuperShowdown2(): JSX.Element {
     const dir = { x: aimTarget.x - player.pos.x, y: aimTarget.y - player.pos.y };
     const len = Math.hypot(dir.x, dir.y) || 0.0001;
     const norm = { x: dir.x / len, y: dir.y / len };
-    const range = 20;
-    const width = 2;
+    const range = ATTACK_RANGES.GENERIC_BEAM;
+    const width = ATTACK_WIDTHS.GENERIC_BEAM;
     if (isInBeam(player.pos, norm, width, range, enemy.pos)) {
       setEnemy((e) => applyDamageToFighter(e, 14));
       pushLog("You fire and hit the enemy for 14 damage.");
@@ -805,8 +806,8 @@ export default function SuperShowdown2(): JSX.Element {
         const dir = { x: aimTarget.x - player.pos.x, y: aimTarget.y - player.pos.y };
         const len = Math.hypot(dir.x, dir.y) || 0.0001;
         const norm = { x: dir.x / len, y: dir.y / len };
-        const range = 16;
-        const width = 3.2;
+        const range = ATTACK_RANGES.HARMONY;
+        const width = ATTACK_WIDTHS.HARMONY;
         let hit = false;
         if (isInBeam(player.pos, norm, width, range, enemy.pos)) {
           setEnemy((e) => applyDamageToFighter(e, 3));

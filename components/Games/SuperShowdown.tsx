@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
+import { ATTACK_RANGES, ATTACK_WIDTHS } from "@/lib/gameScaling";
 
 /**
  * SuperShowdown — 3D Arena & 3D Players
@@ -566,8 +567,8 @@ export default function SuperShowdown(): JSX.Element {
     const dir = { x: aimTarget.x - player.pos.x, y: aimTarget.y - player.pos.y };
     const len = Math.hypot(dir.x, dir.y) || 0.0001;
     const norm = { x: dir.x / len, y: dir.y / len };
-    const range = 20;
-    const width = 2;
+    const range = ATTACK_RANGES.GENERIC_BEAM;
+    const width = ATTACK_WIDTHS.GENERIC_BEAM;
     if (isInBeam(player.pos, norm, width, range, enemy.pos)) {
       setEnemy((e) => {
         const ne = applyDamageToFighter(e, 14);
@@ -669,7 +670,7 @@ export default function SuperShowdown(): JSX.Element {
     lastPlayerCombatAtRef.current = Date.now();
     regenActiveRef.current = false;
 
-    const range = 1;
+    const range = ATTACK_RANGES.PUNCH;
     if (distance(player.pos, enemy.pos) <= range) {
       setEnemy((e) => applyDamageToFighter(e, 10));
       pushLog("You punch the enemy for 10 damage.");
