@@ -63,7 +63,7 @@
     "password": "20Minecraft15",
     "gender": "Male",
     "role": "user",
-    "coins": 17825,
+    "coins": 17525,
     "ownedSkins": [
       "starter_classic",
       "galaxy_guard",
@@ -74,18 +74,17 @@
     ],
     "equippedSkin": "neon_runner",
     "friends": [
-      "6767kid"
+      "6767kid",
+      "Daniello1"
     ],
-    "ownedAccessories": [],
+    "ownedAccessories": [
+      "pet_robot"
+    ],
     "sentFriendRequests": [],
-    "friendRequests": [
-      {
-        "from": "Daniello1",
-        "to": "BDawgsAwesome1",
-        "timestamp": 1768515774627,
-        "status": "pending"
-      }
-    ]
+    "friendRequests": [],
+    "equippedAccessories": {
+      "pet": "pet_robot"
+    }
   },
   {
     "username": "admin",
@@ -181,12 +180,12 @@
       "pet": "pet_slime"
     },
     "friends": [
-      "6767kid"
+      "6767kid",
+      "BDawgsAwesome1"
     ],
     "sentFriendRequests": [
       "admin",
-      "laird",
-      "BDawgsAwesome1"
+      "laird"
     ]
   },
   {

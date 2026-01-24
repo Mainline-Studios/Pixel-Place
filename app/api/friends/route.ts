@@ -1,31 +1,31 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getDb } from '@/lib/db';
+import { getDocument, setDocument, queryDocuments, getDocuments, COLLECTIONS, getFirestoreInstance } from '@/lib/firestore';
 import { User, FriendRequest } from '@/types';
 
-function userFromRow(row: any): User {
+function userFromDoc(doc: any): User {
   return {
-    username: row.username,
-    password: row.password_hash,
-    gender: row.gender || '',
-    role: (row.role || 'user') as 'admin' | 'user',
-    coins: row.coins || 0,
-    ownedSkins: JSON.parse(row.owned_skins || '[]'),
-    equippedSkin: row.equipped_skin || '',
-    ownedAccessories: JSON.parse(row.owned_accessories || '[]'),
-    equippedAccessories: JSON.parse(row.equipped_accessories || '[]'),
-    ownedServers: JSON.parse(row.owned_servers || '[]'),
-    friends: JSON.parse(row.friends || '[]'),
-    friendRequests: JSON.parse(row.friend_requests || '[]'),
-    sentFriendRequests: JSON.parse(row.sent_friend_requests || '[]')
+    username: doc.username || doc.id,
+    password: doc.password_hash || doc.password || '',
+    gender: doc.gender || '',
+    role: (doc.role || 'user') as 'admin' | 'user',
+    coins: doc.coins || 0,
+    ownedSkins: Array.isArray(doc.owned_skins) ? doc.owned_skins : (typeof doc.owned_skins === 'string' ? JSON.parse(doc.owned_skins || '[]') : []),
+    equippedSkin: doc.equipped_skin || '',
+    ownedAccessories: Array.isArray(doc.owned_accessories) ? doc.owned_accessories : (typeof doc.owned_accessories === 'string' ? JSON.parse(doc.owned_accessories || '[]') : []),
+    equippedAccessories: Array.isArray(doc.equipped_accessories) ? doc.equipped_accessories : (typeof doc.equipped_accessories === 'string' ? JSON.parse(doc.equipped_accessories || '[]') : []),
+    ownedServers: Array.isArray(doc.owned_servers) ? doc.owned_servers : (typeof doc.owned_servers === 'string' ? JSON.parse(doc.owned_servers || '[]') : []),
+    friends: Array.isArray(doc.friends) ? doc.friends : (typeof doc.friends === 'string' ? JSON.parse(doc.friends || '[]') : []),
+    friendRequests: Array.isArray(doc.friend_requests) ? doc.friend_requests : (typeof doc.friend_requests === 'string' ? JSON.parse(doc.friend_requests || '[]') : []),
+    sentFriendRequests: Array.isArray(doc.sent_friend_requests) ? doc.sent_friend_requests : (typeof doc.sent_friend_requests === 'string' ? JSON.parse(doc.sent_friend_requests || '[]') : [])
   };
 }
 
-function friendRequestFromRow(row: any): FriendRequest {
+function friendRequestFromDoc(doc: any): FriendRequest {
   return {
-    from: row.from_username,
-    to: row.to_username,
-    timestamp: row.created_at * 1000,
-    status: row.status || 'pending'
+    from: doc.from_username,
+    to: doc.to_username,
+    timestamp: doc.created_at || Date.now(),
+    status: doc.status || 'pending'
   };
 }
 
@@ -39,47 +39,41 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Username is required' }, { status: 400 });
     }
 
-    const db = getDb();
-    const userRow = db.prepare('SELECT * FROM users WHERE LOWER(username) = LOWER(?)').get(username);
-
-    if (!userRow) {
+    const userDoc = await getDocument(COLLECTIONS.USERS, username.toLowerCase());
+    if (!userDoc) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
-    const user = userFromRow(userRow);
+    const user = userFromDoc(userDoc);
     const friends = user.friends || [];
-    const friendRequests = user.friendRequests || [];
-    const sentFriendRequests = user.sentFriendRequests || [];
 
     // Get full friend user objects
     const friendUsers: User[] = [];
     for (const friendUsername of friends) {
-      const friendRow = db.prepare('SELECT * FROM users WHERE LOWER(username) = LOWER(?)').get(friendUsername);
-      if (friendRow) {
-        friendUsers.push(userFromRow(friendRow));
+      const friendDoc = await getDocument(COLLECTIONS.USERS, friendUsername.toLowerCase());
+      if (friendDoc) {
+        friendUsers.push(userFromDoc(friendDoc));
       }
     }
 
-    // Get friend requests from database
-    const dbRequests = db.prepare(`
-      SELECT * FROM friend_requests
-      WHERE (LOWER(from_username) = LOWER(?) OR LOWER(to_username) = LOWER(?))
-        AND status = 'pending'
-      ORDER BY created_at DESC
-    `).all(username, username);
+    // Get friend requests from Firestore
+    const db = getFirestoreInstance();
+    const incomingRequestsQuery = db.collection(COLLECTIONS.FRIEND_REQUESTS)
+      .where('to_username_lower', '==', username.toLowerCase())
+      .where('status', '==', 'pending');
+    const incomingSnapshot = await incomingRequestsQuery.get();
+    const incomingRequests = incomingSnapshot.docs.map(doc => friendRequestFromDoc({ id: doc.id, ...doc.data() }));
 
-    const incomingRequests = dbRequests
-      .filter((req: any) => req.to_username.toLowerCase() === username.toLowerCase())
-      .map(friendRequestFromRow);
-    
-    const sentRequests = dbRequests
-      .filter((req: any) => req.from_username.toLowerCase() === username.toLowerCase())
-      .map((req: any) => req.to_username);
+    const sentRequestsQuery = db.collection(COLLECTIONS.FRIEND_REQUESTS)
+      .where('from_username_lower', '==', username.toLowerCase())
+      .where('status', '==', 'pending');
+    const sentSnapshot = await sentRequestsQuery.get();
+    const sentRequests = sentSnapshot.docs.map(doc => doc.data().to_username);
 
     return NextResponse.json({
       friends: friendUsers,
-      incomingRequests: incomingRequests.length > 0 ? incomingRequests : friendRequests,
-      sentRequests: sentRequests.length > 0 ? sentRequests : sentFriendRequests
+      incomingRequests: incomingRequests.length > 0 ? incomingRequests : user.friendRequests,
+      sentRequests: sentRequests.length > 0 ? sentRequests : user.sentFriendRequests
     }, {
       headers: {
         'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
@@ -96,7 +90,6 @@ export async function GET(request: NextRequest) {
 // POST - Send friend request, accept, or decline
 export async function POST(request: NextRequest) {
   try {
-    const db = getDb();
     const body = await request.json();
     const { action, fromUsername, toUsername } = body;
 
@@ -108,15 +101,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Cannot send friend request to yourself' }, { status: 400 });
     }
 
-    const fromUserRow = db.prepare('SELECT * FROM users WHERE LOWER(username) = LOWER(?)').get(fromUsername);
-    const toUserRow = db.prepare('SELECT * FROM users WHERE LOWER(username) = LOWER(?)').get(toUsername);
+    const fromUserDoc = await getDocument(COLLECTIONS.USERS, fromUsername.toLowerCase());
+    const toUserDoc = await getDocument(COLLECTIONS.USERS, toUsername.toLowerCase());
 
-    if (!fromUserRow || !toUserRow) {
+    if (!fromUserDoc || !toUserDoc) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
-    const fromUser = userFromRow(fromUserRow);
-    const toUser = userFromRow(toUserRow);
+    const fromUser = userFromDoc(fromUserDoc);
+    const toUser = userFromDoc(toUserDoc);
 
     if (action === 'send') {
       // Check if already friends
@@ -128,30 +121,34 @@ export async function POST(request: NextRequest) {
       }
 
       // Check if request already exists
-      const existingRequest = db.prepare(`
-        SELECT * FROM friend_requests
-        WHERE LOWER(from_username) = LOWER(?) AND LOWER(to_username) = LOWER(?)
-          AND status = 'pending'
-      `).get(fromUsername, toUsername);
+      const db = getFirestoreInstance();
+      const existingRequests = await db.collection(COLLECTIONS.FRIEND_REQUESTS)
+        .where('from_username_lower', '==', fromUsername.toLowerCase())
+        .where('to_username_lower', '==', toUsername.toLowerCase())
+        .where('status', '==', 'pending')
+        .get();
 
-      if (existingRequest) {
+      if (!existingRequests.empty) {
         return NextResponse.json({ error: 'Friend request already sent' }, { status: 400 });
       }
 
-      // Create friend request in database
-      db.prepare(`
-        INSERT INTO friend_requests (from_username, to_username, status)
-        VALUES (?, ?, 'pending')
-      `).run(fromUsername, toUsername);
+      // Create friend request in Firestore
+      await setDocument(COLLECTIONS.FRIEND_REQUESTS, `${fromUsername.toLowerCase()}_${toUsername.toLowerCase()}`, {
+        from_username: fromUsername,
+        from_username_lower: fromUsername.toLowerCase(),
+        to_username: toUsername,
+        to_username_lower: toUsername.toLowerCase(),
+        status: 'pending',
+        created_at: Date.now()
+      });
 
       // Update sent friend requests in user record
       const sentRequests = fromUser.sentFriendRequests || [];
       if (!sentRequests.includes(toUsername)) {
         sentRequests.push(toUsername);
-        db.prepare('UPDATE users SET sent_friend_requests = ? WHERE id = ?').run(
-          JSON.stringify(sentRequests),
-          fromUserRow.id
-        );
+        await setDocument(COLLECTIONS.USERS, fromUsername.toLowerCase(), {
+          sent_friend_requests: sentRequests
+        });
       }
 
       return NextResponse.json({ success: true, message: 'Friend request sent' }, {
@@ -160,21 +157,22 @@ export async function POST(request: NextRequest) {
 
     } else if (action === 'accept') {
       // Find the friend request
-      const requestRow = db.prepare(`
-        SELECT * FROM friend_requests
-        WHERE LOWER(from_username) = LOWER(?) AND LOWER(to_username) = LOWER(?)
-          AND status = 'pending'
-      `).get(fromUsername, toUsername);
+      const db = getFirestoreInstance();
+      const requestQuery = await db.collection(COLLECTIONS.FRIEND_REQUESTS)
+        .where('from_username_lower', '==', fromUsername.toLowerCase())
+        .where('to_username_lower', '==', toUsername.toLowerCase())
+        .where('status', '==', 'pending')
+        .get();
 
-      if (!requestRow) {
+      if (requestQuery.empty) {
         return NextResponse.json({ error: 'Friend request not found' }, { status: 404 });
       }
 
-      // Mark request as accepted
-      db.prepare(`
-        UPDATE friend_requests SET status = 'accepted', updated_at = strftime('%s', 'now')
-        WHERE id = ?
-      `).run(requestRow.id);
+      const requestDoc = requestQuery.docs[0];
+      await setDocument(COLLECTIONS.FRIEND_REQUESTS, requestDoc.id, {
+        status: 'accepted',
+        updated_at: Date.now()
+      });
 
       // Add to friends lists (bidirectional)
       const fromFriends = fromUser.friends || [];
@@ -188,48 +186,47 @@ export async function POST(request: NextRequest) {
       }
 
       // Update both users
-      db.prepare('UPDATE users SET friends = ? WHERE id = ?').run(
-        JSON.stringify(fromFriends),
-        fromUserRow.id
-      );
-      db.prepare('UPDATE users SET friends = ? WHERE id = ?').run(
-        JSON.stringify(toFriends),
-        toUserRow.id
-      );
+      await setDocument(COLLECTIONS.USERS, fromUsername.toLowerCase(), {
+        friends: fromFriends
+      });
+      await setDocument(COLLECTIONS.USERS, toUsername.toLowerCase(), {
+        friends: toFriends
+      });
 
       // Remove from sent requests
       const fromSent = (fromUser.sentFriendRequests || []).filter(f => f.toLowerCase() !== toUsername.toLowerCase());
       const toSent = (toUser.sentFriendRequests || []).filter(f => f.toLowerCase() !== fromUsername.toLowerCase());
       
-      db.prepare('UPDATE users SET sent_friend_requests = ? WHERE id = ?').run(
-        JSON.stringify(fromSent),
-        fromUserRow.id
-      );
-      db.prepare('UPDATE users SET sent_friend_requests = ? WHERE id = ?').run(
-        JSON.stringify(toSent),
-        toUserRow.id
-      );
+      await setDocument(COLLECTIONS.USERS, fromUsername.toLowerCase(), {
+        sent_friend_requests: fromSent
+      });
+      await setDocument(COLLECTIONS.USERS, toUsername.toLowerCase(), {
+        sent_friend_requests: toSent
+      });
 
       return NextResponse.json({ success: true, message: 'Friend request accepted' });
 
     } else if (action === 'decline') {
       // Mark request as declined
-      const requestRow = db.prepare(`
-        SELECT * FROM friend_requests
-        WHERE LOWER(from_username) = LOWER(?) AND LOWER(to_username) = LOWER(?)
-          AND status = 'pending'
-      `).get(fromUsername, toUsername);
+      const db = getFirestoreInstance();
+      const requestQuery = await db.collection(COLLECTIONS.FRIEND_REQUESTS)
+        .where('from_username_lower', '==', fromUsername.toLowerCase())
+        .where('to_username_lower', '==', toUsername.toLowerCase())
+        .where('status', '==', 'pending')
+        .get();
 
-      if (requestRow) {
-        db.prepare('UPDATE friend_requests SET status = ?, updated_at = strftime(\'%s\', \'now\') WHERE id = ?').run('declined', requestRow.id);
+      if (!requestQuery.empty) {
+        await setDocument(COLLECTIONS.FRIEND_REQUESTS, requestQuery.docs[0].id, {
+          status: 'declined',
+          updated_at: Date.now()
+        });
       }
 
       // Remove from sent requests
       const fromSent = (fromUser.sentFriendRequests || []).filter(f => f.toLowerCase() !== toUsername.toLowerCase());
-      db.prepare('UPDATE users SET sent_friend_requests = ? WHERE id = ?').run(
-        JSON.stringify(fromSent),
-        fromUserRow.id
-      );
+      await setDocument(COLLECTIONS.USERS, fromUsername.toLowerCase(), {
+        sent_friend_requests: fromSent
+      });
 
       return NextResponse.json({ success: true, message: 'Friend request declined' });
 
@@ -238,14 +235,12 @@ export async function POST(request: NextRequest) {
       const fromFriends = (fromUser.friends || []).filter(f => f.toLowerCase() !== toUsername.toLowerCase());
       const toFriends = (toUser.friends || []).filter(f => f.toLowerCase() !== fromUsername.toLowerCase());
       
-      db.prepare('UPDATE users SET friends = ? WHERE id = ?').run(
-        JSON.stringify(fromFriends),
-        fromUserRow.id
-      );
-      db.prepare('UPDATE users SET friends = ? WHERE id = ?').run(
-        JSON.stringify(toFriends),
-        toUserRow.id
-      );
+      await setDocument(COLLECTIONS.USERS, fromUsername.toLowerCase(), {
+        friends: fromFriends
+      });
+      await setDocument(COLLECTIONS.USERS, toUsername.toLowerCase(), {
+        friends: toFriends
+      });
 
       return NextResponse.json({ success: true, message: 'Friend removed' });
     }
