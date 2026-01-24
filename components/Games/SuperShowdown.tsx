@@ -1,4 +1,15 @@
 import React, { useEffect, useRef, useState } from "react";
+import {
+  ATTACK_RANGES,
+  ATTACK_WIDTHS,
+  ATTACK_RADII,
+  DURATIONS,
+  DAMAGE_VALUES,
+  GAMEPLAY_CONSTANTS,
+  isInBeam,
+  inCircle,
+  distance,
+} from "@/lib/gameScaling";
 
 /**
  * SuperShowdown — 3D Arena & 3D Players
@@ -63,7 +74,6 @@ const STUD_TO_PX = CANVAS_SIZE_PX / MAP_SIZE;
 
 const randInt = (min: number, max: number) =>
   Math.floor(Math.random() * (max - min + 1)) + min;
-const distance = (a: Vec2, b: Vec2) => Math.hypot(a.x - b.x, a.y - b.y);
 
 type Vec2 = { x: number; y: number };
 
@@ -326,24 +336,7 @@ export default function SuperShowdown(): JSX.Element {
     };
   }
 
-  function isInBeam(
-    source: Vec2,
-    dir: Vec2,
-    width: number,
-    range: number,
-    targetPos: Vec2
-  ) {
-    const toT = { x: targetPos.x - source.x, y: targetPos.y - source.y };
-    const proj = toT.x * dir.x + toT.y * dir.y;
-    if (proj < 0 || proj > range) return false;
-    const perpSq = toT.x * toT.x + toT.y * toT.y - proj * proj;
-    const perp = Math.sqrt(Math.max(0, perpSq));
-    return perp <= width / 2;
-  }
-
-  function inCircle(center: Vec2, radius: number, targetPos: Vec2) {
-    return distance(center, targetPos) <= radius;
-  }
+  // isInBeam and inCircle functions now imported from @/lib/gameScaling
 
   // Track last time player attacked or took damage (ms since epoch)
   const lastPlayerCombatAtRef = useRef<number>(Date.now());
@@ -439,7 +432,7 @@ export default function SuperShowdown(): JSX.Element {
           !gameOver &&
           prev.hp > 0 &&
           prev.hp < prev.maxHp &&
-          idleMs >= 10000;
+          idleMs >= DURATIONS.IDLE_REGEN_THRESHOLD;
         if (canRegen) {
           if (!regenActiveRef.current) {
             regenActiveRef.current = true;
@@ -448,7 +441,7 @@ export default function SuperShowdown(): JSX.Element {
           const newHp = Math.min(prev.maxHp, prev.hp + 1);
           return { ...prev, hp: newHp };
         } else {
-          if (regenActiveRef.current && idleMs < 10000) {
+          if (regenActiveRef.current && idleMs < DURATIONS.IDLE_REGEN_THRESHOLD) {
             regenActiveRef.current = false;
           }
         }
@@ -529,7 +522,7 @@ export default function SuperShowdown(): JSX.Element {
     return { ...f, hp: Math.max(0, Math.round(f.hp - amount)) };
   }
   function healFighter(f: Fighter, amount: number) {
-    const cap = f.power === "fleur" ? Math.min(120, f.maxHp) : f.maxHp;
+    const cap = f.power === "fleur" ? Math.min(GAMEPLAY_CONSTANTS.FLEUR_MAX_HP, f.maxHp) : f.maxHp;
     return { ...f, hp: Math.min(cap, Math.round(f.hp + amount)) };
   }
 
@@ -566,14 +559,12 @@ export default function SuperShowdown(): JSX.Element {
     const dir = { x: aimTarget.x - player.pos.x, y: aimTarget.y - player.pos.y };
     const len = Math.hypot(dir.x, dir.y) || 0.0001;
     const norm = { x: dir.x / len, y: dir.y / len };
-    const range = 20;
-    const width = 2;
-    if (isInBeam(player.pos, norm, width, range, enemy.pos)) {
+    if (isInBeam(player.pos, norm, ATTACK_WIDTHS.BASIC_BEAM, ATTACK_RANGES.BASIC_BEAM, enemy.pos)) {
       setEnemy((e) => {
-        const ne = applyDamageToFighter(e, 14);
+        const ne = applyDamageToFighter(e, DAMAGE_VALUES.BASIC_BEAM);
         return ne;
       });
-      pushLog("You fire your power and hit the enemy for 14 damage.");
+      pushLog(`You fire your power and hit the enemy for ${DAMAGE_VALUES.BASIC_BEAM} damage.`);
     } else {
       pushLog(
         `You fire toward (${aimTarget.x.toFixed(1)}, ${aimTarget.y.toFixed(
@@ -585,7 +576,7 @@ export default function SuperShowdown(): JSX.Element {
 
     setTimeout(() => {
       if (!checkGameOver(player, enemy)) enemyAIAction();
-    }, 300);
+    }, DURATIONS.ENEMY_ACTION_DELAY);
   }
 
   // Respawn
@@ -604,7 +595,7 @@ export default function SuperShowdown(): JSX.Element {
       }
     }
 
-    const maxHp = appliedPower === "fleur" ? 120 : 100;
+    const maxHp = appliedPower === "fleur" ? GAMEPLAY_CONSTANTS.FLEUR_MAX_HP : GAMEPLAY_CONSTANTS.STANDARD_MAX_HP;
     setPlayer((prev) => ({
       ...prev,
       pos: clampPos(playerStart),
@@ -669,22 +660,22 @@ export default function SuperShowdown(): JSX.Element {
     lastPlayerCombatAtRef.current = Date.now();
     regenActiveRef.current = false;
 
-    const range = 1;
+    const range = ATTACK_RANGES.MELEE;
     if (distance(player.pos, enemy.pos) <= range) {
-      setEnemy((e) => applyDamageToFighter(e, 10));
-      pushLog("You punch the enemy for 10 damage.");
+      setEnemy((e) => applyDamageToFighter(e, DAMAGE_VALUES.MELEE));
+      pushLog(`You punch the enemy for ${DAMAGE_VALUES.MELEE} damage.`);
     } else {
       pushLog("You swing at the air — out of range for fists.");
     }
     setTimeout(() => {
       if (!checkGameOver(player, enemy)) enemyAIAction();
-    }, 300);
+    }, DURATIONS.ENEMY_ACTION_DELAY);
   }
 
   // Enemy AI
   function enemyAIAction() {
     if (gameOver) return;
-    const delay = 700 + randInt(0, 400);
+    const delay = DURATIONS.ENEMY_TURN_DELAY_MIN + randInt(0, DURATIONS.ENEMY_TURN_DELAY_MAX - DURATIONS.ENEMY_TURN_DELAY_MIN);
     setTimeout(() => {
       if (gameOver) return;
       if (distance(enemy.pos, player.pos) <= 3) {
