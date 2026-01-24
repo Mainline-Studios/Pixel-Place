@@ -1,28 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { promises as fs } from 'fs';
-import path from 'path';
+import { getDb } from '@/lib/db';
 import { Ban } from '@/types';
 
-const DATA_DIR = path.join(process.cwd(), 'data');
-const BANS_FILE = path.join(DATA_DIR, 'bans.json');
-
-async function readBans(): Promise<Ban[]> {
-  try {
-    const data = await fs.readFile(BANS_FILE, 'utf-8');
-    return JSON.parse(data);
-  } catch (error) {
-    return [];
-  }
-}
-
-async function writeBans(bans: Ban[]): Promise<void> {
-  await fs.mkdir(DATA_DIR, { recursive: true });
-  await fs.writeFile(BANS_FILE, JSON.stringify(bans, null, 2), 'utf-8');
+function banFromRow(row: any): Ban {
+  return {
+    username: row.username,
+    reason: row.reason || '',
+    bannedBy: row.banned_by || '',
+    bannedAt: row.banned_at,
+    expiresAt: row.expires_at,
+    permanent: row.permanent === 1
+  };
 }
 
 export async function GET() {
   try {
-    const bans = await readBans();
+    const db = getDb();
+    const rows = db.prepare('SELECT * FROM bans').all();
+    const bans = rows.map(banFromRow);
     return NextResponse.json(bans);
   } catch (error) {
     console.error('Error reading bans:', error);
@@ -32,14 +27,25 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
-    const bans = await readBans();
+    const db = getDb();
     const newBan: Ban = await request.json();
     
     // Remove existing ban for this user
-    const filteredBans = bans.filter(b => b.username.toLowerCase() !== newBan.username.toLowerCase());
-    filteredBans.push(newBan);
+    db.prepare('DELETE FROM bans WHERE LOWER(username) = LOWER(?)').run(newBan.username);
     
-    await writeBans(filteredBans);
+    // Insert new ban
+    db.prepare(`
+      INSERT INTO bans (username, reason, banned_by, banned_at, expires_at, permanent)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `).run(
+      newBan.username,
+      newBan.reason || '',
+      newBan.bannedBy || '',
+      newBan.bannedAt,
+      newBan.expiresAt,
+      newBan.permanent ? 1 : 0
+    );
+    
     return NextResponse.json(newBan);
   } catch (error) {
     console.error('Error creating ban:', error);
@@ -56,9 +62,8 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: 'Username required' }, { status: 400 });
     }
     
-    const bans = await readBans();
-    const filteredBans = bans.filter(b => b.username.toLowerCase() !== username.toLowerCase());
-    await writeBans(filteredBans);
+    const db = getDb();
+    db.prepare('DELETE FROM bans WHERE LOWER(username) = LOWER(?)').run(username);
     
     return NextResponse.json({ success: true });
   } catch (error) {

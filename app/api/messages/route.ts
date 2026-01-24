@@ -1,23 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { promises as fs } from 'fs';
-import path from 'path';
+import { getDb } from '@/lib/db';
 import { Message } from '@/types';
 
-const DATA_DIR = path.join(process.cwd(), 'data');
-const MESSAGES_FILE = path.join(DATA_DIR, 'messages.json');
-
-async function readMessages(): Promise<Message[]> {
-  try {
-    const data = await fs.readFile(MESSAGES_FILE, 'utf-8');
-    return JSON.parse(data);
-  } catch (error) {
-    return [];
-  }
-}
-
-async function writeMessages(messages: Message[]): Promise<void> {
-  await fs.mkdir(DATA_DIR, { recursive: true });
-  await fs.writeFile(MESSAGES_FILE, JSON.stringify(messages, null, 2), 'utf-8');
+function messageFromRow(row: any): Message {
+  return {
+    id: row.id.toString(),
+    from: row.from_username,
+    to: row.to_username,
+    message: row.message,
+    timestamp: row.created_at * 1000, // Convert to milliseconds
+    read: row.read === 1
+  };
 }
 
 // GET - Get messages for a user (all or with a specific user)
@@ -31,28 +24,28 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Username is required' }, { status: 400 });
     }
 
-    const messages = await readMessages();
-
-    let filteredMessages: Message[];
+    const db = getDb();
+    let rows: any[];
+    
     if (withUsername) {
       // Get messages between two users
-      filteredMessages = messages.filter(
-        msg =>
-          (msg.from.toLowerCase() === username.toLowerCase() && msg.to.toLowerCase() === withUsername.toLowerCase()) ||
-          (msg.to.toLowerCase() === username.toLowerCase() && msg.from.toLowerCase() === withUsername.toLowerCase())
-      );
+      rows = db.prepare(`
+        SELECT * FROM messages
+        WHERE (LOWER(from_username) = LOWER(?) AND LOWER(to_username) = LOWER(?))
+           OR (LOWER(to_username) = LOWER(?) AND LOWER(from_username) = LOWER(?))
+        ORDER BY created_at ASC
+      `).all(username, withUsername, username, withUsername);
     } else {
       // Get all messages for the user
-      filteredMessages = messages.filter(
-        msg =>
-          msg.from.toLowerCase() === username.toLowerCase() || msg.to.toLowerCase() === username.toLowerCase()
-      );
+      rows = db.prepare(`
+        SELECT * FROM messages
+        WHERE LOWER(from_username) = LOWER(?) OR LOWER(to_username) = LOWER(?)
+        ORDER BY created_at ASC
+      `).all(username, username);
     }
 
-    // Sort by timestamp
-    filteredMessages.sort((a, b) => a.timestamp - b.timestamp);
-
-    return NextResponse.json(filteredMessages);
+    const messages = rows.map(messageFromRow);
+    return NextResponse.json(messages);
   } catch (error) {
     console.error('Error getting messages:', error);
     return NextResponse.json({ error: 'Failed to get messages' }, { status: 500 });
@@ -77,19 +70,20 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Message cannot be empty' }, { status: 400 });
     }
 
-    const messages = await readMessages();
+    const db = getDb();
+    const result = db.prepare(`
+      INSERT INTO messages (from_username, to_username, message, read)
+      VALUES (?, ?, ?, 0)
+    `).run(fromUsername, toUsername, message.trim());
 
     const newMessage: Message = {
-      id: `msg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      id: result.lastInsertRowid.toString(),
       from: fromUsername,
       to: toUsername,
       message: message.trim(),
       timestamp: Date.now(),
       read: false
     };
-
-    messages.push(newMessage);
-    await writeMessages(messages);
 
     return NextResponse.json(newMessage);
   } catch (error) {
@@ -108,17 +102,17 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: 'Message ID is required' }, { status: 400 });
     }
 
-    const messages = await readMessages();
-    const messageIndex = messages.findIndex(msg => msg.id === id);
-
-    if (messageIndex === -1) {
+    const db = getDb();
+    const row = db.prepare('SELECT * FROM messages WHERE id = ?').get(parseInt(id));
+    
+    if (!row) {
       return NextResponse.json({ error: 'Message not found' }, { status: 404 });
     }
 
-    messages[messageIndex].read = read !== undefined ? read : true;
-    await writeMessages(messages);
-
-    return NextResponse.json(messages[messageIndex]);
+    db.prepare('UPDATE messages SET read = ? WHERE id = ?').run(read !== undefined ? (read ? 1 : 0) : 1, parseInt(id));
+    
+    const updatedMessage = messageFromRow({ ...row, read: read !== undefined ? (read ? 1 : 0) : 1 });
+    return NextResponse.json(updatedMessage);
   } catch (error) {
     console.error('Error updating message:', error);
     return NextResponse.json({ error: 'Failed to update message' }, { status: 500 });

@@ -344,29 +344,33 @@ export async function saveDraft(draft: DraftGame): Promise<void> {
 // Published games functions - Now using API
 export async function getPublished(): Promise<PublishedGame[]> {
   if (typeof window === 'undefined') return [];
-  // Get all games from localStorage
-  let games = JSON.parse(localStorage.getItem("publishedGames") || "[]");
+  try {
+    const response = await fetch('/api/published', { cache: 'no-store' });
+    if (!response.ok) throw new Error('Failed to fetch published games');
+    const games = await response.json();
 
-  // Remove duplicates - keep only the most recent version of each System game
-  const seen = new Map<string, PublishedGame>();
-  games.forEach((game: PublishedGame) => {
-    const key = `${game.title}_${game.owner}`;
-    if (!seen.has(key) || (seen.get(key)?.ts || 0) < (game.ts || 0)) {
-      seen.set(key, game);
-    }
-  });
+    // Remove duplicates - keep only the most recent version of each System game
+    const seen = new Map<string, PublishedGame>();
+    games.forEach((game: PublishedGame) => {
+      const key = `${game.title}_${game.owner}`;
+      if (!seen.has(key) || (seen.get(key)?.ts || 0) < (game.ts || 0)) {
+        seen.set(key, game);
+      }
+    });
 
-  // Convert back to array and remove any Tic Ti Toe duplicates
-  const uniqueGames = Array.from(seen.values());
+    // Convert back to array
+    const uniqueGames = Array.from(seen.values());
 
-  // Filter out Tic Tac Toe and Capture the Flag games permanently
-  const filtered = uniqueGames.filter(g =>
-    !((g.title === 'Tic Ti Toe' || g.title === 'Tic Tac Toe' || g.title === 'Capture de Flag') && g.owner === 'System')
-  );
+    // Filter out Tic Tac Toe and Capture the Flag games permanently
+    const filtered = uniqueGames.filter(g =>
+      !((g.title === 'Tic Ti Toe' || g.title === 'Tic Tac Toe' || g.title === 'Capture de Flag') && g.owner === 'System')
+    );
 
-  // Save the cleaned list back to localStorage
-  localStorage.setItem("publishedGames", JSON.stringify(filtered));
-  return filtered;
+    return filtered;
+  } catch (e) {
+    console.error('Error reading published games from API:', e);
+    return [];
+  }
 }
 
 export async function savePublished(games: PublishedGame[]): Promise<void> {
@@ -383,48 +387,24 @@ export async function savePublished(games: PublishedGame[]): Promise<void> {
 }
 
 // Scene functions - Now using API
-export async function getSceneData(): Promise<SceneData> {
+export async function getSceneData(userId?: string): Promise<SceneData> {
   if (typeof window === 'undefined') return { objects: [] };
   try {
-    const response = await fetch('/api/scene');
+    const url = userId ? `/api/scene?userId=${encodeURIComponent(userId)}` : '/api/scene';
+    const response = await fetch(url, { cache: 'no-store' });
     if (!response.ok) throw new Error('Failed to fetch scene');
-    const apiScene = await response.json();
-
-    // Migration: Move localStorage data to API if it exists
-    try {
-      const localData = localStorage.getItem("sceneStore");
-      if (localData && (!apiScene.objects || apiScene.objects.length === 0)) {
-        const localScene: SceneData = JSON.parse(localData);
-        if (localScene.objects && localScene.objects.length > 0) {
-          await fetch('/api/scene', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(localScene)
-          }).catch(() => { });
-          localStorage.removeItem("sceneStore");
-          const updatedResponse = await fetch('/api/scene');
-          if (updatedResponse.ok) return await updatedResponse.json();
-        }
-      }
-    } catch (migrationError) {
-      console.error('Error migrating scene:', migrationError);
-    }
-
-    return apiScene;
+    return await response.json();
   } catch (e) {
     console.error('Error reading scene from API:', e);
-    try {
-      const data = localStorage.getItem("sceneStore");
-      if (data) return JSON.parse(data);
-    } catch { }
     return { objects: [] };
   }
 }
 
-export async function saveSceneData(data: SceneData): Promise<void> {
+export async function saveSceneData(data: SceneData, userId?: string): Promise<void> {
   if (typeof window === 'undefined') return;
   try {
-    await fetch('/api/scene', {
+    const url = userId ? `/api/scene?userId=${encodeURIComponent(userId)}` : '/api/scene';
+    await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data)

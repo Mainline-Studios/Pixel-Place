@@ -106,11 +106,120 @@ export function getDb(): Database.Database {
       FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
     );
     
+    CREATE TABLE IF NOT EXISTS drafts (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      username TEXT NOT NULL,
+      title TEXT,
+      desc TEXT,
+      owner TEXT,
+      game_code TEXT,
+      thumbnail TEXT,
+      created_at INTEGER DEFAULT (strftime('%s', 'now')),
+      updated_at INTEGER DEFAULT (strftime('%s', 'now')),
+      UNIQUE(username)
+    );
+    
+    CREATE TABLE IF NOT EXISTS bans (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      username TEXT UNIQUE NOT NULL,
+      reason TEXT,
+      banned_by TEXT,
+      banned_at INTEGER NOT NULL,
+      expires_at INTEGER,
+      permanent INTEGER DEFAULT 0,
+      created_at INTEGER DEFAULT (strftime('%s', 'now'))
+    );
+    
+    CREATE TABLE IF NOT EXISTS ban_appeals (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      ban_id INTEGER NOT NULL,
+      username TEXT NOT NULL,
+      appeal_text TEXT NOT NULL,
+      status TEXT DEFAULT 'pending',
+      reviewed_by TEXT,
+      reviewed_at INTEGER,
+      created_at INTEGER DEFAULT (strftime('%s', 'now')),
+      FOREIGN KEY (ban_id) REFERENCES bans(id) ON DELETE CASCADE
+    );
+    
+    CREATE TABLE IF NOT EXISTS reports (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      reported_username TEXT NOT NULL,
+      reported_by TEXT NOT NULL,
+      reason TEXT NOT NULL,
+      description TEXT,
+      status TEXT DEFAULT 'pending',
+      reviewed_by TEXT,
+      reviewed_at INTEGER,
+      created_at INTEGER DEFAULT (strftime('%s', 'now'))
+    );
+    
+    CREATE TABLE IF NOT EXISTS friend_requests (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      from_username TEXT NOT NULL,
+      to_username TEXT NOT NULL,
+      status TEXT DEFAULT 'pending',
+      created_at INTEGER DEFAULT (strftime('%s', 'now')),
+      updated_at INTEGER DEFAULT (strftime('%s', 'now'))
+    );
+    
+    CREATE TABLE IF NOT EXISTS messages (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      from_username TEXT NOT NULL,
+      to_username TEXT NOT NULL,
+      message TEXT NOT NULL,
+      read INTEGER DEFAULT 0,
+      created_at INTEGER DEFAULT (strftime('%s', 'now'))
+    );
+    
+    CREATE TABLE IF NOT EXISTS tab_content (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      tab_name TEXT UNIQUE NOT NULL,
+      content TEXT NOT NULL,
+      updated_at INTEGER DEFAULT (strftime('%s', 'now'))
+    );
+    
+    CREATE TABLE IF NOT EXISTS game_servers (
+      id TEXT PRIMARY KEY,
+      owner TEXT NOT NULL,
+      name TEXT NOT NULL,
+      plan_id TEXT,
+      max_players INTEGER,
+      current_players INTEGER DEFAULT 0,
+      status TEXT DEFAULT 'active',
+      created_at INTEGER DEFAULT (strftime('%s', 'now'))
+    );
+    
+    CREATE TABLE IF NOT EXISTS server_plans (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      max_players INTEGER NOT NULL,
+      price INTEGER NOT NULL,
+      description TEXT,
+      features TEXT,
+      created_at INTEGER DEFAULT (strftime('%s', 'now'))
+    );
+    
+    CREATE TABLE IF NOT EXISTS prebuilt_games (
+      id TEXT PRIMARY KEY,
+      title TEXT NOT NULL,
+      description TEXT,
+      owner TEXT NOT NULL,
+      ts INTEGER NOT NULL,
+      scene_data TEXT,
+      created_at INTEGER DEFAULT (strftime('%s', 'now'))
+    );
+    
     CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);
     CREATE INDEX IF NOT EXISTS idx_games_owner ON games(owner);
     CREATE INDEX IF NOT EXISTS idx_published_games_owner ON published_games(owner);
     CREATE INDEX IF NOT EXISTS idx_sessions_token ON sessions(token);
     CREATE INDEX IF NOT EXISTS idx_sessions_user ON sessions(user_id);
+    CREATE INDEX IF NOT EXISTS idx_bans_username ON bans(username);
+    CREATE INDEX IF NOT EXISTS idx_friend_requests_from ON friend_requests(from_username);
+    CREATE INDEX IF NOT EXISTS idx_friend_requests_to ON friend_requests(to_username);
+    CREATE INDEX IF NOT EXISTS idx_messages_from ON messages(from_username);
+    CREATE INDEX IF NOT EXISTS idx_messages_to ON messages(to_username);
   `);
   
   return db;
