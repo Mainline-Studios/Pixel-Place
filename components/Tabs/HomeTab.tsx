@@ -20,7 +20,7 @@ export default function HomeTab({ user, editMode, onResetPublished }: HomeTabPro
   const [showGymPump, setShowGymPump] = useState(false);
   const [published, setPublished] = useState<PublishedGame[]>([]);
   const [users, setUsers] = useState<User[]>([]);
-  const [skins, setSkins] = useState(getSkins());
+  const [skins, setSkins] = useState<Skin[]>([]);
 
   // Refresh data - non-blocking, load immediately
   useEffect(() => {
@@ -31,7 +31,7 @@ export default function HomeTab({ user, editMode, onResetPublished }: HomeTabPro
           getPublished().catch(() => []),
           getUsers().catch(() => [])
         ]);
-        const skinsData = getSkins();
+        const skinsData = await getSkins();
 
         setPublished(Array.isArray(publishedData) ? publishedData : []);
         setUsers(Array.isArray(usersData) ? usersData : []);

@@ -411,10 +411,11 @@ export default function HolidayBundle({ user, onClose }: HolidayBundleProps) {
                 // Save spin state
                 savePurchaseState(true, true, rewards[selectedIndex]);
 
-                // Add reward to user's inventory with themed colors
-                const reward = rewards[selectedIndex];
-                if (reward.type === 'skin') {
-                    const skins = getSkins();
+                // Add reward to user's inventory with themed colors (async)
+                (async () => {
+                    const reward = rewards[selectedIndex];
+                    if (reward.type === 'skin') {
+                        const skins = await getSkins();
 
                     // Get themed colors based on reward
                     let colors = { head: '#FFDBB3', torso: '#4169E1', arm: '#FFDBB3', legs: '#4169E1' };
@@ -486,9 +487,10 @@ export default function HolidayBundle({ user, onClose }: HolidayBundleProps) {
                         img: '',
                         special: true
                     };
-                    accessories.push(newAccessory);
-                    saveAccessories(accessories);
-                }
+                        accessories.push(newAccessory);
+                        await saveAccessories(accessories);
+                    }
+                })();
             }
         };
 

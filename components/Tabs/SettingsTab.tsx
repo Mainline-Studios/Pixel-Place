@@ -24,7 +24,7 @@ export default function SettingsTab({ user, editMode, onToggleEditMode, onResetP
     // Load data immediately without blocking
     const loadData = async () => {
       try {
-        const skinsData = getSkins();
+        const skinsData = await getSkins();
         const tabData = await getTabContent();
         setSkins(Array.isArray(skinsData) ? skinsData : []);
         setTabContent(tabData || ({} as TabContent));

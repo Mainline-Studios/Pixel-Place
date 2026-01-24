@@ -201,12 +201,13 @@ export default function AvatarShopTab({ user, editMode }: AvatarShopTabProps) {
   const [accessories, setAccessories] = useState<Accessory[]>([]);
   // TODO: Remove this banner when new currency is released - set to false or delete the banner code
   const [showCurrencyBanner, setShowCurrencyBanner] = useState(true);
-  // Load data synchronously - getSkins and getAccessories are synchronous functions
+  // Load data asynchronously - getSkins and getAccessories are async functions
   useEffect(() => {
-    try {
-      // These are synchronous localStorage calls - instant
-      const skinsData = getSkins();
-      const accessoriesData = getAccessories();
+    const loadData = async () => {
+      try {
+        // These are async API calls
+        const skinsData = await getSkins();
+        const accessoriesData = await getAccessories();
       
       // Validate and filter out invalid skins
       // Also filter out admin-only skins for non-admins
@@ -228,13 +229,15 @@ export default function AvatarShopTab({ user, editMode }: AvatarShopTabProps) {
         return acc && acc.id && acc.type && acc.name;
       });
       
-      setSkins(validSkins);
-      setAccessories(validAccessories);
-    } catch (error: any) {
-      // Silent error - don't block UI, just use empty arrays
-      setSkins([]);
-      setAccessories([]);
-    }
+        setSkins(validSkins);
+        setAccessories(validAccessories);
+      } catch (error: any) {
+        // Silent error - don't block UI, just use empty arrays
+        setSkins([]);
+        setAccessories([]);
+      }
+    };
+    loadData();
   }, [user.role]);
   const ownedSkins = skins.filter((s) => user.ownedSkins?.includes(s.id));
   const ownedAccessories = accessories.filter((a) => user.ownedAccessories?.includes(a.id));
