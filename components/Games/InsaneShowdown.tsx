@@ -1,4 +1,13 @@
 import React, { useEffect, useRef, useState } from "react";
+import {
+  POWER_RANGES,
+  POWER_WIDTHS,
+  POWER_RADII,
+  AOE_RADII,
+  getPowerRange,
+  getPowerWidth,
+  getPowerRadius,
+} from "@/lib/gameScaling";
 
 /**
  * SuperShowdownCombined
@@ -562,7 +571,7 @@ export default function SuperShowdownCombined(): JSX.Element {
         bhs.forEach((bh) => {
           if (bh.active && ts >= bh.explodeAt) {
             // Explosion: damage anything within radius * 1.4
-            const explosionRadius = bh.radius * 1.4;
+            const explosionRadius = AOE_RADII.blackHoleExplosion;
             const explosionDamage = 22;
             if (inCircle(bh.pos, explosionRadius, player.pos)) {
               setPlayer((p) => applyDamageToFighter(p, explosionDamage));
@@ -798,7 +807,7 @@ export default function SuperShowdownCombined(): JSX.Element {
     const hpNow = player.hp;
     let dmg = 10;
     let reloadMs = 1000;
-    const range = 7;
+    const range = getPowerRange("berserker");
     if (hpNow < 10) {
       dmg = 20;
       reloadMs = 500;
@@ -809,7 +818,7 @@ export default function SuperShowdownCombined(): JSX.Element {
     const dir = { x: aimTarget.x - player.pos.x, y: aimTarget.y - player.pos.y };
     const len = Math.hypot(dir.x, dir.y) || 0.0001;
     const norm = { x: dir.x / len, y: dir.y / len };
-    const width = 4;
+    const width = getPowerWidth("berserker");
     if (isInBeam(player.pos, norm, width, range, enemy.pos)) {
       setEnemy((e) => applyDamageToFighter(e, dmg));
       pushLog(`Berserker hits for ${dmg} damage.`);
@@ -833,7 +842,7 @@ export default function SuperShowdownCombined(): JSX.Element {
     regenActiveRef.current = false;
 
     if (player.power === "doppelganger") {
-      const sliceRange = 2;
+      const sliceRange = getPowerRadius("doppelganger") || POWER_RADII.doppelganger || 2;
       if (distance(player.pos, enemy.pos) <= sliceRange) {
         setEnemy((e) => applyDamageToFighter(e, 40));
         pushLog("You (Doppelganger) slice the enemy for 40 damage.");
@@ -852,7 +861,7 @@ export default function SuperShowdownCombined(): JSX.Element {
       const dir = { x: aimTarget.x - player.pos.x, y: aimTarget.y - player.pos.y };
       const len = Math.hypot(dir.x, dir.y) || 0.0001;
       const norm = { x: dir.x / len, y: dir.y / len };
-      if (isInBeam(player.pos, norm, 3, 7, enemy.pos)) {
+      if (isInBeam(player.pos, norm, getPowerWidth("regen"), getPowerRange("regen"), enemy.pos)) {
         setEnemy((e) => {
           const ne = applyDamageToFighter(e, 10);
           pushLog("Regen beam hits for 10 damage.");
@@ -871,8 +880,8 @@ export default function SuperShowdownCombined(): JSX.Element {
     const dir = { x: aimTarget.x - player.pos.x, y: aimTarget.y - player.pos.y };
     const len = Math.hypot(dir.x, dir.y) || 0.0001;
     const norm = { x: dir.x / len, y: dir.y / len };
-    const range = 20;
-    const width = 2;
+    const range = 20; // Default firing range for non-specific powers
+    const width = 2;  // Default firing width
     if (isInBeam(player.pos, norm, width, range, enemy.pos)) {
       setEnemy((e) => applyDamageToFighter(e, 14));
       pushLog("You fire and hit the enemy for 14 damage.");
@@ -922,7 +931,7 @@ export default function SuperShowdownCombined(): JSX.Element {
         const dir = { x: aimTarget.x - player.pos.x, y: aimTarget.y - player.pos.y };
         const len = Math.hypot(dir.x, dir.y) || 0.0001;
         const norm = { x: dir.x / len, y: dir.y / len };
-        if (isInBeam(player.pos, norm, 2, 18, enemy.pos)) {
+        if (isInBeam(player.pos, norm, getPowerWidth(pw), getPowerRange(pw), enemy.pos)) {
           setEnemy((e) => applyDamageToFighter(e, 12));
           pushLog(`${pw} strikes true and deals 12 damage.`);
         } else {
@@ -933,7 +942,7 @@ export default function SuperShowdownCombined(): JSX.Element {
       }
 
       case "mud": {
-        const patch: MudPatch = { id: `mud-${Date.now()}`, pos: clampPos(aimTarget), radius: 3.5, createdAt: Date.now(), durationMs: 8000 };
+        const patch: MudPatch = { id: `mud-${Date.now()}`, pos: clampPos(aimTarget), radius: AOE_RADII.mudPatch, createdAt: Date.now(), durationMs: 8000 };
         setMudPatches((m) => [...m, patch]);
         ammoRef.current["mud"] = Math.max(0, ammo - 1);
         pushLog("You create a muddy pool beneath your target.");
@@ -944,7 +953,7 @@ export default function SuperShowdownCombined(): JSX.Element {
         const dir = { x: aimTarget.x - player.pos.x, y: aimTarget.y - player.pos.y };
         const len = Math.hypot(dir.x, dir.y) || 0.0001;
         const norm = { x: dir.x / len, y: dir.y / len };
-        if (isInBeam(player.pos, norm, 4, 10, enemy.pos)) {
+        if (isInBeam(player.pos, norm, getPowerWidth("parasite"), getPowerRange("parasite"), enemy.pos)) {
           setEnemy((e) => applyDamageToFighter(e, 10));
           setPlayer((p) => ({ ...p, hp: Math.min(p.maxHp, p.hp + 3) }));
           const pe: ParasiteEntity = { id: `par-${Date.now()}`, ownerId: player.id, targetEnemyId: enemy.id, nextAttackAt: Date.now() + 4500, expireAt: Date.now() + 18000 };
@@ -967,8 +976,8 @@ export default function SuperShowdownCombined(): JSX.Element {
         const dir = { x: aimTarget.x - player.pos.x, y: aimTarget.y - player.pos.y };
         const len = Math.hypot(dir.x, dir.y) || 0.0001;
         const norm = { x: dir.x / len, y: dir.y / len };
-        const range = 16;
-        const width = 3.2;
+        const range = getPowerRange("harmony");
+        const width = getPowerWidth("harmony");
         let hit = false;
         if (isInBeam(player.pos, norm, width, range, enemy.pos)) {
           setEnemy((e) => applyDamageToFighter(e, 3));
@@ -1024,7 +1033,7 @@ export default function SuperShowdownCombined(): JSX.Element {
         const dir = { x: aimTarget.x - player.pos.x, y: aimTarget.y - player.pos.y };
         const len = Math.hypot(dir.x, dir.y) || 0.0001;
         const norm = { x: dir.x / len, y: dir.y / len };
-        const hit = isInBeam(player.pos, norm, 2, 10, enemy.pos);
+        const hit = isInBeam(player.pos, norm, getPowerWidth("hex"), getPowerRange("hex"), enemy.pos);
         if (hit) {
           setEnemy((e) => {
             const ne = applyDamageToFighter(e, 7);
@@ -1060,7 +1069,7 @@ export default function SuperShowdownCombined(): JSX.Element {
         let dmg = 12;
         const lunarState = lunarStateRef.current;
         if (ts < lunarState.midnightActiveUntil) dmg *= 2;
-        if (isInBeam(player.pos, norm, 4, 16, enemy.pos)) {
+        if (isInBeam(player.pos, norm, getPowerWidth("lunar"), getPowerRange("lunar"), enemy.pos)) {
           setEnemy((e) => applyDamageToFighter(e, dmg));
           pushLog(`Lunar hits for ${dmg} damage.`);
           lr.magRemaining -= 1;
@@ -1177,7 +1186,7 @@ export default function SuperShowdownCombined(): JSX.Element {
      Black hole creation helper
      - Example usage (if some power creates one) should set explodeAt = createdAt + 3000 ms and active true.
      --------------------------- */
-  function createBlackHole(origin: Vec2, radius = 3) {
+  function createBlackHole(origin: Vec2, radius = AOE_RADII.blackHoleDefault) {
     const now = Date.now();
     const bh: BlackHole = {
       id: `bh-${now}`,
