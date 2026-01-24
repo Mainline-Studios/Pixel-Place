@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
+import { AOE_RADII, GAME_2D } from "@/lib/gameScaling";
 
 /**
  * SuperShowdown2D
@@ -372,7 +373,7 @@ export default function SuperShowdown2D(): JSX.Element {
   function spawnBullet(owner: Player, targetX: number, targetY: number, pw?: Power) {
     const from = { x: owner.pos.x, y: owner.pos.y };
     const angle = Math.atan2(targetY - from.y, targetX - from.x);
-    const speed = 560;
+    const speed = GAME_2D.bulletSpeed;
     const vel = { x: Math.cos(angle) * speed, y: Math.sin(angle) * speed };
     const b: Bullet = {
       id: Math.random().toString(36).slice(2),
@@ -380,14 +381,14 @@ export default function SuperShowdown2D(): JSX.Element {
       vel,
       ownerId: owner.id,
       power: pw,
-      life: 1.8,
-      radius: 4,
+      life: GAME_2D.bulletLifetime,
+      radius: GAME_2D.bulletRadius,
     };
     bulletsRef.current.push(b);
   }
 
   function createMud(pos: Vec) {
-    const mp: MudPatch = { id: `mud-${Date.now()}`, pos, radius: 40, createdAt: Date.now(), durationMs: 9000 };
+    const mp: MudPatch = { id: `mud-${Date.now()}`, pos, radius: AOE_RADII.mudPatch2D, createdAt: Date.now(), durationMs: 9000 };
     mudRef.current.push(mp);
   }
 

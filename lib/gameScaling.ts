@@ -103,10 +103,20 @@ export const POWER_RADII: Partial<Record<Power, number>> = {
  * AoE effect radii
  */
 export const AOE_RADII = {
-  mudPatch: 3.5,           // Slowing mud patch
+  mudPatch: 3.5,           // Slowing mud patch (3D games)
+  mudPatch2D: 40,          // Slowing mud patch (2D game in pixels)
   blackHoleDefault: 3,     // Black hole default radius
   blackHoleExplosion: 4.2, // Black hole explosion (default * 1.4)
-  sunExplosion: 8,         // Soleil sun explosion radius
+  sunExplosion: 4,         // Soleil sun explosion radius
+};
+
+/**
+ * 2D Game constants (SuperShowdown2D specific)
+ */
+export const GAME_2D = {
+  bulletRadius: 4,         // Default bullet projectile radius
+  bulletSpeed: 560,        // Default bullet speed
+  bulletLifetime: 1.8,     // Default bullet lifetime in seconds
 };
 
 /**

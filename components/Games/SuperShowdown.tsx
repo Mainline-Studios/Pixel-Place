@@ -1,4 +1,8 @@
 import React, { useEffect, useRef, useState } from "react";
+import {
+  getPowerRange,
+  getPowerWidth,
+} from "@/lib/gameScaling";
 
 /**
  * SuperShowdown — 3D Arena & 3D Players
@@ -566,8 +570,8 @@ export default function SuperShowdown(): JSX.Element {
     const dir = { x: aimTarget.x - player.pos.x, y: aimTarget.y - player.pos.y };
     const len = Math.hypot(dir.x, dir.y) || 0.0001;
     const norm = { x: dir.x / len, y: dir.y / len };
-    const range = 20;
-    const width = 2;
+    const range = getPowerRange(player.power);
+    const width = getPowerWidth(player.power);
     if (isInBeam(player.pos, norm, width, range, enemy.pos)) {
       setEnemy((e) => {
         const ne = applyDamageToFighter(e, 14);
