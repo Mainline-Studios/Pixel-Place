@@ -199,7 +199,7 @@ export default function Login() {
                 value={username}
                 onChange={handleUsernameChange}
               />
-              <div className="input-hint">not you name!</div>
+              <div className="input-hint">Please do not use your real name</div>
 
               <input
                 id="pass"
