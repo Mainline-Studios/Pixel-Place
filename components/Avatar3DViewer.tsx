@@ -182,31 +182,44 @@ export default function Avatar3DViewer({
         const armColor = hexToColor(skin.colors?.arm || '#3a3f56');
         const legColor = hexToColor(skin.colors?.legs || '#3a3f56');
 
-        // Create materials with pixelated textures
-        const headMaterial = new THREE.MeshStandardMaterial({
-          map: createPixelatedTexture(headColor, 8),
-          color: new THREE.Color(headColor.r, headColor.g, headColor.b),
-          roughness: 0.8,
-          metalness: 0.0
-        });
-        const torsoMaterial = new THREE.MeshStandardMaterial({
-          map: createPixelatedTexture(torsoColor, 8),
-          color: new THREE.Color(torsoColor.r, torsoColor.g, torsoColor.b),
-          roughness: 0.7,
-          metalness: 0.1
-        });
-        const armMaterial = new THREE.MeshStandardMaterial({
-          map: createPixelatedTexture(armColor, 8),
-          color: new THREE.Color(armColor.r, armColor.g, armColor.b),
-          roughness: 0.7,
-          metalness: 0.1
-        });
-        const legMaterial = new THREE.MeshStandardMaterial({
-          map: createPixelatedTexture(legColor, 8),
-          color: new THREE.Color(legColor.r, legColor.g, legColor.b),
-          roughness: 0.7,
-          metalness: 0.1
-        });
+        // Check for glow properties
+        const hasGlow = skin.isSpecial || (skin.materials?.torso?.emissive !== undefined);
+        const glowColor = skin.materials?.torso?.emissive || skin.materials?.head?.emissive || '#4a90e2';
+        const glowIntensity = skin.materials?.torso?.emissiveIntensity || skin.materials?.head?.emissiveIntensity || 0.6;
+
+        // Create materials with pixelated textures (or glow for special skins)
+        const headMaterial = hasGlow 
+          ? createGlowMaterial(headColor, true, glowColor, glowIntensity)
+          : new THREE.MeshStandardMaterial({
+              map: createPixelatedTexture(headColor, 8),
+              color: new THREE.Color(headColor.r, headColor.g, headColor.b),
+              roughness: 0.8,
+              metalness: 0.0
+            });
+        const torsoMaterial = hasGlow
+          ? createGlowMaterial(torsoColor, true, glowColor, glowIntensity)
+          : new THREE.MeshStandardMaterial({
+              map: createPixelatedTexture(torsoColor, 8),
+              color: new THREE.Color(torsoColor.r, torsoColor.g, torsoColor.b),
+              roughness: 0.7,
+              metalness: 0.1
+            });
+        const armMaterial = hasGlow
+          ? createGlowMaterial(armColor, true, glowColor, glowIntensity)
+          : new THREE.MeshStandardMaterial({
+              map: createPixelatedTexture(armColor, 8),
+              color: new THREE.Color(armColor.r, armColor.g, armColor.b),
+              roughness: 0.7,
+              metalness: 0.1
+            });
+        const legMaterial = hasGlow
+          ? createGlowMaterial(legColor, true, glowColor, glowIntensity)
+          : new THREE.MeshStandardMaterial({
+              map: createPixelatedTexture(legColor, 8),
+              color: new THREE.Color(legColor.r, legColor.g, legColor.b),
+              roughness: 0.7,
+              metalness: 0.1
+            });
 
         // Helper function to create Roblox-style rounded boxes
         const createRoundedBox = (width: number, height: number, depth: number, radius: number = 0.1) => {
@@ -282,24 +295,36 @@ export default function Avatar3DViewer({
         const isSpecial = (skin as any).special || false;
         const isHighPoly = skin.isSpecial || false; // Special skins use high-poly models
 
-        // Helper to create high-poly geometry (500+ polygons)
+        // Helper to create high-poly geometry (500+ polygons MINIMUM)
         const createHighPolyGeometry = (type: 'head' | 'torso' | 'arm' | 'leg', width: number, height: number, depth: number) => {
           if (!isHighPoly) {
             return createRoundedBox(width, height, depth, 0.1);
           }
           
-          // Use IcosahedronGeometry for head (high poly sphere)
+          // Use IcosahedronGeometry for head (high poly sphere) - 4 subdivisions = ~5120 faces
           if (type === 'head') {
             const radius = Math.max(width, height, depth) / 2;
-            const geometry = new THREE.IcosahedronGeometry(radius, 3); // 3 subdivisions = ~1280 faces
+            const geometry = new THREE.IcosahedronGeometry(radius, 4); // 4 subdivisions = ~5120 faces (WAY over 500!)
             return geometry;
           }
           
-          // For body parts, use subdivided box geometry
-          const segments = 16; // 16x16x16 = 1536 faces per box
+          // For body parts, use highly subdivided box geometry - 20x20x20 = 2400 faces per box (WAY over 500!)
+          const segments = 20; // 20x20x20 = 2400 faces per box (ensures 500+ polygons)
           const geometry = new THREE.BoxGeometry(width, height, depth, segments, segments, segments);
           geometry.computeVertexNormals();
           return geometry;
+        };
+
+        // Helper to create glowing material with emissive properties
+        const createGlowMaterial = (baseColor: { r: number, g: number, b: number }, hasGlow: boolean, glowColor?: string, glowIntensity: number = 0.5) => {
+          const material = new THREE.MeshStandardMaterial({
+            color: new THREE.Color(baseColor.r, baseColor.g, baseColor.b),
+            roughness: hasGlow ? 0.3 : 0.7,
+            metalness: hasGlow ? 0.5 : 0.1,
+            emissive: hasGlow && glowColor ? new THREE.Color(glowColor) : new THREE.Color(0, 0, 0),
+            emissiveIntensity: hasGlow ? glowIntensity : 0
+          });
+          return material;
         };
 
         // Add accessories if available
