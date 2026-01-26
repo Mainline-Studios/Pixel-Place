@@ -95,7 +95,9 @@ export interface Skin {
   name: string;
   price: number; // Price in Pixel Coins
   safetyPointsPrice?: number; // Price in Safety Points (for special skins)
+  dualPrice?: { coins: number; safetyPoints: number }; // Cost both coins AND safety points
   isSpecial?: boolean; // Special skin that costs Safety Points
+  isFace?: boolean; // Is this a face (for faces section)
   img: string;
   colors: {
     head: string;
