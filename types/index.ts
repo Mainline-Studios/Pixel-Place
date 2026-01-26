@@ -7,6 +7,8 @@ export interface User {
   safetyPoints?: number; // Safety Points currency (separate from coins)
   ownedSkins: string[];
   equippedSkin: string;
+  ownedFaces?: string[]; // Face IDs owned by user
+  equippedFace?: string; // Currently equipped face ID
   playtimeToday?: number; // Total playtime in milliseconds today
   breaksTakenToday?: number; // Number of breaks taken today (max 3)
   lastBreakTime?: number; // Timestamp of last break

@@ -8,6 +8,7 @@ import { escapeHTML } from '@/lib/utils';
 import { useUser } from '@/contexts/UserContext';
 import Avatar3DViewer from '@/components/Avatar3DViewer';
 import Accessory3DThumbnail from '@/components/Accessory3DThumbnail';
+import FaceThumb from '@/components/FaceThumb';
 
 interface AvatarShopTabProps {
   user: User;
@@ -245,6 +246,7 @@ export default function AvatarShopTab({ user, editMode }: AvatarShopTabProps) {
   // Separate faces from regular skins
   const regularSkins = skins.filter((s) => !s.isFace);
   const faces = skins.filter((s) => s.isFace);
+  const ownedFaces = faces.filter((f) => user.ownedFaces?.includes(f.id));
   
   // Find equipped skin with validation
   let equippedSkin = skins.find((s) => s.id === user.equippedSkin);
@@ -271,22 +273,27 @@ export default function AvatarShopTab({ user, editMode }: AvatarShopTabProps) {
   const equippedSkinName = equippedSkin ? equippedSkin.name : 'None';
 
   const handlePurchase = async (skin: Skin) => {
-    if (user.ownedSkins?.includes(skin.id)) {
-      return; // Already owned - silent fail
-    }
+    // Check if it's a face - faces go to ownedFaces, not ownedSkins
+    if (skin.isFace) {
+      if (user.ownedFaces?.includes(skin.id)) {
+        return; // Already owned - silent fail
+      }
 
-    // Check if it's a face with single currency pricing (coins OR safety points)
-    if (skin.isFace && skin.price > 0 && skin.safetyPointsPrice) {
+      // Faces must have pricing (not free)
+      if (!skin.price && !skin.safetyPointsPrice) {
+        return; // No pricing - silent fail
+      }
+
       const userCoins = user.coins || 0;
       const userSafetyPoints = user.safetyPoints || 0;
       const formattedCoins = userCoins.toLocaleString('en-US');
       const formattedSafetyPoints = userSafetyPoints.toLocaleString('en-US');
-      const formattedCoinPrice = skin.price.toLocaleString('en-US');
-      const formattedSPPrice = skin.safetyPointsPrice.toLocaleString('en-US');
+      const formattedCoinPrice = (skin.price || 0).toLocaleString('en-US');
+      const formattedSPPrice = (skin.safetyPointsPrice || 0).toLocaleString('en-US');
       
       // Check if user can afford with either currency
-      const canAffordCoins = userCoins >= skin.price;
-      const canAffordSP = userSafetyPoints >= skin.safetyPointsPrice;
+      const canAffordCoins = skin.price > 0 && userCoins >= skin.price;
+      const canAffordSP = skin.safetyPointsPrice && userSafetyPoints >= skin.safetyPointsPrice;
       
       if (!canAffordCoins && !canAffordSP) {
         return; // Not enough currency - silent fail
@@ -298,22 +305,22 @@ export default function AvatarShopTab({ user, editMode }: AvatarShopTabProps) {
         useCoins = confirm(`Buy ${skin.name}?\n\nPay with:\n- ${formattedCoinPrice} Coins (you have ${formattedCoins})\n- OR ${formattedSPPrice} Safety Points (you have ${formattedSafetyPoints})\n\nClick OK to pay with Coins, Cancel to pay with Safety Points`);
       }
       
-      if (useCoins && canAffordCoins) {
+      if (useCoins && canAffordCoins && skin.price > 0) {
         if (confirm(`Buy ${skin.name} for ${formattedCoinPrice} Coins?\nYour balance: ${formattedCoins} Coins`)) {
           try {
             const newCoins = userCoins - skin.price;
-            const newOwnedSkins = [...(user.ownedSkins || []), skin.id];
-            await updateUser({ coins: newCoins, ownedSkins: newOwnedSkins });
+            const newOwnedFaces = [...(user.ownedFaces || []), skin.id];
+            await updateUser({ coins: newCoins, ownedFaces: newOwnedFaces });
           } catch (error) {
             // Silent error handling
           }
         }
-      } else if (canAffordSP) {
+      } else if (canAffordSP && skin.safetyPointsPrice) {
         if (confirm(`Buy ${skin.name} for ${formattedSPPrice} Safety Points?\nYour balance: ${formattedSafetyPoints} Safety Points`)) {
           try {
             const newSafetyPoints = userSafetyPoints - skin.safetyPointsPrice;
-            const newOwnedSkins = [...(user.ownedSkins || []), skin.id];
-            await updateUser({ safetyPoints: newSafetyPoints, ownedSkins: newOwnedSkins });
+            const newOwnedFaces = [...(user.ownedFaces || []), skin.id];
+            await updateUser({ safetyPoints: newSafetyPoints, ownedFaces: newOwnedFaces });
             
             // Sync safety points to backend
             try {
@@ -335,6 +342,11 @@ export default function AvatarShopTab({ user, editMode }: AvatarShopTabProps) {
         }
       }
       return;
+    }
+
+    // Regular skin purchase
+    if (user.ownedSkins?.includes(skin.id)) {
+      return; // Already owned - silent fail
     }
 
     // Check if it's a special skin (uses Safety Points)
@@ -403,6 +415,27 @@ export default function AvatarShopTab({ user, editMode }: AvatarShopTabProps) {
       return; // Silent fail - don't own skin
     }
     updateUser({ equippedSkin: skinId });
+  };
+
+  const handleEquipFace = async (faceId: string) => {
+    if (!user.ownedFaces?.includes(faceId)) {
+      return; // Silent fail - don't own face
+    }
+    try {
+      await updateUser({ equippedFace: faceId });
+      // Also sync to backend
+      await fetch('/api/faces', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          username: user.username,
+          action: 'equip',
+          faceId
+        })
+      }).catch(() => {}); // Silent fail
+    } catch (error) {
+      // Silent error handling
+    }
   };
 
   const handlePurchaseAccessory = async (accessory: Accessory) => {
@@ -682,6 +715,46 @@ export default function AvatarShopTab({ user, editMode }: AvatarShopTabProps) {
           )}
         </div>
       </div>
+
+      {/* Owned Faces Section */}
+      {ownedFaces.length > 0 && (
+        <div className="ai-box" style={{ marginBottom: '24px' }}>
+          <div className="skins-section-title">✨ Owned Faces</div>
+          <div className="smalltext" style={{ marginBottom: '8px' }}>
+            Your premium faces. Equip one to apply it to your avatar's head!
+          </div>
+          <div className="skins-grid">
+            {ownedFaces.map((f) => {
+              const equipped = user.equippedFace === f.id;
+              return (
+                <div key={f.id} className="skin-card" style={{
+                  border: equipped ? '2px solid #4a90e2' : '2px solid rgba(255, 215, 0, 0.5)',
+                  boxShadow: equipped ? '0 0 20px rgba(74, 144, 226, 0.5)' : '0 0 20px rgba(255, 215, 0, 0.3)'
+                }}>
+                  <FaceThumb face={f} />
+                  <div className="skin-name" style={{ color: equipped ? '#4a90e2' : '#ffd700', fontWeight: 600 }}>
+                    {escapeHTML(f.name)}
+                  </div>
+                  <div className="skin-actions">
+                    <button
+                      className="btn"
+                      onClick={() => handleEquipFace(f.id)}
+                      disabled={equipped}
+                      style={equipped ? {
+                        background: 'linear-gradient(135deg, #4a90e2 0%, #357abd 100%)',
+                        border: '1px solid #5a9fe2'
+                      } : {}}
+                    >
+                      {equipped ? 'Equipped' : 'Equip Face'}
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {/* Premium Skins Section - 500+ polygons with glows */}
       {regularSkins.filter(s => s.isSpecial && s.safetyPointsPrice && !s.isFace && s.id.startsWith('premium_')).length > 0 && (
         <div className="ai-box" style={{ marginBottom: '24px' }}>
@@ -745,37 +818,41 @@ export default function AvatarShopTab({ user, editMode }: AvatarShopTabProps) {
         </div>
         <div className="skins-grid">
             {faces.map((s) => {
-              const owned = user.ownedSkins?.includes(s.id);
-              const equipped = user.equippedSkin === s.id;
-              // Can pay with coins OR safety points (not both)
-              const affordable = (user.coins || 0) >= s.price || (user.safetyPoints || 0) >= (s.safetyPointsPrice || 0);
+              const owned = user.ownedFaces?.includes(s.id);
+              const equipped = user.equippedFace === s.id;
+              // Can pay with coins OR safety points (not both) - faces must have pricing
+              const affordable = (s.price > 0 && (user.coins || 0) >= s.price) || (s.safetyPointsPrice && (user.safetyPoints || 0) >= s.safetyPointsPrice);
 
             return (
               <div key={s.id} className="skin-card" style={{
                 border: '2px solid rgba(255, 215, 0, 0.5)',
                 boxShadow: '0 0 20px rgba(255, 215, 0, 0.3)'
               }}>
-                <SkinThumb skin={s} accessories={[]} />
+                <FaceThumb face={s} />
                 <div className="skin-name" style={{ color: '#ffd700', fontWeight: 600 }}>{escapeHTML(s.name)}</div>
                 <div className="skin-meta">
                   <span className="price-tag" style={{ color: '#ffd700', fontWeight: 600 }}>
                     {s.price > 0 && s.safetyPointsPrice 
                       ? `💠 ${s.price} Coins OR 🛡️ ${s.safetyPointsPrice} SP`
-                      : s.isSpecial && s.safetyPointsPrice 
-                        ? `🛡️ ${s.safetyPointsPrice} Safety Points`
-                        : s.price === 0 
-                          ? 'Free' 
-                          : `Cost ${s.price} Coins`}
+                      : s.price > 0
+                        ? `💠 ${s.price} Coins`
+                        : s.safetyPointsPrice
+                          ? `🛡️ ${s.safetyPointsPrice} Safety Points`
+                          : 'Free'}
                   </span>
                 </div>
                 <div className="skin-actions">
                   {owned ? (
                     <button
                       className="btn"
-                      onClick={() => handleEquip(s.id)}
+                      onClick={() => handleEquipFace(s.id)}
                       disabled={equipped}
+                      style={equipped ? {
+                        background: 'linear-gradient(135deg, #4a90e2 0%, #357abd 100%)',
+                        border: '1px solid #5a9fe2'
+                      } : {}}
                     >
-                      {equipped ? 'Equipped' : 'Equip'}
+                      {equipped ? 'Equipped' : 'Equip Face'}
                     </button>
                   ) : (
                     <button

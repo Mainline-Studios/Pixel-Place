@@ -62,6 +62,8 @@ export default function TopBar({ currentTab, onTabChange, user }: TopBarProps) {
   }
 
   const equippedSkin = skins.find(s => s.id === user.equippedSkin) || skins.find(s => s.id === 'starter_classic') || (skins.length > 0 ? skins[0] : null);
+  // Get equipped face if available
+  const equippedFace = user.equippedFace ? skins.find(s => s.id === user.equippedFace && s.isFace) : null;
   // equippedAccessories is an object, not an array: { hat: 'id', glasses: 'id', ... }
   const equippedAccessoriesList = Object.values(user.equippedAccessories || {}).map(id =>
     accessories.find(a => a.id === id)
@@ -148,6 +150,7 @@ export default function TopBar({ currentTab, onTabChange, user }: TopBarProps) {
                 height={40}
                 interactive={false}
                 animation={skinWithAccessories.defaultAnimation || 'idle'}
+                equippedFace={equippedFace || undefined}
               />
             )}
           </div>
