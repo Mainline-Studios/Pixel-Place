@@ -280,68 +280,89 @@ export default function Avatar3DViewer({
         const bodyScale = (skin as any).bodyScale || { x: 1, y: 1, z: 1 };
         const headScale = (skin as any).headScale || { x: 1, y: 1, z: 1 };
         const isSpecial = (skin as any).special || false;
+        const isHighPoly = skin.isSpecial || false; // Special skins use high-poly models
+
+        // Helper to create high-poly geometry (500+ polygons)
+        const createHighPolyGeometry = (type: 'head' | 'torso' | 'arm' | 'leg', width: number, height: number, depth: number) => {
+          if (!isHighPoly) {
+            return createRoundedBox(width, height, depth, 0.1);
+          }
+          
+          // Use IcosahedronGeometry for head (high poly sphere)
+          if (type === 'head') {
+            const radius = Math.max(width, height, depth) / 2;
+            const geometry = new THREE.IcosahedronGeometry(radius, 3); // 3 subdivisions = ~1280 faces
+            return geometry;
+          }
+          
+          // For body parts, use subdivided box geometry
+          const segments = 16; // 16x16x16 = 1536 faces per box
+          const geometry = new THREE.BoxGeometry(width, height, depth, segments, segments, segments);
+          geometry.computeVertexNormals();
+          return geometry;
+        };
 
         // Add accessories if available
-        // Head - square block like Roblox (with special scaling for themed skins)
+        // Head - high-poly sphere for special skins, box for regular
         const headSize = isSpecial ? 1.2 : 1.2;
-        const headGeometry = createRoundedBox(headSize * headScale.x, headSize * headScale.y, headSize * headScale.z, 0.08);
+        const headGeometry = createHighPolyGeometry('head', headSize * headScale.x, headSize * headScale.y, headSize * headScale.z);
         const head = new THREE.Mesh(headGeometry, headMaterial);
         head.position.set(0, 2.1, 0);
         characterGroup.add(head);
 
-        // Torso - wider and taller like Roblox (with special scaling)
+        // Torso - high-poly for special skins
         const torsoSize = { w: 1.6, h: 1.8, d: 0.8 };
-        const torsoGeometry = createRoundedBox(
+        const torsoGeometry = createHighPolyGeometry(
+          'torso',
           torsoSize.w * bodyScale.x, 
           torsoSize.h * bodyScale.y, 
-          torsoSize.d * bodyScale.z, 
-          0.1
+          torsoSize.d * bodyScale.z
         );
         const torso = new THREE.Mesh(torsoGeometry, torsoMaterial);
         torso.position.set(0, 0.9, 0);
         characterGroup.add(torso);
 
-        // Left Arm (with scaling)
+        // Left Arm - high-poly for special skins
         const armSize = { w: 0.5, h: 1.8, d: 0.5 };
-        const leftArmGeometry = createRoundedBox(
+        const leftArmGeometry = createHighPolyGeometry(
+          'arm',
           armSize.w * bodyScale.x, 
           armSize.h * bodyScale.y, 
-          armSize.d * bodyScale.z, 
-          0.06
+          armSize.d * bodyScale.z
         );
         const leftArm = new THREE.Mesh(leftArmGeometry, armMaterial);
         leftArm.position.set(-1.15 * bodyScale.x, 0.9, 0);
         characterGroup.add(leftArm);
 
-        // Right Arm (with scaling)
-        const rightArmGeometry = createRoundedBox(
+        // Right Arm - high-poly for special skins
+        const rightArmGeometry = createHighPolyGeometry(
+          'arm',
           armSize.w * bodyScale.x, 
           armSize.h * bodyScale.y, 
-          armSize.d * bodyScale.z, 
-          0.06
+          armSize.d * bodyScale.z
         );
         const rightArm = new THREE.Mesh(rightArmGeometry, armMaterial);
         rightArm.position.set(1.15 * bodyScale.x, 0.9, 0);
         characterGroup.add(rightArm);
 
-        // Left Leg (with scaling)
+        // Left Leg - high-poly for special skins
         const legSize = { w: 0.6, h: 1.6, d: 0.6 };
-        const leftLegGeometry = createRoundedBox(
+        const leftLegGeometry = createHighPolyGeometry(
+          'leg',
           legSize.w * bodyScale.x, 
           legSize.h * bodyScale.y, 
-          legSize.d * bodyScale.z, 
-          0.06
+          legSize.d * bodyScale.z
         );
         const leftLeg = new THREE.Mesh(leftLegGeometry, legMaterial);
         leftLeg.position.set(-0.4 * bodyScale.x, -1.0, 0);
         characterGroup.add(leftLeg);
 
-        // Right Leg (with scaling)
-        const rightLegGeometry = createRoundedBox(
+        // Right Leg - high-poly for special skins
+        const rightLegGeometry = createHighPolyGeometry(
+          'leg',
           legSize.w * bodyScale.x, 
           legSize.h * bodyScale.y, 
-          legSize.d * bodyScale.z, 
-          0.06
+          legSize.d * bodyScale.z
         );
         const rightLeg = new THREE.Mesh(rightLegGeometry, legMaterial);
         rightLeg.position.set(0.4 * bodyScale.x, -1.0, 0);
@@ -1128,7 +1149,7 @@ export default function Avatar3DViewer({
                   const antennaMesh = new THREE.Mesh(antenna, robotMat);
                   antennaMesh.position.set(0, 0.9, 0);
                   petGroup.add(antennaMesh);
-                  const antennaBall = new THREE.SphereGeometry(0.06, 8, 8);
+                  const antennaBall = new THREE.SphereGeometry(0.06, isHighPoly ? 16 : 8, isHighPoly ? 16 : 8);
                   const antennaBallMesh = new THREE.Mesh(antennaBall, eyeMat);
                   antennaBallMesh.position.set(0, 0.98, 0);
                   petGroup.add(antennaBallMesh);
@@ -1140,12 +1161,12 @@ export default function Avatar3DViewer({
                     roughness: 0.1,
                     metalness: 0.9
                   });
-                  const leftShoulder = new THREE.SphereGeometry(0.12, 8, 8);
+                  const leftShoulder = new THREE.SphereGeometry(0.12, isHighPoly ? 16 : 8, isHighPoly ? 16 : 8);
                   const leftShoulderMesh = new THREE.Mesh(leftShoulder, jointMat);
                   leftShoulderMesh.position.set(-0.35, 0.5, 0);
                   petGroup.add(leftShoulderMesh);
 
-                  const rightShoulder = new THREE.SphereGeometry(0.12, 8, 8);
+                  const rightShoulder = new THREE.SphereGeometry(0.12, isHighPoly ? 16 : 8, isHighPoly ? 16 : 8);
                   const rightShoulderMesh = new THREE.Mesh(rightShoulder, jointMat);
                   rightShoulderMesh.position.set(0.35, 0.5, 0);
                   petGroup.add(rightShoulderMesh);
@@ -1161,12 +1182,12 @@ export default function Avatar3DViewer({
                   petGroup.add(rightArm);
 
                   // Robot elbows (joints)
-                  const leftElbow = new THREE.SphereGeometry(0.1, 8, 8);
+                  const leftElbow = new THREE.SphereGeometry(0.1, isHighPoly ? 16 : 8, isHighPoly ? 16 : 8);
                   const leftElbowMesh = new THREE.Mesh(leftElbow, jointMat);
                   leftElbowMesh.position.set(-0.35, 0, 0);
                   petGroup.add(leftElbowMesh);
 
-                  const rightElbow = new THREE.SphereGeometry(0.1, 8, 8);
+                  const rightElbow = new THREE.SphereGeometry(0.1, isHighPoly ? 16 : 8, isHighPoly ? 16 : 8);
                   const rightElbowMesh = new THREE.Mesh(rightElbow, jointMat);
                   rightElbowMesh.position.set(0.35, 0, 0);
                   petGroup.add(rightElbowMesh);
@@ -1182,12 +1203,12 @@ export default function Avatar3DViewer({
                   petGroup.add(rightLeg);
 
                   // Robot hips (joints)
-                  const leftHip = new THREE.SphereGeometry(0.1, 8, 8);
+                  const leftHip = new THREE.SphereGeometry(0.1, isHighPoly ? 16 : 8, isHighPoly ? 16 : 8);
                   const leftHipMesh = new THREE.Mesh(leftHip, jointMat);
                   leftHipMesh.position.set(-0.2, 0.15, 0);
                   petGroup.add(leftHipMesh);
 
-                  const rightHip = new THREE.SphereGeometry(0.1, 8, 8);
+                  const rightHip = new THREE.SphereGeometry(0.1, isHighPoly ? 16 : 8, isHighPoly ? 16 : 8);
                   const rightHipMesh = new THREE.Mesh(rightHip, jointMat);
                   rightHipMesh.position.set(0.2, 0.15, 0);
                   petGroup.add(rightHipMesh);
