@@ -60,7 +60,9 @@ export const COLLECTIONS = {
   GAME_SUBMISSIONS: 'game_submissions',
   USER_MADE_GAMES: 'user_made_games',
   GYM_PUMP_SESSIONS: 'gym_pump_sessions',
-  GYM_PUMP_PROGRESS: 'gym_pump_progress'
+  GYM_PUMP_PROGRESS: 'gym_pump_progress',
+  PRESENCE: 'presence', // Online status tracking
+  GAME_SESSIONS: 'game_sessions' // Active multiplayer game sessions
 };
 
 // Helper functions for Firestore operations

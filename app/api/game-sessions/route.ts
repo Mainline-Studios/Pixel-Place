@@ -1,156 +1,222 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getFirestoreInstance, COLLECTIONS, setDocument, getDocument, queryDocuments, deleteDocument } from '@/lib/firestore';
 
-// In-memory store for active game sessions
-// In production, use Redis or a database
-const gameSessions = new Map<string, {
-  id: string;
+interface GameSession {
+  sessionId: string;
   gameId: string;
-  gameTitle: string;
-  host: string;
-  players: Array<{
-    id: string;
-    username: string;
-    socketId?: string;
-  }>;
+  hostUsername: string;
+  players: string[];
   maxPlayers: number;
+  status: 'waiting' | 'playing' | 'finished';
   createdAt: number;
-  isActive: boolean;
-}>();
+  startedAt?: number;
+}
 
+/**
+ * GET /api/game-sessions?sessionId=xxx or ?username=xxx
+ * Get game session(s)
+ */
+export async function GET(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const sessionId = searchParams.get('sessionId');
+    const username = searchParams.get('username');
+
+    if (sessionId) {
+      const session = await getDocument(COLLECTIONS.GAME_SESSIONS, sessionId);
+      if (session) {
+        return NextResponse.json({
+          sessionId: session.session_id,
+          gameId: session.game_id,
+          hostUsername: session.host_username,
+          players: session.players || [],
+          maxPlayers: session.max_players || 4,
+          status: session.status || 'waiting',
+          createdAt: session.created_at,
+          startedAt: session.started_at
+        });
+      }
+      return NextResponse.json({ error: 'Session not found' }, { status: 404 });
+    }
+
+    if (username) {
+      // Get all sessions where user is a player
+      const allSessions = await queryDocuments(COLLECTIONS.GAME_SESSIONS, 'status', '==', 'waiting');
+      const userSessions = allSessions.filter((s: any) => 
+        s.host_username === username || (s.players || []).includes(username)
+      );
+      return NextResponse.json({ sessions: userSessions.map(formatSession) });
+    }
+
+    // Get all active sessions
+    const activeSessions = await queryDocuments(COLLECTIONS.GAME_SESSIONS, 'status', 'in', ['waiting', 'playing']);
+    return NextResponse.json({ sessions: activeSessions.map(formatSession) });
+  } catch (error: any) {
+    console.error('Error getting game sessions:', error);
+    return NextResponse.json({ error: 'Failed to get game sessions' }, { status: 500 });
+  }
+}
+
+function formatSession(session: any): GameSession {
+  return {
+    sessionId: session.session_id || session.id,
+    gameId: session.game_id,
+    hostUsername: session.host_username,
+    players: session.players || [],
+    maxPlayers: session.max_players || 4,
+    status: session.status || 'waiting',
+    createdAt: session.created_at,
+    startedAt: session.started_at
+  };
+}
+
+/**
+ * POST /api/game-sessions
+ * Create or join a game session
+ * Body: { action: 'create' | 'join' | 'leave', sessionId?, gameId?, hostUsername?, username? }
+ */
 export async function POST(request: NextRequest) {
   try {
-    let body;
-    try {
-      body = await request.json();
-    } catch (e) {
-      return NextResponse.json({ error: 'Invalid JSON in request body' }, { status: 400 });
-    }
-    
-    if (!body || typeof body !== 'object') {
-      return NextResponse.json({ error: 'Request body must be a valid object' }, { status: 400 });
-    }
-    const { action, gameId, gameTitle, username, sessionId, maxPlayers = 10 } = body;
-    
-    if (!action) {
-      return NextResponse.json({ error: 'Action is required' }, { status: 400 });
-    }
+    const { action, sessionId, gameId, hostUsername, username } = await request.json();
 
     if (action === 'create') {
-      const sessionId = `session-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-      const session = {
-        id: sessionId,
-        gameId,
-        gameTitle: gameTitle || 'Untitled Game',
-        host: username,
-        players: [{
-          id: username,
-          username,
-        }],
-        maxPlayers,
-        createdAt: Date.now(),
-        isActive: true,
+      if (!gameId || !hostUsername) {
+        return NextResponse.json({ error: 'gameId and hostUsername required' }, { status: 400 });
+      }
+
+      const newSessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      const sessionData = {
+        session_id: newSessionId,
+        game_id: gameId,
+        host_username: hostUsername,
+        players: [hostUsername],
+        max_players: 4,
+        status: 'waiting',
+        created_at: Date.now()
       };
 
-      gameSessions.set(sessionId, session);
-      return NextResponse.json({ success: true, session });
+      await setDocument(COLLECTIONS.GAME_SESSIONS, newSessionId, sessionData);
+
+      // Update host's presence
+      await setDocument(COLLECTIONS.PRESENCE, hostUsername.toLowerCase(), {
+        username: hostUsername,
+        username_lower: hostUsername.toLowerCase(),
+        is_online: true,
+        current_session_id: newSessionId,
+        last_seen: Date.now(),
+        updated_at: Date.now()
+      });
+
+      return NextResponse.json({ success: true, session: formatSession(sessionData) });
     }
 
     if (action === 'join') {
-      if (!sessionId) {
-        return NextResponse.json({ error: 'Session ID required' }, { status: 400 });
+      if (!sessionId || !username) {
+        return NextResponse.json({ error: 'sessionId and username required' }, { status: 400 });
       }
 
-      const session = gameSessions.get(sessionId);
+      const session = await getDocument(COLLECTIONS.GAME_SESSIONS, sessionId);
       if (!session) {
         return NextResponse.json({ error: 'Session not found' }, { status: 404 });
       }
 
-      if (session.players.length >= session.maxPlayers) {
+      if (session.status !== 'waiting') {
+        return NextResponse.json({ error: 'Session is not accepting new players' }, { status: 400 });
+      }
+
+      const players = session.players || [];
+      if (players.includes(username)) {
+        return NextResponse.json({ success: true, session: formatSession(session) });
+      }
+
+      if (players.length >= (session.max_players || 4)) {
         return NextResponse.json({ error: 'Session is full' }, { status: 400 });
       }
 
-      if (session.players.find(p => p.username === username)) {
-        return NextResponse.json({ error: 'Already in session' }, { status: 400 });
-      }
-
-      session.players.push({
-        id: username,
-        username,
+      players.push(username);
+      await setDocument(COLLECTIONS.GAME_SESSIONS, sessionId, {
+        ...session,
+        players: players,
+        updated_at: Date.now()
       });
 
-      return NextResponse.json({ success: true, session });
+      // Update player's presence
+      await setDocument(COLLECTIONS.PRESENCE, username.toLowerCase(), {
+        username: username,
+        username_lower: username.toLowerCase(),
+        is_online: true,
+        current_session_id: sessionId,
+        last_seen: Date.now(),
+        updated_at: Date.now()
+      });
+
+      return NextResponse.json({ success: true, session: formatSession({ ...session, players }) });
     }
 
     if (action === 'leave') {
-      if (!sessionId) {
-        return NextResponse.json({ error: 'Session ID required' }, { status: 400 });
+      if (!sessionId || !username) {
+        return NextResponse.json({ error: 'sessionId and username required' }, { status: 400 });
       }
 
-      const session = gameSessions.get(sessionId);
+      const session = await getDocument(COLLECTIONS.GAME_SESSIONS, sessionId);
       if (!session) {
         return NextResponse.json({ error: 'Session not found' }, { status: 404 });
       }
 
-      session.players = session.players.filter(p => p.username !== username);
-
-      // Clean up empty sessions
-      if (session.players.length === 0) {
-        gameSessions.delete(sessionId);
+      const players = (session.players || []).filter((p: string) => p !== username);
+      
+      if (players.length === 0) {
+        // Delete session if no players left
+        await deleteDocument(COLLECTIONS.GAME_SESSIONS, sessionId);
+      } else {
+        // Update session
+        await setDocument(COLLECTIONS.GAME_SESSIONS, sessionId, {
+          ...session,
+          players: players,
+          updated_at: Date.now()
+        });
       }
+
+      // Update player's presence
+      await setDocument(COLLECTIONS.PRESENCE, username.toLowerCase(), {
+        username: username,
+        username_lower: username.toLowerCase(),
+        is_online: true,
+        current_session_id: null,
+        last_seen: Date.now(),
+        updated_at: Date.now()
+      });
 
       return NextResponse.json({ success: true });
     }
 
-    return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
-  }
-}
+    if (action === 'start') {
+      if (!sessionId || !username) {
+        return NextResponse.json({ error: 'sessionId and username required' }, { status: 400 });
+      }
 
-export async function GET(request: NextRequest) {
-  try {
-    const { searchParams } = new URL(request.url);
-    const gameId = searchParams.get('gameId');
-    const sessionId = searchParams.get('sessionId');
-
-    if (sessionId) {
-      const session = gameSessions.get(sessionId);
+      const session = await getDocument(COLLECTIONS.GAME_SESSIONS, sessionId);
       if (!session) {
         return NextResponse.json({ error: 'Session not found' }, { status: 404 });
       }
-      return NextResponse.json({ success: true, session });
+
+      if (session.host_username !== username) {
+        return NextResponse.json({ error: 'Only host can start the game' }, { status: 403 });
+      }
+
+      await setDocument(COLLECTIONS.GAME_SESSIONS, sessionId, {
+        ...session,
+        status: 'playing',
+        started_at: Date.now(),
+        updated_at: Date.now()
+      });
+
+      return NextResponse.json({ success: true, session: formatSession({ ...session, status: 'playing', started_at: Date.now() }) });
     }
 
-    if (gameId) {
-      const sessions = Array.from(gameSessions.values())
-        .filter(s => s.gameId === gameId && s.isActive)
-        .map(s => ({
-          id: s.id,
-          gameId: s.gameId,
-          gameTitle: s.gameTitle,
-          host: s.host,
-          playerCount: s.players.length,
-          maxPlayers: s.maxPlayers,
-          createdAt: s.createdAt,
-        }));
-      return NextResponse.json({ success: true, sessions });
-    }
-
-    // Return all active sessions
-    const sessions = Array.from(gameSessions.values())
-      .filter(s => s.isActive)
-      .map(s => ({
-        id: s.id,
-        gameId: s.gameId,
-        gameTitle: s.gameTitle,
-        host: s.host,
-        playerCount: s.players.length,
-        maxPlayers: s.maxPlayers,
-        createdAt: s.createdAt,
-      }));
-
-    return NextResponse.json({ success: true, sessions });
+    return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
   } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error('Error managing game session:', error);
+    return NextResponse.json({ error: 'Failed to manage game session' }, { status: 500 });
   }
 }

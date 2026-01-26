@@ -310,6 +310,38 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     return { success: true, message: isOffline ? 'Signed in offline. Data stored locally.' : '' };
   };
 
+  const loginWithGoogle = async (googleUser: User): Promise<void> => {
+    // Check if user is banned
+    try {
+      const isBanned = await isUserBanned(googleUser.username);
+      if (isBanned) {
+        const ban = await getBanForUser(googleUser.username);
+        throw { ban };
+      }
+    } catch (error: any) {
+      if (error.ban) {
+        throw error;
+      }
+    }
+
+    // Ensure arrays exist
+    if (!googleUser.ownedSkins) googleUser.ownedSkins = ['starter_classic'];
+    if (!googleUser.ownedAccessories) googleUser.ownedAccessories = [];
+    if (!googleUser.equippedAccessories) googleUser.equippedAccessories = {};
+
+    setUser(googleUser);
+    
+    // Persist to sessionStorage
+    if (typeof window !== 'undefined') {
+      try {
+        sessionStorage.setItem('pixelPlaceLoggedInUser', googleUser.username);
+        sessionStorage.removeItem('pixelPlaceOffline'); // Google sign-in is always online
+      } catch (error) {
+        console.error('Error saving user session:', error);
+      }
+    }
+  };
+
   const createAccount = async (username: string, password: string, gender: string): Promise<{ success: boolean; message: string }> => {
     if (!username || !password) {
       return { success: false, message: 'Username and password are required.' };

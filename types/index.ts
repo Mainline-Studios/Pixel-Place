@@ -15,9 +15,12 @@ export interface User {
   currentGameId?: string;
   firebaseUid?: string; // Firebase Auth UID for Google Sign-In users
   email?: string; // Email for Google Sign-In users
-  photoURL?: string; // Profile photo URL for Google Sign-In users // Game ID user is currently playing
+  photoURL?: string; // Profile photo URL for Google Sign-In users
   currentServerId?: string; // Server ID user is currently on
   recentlyPlayed?: string[]; // Array of game IDs (ts as string) the user has played
+  isOnline?: boolean; // Online status
+  lastSeen?: number; // Last seen timestamp
+  currentSessionId?: string; // Current multiplayer session ID
 }
 
 export interface FriendRequest {
