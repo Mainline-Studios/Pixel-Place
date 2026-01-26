@@ -127,6 +127,34 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     }
   }, [user]);
 
+  // Sync safety points from backend (Firebase)
+  useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+
+    const syncSafetyPoints = async () => {
+      try {
+        const response = await fetch(`/api/safety?username=${encodeURIComponent(user.username)}`);
+        const data = await response.json();
+        if (cancelled || typeof data?.safetyPoints !== 'number') return;
+        setUser((prev) => {
+          if (!prev) return prev;
+          if (prev.safetyPoints === data.safetyPoints) return prev;
+          return { ...prev, safetyPoints: data.safetyPoints };
+        });
+      } catch (error) {
+        console.warn('Failed to sync safety points:', error);
+      }
+    };
+
+    syncSafetyPoints();
+    const interval = setInterval(syncSafetyPoints, 60000);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, [user?.username]);
+
   // Helper function to get users from localStorage (offline mode)
   const getUsersLocal = (): User[] => {
     if (typeof window === 'undefined') return [];

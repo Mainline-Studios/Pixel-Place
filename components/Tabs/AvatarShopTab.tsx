@@ -9,6 +9,7 @@ import { useUser } from '@/contexts/UserContext';
 import Avatar3DViewer from '@/components/Avatar3DViewer';
 import Accessory3DThumbnail from '@/components/Accessory3DThumbnail';
 import FaceThumb from '@/components/FaceThumb';
+import Skin2DPreview from '@/components/Skin2DPreview';
 
 interface AvatarShopTabProps {
   user: User;
@@ -69,9 +70,47 @@ function RarityBadge({ rarity }: { rarity: string }) {
   );
 }
 
-function SkinThumb({ skin }: { skin: Skin }) {
-  const [hasError, setHasError] = useState(false);
+const MIN_SKIN_PRICE = 100;
+const DEFAULT_SKIN_COLORS = {
+  head: '#f4c2a1',
+  torso: '#4d536f',
+  arm: '#3a3f56',
+  legs: '#3a3f56'
+};
+const SUPPORTED_ACCESSORY_TYPES = new Set([
+  'hat',
+  'chain',
+  'glasses',
+  'shirt',
+  'pants',
+  'shoes',
+  'backpack',
+  'wings',
+  'pet'
+]);
+
+function normalizeSkin(skin: Skin): Skin {
+  const rawAccessories = (skin as any).accessories || (skin as any).skinAccessories;
+  const accessories = Array.isArray(rawAccessories)
+    ? rawAccessories.filter((accessory) => accessory && SUPPORTED_ACCESSORY_TYPES.has(accessory.type))
+    : undefined;
+
+  return {
+    ...skin,
+    colors: {
+      head: skin.colors?.head || DEFAULT_SKIN_COLORS.head,
+      torso: skin.colors?.torso || DEFAULT_SKIN_COLORS.torso,
+      arm: skin.colors?.arm || DEFAULT_SKIN_COLORS.arm,
+      legs: skin.colors?.legs || DEFAULT_SKIN_COLORS.legs
+    },
+    accessories: accessories || skin.accessories
+  };
+}
+
+function SkinThumb({ skin, previewMode, width = 80, height = 80 }: { skin: Skin; previewMode: '2d' | '3d'; width?: number; height?: number }) {
   const [isVisible, setIsVisible] = useState(false);
+  const [is3DReady, setIs3DReady] = useState(false);
+  const [has3DError, setHas3DError] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   
   useEffect(() => {
@@ -93,15 +132,22 @@ function SkinThumb({ skin }: { skin: Skin }) {
     return () => observer.disconnect();
   }, []);
 
+  useEffect(() => {
+    if (previewMode === '3d') {
+      setIs3DReady(false);
+      setHas3DError(false);
+    }
+  }, [previewMode, skin?.id]);
+
   // Validate skin has required properties
-  if (!skin || !skin.colors || hasError) {
+  if (!skin) {
     return (
       <div
         ref={containerRef}
         className="skin-thumb"
         style={{
-          width: 80,
-          height: 80,
+          width,
+          height,
           background: '#333',
           borderRadius: '8px',
           display: 'flex',
@@ -111,57 +157,53 @@ function SkinThumb({ skin }: { skin: Skin }) {
           fontSize: '10px'
         }}
       >
-        {hasError ? 'Error' : 'Invalid'}
+        Invalid
       </div>
     );
   }
+
+  const show3D = previewMode === '3d' && isVisible && !has3DError;
+  const showSpinner = previewMode === '3d' && isVisible && !is3DReady && !has3DError;
+  const show2D = previewMode === '2d' || !is3DReady || has3DError;
 
   return (
     <div
       ref={containerRef}
       className="skin-thumb"
       style={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
+        width,
+        height,
         background: 'transparent',
         border: 'none',
         boxShadow: 'none',
         overflow: 'hidden',
-        borderRadius: '8px'
+        borderRadius: '8px',
+        position: 'relative'
       }}
     >
-      {isVisible ? (
-        <ErrorBoundary 
-          fallback={
-            <div 
-              style={{ 
-                width: 80, 
-                height: 80, 
-                background: '#333', 
-                borderRadius: '8px', 
-                display: 'flex', 
-                alignItems: 'center', 
-                justifyContent: 'center', 
-                color: '#888', 
-                fontSize: '10px' 
-              }}
-            >
-              Error
-            </div>
-          }
-          onError={() => setHasError(true)}
-        >
-          <Avatar3DViewer
-            skin={skin}
-            width={80}
-            height={80}
-            interactive={false}
-            animation={skin.defaultAnimation || 'idle'}
-          />
-        </ErrorBoundary>
-      ) : (
-        <div style={{ width: 80, height: 80, background: '#333', borderRadius: '8px' }} />
+      {show2D && <Skin2DPreview skin={skin} width={width} height={height} />}
+      {show3D && (
+        <div style={{ position: 'absolute', inset: 0, opacity: is3DReady ? 1 : 0, transition: 'opacity 0.2s' }}>
+          <ErrorBoundary 
+            fallback={null}
+            onError={() => setHas3DError(true)}
+          >
+            <Avatar3DViewer
+              skin={skin}
+              width={width}
+              height={height}
+              interactive={false}
+              animation={skin.defaultAnimation || 'idle'}
+              onReady={() => setIs3DReady(true)}
+              onError={() => setHas3DError(true)}
+            />
+          </ErrorBoundary>
+        </div>
+      )}
+      {showSpinner && (
+        <div className="avatar-preview-spinner">
+          <div className="avatar-preview-spinner-ring" />
+        </div>
       )}
     </div>
   );
@@ -201,7 +243,8 @@ export default function AvatarShopTab({ user, editMode }: AvatarShopTabProps) {
   const [skins, setSkins] = useState<Skin[]>([]);
   const [accessories, setAccessories] = useState<Accessory[]>([]);
   const [mainTab, setMainTab] = useState<'locker' | 'store'>('locker');
-  const [lockerTab, setLockerTab] = useState<'skins' | 'faces'>('skins');
+  const [lockerTab, setLockerTab] = useState<'skins' | 'faces' | 'accessories'>('skins');
+  const [previewMode, setPreviewMode] = useState<'2d' | '3d'>('2d');
 
   useEffect(() => {
     const loadData = async () => {
@@ -210,7 +253,12 @@ export default function AvatarShopTab({ user, editMode }: AvatarShopTabProps) {
           getSkins(),
           getAccessories()
         ]);
-        setSkins(Array.isArray(skinsData) ? skinsData : []);
+        const normalizedSkins = Array.isArray(skinsData)
+          ? skinsData
+              .filter((skin) => skin && skin.id && skin.name)
+              .map((skin) => normalizeSkin(skin))
+          : [];
+        setSkins(normalizedSkins);
         setAccessories(Array.isArray(accessoriesData) ? accessoriesData : []);
       } catch (error) {
         console.error('Error loading data:', error);
@@ -223,6 +271,9 @@ export default function AvatarShopTab({ user, editMode }: AvatarShopTabProps) {
 
   const ownedSkins = skins.filter((s) => user.ownedSkins?.includes(s.id));
   const ownedAccessories = accessories.filter((a) => user.ownedAccessories?.includes(a.id));
+  const equippedAccessories = Array.isArray(user.equippedAccessories)
+    ? user.equippedAccessories
+    : Object.values(user.equippedAccessories || {});
   
   // Separate faces from regular skins
   const regularSkins = skins.filter((s) => !s.isFace);
@@ -361,18 +412,19 @@ export default function AvatarShopTab({ user, editMode }: AvatarShopTabProps) {
       return;
     }
 
-    // Regular skin purchase with Pixel Coins
+    // Regular skin purchase with Pixel Coins (no freebies)
     const userCoins = user.coins || 0;
+    const price = Math.max(skin.price || 0, MIN_SKIN_PRICE);
     const formattedUserCoins = userCoins.toLocaleString('en-US');
-    const formattedPrice = skin.price.toLocaleString('en-US');
+    const formattedPrice = price.toLocaleString('en-US');
     
-    if (userCoins < skin.price) {
+    if (userCoins < price) {
       return; // Not enough coins - silent fail
     }
 
     if (confirm(`Buy ${skin.name} for ${formattedPrice} Coins?\nYour balance: ${formattedUserCoins}`)) {
       try {
-        const newCoins = (user.coins || 0) - skin.price;
+        const newCoins = (user.coins || 0) - price;
         const newOwnedSkins = [...(user.ownedSkins || []), skin.id];
         
         // Save purchase to backend - updateUser already saves and updates state
@@ -409,6 +461,19 @@ export default function AvatarShopTab({ user, editMode }: AvatarShopTabProps) {
     } catch (error) {
       // Silent error handling
     }
+  };
+
+  const handleToggleAccessory = async (accessory: Accessory) => {
+    if (!user.ownedAccessories?.includes(accessory.id)) {
+      return; // Silent fail - don't own accessory
+    }
+    const current = new Set(equippedAccessories);
+    if (current.has(accessory.id)) {
+      current.delete(accessory.id);
+    } else {
+      current.add(accessory.id);
+    }
+    await updateUser({ equippedAccessories: Array.from(current) });
   };
 
   const handlePurchaseAccessory = async (accessory: Accessory) => {
@@ -453,7 +518,7 @@ export default function AvatarShopTab({ user, editMode }: AvatarShopTabProps) {
                     border: equipped ? '2px solid #4a90e2' : '1px solid rgba(255, 255, 255, 0.1)',
                     boxShadow: equipped ? '0 0 20px rgba(74, 144, 226, 0.5)' : 'none'
                   }}>
-                    <SkinThumb skin={s} />
+                    <SkinThumb skin={s} previewMode={previewMode} />
                     <div className="skin-name">{escapeHTML(s.name)}</div>
                     <div className="skin-actions">
                       <button
@@ -475,7 +540,7 @@ export default function AvatarShopTab({ user, editMode }: AvatarShopTabProps) {
           </div>
         </div>
       );
-    } else {
+    } else if (lockerTab === 'faces') {
       // Faces tab
       return (
         <div>
@@ -497,7 +562,7 @@ export default function AvatarShopTab({ user, editMode }: AvatarShopTabProps) {
                       border: equipped ? '2px solid #4a90e2' : '2px solid rgba(255, 215, 0, 0.5)',
                       boxShadow: equipped ? '0 0 20px rgba(74, 144, 226, 0.5)' : '0 0 20px rgba(255, 215, 0, 0.3)'
                     }}>
-                      <FaceThumb face={f} />
+                      <FaceThumb face={f} previewMode={previewMode} />
                       <div className="skin-name" style={{ color: equipped ? '#4a90e2' : '#ffd700', fontWeight: 600 }}>
                         {escapeHTML(f.name)}
                       </div>
@@ -522,6 +587,55 @@ export default function AvatarShopTab({ user, editMode }: AvatarShopTabProps) {
           </div>
         </div>
       );
+    } else {
+      // Accessories tab
+      return (
+        <div>
+          <div className="ai-box" style={{ marginBottom: '24px' }}>
+            <div className="skins-section-title">Your Accessories</div>
+            <div className="smalltext" style={{ marginBottom: '8px' }}>
+              Equip accessories to customize your avatar
+            </div>
+            {ownedAccessories.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '40px', color: '#888' }}>
+                You don't own any accessories yet. Visit the Grocery Store to buy some!
+              </div>
+            ) : (
+              <div className="skins-grid">
+                {ownedAccessories.map((a) => {
+                  const equipped = equippedAccessories.includes(a.id);
+                  return (
+                    <div key={a.id} className="skin-card" style={{
+                      border: equipped ? '2px solid #4a90e2' : '1px solid rgba(255, 255, 255, 0.1)',
+                      boxShadow: equipped ? '0 0 20px rgba(74, 144, 226, 0.5)' : 'none'
+                    }}>
+                      <Accessory3DThumbnail accessory={a} />
+                      <div className="skin-name">{escapeHTML(a.name)}</div>
+                      {a.rarity && (
+                        <div style={{ marginBottom: '8px' }}>
+                          <RarityBadge rarity={a.rarity} />
+                        </div>
+                      )}
+                      <div className="skin-actions">
+                        <button
+                          className="btn"
+                          onClick={() => handleToggleAccessory(a)}
+                          style={equipped ? {
+                            background: 'linear-gradient(135deg, #4a90e2 0%, #357abd 100%)',
+                            border: '1px solid #5a9fe2'
+                          } : {}}
+                        >
+                          {equipped ? 'Unequip' : 'Equip'}
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+      );
     }
   };
 
@@ -530,16 +644,16 @@ export default function AvatarShopTab({ user, editMode }: AvatarShopTabProps) {
     // Filter out owned items
     const availableSkins = regularSkins.filter(s => !user.ownedSkins?.includes(s.id));
     const availableFaces = faces.filter(f => !user.ownedFaces?.includes(f.id));
-    const premiumSkins = availableSkins.filter(s => s.isSpecial && s.id.startsWith('premium_'));
-    const regularAvailableSkins = availableSkins.filter(s => !s.isSpecial || !s.id.startsWith('premium_'));
+    const premiumSkins = availableSkins.filter(s => s.isSpecial && s.safetyPointsPrice && s.use3d !== false);
+    const regularAvailableSkins = availableSkins.filter(s => !s.isSpecial);
     const availableAccessories = accessories.filter(a => !user.ownedAccessories?.includes(a.id));
 
     return (
       <div>
-        {/* Premium Skins Section */}
+        {/* Safety Points Skins Section */}
         {premiumSkins.length > 0 && (
           <div className="ai-box" style={{ marginBottom: '24px' }}>
-            <div className="skins-section-title">✨ Premium Skins (500+ Polygons)</div>
+            <div className="skins-section-title">✨ Safety Points Exclusives (500+ Polygons)</div>
             <div className="smalltext" style={{ marginBottom: '8px' }}>
               High-polygon skins with glows and accessories! Purchase with Safety Points.
             </div>
@@ -551,7 +665,7 @@ export default function AvatarShopTab({ user, editMode }: AvatarShopTabProps) {
                     border: '2px solid rgba(255, 215, 0, 0.5)',
                     boxShadow: '0 0 20px rgba(255, 215, 0, 0.3)'
                   }}>
-                    <SkinThumb skin={s} />
+                    <SkinThumb skin={s} previewMode={previewMode} />
                     <div className="skin-name" style={{ color: '#ffd700', fontWeight: 600 }}>{escapeHTML(s.name)}</div>
                     <div className="skin-meta">
                       <span className="price-tag" style={{ color: '#ffd700', fontWeight: 600 }}>
@@ -589,14 +703,15 @@ export default function AvatarShopTab({ user, editMode }: AvatarShopTabProps) {
             </div>
             <div className="skins-grid">
               {regularAvailableSkins.map((s) => {
-                const affordable = (user.coins || 0) >= s.price;
+                const price = Math.max(s.price || 0, MIN_SKIN_PRICE);
+                const affordable = (user.coins || 0) >= price;
                 return (
                   <div key={s.id} className="skin-card">
-                    <SkinThumb skin={s} />
+                    <SkinThumb skin={s} previewMode={previewMode} />
                     <div className="skin-name">{escapeHTML(s.name)}</div>
                     <div className="skin-meta">
                       <span className="price-tag">
-                        {s.price === 0 ? 'Free' : `💠 ${s.price} Coins`}
+                        {`💠 ${price} Coins`}
                       </span>
                     </div>
                     <div className="skin-actions">
@@ -605,7 +720,7 @@ export default function AvatarShopTab({ user, editMode }: AvatarShopTabProps) {
                         disabled={!affordable}
                         onClick={() => handlePurchase(s)}
                       >
-                        {affordable ? (s.price === 0 ? 'Get Free' : `Buy for ${s.price} 💠`) : 'Need More Coins'}
+                        {affordable ? `Buy for ${price} 💠` : 'Need More Coins'}
                       </button>
                     </div>
                   </div>
@@ -630,7 +745,7 @@ export default function AvatarShopTab({ user, editMode }: AvatarShopTabProps) {
                     border: '2px solid rgba(255, 215, 0, 0.5)',
                     boxShadow: '0 0 20px rgba(255, 215, 0, 0.3)'
                   }}>
-                    <FaceThumb face={s} />
+                    <FaceThumb face={s} previewMode={previewMode} />
                     <div className="skin-name" style={{ color: '#ffd700', fontWeight: 600 }}>{escapeHTML(s.name)}</div>
                     <div className="skin-meta">
                       <span className="price-tag" style={{ color: '#ffd700', fontWeight: 600 }}>
@@ -763,6 +878,49 @@ export default function AvatarShopTab({ user, editMode }: AvatarShopTabProps) {
         </button>
       </div>
 
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: '12px',
+        marginBottom: '16px',
+        flexWrap: 'wrap'
+      }}>
+        <span style={{ fontSize: '12px', color: '#9fa4b8', fontWeight: 600 }}>
+          Preview
+        </span>
+        <button
+          onClick={() => setPreviewMode('2d')}
+          style={{
+            padding: '6px 12px',
+            background: previewMode === '2d' ? 'rgba(74, 144, 226, 0.2)' : 'rgba(255, 255, 255, 0.05)',
+            border: `1px solid ${previewMode === '2d' ? '#4a90e2' : 'rgba(255, 255, 255, 0.1)'}`,
+            borderRadius: '6px',
+            color: '#fff',
+            fontWeight: previewMode === '2d' ? 700 : 400,
+            cursor: 'pointer',
+            transition: 'all 0.2s'
+          }}
+        >
+          2D
+        </button>
+        <button
+          onClick={() => setPreviewMode('3d')}
+          style={{
+            padding: '6px 12px',
+            background: previewMode === '3d' ? 'rgba(74, 144, 226, 0.2)' : 'rgba(255, 255, 255, 0.05)',
+            border: `1px solid ${previewMode === '3d' ? '#4a90e2' : 'rgba(255, 255, 255, 0.1)'}`,
+            borderRadius: '6px',
+            color: '#fff',
+            fontWeight: previewMode === '3d' ? 700 : 400,
+            cursor: 'pointer',
+            transition: 'all 0.2s'
+          }}
+        >
+          3D
+        </button>
+        <span className="smalltext">3D previews are 500+ polygons and may take a moment to load.</span>
+      </div>
+
       {/* Locker Room Sub-tabs */}
       {mainTab === 'locker' && (
         <div style={{
@@ -799,6 +957,21 @@ export default function AvatarShopTab({ user, editMode }: AvatarShopTabProps) {
             }}
           >
             Faces
+          </button>
+          <button
+            onClick={() => setLockerTab('accessories')}
+            style={{
+              padding: '8px 16px',
+              background: lockerTab === 'accessories' ? 'rgba(74, 144, 226, 0.2)' : 'rgba(255, 255, 255, 0.05)',
+              border: `1px solid ${lockerTab === 'accessories' ? '#4a90e2' : 'rgba(255, 255, 255, 0.1)'}`,
+              borderRadius: '6px',
+              color: '#fff',
+              fontWeight: lockerTab === 'accessories' ? 700 : 400,
+              cursor: 'pointer',
+              transition: 'all 0.2s'
+            }}
+          >
+            Accessories
           </button>
         </div>
       )}

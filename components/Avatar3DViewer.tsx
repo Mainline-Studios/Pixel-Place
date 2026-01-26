@@ -10,6 +10,8 @@ interface Avatar3DViewerProps {
   interactive?: boolean; // Enable mouse interaction
   animation?: string; // Animation to play
   equippedFace?: Skin; // Optional equipped face to apply to head
+  onReady?: () => void;
+  onError?: (error?: Error) => void;
 }
 
 export default function Avatar3DViewer({
@@ -18,7 +20,9 @@ export default function Avatar3DViewer({
   height = 200,
   interactive = true,
   animation = 'idle',
-  equippedFace
+  equippedFace,
+  onReady,
+  onError
 }: Avatar3DViewerProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const mountRef = useRef<HTMLDivElement>(null);
@@ -30,6 +34,17 @@ export default function Avatar3DViewer({
   const animationFrameRef = useRef<number | null>(null);
   const mousePositionRef = useRef({ x: 0, y: 0 });
   const rotationRef = useRef({ x: 0, y: 0 });
+  const readySignalRef = useRef(false);
+  const onReadyRef = useRef(onReady);
+  const onErrorRef = useRef(onError);
+
+  useEffect(() => {
+    onReadyRef.current = onReady;
+  }, [onReady]);
+
+  useEffect(() => {
+    onErrorRef.current = onError;
+  }, [onError]);
 
   // Convert hex color to Three.js color
   const hexToColor = (hex: string) => {
@@ -58,6 +73,7 @@ export default function Avatar3DViewer({
     let characterGroup: any;
     let animationTime = 0;
     let isMounted = true;
+    readySignalRef.current = false;
 
     // Dynamic import for Three.js with error handling
     import('three').then((module) => {
@@ -67,8 +83,10 @@ export default function Avatar3DViewer({
         THREE = module;
         
         // Validate skin again inside useEffect - ensure colors exist with defaults
-        if (!skin || !skin.colors) {
+        if (!skin) {
+          const error = new Error('Invalid skin data');
           console.warn('Invalid skin data:', skin);
+          onErrorRef.current?.(error);
           return;
         }
         
@@ -79,11 +97,13 @@ export default function Avatar3DViewer({
           arm: '#3a3f56',
           legs: '#3a3f56'
         };
-        
-        if (!skin.colors.head) skin.colors.head = defaultColors.head;
-        if (!skin.colors.torso) skin.colors.torso = defaultColors.torso;
-        if (!skin.colors.arm) skin.colors.arm = defaultColors.arm;
-        if (!skin.colors.legs) skin.colors.legs = defaultColors.legs;
+
+        const resolvedColors = {
+          head: skin.colors?.head || defaultColors.head,
+          torso: skin.colors?.torso || defaultColors.torso,
+          arm: skin.colors?.arm || defaultColors.arm,
+          legs: skin.colors?.legs || defaultColors.legs
+        };
 
         const canvas = canvasRef.current!;
         const renderer = new THREE.WebGLRenderer({
@@ -91,16 +111,24 @@ export default function Avatar3DViewer({
           antialias: true,
           alpha: true
         });
+        rendererRef.current = renderer;
         renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
         renderer.setSize(width, height);
         renderer.setClearColor(0x000000, 0);
+        if ('outputColorSpace' in renderer && THREE.SRGBColorSpace) {
+          renderer.outputColorSpace = THREE.SRGBColorSpace;
+        } else if ('outputEncoding' in renderer && THREE.sRGBEncoding) {
+          renderer.outputEncoding = THREE.sRGBEncoding;
+        }
 
         const scene = new THREE.Scene();
+        sceneRef.current = scene;
 
         // Camera setup - adjusted to see top of hat and bottom of legs
         const camera = new THREE.PerspectiveCamera(55, width / height, 0.1, 1000);
         camera.position.set(0, 3.2, 7);
         camera.lookAt(0, 1.5, 0);
+        cameraRef.current = camera;
 
         // Lighting - soft ambient + directional
         const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
@@ -118,6 +146,7 @@ export default function Avatar3DViewer({
         // Create character group
         characterGroup = new THREE.Group();
         scene.add(characterGroup);
+        characterGroupRef.current = characterGroup;
 
         // Texture creation functions - Realistic textures like Roblox
         const createSkinTexture = (color: { r: number, g: number, b: number }) => {
@@ -153,6 +182,11 @@ export default function Avatar3DViewer({
           }
 
           const texture = new THREE.CanvasTexture(canvas);
+          if ('colorSpace' in texture && THREE.SRGBColorSpace) {
+            (texture as any).colorSpace = THREE.SRGBColorSpace;
+          } else if ('encoding' in texture && THREE.sRGBEncoding) {
+            (texture as any).encoding = THREE.sRGBEncoding;
+          }
           texture.wrapS = THREE.RepeatWrapping;
           texture.wrapT = THREE.RepeatWrapping;
           return texture;
@@ -184,6 +218,11 @@ export default function Avatar3DViewer({
           }
 
           const texture = new THREE.CanvasTexture(canvas);
+          if ('colorSpace' in texture && THREE.SRGBColorSpace) {
+            (texture as any).colorSpace = THREE.SRGBColorSpace;
+          } else if ('encoding' in texture && THREE.sRGBEncoding) {
+            (texture as any).encoding = THREE.sRGBEncoding;
+          }
           texture.magFilter = THREE.NearestFilter;
           texture.minFilter = THREE.NearestFilter;
           texture.wrapS = THREE.RepeatWrapping;
@@ -192,10 +231,10 @@ export default function Avatar3DViewer({
         };
 
         // Colors - apply equipped face to head if available
-        const headColor = hexToColor(equippedFace?.colors?.head || skin.colors?.head || '#f4c2a1');
-        const torsoColor = hexToColor(skin.colors?.torso || '#4d536f');
-        const armColor = hexToColor(skin.colors?.arm || '#3a3f56');
-        const legColor = hexToColor(skin.colors?.legs || '#3a3f56');
+        const headColor = hexToColor(equippedFace?.colors?.head || resolvedColors.head);
+        const torsoColor = hexToColor(resolvedColors.torso);
+        const armColor = hexToColor(resolvedColors.arm);
+        const legColor = hexToColor(resolvedColors.legs);
         
         // Use face materials if equipped face has glow
         const faceHasGlow = equippedFace?.isSpecial || equippedFace?.materials?.head?.emissive !== undefined;
@@ -313,7 +352,7 @@ export default function Avatar3DViewer({
         const bodyScale = (skin as any).bodyScale || { x: 1, y: 1, z: 1 };
         const headScale = (skin as any).headScale || { x: 1, y: 1, z: 1 };
         const isSpecial = (skin as any).special || false;
-        const isHighPoly = skin.isSpecial || false; // Special skins use high-poly models
+        const isHighPoly = true; // All skins render 500+ polygons
 
         // Helper to create high-poly geometry (500+ polygons MINIMUM)
         const createHighPolyGeometry = (type: 'head' | 'torso' | 'arm' | 'leg', width: number, height: number, depth: number) => {
@@ -1383,6 +1422,13 @@ export default function Avatar3DViewer({
         characterGroupRef.current = characterGroup;
 
         // Animation function
+        const signalReady = () => {
+          if (!readySignalRef.current) {
+            readySignalRef.current = true;
+            onReadyRef.current?.();
+          }
+        };
+
         const animate = () => {
           animationFrameRef.current = requestAnimationFrame(animate);
           animationTime += 0.016; // ~60fps
@@ -1467,17 +1513,20 @@ export default function Avatar3DViewer({
           }
 
           renderer.render(scene, camera);
+          signalReady();
         };
 
         animate();
       } catch (error) {
         console.error('Error in Avatar3DViewer:', error);
+        onErrorRef.current?.(error as Error);
         if (canvasRef.current) {
           canvasRef.current.style.display = 'none';
         }
       }
     }).catch((error) => {
       console.error('Failed to load Three.js:', error);
+      onErrorRef.current?.(error as Error);
       if (canvasRef.current) {
         canvasRef.current.style.display = 'none';
       }

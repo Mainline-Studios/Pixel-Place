@@ -16,7 +16,6 @@ import CoinsTab from '../Tabs/CoinsTab';
 import ServersTab from '../Tabs/ServersTab';
 import FriendsTab from '../Tabs/FriendsTab';
 import SettingsTab from '../Tabs/SettingsTab';
-import BreakReminder from '../BreakReminder';
 
 interface DashboardProps {
   user: User;
@@ -83,7 +82,6 @@ export default function Dashboard({ user }: DashboardProps) {
         </div>
       </div>
       <footer>© 2025 Pixel Place | All Rights Reserved</footer>
-      <BreakReminder />
     </div>
   );
 }
