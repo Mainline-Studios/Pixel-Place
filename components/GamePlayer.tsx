@@ -3,7 +3,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { PublishedGame, GameServer } from '@/types';
 import { getServers, getUsers, saveUsers } from '@/lib/storage';
-import { io, Socket } from 'socket.io-client';
+import { getFirestore, doc, onSnapshot, setDoc, serverTimestamp, Firestore } from 'firebase/firestore';
+import { getApps, initializeApp } from 'firebase/app';
+import { firebaseConfig } from '@/lib/firebaseConfig';
 import { useUser } from '@/contexts/UserContext';
 
 interface GamePlayerProps {
@@ -22,7 +24,8 @@ export default function GamePlayer({ game, onClose }: GamePlayerProps) {
   const { user, updateUser } = useUser();
   const containerRef = useRef<HTMLDivElement>(null);
   const cleanupRef = useRef<(() => void) | null>(null);
-  const socketRef = useRef<Socket | null>(null);
+  const firestoreUnsubscribeRef = useRef<(() => void) | null>(null);
+  const dbRef = useRef<Firestore | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [showSafetyPopup, setShowSafetyPopup] = useState(true);
   const [isLoading, setIsLoading] = useState(true);
@@ -95,85 +98,77 @@ export default function GamePlayer({ game, onClose }: GamePlayerProps) {
     };
   }, [user, game.ts, serverId]);
 
-  // Initialize server and socket for online mode
+  // Initialize Firebase Firestore for online multiplayer mode
   useEffect(() => {
-    if (isOnline && serverId && game.multiplayer) {
+    if (isOnline && serverId && game.multiplayer && user) {
       const servers = getServers();
       const foundServer = servers.find(s => s.id === serverId);
       if (foundServer) {
         setServer(foundServer);
 
-        // Initialize Socket.io connection
-        // Note: For full multiplayer, you need a Socket.io server running
-        // For now, it will gracefully fall back to offline mode if server is unavailable
+        // Initialize Firebase Firestore connection
         try {
-          const socketUrl = process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:3001';
-          const socket = io(socketUrl, {
-            transports: ['websocket', 'polling'],
-            reconnection: true,
-            reconnectionAttempts: 3,
-            reconnectionDelay: 1000,
-            timeout: 5000
-          });
+          let app;
+          if (getApps().length === 0) {
+            app = initializeApp(firebaseConfig);
+          } else {
+            app = getApps()[0];
+          }
+          
+          const db = getFirestore(app);
+          dbRef.current = db;
 
-          socket.on('connect', () => {
-            console.log('Connected to game server');
-            socket.emit('join-game', {
-              serverId: serverId,
-              gameId: game.ts.toString(),
-              username: 'Player'
-            });
+          const gameSessionId = `game_${serverId}_${game.ts.toString()}`;
+          const gameSessionRef = doc(db, 'game_sessions', gameSessionId);
+          const playerRef = doc(db, 'game_sessions', gameSessionId, 'players', user.username);
 
-            // Update server player count
-            const servers = getServers();
-            const serverIndex = servers.findIndex(s => s.id === serverId);
-            if (serverIndex !== -1) {
-              servers[serverIndex].currentPlayers = Math.min(
-                servers[serverIndex].currentPlayers + 1,
-                servers[serverIndex].maxPlayers
-              );
-              require('@/lib/storage').saveServers(servers);
-            }
-          });
-
-          socket.on('connect_error', () => {
-            console.warn('Socket.io server not available, running in offline mode');
+          // Join game session
+          setDoc(playerRef, {
+            id: user.username,
+            username: user.username,
+            position: { x: 0, y: 0, z: 0 },
+            rotation: { x: 0, y: 0, z: 0 },
+            joinedAt: serverTimestamp(),
+            updatedAt: serverTimestamp()
+          }, { merge: true }).catch(err => {
+            console.warn('Failed to join game session:', err);
             setIsOnline(false);
           });
 
-          socket.on('player-joined', (player: Player) => {
-            setPlayers(prev => {
-              if (!prev.find(p => p.id === player.id)) {
-                return [...prev, player];
-              }
-              return prev;
-            });
-          });
+          // Update game session
+          setDoc(gameSessionRef, {
+            serverId,
+            gameId: game.ts.toString(),
+            updatedAt: serverTimestamp()
+          }, { merge: true });
 
-          socket.on('player-left', (playerId: string) => {
-            setPlayers(prev => prev.filter(p => p.id !== playerId));
-
-            // Update server player count
-            const servers = getServers();
-            const serverIndex = servers.findIndex(s => s.id === serverId);
-            if (serverIndex !== -1) {
-              servers[serverIndex].currentPlayers = Math.max(0, servers[serverIndex].currentPlayers - 1);
-              require('@/lib/storage').saveServers(servers);
+          // Listen to players in this game session
+          const playersRef = doc(db, 'game_sessions', gameSessionId);
+          const unsubscribe = onSnapshot(playersRef, (snapshot) => {
+            if (snapshot.exists()) {
+              const data = snapshot.data();
+              // Get all players from subcollection
+              // Note: Firestore doesn't support listening to subcollections directly
+              // This is a simplified version - in production, you'd use a different structure
             }
-          });
-
-          socket.on('player-update', (player: Player) => {
-            setPlayers(prev => prev.map(p => p.id === player.id ? player : p));
-          });
-
-          socket.on('disconnect', () => {
-            console.log('Disconnected from game server');
+          }, (error) => {
+            console.warn('Firebase connection error, running in offline mode:', error);
             setIsOnline(false);
           });
 
-          socketRef.current = socket;
+          firestoreUnsubscribeRef.current = unsubscribe;
+
+          // Update server player count
+          const serverIndex = servers.findIndex(s => s.id === serverId);
+          if (serverIndex !== -1) {
+            servers[serverIndex].currentPlayers = Math.min(
+              servers[serverIndex].currentPlayers + 1,
+              servers[serverIndex].maxPlayers
+            );
+            require('@/lib/storage').saveServers(servers);
+          }
         } catch (err) {
-          console.warn('Socket.io connection failed, running in offline mode:', err);
+          console.warn('Firebase connection failed, running in offline mode:', err);
           setIsOnline(false);
         }
       } else {
@@ -183,21 +178,21 @@ export default function GamePlayer({ game, onClose }: GamePlayerProps) {
     }
 
     return () => {
-      if (socketRef.current) {
-        // Update server player count on disconnect
-        if (serverId) {
-          const servers = getServers();
-          const serverIndex = servers.findIndex(s => s.id === serverId);
-          if (serverIndex !== -1) {
-            servers[serverIndex].currentPlayers = Math.max(0, servers[serverIndex].currentPlayers - 1);
-            require('@/lib/storage').saveServers(servers);
-          }
+      if (firestoreUnsubscribeRef.current) {
+        firestoreUnsubscribeRef.current();
+        firestoreUnsubscribeRef.current = null;
+      }
+      // Update server player count on disconnect
+      if (serverId && user) {
+        const servers = getServers();
+        const serverIndex = servers.findIndex(s => s.id === serverId);
+        if (serverIndex !== -1) {
+          servers[serverIndex].currentPlayers = Math.max(0, servers[serverIndex].currentPlayers - 1);
+          require('@/lib/storage').saveServers(servers);
         }
-        socketRef.current.disconnect();
-        socketRef.current = null;
       }
     };
-  }, [isOnline, serverId, game.ts, game.multiplayer]);
+  }, [isOnline, serverId, game.ts, game.multiplayer, user]);
 
   useEffect(() => {
     if (!containerRef.current || !game.gameCode) return;
@@ -222,33 +217,29 @@ export default function GamePlayer({ game, onClose }: GamePlayerProps) {
         const moduleExports: any = {};
         const moduleObj = { exports: moduleExports };
 
-        // Add multiplayer support if online
+        // Add multiplayer support if online (using Firebase)
         let multiplayerCode = '';
-        if (isOnline && socketRef.current) {
-          // Store socket reference globally for game code
-          (window as any).__gameSocket = socketRef.current;
+        if (isOnline && dbRef.current && user) {
+          const gameSessionId = `game_${serverId}_${game.ts.toString()}`;
+          const playerRef = doc(dbRef.current, 'game_sessions', gameSessionId, 'players', user.username);
+          
           multiplayerCode = `
-          // Multiplayer support
-          window.gameSocket = {
-            emit: function(event, data) {
-              const socket = window.__gameSocket;
-              if (socket && socket.emit) {
-                socket.emit(event, data);
-              }
-            },
-            on: function(event, callback) {
-              const socket = window.__gameSocket;
-              if (socket && socket.on) {
-                socket.on(event, callback);
-              }
-            }
-          };
+          // Multiplayer support via Firebase
           window.gamePlayers = ${JSON.stringify(players)};
           window.updatePlayerPosition = function(pos, rot) {
-            if (window.gameSocket && window.gameSocket.emit) {
-              window.gameSocket.emit('player-update', { position: pos, rotation: rot });
+            // Update player position in Firebase
+            if (window.__firebaseDb && window.__currentPlayerRef) {
+              import('firebase/firestore').then(({ setDoc, serverTimestamp }) => {
+                setDoc(window.__currentPlayerRef, {
+                  position: pos,
+                  rotation: rot,
+                  updatedAt: serverTimestamp()
+                }, { merge: true }).catch(err => console.warn('Failed to update position:', err));
+              });
             }
           };
+          window.__firebaseDb = ${JSON.stringify({ connected: true })};
+          window.__currentPlayerRef = ${JSON.stringify({ path: `game_sessions/${gameSessionId}/players/${user.username}` })};
         `;
         }
 

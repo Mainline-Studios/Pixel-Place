@@ -5,6 +5,7 @@ import InstallPrompt from '@/components/InstallPrompt';
 import { UserProvider, useUser } from '@/contexts/UserContext';
 import Login from '@/components/Login';
 import Dashboard from '@/components/Dashboard/Dashboard';
+import SplashScreen from '@/components/SplashScreen';
 import { User } from '@/types';
 
 // Error boundary for catching render errors
@@ -42,6 +43,7 @@ function AppContent() {
   const [showPopup, setShowPopup] = useState(false);
   const [popupMessage, setPopupMessage] = useState('');
   const [isOffline, setIsOffline] = useState(false);
+  const [showSplash, setShowSplash] = useState(true);
   const prevUserRef = React.useRef<User | null>(null);
 
   // Show popup when user signs in
@@ -51,21 +53,27 @@ function AppContent() {
       const offlineStatus = typeof window !== 'undefined' && sessionStorage.getItem('pixelPlaceOffline') === 'true';
       setIsOffline(offlineStatus);
       setPopupMessage(offlineStatus 
-        ? 'Signed in offline! Your data is stored locally and will sync when you come back online.' 
-        : 'Successfully signed in!');
+        ? 'Not connected. You can still play offline games! Your data will sync when you reconnect.' 
+        : 'Logged in Successfully');
       setShowPopup(true);
-      // Auto-hide popup after 3 seconds
+      // Auto-hide popup after 4 seconds for offline mode (longer to read message)
       setTimeout(() => {
         setShowPopup(false);
-      }, 3000);
+      }, offlineStatus ? 5000 : 3000);
     }
     prevUserRef.current = user;
   }, [user]);
 
   return (
     <>
-      {user ? <Dashboard user={user} /> : <Login />}
-      <InstallPrompt />
+      {showSplash ? (
+        <SplashScreen onComplete={() => setShowSplash(false)} />
+      ) : (
+        <>
+          {user ? <Dashboard user={user} /> : <Login />}
+          <InstallPrompt />
+        </>
+      )}
       
       {/* Status Popup */}
       {showPopup && (
@@ -77,7 +85,7 @@ function AppContent() {
             background: isOffline ? '#ff9800' : '#4caf50',
             color: '#ffffff',
             padding: '16px 24px',
-            borderRadius: '8px',
+            borderRadius: '12px',
             boxShadow: '0 4px 12px rgba(0, 0, 0, 0.3)',
             zIndex: 10000,
             maxWidth: '400px',
@@ -100,7 +108,7 @@ function AppContent() {
                 border: 'none',
                 color: '#ffffff',
                 padding: '4px 8px',
-                borderRadius: '4px',
+                borderRadius: '8px',
                 cursor: 'pointer',
                 fontSize: '18px',
                 lineHeight: 1
@@ -123,6 +131,14 @@ function AppContent() {
           `}</style>
         </div>
       )}
+      
+      {/* Ensure background is always visible */}
+      <style jsx global>{`
+        html, body {
+          background: #0f1117 !important;
+          min-height: 100vh;
+        }
+      `}</style>
     </>
   );
 }

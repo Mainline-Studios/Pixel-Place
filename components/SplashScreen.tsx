@@ -61,13 +61,13 @@ export default function SplashScreen({ onComplete }: SplashScreenProps) {
         transition: 'opacity 0.8s ease-in-out',
       }}
     >
-      <div style={{ marginBottom: '30px', position: 'relative', width: '120px', height: '120px' }}>
+      <div style={{ marginBottom: '30px', position: 'relative', width: '120px', height: '120px', borderRadius: '20px', overflow: 'hidden' }}>
         <Image
           src="/logo.png"
           alt="Pixel Place Logo"
           width={120}
           height={120}
-          style={{ objectFit: 'contain' }}
+          style={{ objectFit: 'contain', borderRadius: '20px' }}
           priority
         />
       </div>
