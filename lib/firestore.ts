@@ -76,7 +76,19 @@ export const COLLECTIONS = {
   GYM_PUMP_SESSIONS: 'gym_pump_sessions',
   GYM_PUMP_PROGRESS: 'gym_pump_progress',
   PRESENCE: 'presence', // Online status tracking
-  GAME_SESSIONS: 'game_sessions' // Active multiplayer game sessions
+  GAME_SESSIONS: 'game_sessions', // Active multiplayer game sessions
+  ACHIEVEMENTS: 'achievements', // User achievements
+  ACHIEVEMENTS_MASTER: 'achievements_master', // Master list of all achievements
+  LEADERBOARDS: 'leaderboards', // Game leaderboards
+  CHAT_MESSAGES: 'chat_messages', // Chat messages
+  USER_STATS: 'user_stats', // User statistics
+  GAME_STATS: 'game_stats', // Game statistics
+  GLOBAL_STATS: 'global_stats', // Global platform statistics
+  TOURNAMENTS: 'tournaments', // Tournaments and competitions
+  USER_CHALLENGES: 'user_challenges', // User challenge progress
+  CHALLENGES_MASTER: 'challenges_master', // Master list of challenges
+  ACTIVITY_FEED: 'activity_feed', // User activity feed
+  NOTIFICATIONS: 'notifications' // User notifications
 };
 
 // Helper functions for Firestore operations
