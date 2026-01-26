@@ -104,6 +104,8 @@
     -Intense game with jumpscares
     
     -A variety of roles to be picked
+
+    **CAUTION: THIS GAME CONTAINS INTENSE SEQUENCES THAT MAY DISTURB VIEWERS. VIEWER'S DISCRETION IS ADVISED.**
     
     
 12. **City Life**
