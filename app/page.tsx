@@ -92,15 +92,7 @@ function AppContent() {
         <>
           {user ? <Dashboard user={user} /> : <Login />}
           <InstallPrompt />
-          {user && (
-            <BreakReminder
-              onTakeBreak={() => {
-                // Refresh user data to show updated safety points
-                window.location.reload();
-              }}
-              onDismiss={() => {}}
-            />
-          )}
+          {user && <BreakReminder />}
         </>
       )}
       

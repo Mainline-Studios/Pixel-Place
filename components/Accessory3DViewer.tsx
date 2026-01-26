@@ -67,16 +67,24 @@ export default function Accessory3DViewer({
           antialias: true,
           alpha: true
         });
+        rendererRef.current = renderer;
         renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
         renderer.setSize(width, height);
         renderer.setClearColor(0x000000, 0);
+        if ('outputColorSpace' in renderer && THREE.SRGBColorSpace) {
+          renderer.outputColorSpace = THREE.SRGBColorSpace;
+        } else if ('outputEncoding' in renderer && THREE.sRGBEncoding) {
+          renderer.outputEncoding = THREE.sRGBEncoding;
+        }
 
         const scene = new THREE.Scene();
+        sceneRef.current = scene;
 
         // Camera setup - centered on accessory
         const camera = new THREE.PerspectiveCamera(50, width / height, 0.1, 1000);
         camera.position.set(0, 0, 3);
         camera.lookAt(0, 0, 0);
+        cameraRef.current = camera;
 
         // Lighting
         const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
@@ -93,6 +101,7 @@ export default function Accessory3DViewer({
         // Create accessory group
         accessoryGroup = new THREE.Group();
         scene.add(accessoryGroup);
+        accessoryGroupRef.current = accessoryGroup;
 
         // Create pixelated texture
         const createPixelatedTexture = (color: {r: number, g: number, b: number}, pixelSize: number = 8) => {
@@ -119,6 +128,11 @@ export default function Accessory3DViewer({
           }
           
           const texture = new THREE.CanvasTexture(canvas);
+          if ('colorSpace' in texture && THREE.SRGBColorSpace) {
+            (texture as any).colorSpace = THREE.SRGBColorSpace;
+          } else if ('encoding' in texture && THREE.sRGBEncoding) {
+            (texture as any).encoding = THREE.sRGBEncoding;
+          }
           texture.magFilter = THREE.NearestFilter;
           texture.minFilter = THREE.NearestFilter;
           texture.wrapS = THREE.RepeatWrapping;
