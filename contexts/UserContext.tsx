@@ -1,14 +1,15 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { User } from '@/types';
-import { initializeStorage, getUsers, saveUsers, ADMIN_ACCOUNTS_LIST, isUserBanned, getBanForUser } from '@/lib/storage';
+import { User, Ban } from '@/types';
+import { initializeStorage, getUsers, saveUsers, ADMIN_ACCOUNTS_LIST, isUserBanned, getBanForUser, getBannedUsersSync } from '@/lib/storage';
 import { containsEmoji } from '@/lib/utils';
 
 interface UserContextType {
   user: User | null;
   setUser: (user: User | null) => void;
   login: (username: string, password: string) => Promise<{ success: boolean; message: string; ban?: any }>;
+  loginWithGoogle: (googleUser: User) => Promise<void>;
   createAccount: (username: string, password: string, gender: string) => Promise<{ success: boolean; message: string }>;
   updateUser: (updates: Partial<User>) => void;
 }
@@ -125,20 +126,77 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     }
   }, [user]);
 
-  const login = async (username: string, password: string): Promise<{ success: boolean; message: string }> => {
+  // Helper function to get users from localStorage (offline mode)
+  const getUsersLocal = (): User[] => {
+    if (typeof window === 'undefined') return [];
+    try {
+      const data = localStorage.getItem('pixelPlaceUsers');
+      return data ? JSON.parse(data) : [];
+    } catch {
+      return [];
+    }
+  };
+
+  // Helper function to save users to localStorage (offline mode)
+  const saveUsersLocal = (users: User[]): void => {
+    if (typeof window === 'undefined') return;
+    try {
+      localStorage.setItem('pixelPlaceUsers', JSON.stringify(users));
+    } catch (error) {
+      console.error('Error saving users to localStorage:', error);
+    }
+  };
+
+  const login = async (username: string, password: string): Promise<{ success: boolean; message: string; ban?: any }> => {
     if (!username || !password) {
       return { success: false, message: 'Enter username and password.' };
     }
 
-    // Check if user is banned
-    const isBanned = await isUserBanned(username);
-    if (isBanned) {
-      const ban = await getBanForUser(username);
-      return { success: false, message: 'This account has been banned. Please contact an administrator.', ban: ban || undefined };
+    let isOffline = false;
+    let users: User[] = [];
+    let found: User | undefined;
+
+    try {
+      // Try to get users from API (Firebase)
+      users = await getUsers();
+    } catch (error) {
+      // Fallback to localStorage if API fails
+      isOffline = true;
+      users = getUsersLocal();
+      console.log('Using offline mode - localStorage');
     }
 
-    let users = await getUsers();
-    let found = users.find(x => x.username === username);
+    // Check if user is banned (try online first, then offline fallback)
+    try {
+      const isBanned = await isUserBanned(username);
+      if (isBanned) {
+        const ban = await getBanForUser(username);
+        if (ban) {
+          return { success: false, message: 'This account has been banned. Please contact an administrator.', ban };
+        }
+      }
+    } catch (error) {
+      // If online ban check fails, try offline fallback
+      if (!isOffline) {
+        try {
+          const localBans = getBannedUsersSync();
+          const now = Date.now();
+          const localBan = localBans.find((b: Ban) => {
+            if (b.username.toLowerCase() !== username.toLowerCase()) return false;
+            if (b.permanent) return true;
+            if (b.expiresAt && b.expiresAt > now) return true;
+            return false;
+          });
+          if (localBan) {
+            return { success: false, message: 'This account has been banned. Please contact an administrator.', ban: localBan };
+          }
+        } catch {
+          // If offline check also fails, continue anyway (don't block login)
+        }
+      }
+    }
+
+    found = users.find(x => x.username === username);
 
     // Auto-create admin if not found but matches admin list
     if (!found) {
@@ -165,7 +223,17 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
           equippedAccessories: {}
         };
         users.push(found);
-        await saveUsers(users);
+        if (isOffline) {
+          saveUsersLocal(users);
+        } else {
+          try {
+            await saveUsers(users);
+          } catch {
+            // Fallback to localStorage if save fails
+            saveUsersLocal(users);
+            isOffline = true;
+          }
+        }
       }
     }
 
@@ -190,7 +258,16 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       const userIndex = users.findIndex(u => u.username === '6767kid');
       if (userIndex !== -1) {
         users[userIndex].coins = 4e471;
-        await saveUsers(users);
+        if (isOffline) {
+          saveUsersLocal(users);
+        } else {
+          try {
+            await saveUsers(users);
+          } catch {
+            saveUsersLocal(users);
+            isOffline = true;
+          }
+        }
       }
     }
     
@@ -202,7 +279,16 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       const userIndex = users.findIndex(u => u.username.toLowerCase() === 'daniello1');
       if (userIndex !== -1) {
         users[userIndex].coins = 5.534e200;
-        await saveUsers(users);
+        if (isOffline) {
+          saveUsersLocal(users);
+        } else {
+          try {
+            await saveUsers(users);
+          } catch {
+            saveUsersLocal(users);
+            isOffline = true;
+          }
+        }
       }
     }
 
@@ -211,11 +297,17 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     if (typeof window !== 'undefined') {
       try {
         sessionStorage.setItem('pixelPlaceLoggedInUser', found.username);
+        // Mark as offline in sessionStorage
+        if (isOffline) {
+          sessionStorage.setItem('pixelPlaceOffline', 'true');
+        } else {
+          sessionStorage.removeItem('pixelPlaceOffline');
+        }
       } catch (error) {
         console.error('Error saving user session:', error);
       }
     }
-    return { success: true, message: '' };
+    return { success: true, message: isOffline ? 'Signed in offline. Data stored locally.' : '' };
   };
 
   const createAccount = async (username: string, password: string, gender: string): Promise<{ success: boolean; message: string }> => {
@@ -223,13 +315,46 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       return { success: false, message: 'Username and password are required.' };
     }
 
-    // Check if username is banned
-    const isBanned = await isUserBanned(username);
-    if (isBanned) {
-      return { success: false, message: 'This username is banned and cannot be used.' };
+    let isOffline = false;
+    let users: User[] = [];
+
+    try {
+      // Try to get users from API (Firebase)
+      users = await getUsers();
+    } catch (error) {
+      // Fallback to localStorage if API fails
+      isOffline = true;
+      users = getUsersLocal();
+      console.log('Using offline mode - localStorage');
     }
 
-    const users = await getUsers();
+    // Check if username is banned (try online first, then offline fallback)
+    try {
+      const isBanned = await isUserBanned(username);
+      if (isBanned) {
+        return { success: false, message: 'This username is banned and cannot be used.' };
+      }
+    } catch (error) {
+      // If online ban check fails, try offline fallback
+      if (!isOffline) {
+        try {
+          const localBans = getBannedUsersSync();
+          const now = Date.now();
+          const localBan = localBans.find((b: Ban) => {
+            if (b.username.toLowerCase() !== username.toLowerCase()) return false;
+            if (b.permanent) return true;
+            if (b.expiresAt && b.expiresAt > now) return true;
+            return false;
+          });
+          if (localBan) {
+            return { success: false, message: 'This username is banned and cannot be used.' };
+          }
+        } catch {
+          // If offline check also fails, continue anyway (don't block account creation)
+        }
+      }
+    }
+
     if (users.find(x => x.username === username)) {
       return { success: false, message: 'Username already exists.' };
     }
@@ -268,18 +393,34 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     };
 
     users.push(newUser);
-    await saveUsers(users);
+    
+    if (isOffline) {
+      saveUsersLocal(users);
+    } else {
+      try {
+        await saveUsers(users);
+      } catch {
+        // Fallback to localStorage if save fails
+        saveUsersLocal(users);
+        isOffline = true;
+      }
+    }
+    
     setUser(newUser);
     // Persist to sessionStorage
     if (typeof window !== 'undefined') {
       try {
         sessionStorage.setItem('pixelPlaceLoggedInUser', newUser.username);
+        // Mark as offline in sessionStorage
+        if (isOffline) {
+          sessionStorage.setItem('pixelPlaceOffline', 'true');
+        }
       } catch (error) {
         console.error('Error saving user session:', error);
       }
     }
 
-    return { success: true, message: 'Account created! You can sign in now.' };
+    return { success: true, message: isOffline ? 'Account created offline! Data stored locally.' : 'Account created! You can sign in now.' };
   };
 
   const updateUser = async (updates: Partial<User>) => {
@@ -319,7 +460,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <UserContext.Provider value={{ user, setUser, login, createAccount, updateUser }}>
+    <UserContext.Provider value={{ user, setUser, login, loginWithGoogle, createAccount, updateUser }}>
       {children}
     </UserContext.Provider>
   );

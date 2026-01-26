@@ -56,7 +56,11 @@ export const COLLECTIONS = {
   PREBUILT_GAMES: 'prebuilt_games',
   GAMES: 'games',
   SKINS_CATALOG: 'skins_catalog',
-  ACCESSORIES_CATALOG: 'accessories_catalog'
+  ACCESSORIES_CATALOG: 'accessories_catalog',
+  GAME_SUBMISSIONS: 'game_submissions',
+  USER_MADE_GAMES: 'user_made_games',
+  GYM_PUMP_SESSIONS: 'gym_pump_sessions',
+  GYM_PUMP_PROGRESS: 'gym_pump_progress'
 };
 
 // Helper functions for Firestore operations
