@@ -12,7 +12,10 @@ export interface User {
   friends?: string[]; // Array of friend usernames
   friendRequests?: FriendRequest[]; // Incoming friend requests
   sentFriendRequests?: string[]; // Outgoing friend requests
-  currentGameId?: string; // Game ID user is currently playing
+  currentGameId?: string;
+  firebaseUid?: string; // Firebase Auth UID for Google Sign-In users
+  email?: string; // Email for Google Sign-In users
+  photoURL?: string; // Profile photo URL for Google Sign-In users // Game ID user is currently playing
   currentServerId?: string; // Server ID user is currently on
   recentlyPlayed?: string[]; // Array of game IDs (ts as string) the user has played
 }

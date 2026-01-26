@@ -7,7 +7,7 @@ function banFromDoc(doc: any): Ban {
     username: doc.username,
     reason: doc.reason || '',
     bannedBy: doc.banned_by || '',
-    bannedAt: doc.banned_at,
+    timestamp: doc.banned_at || doc.timestamp || Date.now(),
     expiresAt: doc.expires_at,
     permanent: doc.permanent === true
   };
@@ -16,7 +16,29 @@ function banFromDoc(doc: any): Ban {
 export async function GET() {
   try {
     const bans = await getDocuments(COLLECTIONS.BANS);
-    return NextResponse.json(bans.map(banFromDoc));
+    const now = Date.now();
+    // Filter out expired bans
+    const activeBans = bans
+      .map(banFromDoc)
+      .filter((ban: Ban) => {
+        if (ban.permanent) return true;
+        if (ban.expiresAt && ban.expiresAt > now) return true;
+        return false;
+      });
+    
+    // Auto-delete expired bans
+    const expiredBans = bans.filter((doc: any) => {
+      const ban = banFromDoc(doc);
+      if (ban.permanent) return false;
+      if (ban.expiresAt && ban.expiresAt <= now) return true;
+      return false;
+    });
+    
+    for (const expiredBan of expiredBans) {
+      await deleteDocument(COLLECTIONS.BANS, expiredBan.id);
+    }
+    
+    return NextResponse.json(activeBans);
   } catch (error) {
     console.error('Error reading bans:', error);
     return NextResponse.json({ error: 'Failed to read bans' }, { status: 500 });
@@ -39,7 +61,7 @@ export async function POST(request: NextRequest) {
       username_lower: newBan.username.toLowerCase(),
       reason: newBan.reason || '',
       banned_by: newBan.bannedBy || '',
-      banned_at: newBan.bannedAt,
+      banned_at: newBan.timestamp || Date.now(),
       expires_at: newBan.expiresAt,
       permanent: newBan.permanent || false,
       created_at: Date.now()

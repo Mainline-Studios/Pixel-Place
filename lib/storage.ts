@@ -387,7 +387,14 @@ export async function isUserBanned(username: string): Promise<boolean> {
 
   const usernameLower = username.trim().toLowerCase();
   const bans = await getBannedUsers();
-  const ban = bans.find(b => b.username.toLowerCase() === usernameLower);
+  const now = Date.now();
+  const ban = bans.find(b => {
+    if (b.username.toLowerCase() !== usernameLower) return false;
+    // Check if ban is still active
+    if (b.permanent) return true;
+    if (b.expiresAt && b.expiresAt > now) return true;
+    return false;
+  });
   return !!ban;
 }
 
@@ -397,7 +404,14 @@ export async function getBanForUser(username: string): Promise<Ban | null> {
 
   const usernameLower = username.trim().toLowerCase();
   const bans = await getBannedUsers();
-  return bans.find(b => b.username.toLowerCase() === usernameLower) || null;
+  const now = Date.now();
+  return bans.find(b => {
+    if (b.username.toLowerCase() !== usernameLower) return false;
+    // Check if ban is still active
+    if (b.permanent) return true;
+    if (b.expiresAt && b.expiresAt > now) return true;
+    return false;
+  }) || null;
 }
 
 // Sync versions for compatibility
