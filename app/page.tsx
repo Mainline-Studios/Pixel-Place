@@ -6,6 +6,8 @@ import { UserProvider, useUser } from '@/contexts/UserContext';
 import Login from '@/components/Login';
 import Dashboard from '@/components/Dashboard/Dashboard';
 import SplashScreen from '@/components/SplashScreen';
+import BreakReminder from '@/components/BreakReminder';
+import { getPlaytimeTracker } from '@/lib/playtimeTracker';
 import { User } from '@/types';
 
 // Error boundary for catching render errors
@@ -46,7 +48,7 @@ function AppContent() {
   const [showSplash, setShowSplash] = useState(true);
   const prevUserRef = React.useRef<User | null>(null);
 
-  // Show popup when user signs in
+  // Show popup when user signs in and start playtime tracking
   useEffect(() => {
     if (user && !prevUserRef.current) {
       // User just signed in
@@ -60,8 +62,26 @@ function AppContent() {
       setTimeout(() => {
         setShowPopup(false);
       }, offlineStatus ? 5000 : 3000);
+
+      // Start playtime tracking
+      if (typeof window !== 'undefined') {
+        const tracker = getPlaytimeTracker();
+        tracker.startTracking(user.username);
+      }
+    } else if (!user && prevUserRef.current) {
+      // User logged out - stop tracking
+      const tracker = getPlaytimeTracker();
+      tracker.stopTracking();
     }
     prevUserRef.current = user;
+
+    // Cleanup on unmount
+    return () => {
+      if (typeof window !== 'undefined') {
+        const tracker = getPlaytimeTracker();
+        tracker.stopTracking();
+      }
+    };
   }, [user]);
 
   return (
@@ -72,6 +92,15 @@ function AppContent() {
         <>
           {user ? <Dashboard user={user} /> : <Login />}
           <InstallPrompt />
+          {user && (
+            <BreakReminder
+              onTakeBreak={() => {
+                // Refresh user data to show updated safety points
+                window.location.reload();
+              }}
+              onDismiss={() => {}}
+            />
+          )}
         </>
       )}
       

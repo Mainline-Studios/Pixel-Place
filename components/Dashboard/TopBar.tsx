@@ -153,7 +153,21 @@ export default function TopBar({ currentTab, onTabChange, user }: TopBarProps) {
           </div>
           <div className="user-texts">
             <div className="username-top">{user.username}</div>
-            <div className="role-top">{user.role}</div>
+            <div className="role-top" style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+              <span>{user.role}</span>
+              {user.safetyPoints !== undefined && (
+                <span style={{ 
+                  color: '#4a90e2', 
+                  fontSize: '12px',
+                  fontWeight: 600,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px'
+                }}>
+                  🛡️ {user.safetyPoints.toLocaleString()}
+                </span>
+              )}
+            </div>
           </div>
         </div>
       </div>

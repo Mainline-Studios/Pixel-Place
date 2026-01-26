@@ -4,8 +4,13 @@ export interface User {
   gender: string;
   role: 'admin' | 'user';
   coins: number;
+  safetyPoints?: number; // Safety Points currency (separate from coins)
   ownedSkins: string[];
   equippedSkin: string;
+  playtimeToday?: number; // Total playtime in milliseconds today
+  breaksTakenToday?: number; // Number of breaks taken today (max 3)
+  lastBreakTime?: number; // Timestamp of last break
+  sessionStartTime?: number; // When current session started
   ownedAccessories?: string[]; // Accessory IDs owned by user
   equippedAccessories?: string[]; // Currently equipped accessory IDs
   ownedServers?: string[]; // Server IDs owned by user
@@ -21,6 +26,7 @@ export interface User {
   isOnline?: boolean; // Online status
   lastSeen?: number; // Last seen timestamp
   currentSessionId?: string; // Current multiplayer session ID
+  safetyPoints?: number; // Safety Points currency (earned from breaks)
 }
 
 export interface FriendRequest {
@@ -87,7 +93,9 @@ export interface SkinAccessory {
 export interface Skin {
   id: string;
   name: string;
-  price: number;
+  price: number; // Price in Pixel Coins
+  safetyPointsPrice?: number; // Price in Safety Points (for special skins)
+  isSpecial?: boolean; // Special skin that costs Safety Points
   img: string;
   colors: {
     head: string;
