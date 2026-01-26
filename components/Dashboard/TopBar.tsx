@@ -51,7 +51,7 @@ export default function TopBar({ currentTab, onTabChange, user }: TopBarProps) {
               alt="Pixel Place Logo"
               width={32}
               height={32}
-              style={{ objectFit: 'contain' }}
+              style={{ objectFit: 'contain', borderRadius: '8px' }}
               priority
             />
             <span>PIXEL PLACE</span>
