@@ -307,7 +307,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
         console.error('Error saving user session:', error);
       }
     }
-    return { success: true, message: isOffline ? 'Signed in offline. Data stored locally.' : '' };
+    return { success: true, message: isOffline ? 'Signed in offline. Data stored locally.' : '', offline: isOffline };
   };
 
   const loginWithGoogle = async (googleUser: User): Promise<void> => {

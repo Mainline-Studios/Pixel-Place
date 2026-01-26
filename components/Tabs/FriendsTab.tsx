@@ -1,10 +1,10 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { User, FriendRequest, Message } from '@/types';
 import { getUsers } from '@/lib/storage';
 import { useUser } from '@/contexts/UserContext';
-import { useFriendsOnlineStatus, useOnlineStatus, updateCurrentGame } from '@/lib/onlineStatus';
+import { useFriendsOnlineStatus, useOnlineStatus, updateCurrentGame, OnlineStatus } from '@/lib/onlineStatus';
 
 interface FriendsTabProps {
   user: User;
@@ -33,10 +33,29 @@ export default function FriendsTab({ user, editMode }: FriendsTabProps) {
   // Track online status for current user
   useOnlineStatus(user.username);
 
+  // Filter users for search (using useMemo to ensure proper hook ordering)
+  const filteredUsers = useMemo(() => {
+    return allUsers.filter(u => {
+      if (!u || !u.username) return false;
+      const query = searchQuery.toLowerCase().trim();
+      const username = u.username.toLowerCase();
+      const isFriend = friendsData.friends.some(f => f && f.username && f.username.toLowerCase() === username);
+      const isPending = friendsData.sentRequests.some(r => r && r.toLowerCase() === username);
+      
+      // If search query is empty, show all users (except self, friends, and pending)
+      if (!query) {
+        return !isFriend && !isPending && username !== user.username.toLowerCase();
+      }
+      
+      // If search query exists, filter by it
+      return username.includes(query) && !isFriend && !isPending && username !== user.username.toLowerCase();
+    });
+  }, [allUsers, searchQuery, friendsData.friends, friendsData.sentRequests, user.username]);
+
   // Track online status for all friends and search results
-  const friendUsernames = friendsData.friends.map(f => f.username);
-  const searchUsernames = filteredUsers.slice(0, 20).map(u => u.username);
-  const allTrackedUsernames = [...new Set([...friendUsernames, ...searchUsernames])];
+  const friendUsernames = useMemo(() => friendsData.friends.map(f => f.username), [friendsData.friends]);
+  const searchUsernames = useMemo(() => filteredUsers.slice(0, 20).map(u => u.username), [filteredUsers]);
+  const allTrackedUsernames = useMemo(() => [...new Set([...friendUsernames, ...searchUsernames])], [friendUsernames, searchUsernames]);
   const friendsOnlineStatus = useFriendsOnlineStatus(allTrackedUsernames);
 
   // Load friends data - non-blocking
@@ -320,23 +339,6 @@ export default function FriendsTab({ user, editMode }: FriendsTabProps) {
     // For now, just send the request
   };
 
-  // Filter users for search
-  const filteredUsers = allUsers.filter(u => {
-    if (!u || !u.username) return false;
-    const query = searchQuery.toLowerCase().trim();
-    const username = u.username.toLowerCase();
-    const isFriend = friendsData.friends.some(f => f && f.username && f.username.toLowerCase() === username);
-    const isPending = friendsData.sentRequests.some(r => r && r.toLowerCase() === username);
-    
-    // If search query is empty, show all users (except self, friends, and pending)
-    if (!query) {
-      return !isFriend && !isPending && username !== user.username.toLowerCase();
-    }
-    
-    // If search query exists, filter by it
-    return username.includes(query) && !isFriend && !isPending && username !== user.username.toLowerCase();
-  });
-
   // Format timestamp
   const formatTime = (timestamp: number) => {
     const date = new Date(timestamp);
@@ -545,32 +547,33 @@ export default function FriendsTab({ user, editMode }: FriendsTabProps) {
                           </button>
                         )}
                         <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          removeFriend(friend.username);
-                        }}
-                        style={{
-                          padding: '4px 8px',
-                          background: 'transparent',
-                          border: '1px solid var(--border)',
-                          borderRadius: '4px',
-                          color: 'var(--text-dim)',
-                          cursor: 'pointer',
-                          fontSize: '11px'
-                        }}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.background = '#3a1a1a';
-                          e.currentTarget.style.borderColor = '#5a2a2a';
-                          e.currentTarget.style.color = '#ff4d4d';
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.background = 'transparent';
-                          e.currentTarget.style.borderColor = 'var(--border)';
-                          e.currentTarget.style.color = 'var(--text-dim)';
-                        }}
-                      >
-                        Remove
-                      </button>
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            removeFriend(friend.username);
+                          }}
+                          style={{
+                            padding: '4px 8px',
+                            background: 'transparent',
+                            border: '1px solid var(--border)',
+                            borderRadius: '4px',
+                            color: 'var(--text-dim)',
+                            cursor: 'pointer',
+                            fontSize: '11px'
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.background = '#3a1a1a';
+                            e.currentTarget.style.borderColor = '#5a2a2a';
+                            e.currentTarget.style.color = '#ff4d4d';
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.background = 'transparent';
+                            e.currentTarget.style.borderColor = 'var(--border)';
+                            e.currentTarget.style.color = 'var(--text-dim)';
+                          }}
+                        >
+                          Remove
+                        </button>
+                      </div>
                     </div>
                   ))}
                 </div>

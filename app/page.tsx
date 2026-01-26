@@ -19,16 +19,17 @@ class ErrorBoundary extends React.Component<{children: React.ReactNode}, {hasErr
   }
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
-    fetch('http://127.0.0.1:7242/ingest/002741fb-cb98-444e-83cd-7086902151aa',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app/page.tsx:18',message:'ErrorBoundary caught error',data:{error:error.message,stack:error.stack,componentStack:errorInfo.componentStack},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'I'})}).catch(()=>{});
+    console.error('ErrorBoundary caught error:', error, errorInfo);
   }
 
   render() {
     if (this.state.hasError) {
       return (
-        <div style={{padding: '20px', color: '#fff', background: '#1a1d29'}}>
+        <div style={{padding: '20px', color: '#fff', background: '#1a1d29', minHeight: '100vh'}}>
           <h1>Something went wrong</h1>
           <p>{this.state.error?.message}</p>
-          <button onClick={() => this.setState({hasError: false, error: null})}>Try again</button>
+          <pre style={{fontSize: '12px', overflow: 'auto', maxHeight: '400px'}}>{this.state.error?.stack}</pre>
+          <button onClick={() => this.setState({hasError: false, error: null})} style={{padding: '10px 20px', marginTop: '10px', cursor: 'pointer'}}>Try again</button>
         </div>
       );
     }
@@ -42,12 +43,6 @@ function AppContent() {
   const [popupMessage, setPopupMessage] = useState('');
   const [isOffline, setIsOffline] = useState(false);
   const prevUserRef = React.useRef<User | null>(null);
-  
-  // #region agent log
-  useEffect(() => {
-    fetch('http://127.0.0.1:7242/ingest/002741fb-cb98-444e-83cd-7086902151aa',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app/page.tsx:40',message:'AppContent render',data:{hasUser:!!user,userId:user?.username,willRenderDashboard:!!user,willRenderLogin:!user},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-  }, [user]);
-  // #endregion
 
   // Show popup when user signs in
   useEffect(() => {
@@ -92,7 +87,7 @@ function AppContent() {
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
             <div style={{ flex: 1 }}>
               <div style={{ fontWeight: 600, marginBottom: '4px' }}>
-                {isOffline ? '⚠️ Offline Mode' : '✅ Signed In'}
+                {isOffline ? '⚠️ Not Connected' : '✅ Logged in Successfully'}
               </div>
               <div style={{ fontSize: '14px', opacity: 0.9 }}>
                 {popupMessage}
@@ -133,16 +128,10 @@ function AppContent() {
 }
 
 export default function Home() {
-  // #region agent log
-  useEffect(() => {
-    fetch('http://127.0.0.1:7242/ingest/002741fb-cb98-444e-83cd-7086902151aa',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app/page.tsx:65',message:'Home component render',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
-  }, []);
-  // #endregion
-  
   // Catch any unhandled errors
   useEffect(() => {
     const handleError = (event: ErrorEvent) => {
-      fetch('http://127.0.0.1:7242/ingest/002741fb-cb98-444e-83cd-7086902151aa',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app/page.tsx:70',message:'Unhandled error',data:{message:event.message,filename:event.filename,lineno:event.lineno,colno:event.colno,error:event.error?.stack},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'J'})}).catch(()=>{});
+      console.error('Unhandled error:', event.error);
     };
     window.addEventListener('error', handleError);
     return () => window.removeEventListener('error', handleError);
