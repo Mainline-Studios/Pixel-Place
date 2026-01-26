@@ -275,39 +275,63 @@ export default function AvatarShopTab({ user, editMode }: AvatarShopTabProps) {
       return; // Already owned - silent fail
     }
 
-    // Check if it's a dual-priced skin (coins + safety points)
-    if (skin.dualPrice) {
+    // Check if it's a face with single currency pricing (coins OR safety points)
+    if (skin.isFace && skin.price > 0 && skin.safetyPointsPrice) {
       const userCoins = user.coins || 0;
       const userSafetyPoints = user.safetyPoints || 0;
+      const formattedCoins = userCoins.toLocaleString('en-US');
+      const formattedSafetyPoints = userSafetyPoints.toLocaleString('en-US');
+      const formattedCoinPrice = skin.price.toLocaleString('en-US');
+      const formattedSPPrice = skin.safetyPointsPrice.toLocaleString('en-US');
       
-      if (userCoins < skin.dualPrice.coins || userSafetyPoints < skin.dualPrice.safetyPoints) {
-        return; // Not enough resources - silent fail
+      // Check if user can afford with either currency
+      const canAffordCoins = userCoins >= skin.price;
+      const canAffordSP = userSafetyPoints >= skin.safetyPointsPrice;
+      
+      if (!canAffordCoins && !canAffordSP) {
+        return; // Not enough currency - silent fail
       }
 
-      if (confirm(`Buy ${skin.name} for ${skin.dualPrice.coins.toLocaleString()} Coins AND ${skin.dualPrice.safetyPoints} Safety Points?\nYour balance: ${userCoins.toLocaleString()} Coins, ${userSafetyPoints} Safety Points`)) {
-        try {
-          const newCoins = userCoins - skin.dualPrice.coins;
-          const newSafetyPoints = userSafetyPoints - skin.dualPrice.safetyPoints;
-          const newOwnedSkins = [...(user.ownedSkins || []), skin.id];
-          
-          await updateUser({ coins: newCoins, safetyPoints: newSafetyPoints, ownedSkins: newOwnedSkins });
-          
-          // Sync safety points to backend
+      // Ask which currency to use (prefer coins if both available)
+      let useCoins = canAffordCoins;
+      if (canAffordCoins && canAffordSP) {
+        useCoins = confirm(`Buy ${skin.name}?\n\nPay with:\n- ${formattedCoinPrice} Coins (you have ${formattedCoins})\n- OR ${formattedSPPrice} Safety Points (you have ${formattedSafetyPoints})\n\nClick OK to pay with Coins, Cancel to pay with Safety Points`);
+      }
+      
+      if (useCoins && canAffordCoins) {
+        if (confirm(`Buy ${skin.name} for ${formattedCoinPrice} Coins?\nYour balance: ${formattedCoins} Coins`)) {
           try {
-            await fetch('/api/safety', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                username: user.username,
-                action: 'updateSafetyPoints',
-                safetyPoints: newSafetyPoints
-              })
-            });
+            const newCoins = userCoins - skin.price;
+            const newOwnedSkins = [...(user.ownedSkins || []), skin.id];
+            await updateUser({ coins: newCoins, ownedSkins: newOwnedSkins });
           } catch (error) {
-            console.warn('Failed to sync safety points:', error);
+            // Silent error handling
           }
-        } catch (error) {
-          // Silent error handling
+        }
+      } else if (canAffordSP) {
+        if (confirm(`Buy ${skin.name} for ${formattedSPPrice} Safety Points?\nYour balance: ${formattedSafetyPoints} Safety Points`)) {
+          try {
+            const newSafetyPoints = userSafetyPoints - skin.safetyPointsPrice;
+            const newOwnedSkins = [...(user.ownedSkins || []), skin.id];
+            await updateUser({ safetyPoints: newSafetyPoints, ownedSkins: newOwnedSkins });
+            
+            // Sync safety points to backend
+            try {
+              await fetch('/api/safety', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  username: user.username,
+                  action: 'updateSafetyPoints',
+                  safetyPoints: newSafetyPoints
+                })
+              });
+            } catch (error) {
+              console.warn('Failed to sync safety points:', error);
+            }
+          } catch (error) {
+            // Silent error handling
+          }
         }
       }
       return;
@@ -658,30 +682,82 @@ export default function AvatarShopTab({ user, editMode }: AvatarShopTabProps) {
           )}
         </div>
       </div>
-      {/* Faces Section - Premium faces with dual pricing */}
+      {/* Premium Skins Section - 500+ polygons with glows */}
+      {regularSkins.filter(s => s.isSpecial && s.safetyPointsPrice && !s.isFace && s.id.startsWith('premium_')).length > 0 && (
+        <div className="ai-box" style={{ marginBottom: '24px' }}>
+          <div className="skins-section-title">✨ Premium Skins (500+ Polygons)</div>
+          <div className="smalltext" style={{ marginBottom: '8px' }}>
+            Ultra-realistic skins with glows and built-in accessories! High-polygon models (500+ polygons each).
+          </div>
+          <div className="skins-grid">
+            {regularSkins.filter(s => s.isSpecial && s.safetyPointsPrice && !s.isFace && s.id.startsWith('premium_')).map((s) => {
+              const owned = user.ownedSkins?.includes(s.id);
+              const equipped = user.equippedSkin === s.id;
+              const affordable = (user.safetyPoints || 0) >= (s.safetyPointsPrice || 0);
+
+              return (
+                <div key={s.id} className="skin-card" style={{
+                  border: '2px solid rgba(74, 144, 226, 0.5)',
+                  boxShadow: '0 0 20px rgba(74, 144, 226, 0.3)'
+                }}>
+                  <SkinThumb skin={s} accessories={[]} />
+                  <div className="skin-name" style={{ color: '#4a90e2', fontWeight: 600 }}>{escapeHTML(s.name)}</div>
+                  <div className="skin-meta">
+                    <span className="price-tag" style={{ color: '#4a90e2' }}>
+                      🛡️ {s.safetyPointsPrice} Safety Points
+                    </span>
+                  </div>
+                  <div className="skin-actions">
+                    {owned ? (
+                      <button
+                        className="btn"
+                        onClick={() => handleEquip(s.id)}
+                        disabled={equipped}
+                      >
+                        {equipped ? 'Equipped' : 'Equip'}
+                      </button>
+                    ) : (
+                      <button
+                        className="btn"
+                        disabled={!affordable}
+                        onClick={() => handlePurchase(s)}
+                        style={{
+                          background: 'linear-gradient(135deg, #4a90e2 0%, #357abd 100%)',
+                          border: '1px solid #5a9fe2'
+                        }}
+                      >
+                        {affordable ? `Buy (🛡️ ${s.safetyPointsPrice})` : 'Need More 🛡️'}
+                      </button>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Faces Section - Premium faces with single currency pricing */}
       <div className="ai-box">
         <div className="skins-section-title">✨ Premium Faces</div>
         <div className="smalltext" style={{ marginBottom: '8px' }}>
-          High-polygon faces (500+ polygons) with glows and accessories! Cost both Coins AND Safety Points.
+          High-polygon faces (500+ polygons) with glows! Choose to pay with Coins OR Safety Points.
         </div>
         <div className="skins-grid">
-          {skins.filter(s => s.isFace).map((s) => {
-            const owned = user.ownedSkins?.includes(s.id);
-            const equipped = user.equippedSkin === s.id;
-            const affordable = s.dualPrice
-              ? (user.coins || 0) >= s.dualPrice.coins && (user.safetyPoints || 0) >= s.dualPrice.safetyPoints
-              : s.isSpecial && s.safetyPointsPrice
-                ? (user.safetyPoints || 0) >= s.safetyPointsPrice
-                : (user.coins || 0) >= s.price;
+            {faces.map((s) => {
+              const owned = user.ownedSkins?.includes(s.id);
+              const equipped = user.equippedSkin === s.id;
+              // Can pay with coins OR safety points (not both)
+              const affordable = (user.coins || 0) >= s.price || (user.safetyPoints || 0) >= (s.safetyPointsPrice || 0);
 
             return (
               <div key={s.id} className="skin-card">
                 <SkinThumb skin={s} accessories={[]} />
                 <div className="skin-name">{escapeHTML(s.name)}</div>
                 <div className="skin-meta">
-                  <span className="price-tag" style={s.dualPrice ? { color: '#ffd700', fontWeight: 600 } : {}}>
-                    {s.dualPrice
-                      ? `💠 ${s.dualPrice.coins} Coins + 🛡️ ${s.dualPrice.safetyPoints} SP`
+                  <span className="price-tag" style={{ color: '#ffd700', fontWeight: 600 }}>
+                    {s.price > 0 && s.safetyPointsPrice 
+                      ? `💠 ${s.price} Coins OR 🛡️ ${s.safetyPointsPrice} SP`
                       : s.isSpecial && s.safetyPointsPrice 
                         ? `🛡️ ${s.safetyPointsPrice} Safety Points`
                         : s.price === 0 
@@ -703,24 +779,21 @@ export default function AvatarShopTab({ user, editMode }: AvatarShopTabProps) {
                       className="btn"
                       disabled={!affordable}
                       onClick={() => handlePurchase(s)}
-                      style={s.dualPrice ? {
+                      style={{
                         background: 'linear-gradient(135deg, #ffd700 0%, #ffaa00 100%)',
                         border: '1px solid #ffd700',
                         color: '#000',
                         fontWeight: 700
-                      } : s.isSpecial ? {
-                        background: 'linear-gradient(135deg, #4a90e2 0%, #357abd 100%)',
-                        border: '1px solid #5a9fe2'
-                      } : {}}
+                      }}
                     >
                       {affordable 
-                        ? (s.dualPrice 
-                            ? `Buy (💠+🛡️)` 
+                        ? (s.price > 0 && s.safetyPointsPrice
+                            ? `Buy (💠 OR 🛡️)`
                             : s.isSpecial 
                               ? `Buy (🛡️ ${s.safetyPointsPrice})` 
                               : `Buy for ${s.price} 💠`) 
-                        : (s.dualPrice 
-                            ? 'Need More 💠🛡️' 
+                        : (s.price > 0 && s.safetyPointsPrice
+                            ? 'Need 💠 OR 🛡️'
                             : s.isSpecial 
                               ? 'Need More 🛡️' 
                               : 'Not Enough')}
