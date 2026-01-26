@@ -751,9 +751,12 @@ export default function AvatarShopTab({ user, editMode }: AvatarShopTabProps) {
               const affordable = (user.coins || 0) >= s.price || (user.safetyPoints || 0) >= (s.safetyPointsPrice || 0);
 
             return (
-              <div key={s.id} className="skin-card">
+              <div key={s.id} className="skin-card" style={{
+                border: '2px solid rgba(255, 215, 0, 0.5)',
+                boxShadow: '0 0 20px rgba(255, 215, 0, 0.3)'
+              }}>
                 <SkinThumb skin={s} accessories={[]} />
-                <div className="skin-name">{escapeHTML(s.name)}</div>
+                <div className="skin-name" style={{ color: '#ffd700', fontWeight: 600 }}>{escapeHTML(s.name)}</div>
                 <div className="skin-meta">
                   <span className="price-tag" style={{ color: '#ffd700', fontWeight: 600 }}>
                     {s.price > 0 && s.safetyPointsPrice 
