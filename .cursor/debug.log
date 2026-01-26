@@ -14232,3 +14232,19 @@
 {"location":"UserContext.tsx:31","message":"Got users from storage","data":{"userCount":9,"foundUser":true},"timestamp":1769460981131,"sessionId":"debug-session","runId":"run1","hypothesisId":"G"}
 {"location":"UserContext.tsx:76","message":"getInitialUser resolved","data":{"hasRestoredUser":true,"username":"BDawgsAwesome1"},"timestamp":1769460981131,"sessionId":"debug-session","runId":"run1","hypothesisId":"H"}
 {"location":"UserContext.tsx:81","message":"Setting isRestoring to false","data":{},"timestamp":1769460981131,"sessionId":"debug-session","runId":"run1","hypothesisId":"H"}
+{"location":"PlayTab.tsx:113","message":"PlayTab render start","data":{},"timestamp":1769461615536,"sessionId":"debug-session","runId":"run1","hypothesisId":"B"}
+{"location":"PlayTab.tsx:115","message":"After useState selectedGame","data":{"selectedGame":null},"timestamp":1769461615537,"sessionId":"debug-session","runId":"run1","hypothesisId":"B"}
+{"location":"PlayTab.tsx:115","message":"After useState selectedGame","data":{"selectedGame":null},"timestamp":1769461615536,"sessionId":"debug-session","runId":"run1","hypothesisId":"B"}
+{"location":"PlayTab.tsx:116","message":"After useState isLoading","data":{"isLoading":false},"timestamp":1769461615536,"sessionId":"debug-session","runId":"run1","hypothesisId":"B"}
+{"location":"PlayTab.tsx:117","message":"After useState loadError","data":{"loadError":null},"timestamp":1769461615536,"sessionId":"debug-session","runId":"run1","hypothesisId":"B"}
+{"location":"PlayTab.tsx:119","message":"Before early return check","data":{"selectedGame":null,"hasGameComponent":false},"timestamp":1769461615537,"sessionId":"debug-session","runId":"run1","hypothesisId":"B"}
+{"location":"PlayTab.tsx:113","message":"PlayTab render start","data":{},"timestamp":1769461615537,"sessionId":"debug-session","runId":"run1","hypothesisId":"B"}
+{"location":"PlayTab.tsx:116","message":"After useState isLoading","data":{"isLoading":false},"timestamp":1769461615538,"sessionId":"debug-session","runId":"run1","hypothesisId":"B"}
+{"location":"PlayTab.tsx:117","message":"After useState loadError","data":{"loadError":null},"timestamp":1769461615538,"sessionId":"debug-session","runId":"run1","hypothesisId":"B"}
+{"location":"PlayTab.tsx:119","message":"Before early return check","data":{"selectedGame":null,"hasGameComponent":false},"timestamp":1769461615538,"sessionId":"debug-session","runId":"run1","hypothesisId":"B"}
+{"location":"PlayTab.tsx:120","message":"PlayTab render","data":{"selectedGame":null,"hasGameComponent":false,"isLoading":false,"loadError":null},"timestamp":1769461615541,"sessionId":"debug-session","runId":"run1","hypothesisId":"A"}
+{"location":"PlayTab.tsx:123","message":"selectedGame changed","data":{"selectedGame":null,"isLoading":false},"timestamp":1769461615541,"sessionId":"debug-session","runId":"run1","hypothesisId":"B"}
+{"location":"PlayTab.tsx:150","message":"GameComponent mount effect","data":{"hasGameComponent":false,"selectedGame":null,"isLoading":false},"timestamp":1769461615542,"sessionId":"debug-session","runId":"run1","hypothesisId":"D"}
+{"location":"PlayTab.tsx:120","message":"PlayTab render","data":{"selectedGame":null,"hasGameComponent":false,"isLoading":false,"loadError":null},"timestamp":1769461615542,"sessionId":"debug-session","runId":"run1","hypothesisId":"A"}
+{"location":"PlayTab.tsx:123","message":"selectedGame changed","data":{"selectedGame":null,"isLoading":false},"timestamp":1769461615542,"sessionId":"debug-session","runId":"run1","hypothesisId":"B"}
+{"location":"PlayTab.tsx:150","message":"GameComponent mount effect","data":{"hasGameComponent":false,"selectedGame":null,"isLoading":false},"timestamp":1769461615542,"sessionId":"debug-session","runId":"run1","hypothesisId":"D"}
