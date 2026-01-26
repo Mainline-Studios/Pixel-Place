@@ -88,7 +88,8 @@ export const COLLECTIONS = {
   USER_CHALLENGES: 'user_challenges', // User challenge progress
   CHALLENGES_MASTER: 'challenges_master', // Master list of challenges
   ACTIVITY_FEED: 'activity_feed', // User activity feed
-  NOTIFICATIONS: 'notifications' // User notifications
+  NOTIFICATIONS: 'notifications', // User notifications
+  USER_SAFETY: 'user_safety' // User safety points and break tracking
 };
 
 // Helper functions for Firestore operations

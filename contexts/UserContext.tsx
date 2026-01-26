@@ -292,6 +292,19 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       }
     }
 
+    // Sync safety points from backend
+    if (!isOffline) {
+      try {
+        const safetyResponse = await fetch(`/api/safety?username=${found.username}`);
+        if (safetyResponse.ok) {
+          const safetyData = await safetyResponse.json();
+          found.safetyPoints = safetyData.safetyPoints || 0;
+        }
+      } catch (error) {
+        console.warn('Failed to fetch safety points:', error);
+      }
+    }
+
     setUser(found);
     // Persist to sessionStorage
     if (typeof window !== 'undefined') {
@@ -460,6 +473,23 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
 
     const updatedUser = { ...user, ...updates };
     setUser(updatedUser);
+
+    // Sync safety points to backend if updated
+    if (updates.safetyPoints !== undefined) {
+      try {
+        await fetch('/api/safety', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            username: user.username,
+            action: 'updateSafetyPoints',
+            safetyPoints: updates.safetyPoints
+          })
+        }).catch(() => {}); // Silently fail if backend unavailable
+      } catch (error) {
+        console.warn('Failed to sync safety points:', error);
+      }
+    }
 
     const users = await getUsers();
     const index = users.findIndex(u => u.username.toLowerCase() === user.username.toLowerCase());
