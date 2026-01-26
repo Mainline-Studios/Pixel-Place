@@ -45,6 +45,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
           if (!found.ownedSkins) found.ownedSkins = ['starter_classic'];
           if (!found.ownedAccessories) found.ownedAccessories = [];
           if (!found.equippedAccessories) found.equippedAccessories = {};
+          if (!found.ownedFaces) found.ownedFaces = [];
           
           // Special coins for 6767kid - massive amount
           if (found.username === '6767kid') {
@@ -434,7 +435,8 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       equippedSkin: 'starter_classic',
       isDonor: false,
       ownedAccessories: [],
-      equippedAccessories: {}
+      equippedAccessories: {},
+      ownedFaces: []
     };
 
     users.push(newUser);
