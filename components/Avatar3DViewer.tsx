@@ -66,11 +66,24 @@ export default function Avatar3DViewer({
       try {
         THREE = module;
         
-        // Validate skin again inside useEffect
-        if (!skin || !skin.colors || !skin.colors.head || !skin.colors.torso || !skin.colors.arm || !skin.colors.legs) {
+        // Validate skin again inside useEffect - ensure colors exist with defaults
+        if (!skin || !skin.colors) {
           console.warn('Invalid skin data:', skin);
           return;
         }
+        
+        // Ensure all color properties exist with defaults
+        const defaultColors = {
+          head: '#f4c2a1',
+          torso: '#4d536f',
+          arm: '#3a3f56',
+          legs: '#3a3f56'
+        };
+        
+        if (!skin.colors.head) skin.colors.head = defaultColors.head;
+        if (!skin.colors.torso) skin.colors.torso = defaultColors.torso;
+        if (!skin.colors.arm) skin.colors.arm = defaultColors.arm;
+        if (!skin.colors.legs) skin.colors.legs = defaultColors.legs;
 
         const canvas = canvasRef.current!;
         const renderer = new THREE.WebGLRenderer({
