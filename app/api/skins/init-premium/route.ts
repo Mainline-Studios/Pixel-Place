@@ -138,13 +138,13 @@ export async function POST(request: NextRequest) {
       }
     ];
 
-    // Premium Faces with Dual Pricing (500+ polygons, glows)
+    // Premium Faces with Single Currency Pricing (500+ polygons, glows) - Choose Coins OR Safety Points
     const premiumFaces: Skin[] = [
       {
         id: 'face_neon_glow',
         name: 'Neon Glow Face',
-        price: 0,
-        dualPrice: { coins: 500, safetyPoints: 50 },
+        price: 500, // Can pay with coins
+        safetyPointsPrice: 50, // OR pay with safety points
         isFace: true,
         isSpecial: true,
         img: 'face_neon_glow',
@@ -163,8 +163,8 @@ export async function POST(request: NextRequest) {
       {
         id: 'face_fire_glow',
         name: 'Fire Glow Face',
-        price: 0,
-        dualPrice: { coins: 750, safetyPoints: 75 },
+        price: 750,
+        safetyPointsPrice: 75,
         isFace: true,
         isSpecial: true,
         img: 'face_fire_glow',
@@ -183,8 +183,8 @@ export async function POST(request: NextRequest) {
       {
         id: 'face_ice_glow',
         name: 'Ice Glow Face',
-        price: 0,
-        dualPrice: { coins: 750, safetyPoints: 75 },
+        price: 750,
+        safetyPointsPrice: 75,
         isFace: true,
         isSpecial: true,
         img: 'face_ice_glow',
@@ -203,8 +203,8 @@ export async function POST(request: NextRequest) {
       {
         id: 'face_purple_glow',
         name: 'Purple Glow Face',
-        price: 0,
-        dualPrice: { coins: 1000, safetyPoints: 100 },
+        price: 1000,
+        safetyPointsPrice: 100,
         isFace: true,
         isSpecial: true,
         img: 'face_purple_glow',
@@ -223,8 +223,8 @@ export async function POST(request: NextRequest) {
       {
         id: 'face_golden_glow',
         name: 'Golden Glow Face',
-        price: 0,
-        dualPrice: { coins: 1500, safetyPoints: 150 },
+        price: 1500,
+        safetyPointsPrice: 150,
         isFace: true,
         isSpecial: true,
         img: 'face_golden_glow',
@@ -243,8 +243,8 @@ export async function POST(request: NextRequest) {
       {
         id: 'face_rainbow_glow',
         name: 'Rainbow Glow Face',
-        price: 0,
-        dualPrice: { coins: 2000, safetyPoints: 200 },
+        price: 2000,
+        safetyPointsPrice: 200,
         isFace: true,
         isSpecial: true,
         img: 'face_rainbow_glow',
