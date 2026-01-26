@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { User, FriendRequest, Message } from '@/types';
 import { getUsers } from '@/lib/storage';
 import { useUser } from '@/contexts/UserContext';
+import { useFriendsOnlineStatus, useOnlineStatus, updateCurrentGame } from '@/lib/onlineStatus';
 
 interface FriendsTabProps {
   user: User;
@@ -28,6 +29,15 @@ export default function FriendsTab({ user, editMode }: FriendsTabProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messageInputRef = useRef<HTMLInputElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
+
+  // Track online status for current user
+  useOnlineStatus(user.username);
+
+  // Track online status for all friends and search results
+  const friendUsernames = friendsData.friends.map(f => f.username);
+  const searchUsernames = filteredUsers.slice(0, 20).map(u => u.username);
+  const allTrackedUsernames = [...new Set([...friendUsernames, ...searchUsernames])];
+  const friendsOnlineStatus = useFriendsOnlineStatus(allTrackedUsernames);
 
   // Load friends data - non-blocking
   const loadFriendsData = async () => {
@@ -246,6 +256,70 @@ export default function FriendsTab({ user, editMode }: FriendsTabProps) {
     }
   };
 
+  // Join friend's game
+  const handleJoinFriend = async (friendUsername: string) => {
+    try {
+      // Get friend's current game session
+      const presenceResponse = await fetch(`/api/presence?username=${encodeURIComponent(friendUsername)}`);
+      if (presenceResponse.ok) {
+        const presence = await presenceResponse.json();
+        if (presence.isOnline && presence.currentSessionId) {
+          // Friend is in a game - join it
+          const joinResponse = await fetch('/api/game-sessions', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              action: 'join',
+              sessionId: presence.currentSessionId,
+              username: user.username
+            })
+          });
+          if (joinResponse.ok) {
+            window.location.href = `/play?session=${presence.currentSessionId}`;
+          } else {
+            alert('Could not join friend\'s game. The session may be full or no longer available.');
+          }
+        } else {
+          // Friend is online but not in a game - create a new game session
+          const gameResponse = await fetch('/api/game-sessions', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              action: 'create',
+              gameId: 'multiplayer',
+              hostUsername: user.username
+            })
+          });
+          if (gameResponse.ok) {
+            const result = await gameResponse.json();
+            // Invite friend to join
+            await fetch('/api/game-sessions', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                action: 'join',
+                sessionId: result.session.sessionId,
+                username: friendUsername
+              })
+            });
+            window.location.href = `/play?session=${result.session.sessionId}`;
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error joining friend:', error);
+      alert('Could not join friend. They may not be in a game.');
+    }
+  };
+
+  // Chat with non-friend user
+  const handleChatWithUser = (targetUsername: string) => {
+    // Send friend request first, then open chat
+    sendFriendRequest(targetUsername);
+    // After friend request is sent, we could open a chat window
+    // For now, just send the request
+  };
+
   // Filter users for search
   const filteredUsers = allUsers.filter(u => {
     if (!u || !u.username) return false;
@@ -403,15 +477,74 @@ export default function FriendsTab({ user, editMode }: FriendsTabProps) {
                         }
                       }}
                     >
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: '14px', fontWeight: '600', color: 'var(--text-main)' }}>
-                          {friend.username}
+                      <div style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <div style={{ position: 'relative' }}>
+                          {/* Online status indicator */}
+                          {friendsOnlineStatus[friend.username]?.isOnline && (
+                            <div style={{
+                              position: 'absolute',
+                              top: '-2px',
+                              right: '-2px',
+                              width: '10px',
+                              height: '10px',
+                              borderRadius: '50%',
+                              background: '#4caf50',
+                              border: '2px solid var(--panel-alt)',
+                              boxShadow: '0 0 4px rgba(76, 175, 80, 0.6)'
+                            }} />
+                          )}
+                          <div style={{
+                            width: '32px',
+                            height: '32px',
+                            borderRadius: '50%',
+                            background: 'var(--accent-bg)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontSize: '14px',
+                            fontWeight: '600',
+                            color: 'var(--text-main)'
+                          }}>
+                            {friend.username.charAt(0).toUpperCase()}
+                          </div>
                         </div>
-                        <div style={{ fontSize: '11px', color: 'var(--text-dim)' }}>
-                          Click to message
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontSize: '14px', fontWeight: '600', color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            {friend.username}
+                          </div>
+                          <div style={{ fontSize: '11px', color: 'var(--text-dim)' }}>
+                            {friendsOnlineStatus[friend.username]?.isOnline ? 'Online' : 'Offline'}
+                          </div>
                         </div>
                       </div>
-                      <button
+                      <div style={{ display: 'flex', gap: '6px' }}>
+                        {friendsOnlineStatus[friend.username]?.isOnline && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleJoinFriend(friend.username);
+                            }}
+                            style={{
+                              padding: '4px 8px',
+                              background: 'var(--accent-bg)',
+                              border: '1px solid var(--accent-hover)',
+                              borderRadius: '4px',
+                              color: 'var(--accent-hover)',
+                              cursor: 'pointer',
+                              fontSize: '11px',
+                              fontWeight: '600'
+                            }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.background = 'var(--accent-bg-hover)';
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.background = 'var(--accent-bg)';
+                            }}
+                          >
+                            Join
+                          </button>
+                        )}
+                        <button
                         onClick={(e) => {
                           e.stopPropagation();
                           removeFriend(friend.username);
@@ -556,31 +689,91 @@ export default function FriendsTab({ user, editMode }: FriendsTabProps) {
                 }}
               />
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '400px', overflowY: 'auto' }}>
-                {filteredUsers.slice(0, 20).map((u) => (
-                  <div
-                    key={u.username}
-                    style={{
-                      padding: '12px',
-                      background: 'var(--panel-soft)',
-                      borderRadius: '8px',
-                      border: '1px solid var(--border)',
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center'
-                    }}
-                  >
-                    <div style={{ fontSize: '14px', fontWeight: '600', color: 'var(--text-main)' }}>
-                      {u.username}
-                    </div>
-                    <button
-                      onClick={() => sendFriendRequest(u.username)}
-                      className="btn"
-                      style={{ fontSize: '12px', padding: '6px 12px' }}
+                {filteredUsers.slice(0, 20).map((u) => {
+                  const userStatus = friendsOnlineStatus[u.username] || { isOnline: false, username: u.username };
+                  return (
+                    <div
+                      key={u.username}
+                      style={{
+                        padding: '12px',
+                        background: 'var(--panel-soft)',
+                        borderRadius: '8px',
+                        border: '1px solid var(--border)',
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        gap: '12px'
+                      }}
                     >
-                      Add Friend
-                    </button>
-                  </div>
-                ))}
+                      <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
+                        <div style={{ position: 'relative' }}>
+                          {/* Online status indicator */}
+                          {userStatus.isOnline && (
+                            <div style={{
+                              position: 'absolute',
+                              top: '-2px',
+                              right: '-2px',
+                              width: '10px',
+                              height: '10px',
+                              borderRadius: '50%',
+                              background: '#4caf50',
+                              border: '2px solid var(--panel-soft)',
+                              boxShadow: '0 0 4px rgba(76, 175, 80, 0.6)'
+                            }} />
+                          )}
+                          <div style={{
+                            width: '32px',
+                            height: '32px',
+                            borderRadius: '50%',
+                            background: 'var(--accent-bg)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontSize: '14px',
+                            fontWeight: '600',
+                            color: 'var(--text-main)'
+                          }}>
+                            {u.username.charAt(0).toUpperCase()}
+                          </div>
+                        </div>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontSize: '14px', fontWeight: '600', color: 'var(--text-main)' }}>
+                            {u.username}
+                          </div>
+                          <div style={{ fontSize: '11px', color: 'var(--text-dim)' }}>
+                            {userStatus.isOnline ? 'Online' : 'Offline'}
+                          </div>
+                        </div>
+                      </div>
+                      <div style={{ display: 'flex', gap: '6px' }}>
+                        {userStatus.isOnline && (
+                          <button
+                            onClick={() => handleChatWithUser(u.username)}
+                            style={{
+                              fontSize: '12px',
+                              padding: '6px 12px',
+                              background: 'var(--accent-bg)',
+                              border: '1px solid var(--accent-hover)',
+                              borderRadius: '4px',
+                              color: 'var(--accent-hover)',
+                              cursor: 'pointer',
+                              fontWeight: '600'
+                            }}
+                          >
+                            Chat
+                          </button>
+                        )}
+                        <button
+                          onClick={() => sendFriendRequest(u.username)}
+                          className="btn"
+                          style={{ fontSize: '12px', padding: '6px 12px' }}
+                        >
+                          Add Friend
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
                 {filteredUsers.length === 0 && searchQuery && (
                   <div style={{ color: 'var(--text-dim)', textAlign: 'center', padding: '20px' }}>
                     No users found matching "{searchQuery}"
