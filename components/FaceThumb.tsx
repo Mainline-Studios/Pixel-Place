@@ -39,17 +39,18 @@ export default function FaceThumb({ face, width = 80, height = 80 }: FaceThumbPr
   }, []);
 
   // Create a preview skin that combines the face with a generic body
+  // Ensure face has colors, use defaults if missing
   const previewSkin: Skin = {
     ...face,
     colors: {
-      head: face.colors.head, // Use face color for head
+      head: face.colors?.head || '#f4c2a1', // Use face color for head
       torso: '#4d536f', // Generic body color
       arm: '#3a3f56', // Generic arm color
       legs: '#3a3f56' // Generic leg color
     }
   };
 
-  if (!face || !face.colors || hasError) {
+  if (!face || hasError) {
     return (
       <div
         ref={containerRef}
