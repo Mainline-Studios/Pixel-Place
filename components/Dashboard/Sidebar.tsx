@@ -27,6 +27,8 @@ export default function Sidebar({ user, onNavigate }: SidebarProps) {
   }, []);
 
   const equippedSkin = skins.find(s => s.id === user.equippedSkin) || skins.find(s => s.id === 'starter_classic') || skins[0];
+  // Get equipped face if available
+  const equippedFace = user.equippedFace ? skins.find(s => s.id === user.equippedFace && s.isFace) : null;
   // equippedAccessories is an object, not an array: { hat: 'id', glasses: 'id', ... }
   const equippedAccessoriesList = Object.values(user.equippedAccessories || {}).map(id => 
     accessories.find(a => a.id === id)
@@ -57,6 +59,7 @@ export default function Sidebar({ user, onNavigate }: SidebarProps) {
             height={180}
             interactive={true}
             animation={skinWithAccessories.defaultAnimation || 'idle'}
+            equippedFace={equippedFace || undefined}
           />
         )}
       </div>

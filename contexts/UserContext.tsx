@@ -504,7 +504,11 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
         // Preserve ownedSkins if not being updated
         ownedSkins: updates.ownedSkins !== undefined ? updates.ownedSkins : existingUser.ownedSkins || [],
         // Preserve ownedAccessories if not being updated
-        ownedAccessories: updates.ownedAccessories !== undefined ? updates.ownedAccessories : existingUser.ownedAccessories || []
+        ownedAccessories: updates.ownedAccessories !== undefined ? updates.ownedAccessories : existingUser.ownedAccessories || [],
+        // Preserve ownedFaces if not being updated
+        ownedFaces: updates.ownedFaces !== undefined ? updates.ownedFaces : existingUser.ownedFaces || [],
+        // Preserve equippedFace if not being updated
+        equippedFace: updates.equippedFace !== undefined ? updates.equippedFace : existingUser.equippedFace
       };
       await saveUsers(users);
       

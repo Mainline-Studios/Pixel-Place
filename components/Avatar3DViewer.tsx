@@ -9,6 +9,7 @@ interface Avatar3DViewerProps {
   height?: number;
   interactive?: boolean; // Enable mouse interaction
   animation?: string; // Animation to play
+  equippedFace?: Skin; // Optional equipped face to apply to head
 }
 
 export default function Avatar3DViewer({
@@ -16,7 +17,8 @@ export default function Avatar3DViewer({
   width = 200,
   height = 200,
   interactive = true,
-  animation = 'idle'
+  animation = 'idle',
+  equippedFace
 }: Avatar3DViewerProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const mountRef = useRef<HTMLDivElement>(null);
@@ -176,19 +178,24 @@ export default function Avatar3DViewer({
           return texture;
         };
 
-        // Colors
-        const headColor = hexToColor(skin.colors?.head || '#f4c2a1');
+        // Colors - apply equipped face to head if available
+        const headColor = hexToColor(equippedFace?.colors?.head || skin.colors?.head || '#f4c2a1');
         const torsoColor = hexToColor(skin.colors?.torso || '#4d536f');
         const armColor = hexToColor(skin.colors?.arm || '#3a3f56');
         const legColor = hexToColor(skin.colors?.legs || '#3a3f56');
+        
+        // Use face materials if equipped face has glow
+        const faceHasGlow = equippedFace?.isSpecial || equippedFace?.materials?.head?.emissive !== undefined;
+        const faceGlowColor = equippedFace?.materials?.head?.emissive || equippedFace?.materials?.torso?.emissive;
+        const faceGlowIntensity = equippedFace?.materials?.head?.emissiveIntensity || equippedFace?.materials?.torso?.emissiveIntensity || 0.6;
 
-        // Check for glow properties
-        const hasGlow = skin.isSpecial || (skin.materials?.torso?.emissive !== undefined);
-        const glowColor = skin.materials?.torso?.emissive || skin.materials?.head?.emissive || '#4a90e2';
-        const glowIntensity = skin.materials?.torso?.emissiveIntensity || skin.materials?.head?.emissiveIntensity || 0.6;
+        // Check for glow properties (skin or equipped face)
+        const hasGlow = skin.isSpecial || (skin.materials?.torso?.emissive !== undefined) || faceHasGlow;
+        const glowColor = faceGlowColor || skin.materials?.torso?.emissive || skin.materials?.head?.emissive || '#4a90e2';
+        const glowIntensity = faceGlowIntensity || skin.materials?.torso?.emissiveIntensity || skin.materials?.head?.emissiveIntensity || 0.6;
 
-        // Create materials with pixelated textures (or glow for special skins)
-        const headMaterial = hasGlow 
+        // Create materials with pixelated textures (or glow for special skins/faces)
+        const headMaterial = (hasGlow && (faceHasGlow || skin.isSpecial))
           ? createGlowMaterial(headColor, true, glowColor, glowIntensity)
           : new THREE.MeshStandardMaterial({
               map: createPixelatedTexture(headColor, 8),

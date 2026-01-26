@@ -143,7 +143,7 @@ export async function POST(request: NextRequest) {
       {
         id: 'face_neon_glow',
         name: 'Neon Glow Face',
-        price: 500, // Can pay with coins
+        price: 500, // Can pay with coins (required, not free)
         safetyPointsPrice: 50, // OR pay with safety points
         isFace: true,
         isSpecial: true,
@@ -163,7 +163,7 @@ export async function POST(request: NextRequest) {
       {
         id: 'face_fire_glow',
         name: 'Fire Glow Face',
-        price: 750,
+        price: 750, // Required, not free
         safetyPointsPrice: 75,
         isFace: true,
         isSpecial: true,
@@ -183,7 +183,7 @@ export async function POST(request: NextRequest) {
       {
         id: 'face_ice_glow',
         name: 'Ice Glow Face',
-        price: 750,
+        price: 750, // Required, not free
         safetyPointsPrice: 75,
         isFace: true,
         isSpecial: true,
@@ -203,7 +203,7 @@ export async function POST(request: NextRequest) {
       {
         id: 'face_purple_glow',
         name: 'Purple Glow Face',
-        price: 1000,
+        price: 1000, // Required, not free
         safetyPointsPrice: 100,
         isFace: true,
         isSpecial: true,
@@ -223,7 +223,7 @@ export async function POST(request: NextRequest) {
       {
         id: 'face_golden_glow',
         name: 'Golden Glow Face',
-        price: 1500,
+        price: 1500, // Required, not free
         safetyPointsPrice: 150,
         isFace: true,
         isSpecial: true,
@@ -243,7 +243,7 @@ export async function POST(request: NextRequest) {
       {
         id: 'face_rainbow_glow',
         name: 'Rainbow Glow Face',
-        price: 2000,
+        price: 2000, // Required, not free
         safetyPointsPrice: 200,
         isFace: true,
         isSpecial: true,
