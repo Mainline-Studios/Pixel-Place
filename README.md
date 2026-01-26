@@ -124,6 +124,8 @@
     -Play sports online with friends
 
     -Try out new sports
+
+    -New Sports added frequently
 ---
 
 ## 🚀 Getting Started
