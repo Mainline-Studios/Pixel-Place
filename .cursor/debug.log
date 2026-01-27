@@ -14274,3 +14274,58 @@
 {"location":"UserContext.tsx:31","message":"Got users from storage","data":{"userCount":9,"foundUser":true},"timestamp":1769462873435,"sessionId":"debug-session","runId":"run1","hypothesisId":"G"}
 {"location":"UserContext.tsx:76","message":"getInitialUser resolved","data":{"hasRestoredUser":true,"username":"BDawgsAwesome1"},"timestamp":1769462873436,"sessionId":"debug-session","runId":"run1","hypothesisId":"H"}
 {"location":"UserContext.tsx:81","message":"Setting isRestoring to false","data":{},"timestamp":1769462873436,"sessionId":"debug-session","runId":"run1","hypothesisId":"H"}
+{"location":"UserContext.tsx:20","message":"UserProvider render","data":{},"timestamp":1769463244478,"sessionId":"debug-session","runId":"run1","hypothesisId":"F"}
+{"location":"UserContext.tsx:24","message":"getInitialUser called","data":{"isWindow":true},"timestamp":1769463244485,"sessionId":"debug-session","runId":"run1","hypothesisId":"G"}
+{"location":"UserContext.tsx:20","message":"UserProvider render","data":{},"timestamp":1769463244484,"sessionId":"debug-session","runId":"run1","hypothesisId":"F"}
+{"location":"UserContext.tsx:72","message":"UserProvider useEffect started","data":{},"timestamp":1769463244485,"sessionId":"debug-session","runId":"run1","hypothesisId":"H"}
+{"location":"UserContext.tsx:72","message":"UserProvider useEffect started","data":{},"timestamp":1769463244479,"sessionId":"debug-session","runId":"run1","hypothesisId":"H"}
+{"location":"UserContext.tsx:24","message":"getInitialUser called","data":{"isWindow":true},"timestamp":1769463244481,"sessionId":"debug-session","runId":"run1","hypothesisId":"G"}
+{"location":"UserContext.tsx:28","message":"Checking sessionStorage","data":{"savedUsername":"BDawgsAwesome1"},"timestamp":1769463244481,"sessionId":"debug-session","runId":"run1","hypothesisId":"G"}
+{"location":"UserContext.tsx:28","message":"Checking sessionStorage","data":{"savedUsername":null},"timestamp":1769463244485,"sessionId":"debug-session","runId":"run1","hypothesisId":"G"}
+{"location":"UserContext.tsx:76","message":"getInitialUser resolved","data":{"hasRestoredUser":false},"timestamp":1769463244486,"sessionId":"debug-session","runId":"run1","hypothesisId":"H"}
+{"location":"UserContext.tsx:81","message":"Setting isRestoring to false","data":{},"timestamp":1769463244486,"sessionId":"debug-session","runId":"run1","hypothesisId":"H"}
+{"location":"UserContext.tsx:31","message":"Got users from storage","data":{"userCount":9,"foundUser":true},"timestamp":1769463245983,"sessionId":"debug-session","runId":"run1","hypothesisId":"G"}
+{"location":"UserContext.tsx:76","message":"getInitialUser resolved","data":{"hasRestoredUser":true,"username":"BDawgsAwesome1"},"timestamp":1769463245983,"sessionId":"debug-session","runId":"run1","hypothesisId":"H"}
+{"location":"UserContext.tsx:81","message":"Setting isRestoring to false","data":{},"timestamp":1769463245984,"sessionId":"debug-session","runId":"run1","hypothesisId":"H"}
+{"location":"UserContext.tsx:20","message":"UserProvider render","data":{},"timestamp":1769463664019,"sessionId":"debug-session","runId":"run1","hypothesisId":"F"}
+{"location":"UserContext.tsx:24","message":"getInitialUser called","data":{"isWindow":true},"timestamp":1769463664021,"sessionId":"debug-session","runId":"run1","hypothesisId":"G"}
+{"location":"UserContext.tsx:72","message":"UserProvider useEffect started","data":{},"timestamp":1769463664019,"sessionId":"debug-session","runId":"run1","hypothesisId":"H"}
+{"location":"UserContext.tsx:24","message":"getInitialUser called","data":{"isWindow":true},"timestamp":1769463664020,"sessionId":"debug-session","runId":"run1","hypothesisId":"G"}
+{"location":"UserContext.tsx:28","message":"Checking sessionStorage","data":{"savedUsername":"BDawgsAwesome1"},"timestamp":1769463664020,"sessionId":"debug-session","runId":"run1","hypothesisId":"G"}
+{"location":"UserContext.tsx:20","message":"UserProvider render","data":{},"timestamp":1769463664021,"sessionId":"debug-session","runId":"run1","hypothesisId":"F"}
+{"location":"UserContext.tsx:72","message":"UserProvider useEffect started","data":{},"timestamp":1769463664021,"sessionId":"debug-session","runId":"run1","hypothesisId":"H"}
+{"location":"UserContext.tsx:28","message":"Checking sessionStorage","data":{"savedUsername":null},"timestamp":1769463664021,"sessionId":"debug-session","runId":"run1","hypothesisId":"G"}
+{"location":"UserContext.tsx:76","message":"getInitialUser resolved","data":{"hasRestoredUser":false},"timestamp":1769463664022,"sessionId":"debug-session","runId":"run1","hypothesisId":"H"}
+{"location":"UserContext.tsx:81","message":"Setting isRestoring to false","data":{},"timestamp":1769463664022,"sessionId":"debug-session","runId":"run1","hypothesisId":"H"}
+{"location":"UserContext.tsx:31","message":"Got users from storage","data":{"userCount":9,"foundUser":true},"timestamp":1769463664124,"sessionId":"debug-session","runId":"run1","hypothesisId":"G"}
+{"location":"UserContext.tsx:76","message":"getInitialUser resolved","data":{"hasRestoredUser":true,"username":"BDawgsAwesome1"},"timestamp":1769463664124,"sessionId":"debug-session","runId":"run1","hypothesisId":"H"}
+{"location":"UserContext.tsx:81","message":"Setting isRestoring to false","data":{},"timestamp":1769463664124,"sessionId":"debug-session","runId":"run1","hypothesisId":"H"}
+{"location":"UserContext.tsx:20","message":"UserProvider render","data":{},"timestamp":1769463848555,"sessionId":"debug-session","runId":"run1","hypothesisId":"F"}
+{"location":"UserContext.tsx:24","message":"getInitialUser called","data":{"isWindow":true},"timestamp":1769463848557,"sessionId":"debug-session","runId":"run1","hypothesisId":"G"}
+{"location":"UserContext.tsx:72","message":"UserProvider useEffect started","data":{},"timestamp":1769463848555,"sessionId":"debug-session","runId":"run1","hypothesisId":"H"}
+{"location":"UserContext.tsx:24","message":"getInitialUser called","data":{"isWindow":true},"timestamp":1769463848555,"sessionId":"debug-session","runId":"run1","hypothesisId":"G"}
+{"location":"UserContext.tsx:28","message":"Checking sessionStorage","data":{"savedUsername":"BDawgsAwesome1"},"timestamp":1769463848555,"sessionId":"debug-session","runId":"run1","hypothesisId":"G"}
+{"location":"UserContext.tsx:20","message":"UserProvider render","data":{},"timestamp":1769463848556,"sessionId":"debug-session","runId":"run1","hypothesisId":"F"}
+{"location":"UserContext.tsx:72","message":"UserProvider useEffect started","data":{},"timestamp":1769463848557,"sessionId":"debug-session","runId":"run1","hypothesisId":"H"}
+{"location":"UserContext.tsx:28","message":"Checking sessionStorage","data":{"savedUsername":null},"timestamp":1769463848557,"sessionId":"debug-session","runId":"run1","hypothesisId":"G"}
+{"location":"UserContext.tsx:76","message":"getInitialUser resolved","data":{"hasRestoredUser":false},"timestamp":1769463848557,"sessionId":"debug-session","runId":"run1","hypothesisId":"H"}
+{"location":"UserContext.tsx:81","message":"Setting isRestoring to false","data":{},"timestamp":1769463848557,"sessionId":"debug-session","runId":"run1","hypothesisId":"H"}
+{"location":"UserContext.tsx:31","message":"Got users from storage","data":{"userCount":9,"foundUser":true},"timestamp":1769463848667,"sessionId":"debug-session","runId":"run1","hypothesisId":"G"}
+{"location":"UserContext.tsx:76","message":"getInitialUser resolved","data":{"hasRestoredUser":true,"username":"BDawgsAwesome1"},"timestamp":1769463848668,"sessionId":"debug-session","runId":"run1","hypothesisId":"H"}
+{"location":"UserContext.tsx:81","message":"Setting isRestoring to false","data":{},"timestamp":1769463848668,"sessionId":"debug-session","runId":"run1","hypothesisId":"H"}
+{"location":"PlayTab.tsx:113","message":"PlayTab render start","data":{},"timestamp":1769463857029,"sessionId":"debug-session","runId":"run1","hypothesisId":"B"}
+{"location":"PlayTab.tsx:115","message":"After useState selectedGame","data":{"selectedGame":null},"timestamp":1769463857030,"sessionId":"debug-session","runId":"run1","hypothesisId":"B"}
+{"location":"PlayTab.tsx:115","message":"After useState selectedGame","data":{"selectedGame":null},"timestamp":1769463857030,"sessionId":"debug-session","runId":"run1","hypothesisId":"B"}
+{"location":"PlayTab.tsx:116","message":"After useState isLoading","data":{"isLoading":false},"timestamp":1769463857030,"sessionId":"debug-session","runId":"run1","hypothesisId":"B"}
+{"location":"PlayTab.tsx:117","message":"After useState loadError","data":{"loadError":null},"timestamp":1769463857030,"sessionId":"debug-session","runId":"run1","hypothesisId":"B"}
+{"location":"PlayTab.tsx:119","message":"Before early return check","data":{"selectedGame":null,"hasGameComponent":false},"timestamp":1769463857030,"sessionId":"debug-session","runId":"run1","hypothesisId":"B"}
+{"location":"PlayTab.tsx:113","message":"PlayTab render start","data":{},"timestamp":1769463857030,"sessionId":"debug-session","runId":"run1","hypothesisId":"B"}
+{"location":"PlayTab.tsx:116","message":"After useState isLoading","data":{"isLoading":false},"timestamp":1769463857030,"sessionId":"debug-session","runId":"run1","hypothesisId":"B"}
+{"location":"PlayTab.tsx:117","message":"After useState loadError","data":{"loadError":null},"timestamp":1769463857030,"sessionId":"debug-session","runId":"run1","hypothesisId":"B"}
+{"location":"PlayTab.tsx:119","message":"Before early return check","data":{"selectedGame":null,"hasGameComponent":false},"timestamp":1769463857030,"sessionId":"debug-session","runId":"run1","hypothesisId":"B"}
+{"location":"PlayTab.tsx:120","message":"PlayTab render","data":{"selectedGame":null,"hasGameComponent":false,"isLoading":false,"loadError":null},"timestamp":1769463857032,"sessionId":"debug-session","runId":"run1","hypothesisId":"A"}
+{"location":"PlayTab.tsx:123","message":"selectedGame changed","data":{"selectedGame":null,"isLoading":false},"timestamp":1769463857033,"sessionId":"debug-session","runId":"run1","hypothesisId":"B"}
+{"location":"PlayTab.tsx:150","message":"GameComponent mount effect","data":{"hasGameComponent":false,"selectedGame":null,"isLoading":false},"timestamp":1769463857033,"sessionId":"debug-session","runId":"run1","hypothesisId":"D"}
+{"location":"PlayTab.tsx:120","message":"PlayTab render","data":{"selectedGame":null,"hasGameComponent":false,"isLoading":false,"loadError":null},"timestamp":1769463857033,"sessionId":"debug-session","runId":"run1","hypothesisId":"A"}
+{"location":"PlayTab.tsx:123","message":"selectedGame changed","data":{"selectedGame":null,"isLoading":false},"timestamp":1769463857033,"sessionId":"debug-session","runId":"run1","hypothesisId":"B"}
+{"location":"PlayTab.tsx:150","message":"GameComponent mount effect","data":{"hasGameComponent":false,"selectedGame":null,"isLoading":false},"timestamp":1769463857033,"sessionId":"debug-session","runId":"run1","hypothesisId":"D"}
