@@ -22,6 +22,29 @@ export async function POST(request: NextRequest) {
     const premiumSkins: Skin[] = [
       // Premium Glowing Skins with Accessories
       {
+        id: 'premium_phoenix_guardian',
+        name: 'Phoenix Guardian',
+        price: 0,
+        safetyPointsPrice: 300,
+        isSpecial: true,
+        img: 'phoenix_guardian',
+        colors: { head: '#ff4500', torso: '#8b0000', arm: '#ff8c00', legs: '#8b0000' },
+        use3d: true,
+        defaultAnimation: 'idle',
+        theme: 'fire',
+        rarity: 'legendary',
+        materials: {
+          torso: { type: 'metal', roughness: 0.1, metalness: 0.9, emissive: '#ff4500', emissiveIntensity: 1.2 },
+          head: { type: 'metal', roughness: 0.1, metalness: 0.9, emissive: '#ff8c00', emissiveIntensity: 1.0 },
+          arm: { type: 'metal', roughness: 0.1, metalness: 0.9, emissive: '#ff4500', emissiveIntensity: 0.8 },
+          legs: { type: 'metal', roughness: 0.1, metalness: 0.9, emissive: '#8b0000', emissiveIntensity: 0.8 }
+        },
+        skinAccessories: [
+          { id: 'phoenix_helm', type: 'hat', name: 'Phoenix Helm', color: '#ff4500', position: { x: 0, y: 0.3, z: 0 } },
+          { id: 'phoenix_wings', type: 'backpack', name: 'Phoenix Wings', color: '#ff8c00', position: { x: 0, y: 0.4, z: -0.2 } }
+        ]
+      },
+      {
         id: 'premium_neon_warrior',
         name: 'Neon Warrior',
         price: 0,
@@ -268,18 +291,27 @@ export async function POST(request: NextRequest) {
     const updatedSkins = [...existingSkins, ...skinsToAdd];
 
     // Save updated skins catalog
+    // Remove skins that are 'isSpecial' but have 0 price and no safetyPointsPrice (broken/old data)
+    const cleanedSkins = updatedSkins.filter(skin => {
+      if (skin.isSpecial && (skin.price === 0 || !skin.price) && (!skin.safetyPointsPrice || skin.safetyPointsPrice === 0)) {
+        return false; // Remove broken special skin
+      }
+      return true;
+    });
+
     await setDocument(COLLECTIONS.SKINS_CATALOG, 'catalog', {
-      skins: updatedSkins,
+      skins: cleanedSkins,
       updated_at: Date.now()
     });
 
     return NextResponse.json({ 
       success: true, 
-      message: `Added ${skinsToAdd.length} premium skins and faces (500+ polygons each)`,
+      message: `Added ${skinsToAdd.length} premium skins/faces. Removed broken skins.`,
       added: skinsToAdd.length,
       premiumSkins: premiumSkins.length,
       premiumFaces: premiumFaces.length,
-      existing: existingSkins.length
+      existing: existingSkins.length,
+      totalCleaned: cleanedSkins.length
     });
   } catch (error: any) {
     console.error('Error initializing premium skins:', error);
