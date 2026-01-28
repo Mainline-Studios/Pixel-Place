@@ -10,6 +10,7 @@ export interface AvatarRenderOptions {
   scale?: number;
   position?: { x: number; y: number; z: number };
   animation?: 'idle' | 'walk' | 'jump' | 'wave';
+  bodyType?: 'weak' | 'normal' | 'athletic' | 'strong' | 'jacked';
 }
 
 /**
@@ -233,52 +234,86 @@ export function createAvatarMesh(
   characterGroup.scale.set(scale, scale, scale);
   characterGroup.position.set(position.x, position.y, position.z);
 
-  // Body parts
-  const bodyScale = (skin as any).bodyScale || { x: 1, y: 1, z: 1 };
-  const headScale = (skin as any).headScale || { x: 1, y: 1, z: 1 };
-  const isSpecial = skin.isSpecial || false;
+  // Body type scaling (weak to jacked)
+  const bodyTypeScales = {
+    weak: { torso: { x: 0.8, y: 0.9, z: 0.85 }, arms: { x: 0.7, y: 0.85, z: 0.75 }, legs: { x: 0.85, y: 0.9, z: 0.85 }, head: { x: 1.0, y: 1.0, z: 1.0 } },
+    normal: { torso: { x: 1.0, y: 1.0, z: 1.0 }, arms: { x: 1.0, y: 1.0, z: 1.0 }, legs: { x: 1.0, y: 1.0, z: 1.0 }, head: { x: 1.0, y: 1.0, z: 1.0 } },
+    athletic: { torso: { x: 1.15, y: 1.1, z: 1.1 }, arms: { x: 1.2, y: 1.15, z: 1.1 }, legs: { x: 1.1, y: 1.1, z: 1.05 }, head: { x: 1.0, y: 1.0, z: 1.0 } },
+    strong: { torso: { x: 1.3, y: 1.2, z: 1.2 }, arms: { x: 1.4, y: 1.3, z: 1.2 }, legs: { x: 1.2, y: 1.15, z: 1.1 }, head: { x: 1.0, y: 1.0, z: 1.0 } },
+    jacked: { torso: { x: 1.5, y: 1.3, z: 1.3 }, arms: { x: 1.6, y: 1.4, z: 1.3 }, legs: { x: 1.3, y: 1.2, z: 1.15 }, head: { x: 1.0, y: 1.0, z: 1.0 } }
+  };
 
-  // Head
+  const selectedBodyType = options.bodyType || 'normal';
+  const bodyTypeScale = bodyTypeScales[selectedBodyType];
+
+  // Body parts - combine skin bodyScale with body type scale
+  const skinBodyScale = (skin as any).bodyScale || { x: 1, y: 1, z: 1 };
+  const skinHeadScale = (skin as any).headScale || { x: 1, y: 1, z: 1 };
+  const isSpecial = skin.isSpecial || false;
+  
+  // Final scales = skin scale * body type scale
+  const finalTorsoScale = {
+    x: skinBodyScale.x * bodyTypeScale.torso.x,
+    y: skinBodyScale.y * bodyTypeScale.torso.y,
+    z: skinBodyScale.z * bodyTypeScale.torso.z
+  };
+  const finalArmScale = {
+    x: skinBodyScale.x * bodyTypeScale.arms.x,
+    y: skinBodyScale.y * bodyTypeScale.arms.y,
+    z: skinBodyScale.z * bodyTypeScale.arms.z
+  };
+  const finalLegScale = {
+    x: skinBodyScale.x * bodyTypeScale.legs.x,
+    y: skinBodyScale.y * bodyTypeScale.legs.y,
+    z: skinBodyScale.z * bodyTypeScale.legs.z
+  };
+  const finalHeadScale = {
+    x: skinHeadScale.x * bodyTypeScale.head.x,
+    y: skinHeadScale.y * bodyTypeScale.head.y,
+    z: skinHeadScale.z * bodyTypeScale.head.z
+  };
+
+  // Head (not affected by body type, but uses skin head scale)
   const headSize = 1.2;
-  const headGeometry = createHighPolyGeometry('head', headSize * headScale.x, headSize * headScale.y, headSize * headScale.z);
+  const headGeometry = createHighPolyGeometry('head', headSize * finalHeadScale.x, headSize * finalHeadScale.y, headSize * finalHeadScale.z);
   const head = new THREE.Mesh(headGeometry, headMaterial);
   head.position.set(0, 2.1, 0);
   head.castShadow = true;
   characterGroup.add(head);
 
-  // Torso
+  // Torso (scaled by body type)
   const torsoSize = { w: 1.6, h: 1.8, d: 0.8 };
-  const torsoGeometry = createHighPolyGeometry('torso', torsoSize.w * bodyScale.x, torsoSize.h * bodyScale.y, torsoSize.d * bodyScale.z);
+  const torsoGeometry = createHighPolyGeometry('torso', torsoSize.w * finalTorsoScale.x, torsoSize.h * finalTorsoScale.y, torsoSize.d * finalTorsoScale.z);
   const torso = new THREE.Mesh(torsoGeometry, torsoMaterial);
   torso.position.set(0, 0.9, 0);
   torso.castShadow = true;
   characterGroup.add(torso);
 
-  // Arms
+  // Arms (scaled by body type - muscles get bigger!)
   const armSize = { w: 0.5, h: 1.8, d: 0.5 };
-  const leftArmGeometry = createHighPolyGeometry('arm', armSize.w * bodyScale.x, armSize.h * bodyScale.y, armSize.d * bodyScale.z);
+  const leftArmGeometry = createHighPolyGeometry('arm', armSize.w * finalArmScale.x, armSize.h * finalArmScale.y, armSize.d * finalArmScale.z);
   const leftArm = new THREE.Mesh(leftArmGeometry, armMaterial);
-  leftArm.position.set(-1.15 * bodyScale.x, 0.9, 0);
+  leftArm.position.set(-1.15 * finalArmScale.x, 0.9, 0);
   leftArm.castShadow = true;
   characterGroup.add(leftArm);
 
-  const rightArmGeometry = createHighPolyGeometry('arm', armSize.w * bodyScale.x, armSize.h * bodyScale.y, armSize.d * bodyScale.z);
+  const rightArmGeometry = createHighPolyGeometry('arm', armSize.w * finalArmScale.x, armSize.h * finalArmScale.y, armSize.d * finalArmScale.z);
   const rightArm = new THREE.Mesh(rightArmGeometry, armMaterial);
-  rightArm.position.set(1.15 * bodyScale.x, 0.9, 0);
+  rightArm.position.set(1.15 * finalArmScale.x, 0.9, 0);
   rightArm.castShadow = true;
   characterGroup.add(rightArm);
 
-  // Legs
+  // Legs (scaled by body type)
   const legSize = { w: 0.6, h: 1.6, d: 0.6 };
-  const leftLegGeometry = createHighPolyGeometry('leg', legSize.w * bodyScale.x, legSize.h * bodyScale.y, legSize.d * bodyScale.z);
+  const leftLegGeometry = createHighPolyGeometry('leg', legSize.w * finalLegScale.x, legSize.h * finalLegScale.y, legSize.d * finalLegScale.z);
   const leftLeg = new THREE.Mesh(leftLegGeometry, legMaterial);
-  leftLeg.position.set(-0.4 * bodyScale.x, -1.0, 0);
+  leftLeg.position.set(-0.4 * finalLegScale.x, -1.0, 0);
   leftLeg.castShadow = true;
   characterGroup.add(leftLeg);
 
-  const rightLegGeometry = createHighPolyGeometry('leg', legSize.w * bodyScale.x, legSize.h * bodyScale.y, legSize.d * bodyScale.z);
+  const rightLegGeometry = createHighPolyGeometry('leg', legSize.w * finalLegScale.x, legSize.h * finalLegScale.y, legSize.d * finalLegScale.z);
   const rightLeg = new THREE.Mesh(rightLegGeometry, legMaterial);
-  rightLeg.position.set(0.4 * bodyScale.x, -1.0, 0);
+  rightLeg.position.set(0.4 * finalLegScale.x, -1.0, 0);
   rightLeg.castShadow = true;
   characterGroup.add(rightLeg);
 
