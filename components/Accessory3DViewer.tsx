@@ -54,12 +54,16 @@ export default function Accessory3DViewer({
     let accessoryGroup: any;
     let isMounted = true;
 
-    // Dynamic import for Three.js
-    import('three').then((module) => {
+    // Dynamic import for Three.js and GLTFLoader
+    Promise.all([
+      import('three'),
+      accessory.modelUrl ? import('three/examples/jsm/loaders/GLTFLoader.js') : Promise.resolve(null)
+    ]).then(([threeModule, gltfLoaderModule]) => {
       if (!isMounted || !canvasRef.current) return;
 
       try {
-        THREE = module;
+        THREE = threeModule;
+        const GLTFLoader = gltfLoaderModule?.GLTFLoader;
 
         const canvas = canvasRef.current!;
         const renderer = new THREE.WebGLRenderer({
@@ -102,6 +106,39 @@ export default function Accessory3DViewer({
         accessoryGroup = new THREE.Group();
         scene.add(accessoryGroup);
         accessoryGroupRef.current = accessoryGroup;
+
+        // Load GLTF model if modelUrl is provided
+        if (accessory.modelUrl && GLTFLoader) {
+          const loader = new GLTFLoader();
+          loader.load(
+            accessory.modelUrl,
+            (gltf) => {
+              if (!isMounted || !accessoryGroup) return;
+              
+              const model = gltf.scene;
+              
+              // Scale model appropriately
+              const scale = accessory.scale || 1.0;
+              model.scale.set(scale, scale, scale);
+              
+              // Center the model
+              const box = new THREE.Box3().setFromObject(model);
+              const center = box.getCenter(new THREE.Vector3());
+              model.position.sub(center);
+              
+              accessoryGroup.add(model);
+            },
+            (progress) => {
+              // Loading progress (optional)
+            },
+            (error) => {
+              console.error('Error loading GLTF model:', error);
+              // Fallback to default rendering
+              createDefaultAccessory();
+            }
+          );
+          return; // Exit early, model will be added when loaded
+        }
 
         // Create pixelated texture
         const createPixelatedTexture = (color: {r: number, g: number, b: number}, pixelSize: number = 8) => {
@@ -802,6 +839,45 @@ export default function Accessory3DViewer({
             }
             break;
 
+          case 'drone':
+            // Drone accessory - will be loaded from GLTF if modelUrl exists
+            // Fallback to simple representation if no model
+            if (!accessory.modelUrl) {
+              const droneGroup = new THREE.Group();
+              const droneBody = new THREE.Mesh(
+                new THREE.BoxGeometry(0.8, 0.3, 0.8),
+                new THREE.MeshStandardMaterial({
+                  color: new THREE.Color(0.1, 0.2, 0.4),
+                  metalness: 0.9,
+                  roughness: 0.2,
+                  emissive: new THREE.Color(0, 0.3, 0.6),
+                  emissiveIntensity: 0.5
+                })
+              );
+              droneGroup.add(droneBody);
+              
+              // Simple rotor representation
+              for (let i = 0; i < 4; i++) {
+                const angle = (i * Math.PI * 2) / 4;
+                const rotor = new THREE.Mesh(
+                  new THREE.CylinderGeometry(0.15, 0.15, 0.05, 8),
+                  new THREE.MeshStandardMaterial({
+                    color: new THREE.Color(0.8, 0.8, 0.9),
+                    metalness: 0.7,
+                    roughness: 0.3
+                  })
+                );
+                rotor.position.set(
+                  Math.cos(angle) * 0.5,
+                  0.2,
+                  Math.sin(angle) * 0.5
+                );
+                droneGroup.add(rotor);
+              }
+              accessoryGroup.add(droneGroup);
+            }
+            break;
+
           default:
             // Default accessory display
             const defaultAccessory = new THREE.Mesh(
@@ -810,6 +886,16 @@ export default function Accessory3DViewer({
             );
             accessoryGroup.add(defaultAccessory);
         }
+
+        // Helper function for default accessory creation (used in error fallback)
+        const createDefaultAccessory = () => {
+          if (!accessoryGroup) return;
+          const defaultAccessory = new THREE.Mesh(
+            createRoundedBox(0.6, 0.6, 0.6, 0.05),
+            accessoryMat
+          );
+          accessoryGroup.add(defaultAccessory);
+        };
 
         // Auto-rotate for display
         const animate = () => {
