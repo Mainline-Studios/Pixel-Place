@@ -354,15 +354,24 @@ bpy.ops.object.origin_set(type='ORIGIN_GEOMETRY', center='MEDIAN')
 # Add smooth shading
 bpy.ops.object.shade_smooth()
 
-# Frame the view to see the entire drone
-bpy.ops.view3d.camera_to_view_selected()
-for area in bpy.context.screen.areas:
-    if area.type == 'VIEW_3D':
-        for space in area.spaces:
-            if space.type == 'VIEW_3D':
-                space.viewport_shade = 'MATERIAL'  # Show materials
-                # Frame all objects
-                bpy.ops.view3d.view_all(area.spaces[0])
+# Frame the view to see the entire drone (with error handling)
+try:
+    # Try to frame all objects in 3D viewport
+    for area in bpy.context.screen.areas:
+        if area.type == 'VIEW_3D':
+            for space in area.spaces:
+                if space.type == 'VIEW_3D':
+                    space.viewport_shade = 'MATERIAL'  # Show materials
+                    # Override context to frame view
+                    override = bpy.context.copy()
+                    override['area'] = area
+                    override['space_data'] = space
+                    try:
+                        bpy.ops.view3d.view_all(override)
+                    except:
+                        pass  # Ignore if view_all fails
+except:
+    pass  # Ignore viewport errors - drone is still created
 
 print("Sci-fi drone created successfully!")
 print(f"Total vertices: {len(body.data.vertices)}")
