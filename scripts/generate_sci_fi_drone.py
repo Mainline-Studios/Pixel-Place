@@ -56,13 +56,6 @@ def create_rotor(name, location, size=0.3):
         # Scale and rotate blade
         blade.scale = (blade_width, blade_length, blade_thickness)
         blade.rotation_euler = (0, 0, angle)
-        
-        # Add bevel for smooth edges
-        bpy.context.view_layer.objects.active = blade
-        bpy.ops.object.mode_set(mode='EDIT')
-        bpy.ops.mesh.select_all(action='SELECT')
-        bpy.ops.mesh.bevel(offset=0.01, segments=3)
-        bpy.ops.object.mode_set(mode='OBJECT')
     
     # Join hub and blades
     bpy.ops.object.select_all(action='DESELECT')
@@ -80,41 +73,24 @@ def create_rotor(name, location, size=0.3):
 
 def create_main_body():
     """Create the main drone body (futuristic hexagon shape)"""
-    # Create base hexagon body
+    # Create base hexagon body - make it taller and more visible
     bpy.ops.mesh.primitive_cylinder_add(
-        vertices=6,
-        radius=1.2,
-        depth=0.4,
+        vertices=8,  # Octagon for more detail
+        radius=1.5,  # Larger radius
+        depth=0.6,   # Taller
         location=(0, 0, 0)
     )
     body = bpy.context.active_object
     body.name = "Drone_Body"
     
-    # Enter edit mode to refine shape
-    bpy.context.view_layer.objects.active = body
-    bpy.ops.object.mode_set(mode='EDIT')
-    
-    # Add loop cuts for detail
-    bpy.ops.mesh.select_all(action='SELECT')
-    bpy.ops.mesh.loopcut_slide(
-        number_cuts=2,
-        smoothness=0,
-        falloff='INVERSE_SQUARE',
-        edgesel='SELECT'
-    )
-    
-    # Scale top and bottom faces for tapered look
-    bpy.ops.mesh.select_all(action='DESELECT')
-    bpy.ops.object.mode_set(mode='OBJECT')
-    
-    # Add top dome
+    # Add top dome - make it more prominent
     bpy.ops.mesh.primitive_uv_sphere_add(
-        radius=1.0,
-        location=(0, 0, 0.3)
+        radius=1.2,
+        location=(0, 0, 0.4)
     )
     dome = bpy.context.active_object
     dome.name = "Drone_Dome"
-    dome.scale = (1, 1, 0.3)
+    dome.scale = (1, 1, 0.4)  # Flattened dome
     
     # Join body and dome
     bpy.ops.object.select_all(action='DESELECT')
@@ -130,8 +106,8 @@ def create_wing(name, location, rotation, length=2.0):
     # Wing base (attachment point)
     bpy.ops.mesh.primitive_cylinder_add(
         vertices=8,
-        radius=0.15,
-        depth=0.3,
+        radius=0.2,
+        depth=0.4,
         location=location
     )
     base = bpy.context.active_object
@@ -139,8 +115,8 @@ def create_wing(name, location, rotation, length=2.0):
     
     # Main wing section (aerodynamic shape)
     wing_location = (
-        location[0] + math.cos(rotation) * 0.3,
-        location[1] + math.sin(rotation) * 0.3,
+        location[0] + math.cos(rotation) * 0.4,
+        location[1] + math.sin(rotation) * 0.4,
         location[2]
     )
     
@@ -148,27 +124,18 @@ def create_wing(name, location, rotation, length=2.0):
     wing = bpy.context.active_object
     wing.name = f"{name}_main"
     
-    # Scale and shape wing
-    wing.scale = (0.1, length, 0.05)
+    # Scale and shape wing - make it more visible
+    wing.scale = (0.15, length, 0.08)
     wing.rotation_euler = (0, 0, rotation)
     
-    # Enter edit mode to create wingtip
-    bpy.context.view_layer.objects.active = wing
-    bpy.ops.object.mode_set(mode='EDIT')
-    bpy.ops.mesh.select_all(action='SELECT')
-    
-    # Taper the wingtip
-    bpy.ops.transform.resize(value=(1, 0.3, 1))
-    bpy.ops.object.mode_set(mode='OBJECT')
-    
-    # Wingtip detail
+    # Wingtip detail - make it more prominent
     tip_location = (
         location[0] + math.cos(rotation) * (length * 0.9),
         location[1] + math.sin(rotation) * (length * 0.9),
         location[2]
     )
     bpy.ops.mesh.primitive_ico_sphere_add(
-        radius=0.1,
+        radius=0.15,
         location=tip_location
     )
     tip = bpy.context.active_object
@@ -300,54 +267,82 @@ body = create_main_body()
 body_mat, rotor_mat, wing_mat = add_materials_with_bump()
 body.data.materials.append(body_mat)
 
+print(f"Created body: {body.name}")
+
 # Create 12 rotors in a circular pattern
 rotor_positions = []
-rotor_radius = 1.8
+rotor_radius = 2.0  # Larger radius for better visibility
+rotors = []
 for i in range(12):
     angle = (i * math.pi * 2) / 12
     x = math.cos(angle) * rotor_radius
     y = math.sin(angle) * rotor_radius
-    z = 0.3  # Slightly above body
+    z = 0.4  # Slightly above body
     rotor_positions.append((x, y, z))
-    rotor = create_rotor(f"Rotor_{i:02d}", (x, y, z), size=0.4)
+    rotor = create_rotor(f"Rotor_{i:02d}", (x, y, z), size=0.5)  # Larger size
     rotor.data.materials.append(rotor_mat)
+    rotors.append(rotor)
+    print(f"Created rotor {i+1}/12")
 
 # Create 4 adjustable wings (one per quadrant)
 wing_angles = [0, math.pi/2, math.pi, 3*math.pi/2]
 wing_positions = []
+wings = []
 for i, angle in enumerate(wing_angles):
-    x = math.cos(angle) * 1.0
-    y = math.sin(angle) * 1.0
+    x = math.cos(angle) * 1.2
+    y = math.sin(angle) * 1.2
     z = 0.0
     wing_positions.append((x, y, z))
-    wing = create_wing(f"Wing_{i}", (x, y, z), angle, length=2.5)
+    wing = create_wing(f"Wing_{i}", (x, y, z), angle, length=3.0)  # Longer wings
     wing.data.materials.append(wing_mat)
+    wings.append(wing)
+    print(f"Created wing {i+1}/4")
 
-# Add central core detail
+# Add central core detail - make it more visible
 bpy.ops.mesh.primitive_ico_sphere_add(
-    radius=0.3,
-    location=(0, 0, 0.1)
+    radius=0.4,
+    location=(0, 0, 0.2)
 )
 core = bpy.context.active_object
 core.name = "Drone_Core"
 core.data.materials.append(body_mat)
+print("Created core")
 
-# Add antenna/probe
+# Add antenna/probe - make it taller
 bpy.ops.mesh.primitive_cylinder_add(
     vertices=8,
-    radius=0.05,
-    depth=0.8,
-    location=(0, 0, 0.5)
+    radius=0.08,
+    depth=1.0,
+    location=(0, 0, 0.7)
 )
 antenna = bpy.context.active_object
 antenna.name = "Drone_Antenna"
 antenna.data.materials.append(rotor_mat)
+print("Created antenna")
+
+# Add side panels for more detail
+for i in range(4):
+    angle = (i * math.pi * 2) / 4
+    x = math.cos(angle) * 1.3
+    y = math.sin(angle) * 1.3
+    z = 0.1
+    bpy.ops.mesh.primitive_cube_add(
+        size=1,
+        location=(x, y, z)
+    )
+    panel = bpy.context.active_object
+    panel.name = f"Panel_{i}"
+    panel.scale = (0.3, 0.1, 0.2)
+    panel.rotation_euler = (0, 0, angle)
+    panel.data.materials.append(body_mat)
+print("Created side panels")
 
 # UV unwrap everything
 print("UV unwrapping all objects...")
 uv_unwrap_all()
 
 # Select all drone parts and join into one object
+print("Joining all parts...")
 bpy.ops.object.select_all(action='SELECT')
 bpy.context.view_layer.objects.active = body
 bpy.ops.object.join()
@@ -359,9 +354,20 @@ bpy.ops.object.origin_set(type='ORIGIN_GEOMETRY', center='MEDIAN')
 # Add smooth shading
 bpy.ops.object.shade_smooth()
 
+# Frame the view to see the entire drone
+bpy.ops.view3d.camera_to_view_selected()
+for area in bpy.context.screen.areas:
+    if area.type == 'VIEW_3D':
+        for space in area.spaces:
+            if space.type == 'VIEW_3D':
+                space.viewport_shade = 'MATERIAL'  # Show materials
+                # Frame all objects
+                bpy.ops.view3d.view_all(area.spaces[0])
+
 print("Sci-fi drone created successfully!")
 print(f"Total vertices: {len(body.data.vertices)}")
 print(f"Total faces: {len(body.data.polygons)}")
+print(f"Object name: {body.name}")
 
 # Export instructions
 print("\nTo export:")
