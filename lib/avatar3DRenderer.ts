@@ -317,23 +317,165 @@ export function createAvatarMesh(
   rightLeg.castShadow = true;
   characterGroup.add(rightLeg);
 
-  // Add accessories (simplified - just basic rendering)
+  // Add accessories (full rendering like Avatar3DViewer)
   accessories.forEach(accessory => {
     if (!accessory) return;
     const accColor = hexToColor(accessory.color || '#ffffff');
-    const accMat = new THREE.MeshStandardMaterial({
-      color: new THREE.Color(accColor.r, accColor.g, accColor.b),
-      roughness: 0.5,
-      metalness: 0.3
-    });
-
-    if (accessory.type === 'hat') {
-      const hat = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.75, 0.75, 0.12, 16),
-        accMat
-      );
-      hat.position.set(0, 2.75, 0);
-      characterGroup.add(hat);
+    
+    // Create pixelated texture for accessories
+    const accTexture = createPixelatedTexture(accColor, 8);
+    
+    switch (accessory.type) {
+      case 'hat':
+        const hatMat = new THREE.MeshStandardMaterial({
+          ...(accTexture ? { map: accTexture } : {}),
+          color: new THREE.Color(accColor.r, accColor.g, accColor.b),
+          roughness: 0.6,
+          metalness: 0.1
+        });
+        const hat = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.75, 0.75, 0.12, 16),
+          hatMat
+        );
+        hat.position.set(0, 2.75, 0);
+        hat.castShadow = true;
+        characterGroup.add(hat);
+        break;
+        
+      case 'glasses':
+        const glassesMat = new THREE.MeshStandardMaterial({
+          ...(accTexture ? { map: accTexture } : {}),
+          color: new THREE.Color(accColor.r, accColor.g, accColor.b),
+          roughness: 0.2,
+          metalness: 0.9
+        });
+        // Left lens
+        const leftLens = new THREE.Mesh(
+          new THREE.BoxGeometry(0.3, 0.15, 0.02),
+          glassesMat
+        );
+        leftLens.position.set(-0.2, 2.0, 0.5);
+        characterGroup.add(leftLens);
+        // Right lens
+        const rightLens = new THREE.Mesh(
+          new THREE.BoxGeometry(0.3, 0.15, 0.02),
+          glassesMat
+        );
+        rightLens.position.set(0.2, 2.0, 0.5);
+        characterGroup.add(rightLens);
+        // Bridge
+        const bridge = new THREE.Mesh(
+          new THREE.BoxGeometry(0.1, 0.05, 0.02),
+          glassesMat
+        );
+        bridge.position.set(0, 2.0, 0.5);
+        characterGroup.add(bridge);
+        break;
+        
+      case 'shirt':
+        const shirtMat = new THREE.MeshStandardMaterial({
+          ...(accTexture ? { map: accTexture } : {}),
+          color: new THREE.Color(accColor.r, accColor.g, accColor.b),
+          roughness: 0.7,
+          metalness: 0.1
+        });
+        // Shirt body (covers torso)
+        const shirtBody = new THREE.Mesh(
+          new THREE.BoxGeometry(1.7 * finalTorsoScale.x, 1.9 * finalTorsoScale.y, 0.9 * finalTorsoScale.z),
+          shirtMat
+        );
+        shirtBody.position.set(0, 0.9, 0.06);
+        characterGroup.add(shirtBody);
+        // Sleeves
+        const leftSleeve = new THREE.Mesh(
+          new THREE.BoxGeometry(0.6 * finalArmScale.x, 1.8 * finalArmScale.y, 0.6 * finalArmScale.z),
+          shirtMat
+        );
+        leftSleeve.position.set(-1.2 * finalArmScale.x, 0.9, 0);
+        characterGroup.add(leftSleeve);
+        const rightSleeve = new THREE.Mesh(
+          new THREE.BoxGeometry(0.6 * finalArmScale.x, 1.8 * finalArmScale.y, 0.6 * finalArmScale.z),
+          shirtMat
+        );
+        rightSleeve.position.set(1.2 * finalArmScale.x, 0.9, 0);
+        characterGroup.add(rightSleeve);
+        break;
+        
+      case 'pants':
+        const pantsMat = new THREE.MeshStandardMaterial({
+          ...(accTexture ? { map: accTexture } : {}),
+          color: new THREE.Color(accColor.r, accColor.g, accColor.b),
+          roughness: 0.7,
+          metalness: 0.1
+        });
+        // Left pant leg
+        const leftPant = new THREE.Mesh(
+          new THREE.BoxGeometry(0.7 * finalLegScale.x, 1.7 * finalLegScale.y, 0.7 * finalLegScale.z),
+          pantsMat
+        );
+        leftPant.position.set(-0.4 * finalLegScale.x, -1.0, 0.06);
+        characterGroup.add(leftPant);
+        // Right pant leg
+        const rightPant = new THREE.Mesh(
+          new THREE.BoxGeometry(0.7 * finalLegScale.x, 1.7 * finalLegScale.y, 0.7 * finalLegScale.z),
+          pantsMat
+        );
+        rightPant.position.set(0.4 * finalLegScale.x, -1.0, 0.06);
+        characterGroup.add(rightPant);
+        break;
+        
+      case 'shoes':
+        const shoeMat = new THREE.MeshStandardMaterial({
+          ...(accTexture ? { map: accTexture } : {}),
+          color: new THREE.Color(accColor.r, accColor.g, accColor.b),
+          roughness: 0.5,
+          metalness: 0.2
+        });
+        // Left shoe
+        const leftShoe = new THREE.Mesh(
+          new THREE.BoxGeometry(0.75 * finalLegScale.x, 0.4 * finalLegScale.y, 0.8 * finalLegScale.z),
+          shoeMat
+        );
+        leftShoe.position.set(-0.4 * finalLegScale.x, -1.85, 0.25);
+        characterGroup.add(leftShoe);
+        // Right shoe
+        const rightShoe = new THREE.Mesh(
+          new THREE.BoxGeometry(0.75 * finalLegScale.x, 0.4 * finalLegScale.y, 0.8 * finalLegScale.z),
+          shoeMat
+        );
+        rightShoe.position.set(0.4 * finalLegScale.x, -1.85, 0.25);
+        characterGroup.add(rightShoe);
+        break;
+        
+      case 'chain':
+        const chainMat = new THREE.MeshStandardMaterial({
+          color: new THREE.Color(accColor.r, accColor.g, accColor.b),
+          roughness: 0.2,
+          metalness: 0.9
+        });
+        const chain = new THREE.Mesh(
+          new THREE.TorusGeometry(0.4 * finalTorsoScale.x, 0.02, 8, 16),
+          chainMat
+        );
+        chain.position.set(0, 1.5, 0);
+        chain.rotation.y = Math.PI / 2;
+        characterGroup.add(chain);
+        break;
+        
+      case 'backpack':
+        const backpackMat = new THREE.MeshStandardMaterial({
+          ...(accTexture ? { map: accTexture } : {}),
+          color: new THREE.Color(accColor.r, accColor.g, accColor.b),
+          roughness: 0.6,
+          metalness: 0.2
+        });
+        const backpack = new THREE.Mesh(
+          new THREE.BoxGeometry(0.6 * finalTorsoScale.x, 0.8 * finalTorsoScale.y, 0.4 * finalTorsoScale.z),
+          backpackMat
+        );
+        backpack.position.set(0, 0.5, -0.5);
+        characterGroup.add(backpack);
+        break;
     }
   });
 
