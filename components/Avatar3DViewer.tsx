@@ -1407,6 +1407,44 @@ export default function Avatar3DViewer({
                 const floatHeight = accessory.floatHeight || 3.0; // Default 3 units above player
                 const rotationSpeed = accessory.rotationSpeed || 0.5;
                 
+                // Helper function for fallback drone (defined first)
+                const createDroneFallback = (group: any, acc: any) => {
+                  const droneColor = hexToColor(acc.color || '#1a1a2e');
+                  const droneMat = new THREE.MeshStandardMaterial({
+                    color: new THREE.Color(droneColor.r, droneColor.g, droneColor.b),
+                    metalness: 0.9,
+                    roughness: 0.2,
+                    emissive: new THREE.Color(0, 0.3, 0.6),
+                    emissiveIntensity: 0.5
+                  });
+                  
+                  // Main body
+                  const body = new THREE.Mesh(
+                    new THREE.BoxGeometry(0.8, 0.3, 0.8),
+                    droneMat
+                  );
+                  group.add(body);
+                  
+                  // 4 rotors
+                  for (let i = 0; i < 4; i++) {
+                    const angle = (i * Math.PI * 2) / 4;
+                    const rotor = new THREE.Mesh(
+                      new THREE.CylinderGeometry(0.15, 0.15, 0.05, 8),
+                      new THREE.MeshStandardMaterial({
+                        color: new THREE.Color(0.8, 0.8, 0.9),
+                        metalness: 0.7,
+                        roughness: 0.3
+                      })
+                    );
+                    rotor.position.set(
+                      Math.cos(angle) * 0.5,
+                      0.2,
+                      Math.sin(angle) * 0.5
+                    );
+                    group.add(rotor);
+                  }
+                };
+                
                 // Load GLTF model if modelUrl is provided
                 if (accessory.modelUrl) {
                   import('three/examples/jsm/loaders/GLTFLoader.js').then(({ GLTFLoader }) => {
@@ -1449,6 +1487,7 @@ export default function Avatar3DViewer({
                 droneGroup.position.set(0, floatHeight, 0);
                 droneGroup.userData.isDrone = true;
                 droneGroup.userData.rotationSpeed = rotationSpeed;
+                droneGroup.userData.floatHeight = floatHeight;
                 
                 // Add floating animation
                 const floatTime = { value: 0 };
@@ -1466,44 +1505,6 @@ export default function Avatar3DViewer({
                 
                 characterGroup.add(droneGroup);
                 accessoryMesh = droneGroup as any;
-                
-                // Helper function for fallback drone
-                const createDroneFallback = (group: any, acc: any) => {
-                  const droneColor = hexToColor(acc.color || '#1a1a2e');
-                  const droneMat = new THREE.MeshStandardMaterial({
-                    color: new THREE.Color(droneColor.r, droneColor.g, droneColor.b),
-                    metalness: 0.9,
-                    roughness: 0.2,
-                    emissive: new THREE.Color(0, 0.3, 0.6),
-                    emissiveIntensity: 0.5
-                  });
-                  
-                  // Main body
-                  const body = new THREE.Mesh(
-                    new THREE.BoxGeometry(0.8, 0.3, 0.8),
-                    droneMat
-                  );
-                  group.add(body);
-                  
-                  // 4 rotors
-                  for (let i = 0; i < 4; i++) {
-                    const angle = (i * Math.PI * 2) / 4;
-                    const rotor = new THREE.Mesh(
-                      new THREE.CylinderGeometry(0.15, 0.15, 0.05, 8),
-                      new THREE.MeshStandardMaterial({
-                        color: new THREE.Color(0.8, 0.8, 0.9),
-                        metalness: 0.7,
-                        roughness: 0.3
-                      })
-                    );
-                    rotor.position.set(
-                      Math.cos(angle) * 0.5,
-                      0.2,
-                      Math.sin(angle) * 0.5
-                    );
-                    group.add(rotor);
-                  }
-                };
                 break;
               default:
                 const defaultGeometry = new THREE.BoxGeometry(0.3, 0.3, 0.3);
