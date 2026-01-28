@@ -163,14 +163,14 @@ def add_materials_with_bump():
     # Clear default nodes
     nodes.clear()
     
-    # Add Principled BSDF
+    # Add Principled BSDF - Vibrant sci-fi colors
     bsdf = nodes.new(type='ShaderNodeBsdfPrincipled')
     bsdf.location = (0, 0)
-    bsdf.inputs['Base Color'].default_value = (0.1, 0.2, 0.4, 1.0)  # Dark blue
+    bsdf.inputs['Base Color'].default_value = (0.2, 0.4, 0.8, 1.0)  # Bright blue
     bsdf.inputs['Metallic'].default_value = 0.9
     bsdf.inputs['Roughness'].default_value = 0.2
-    bsdf.inputs['Emission Color'].default_value = (0.0, 0.3, 0.6, 1.0)
-    bsdf.inputs['Emission Strength'].default_value = 0.5
+    bsdf.inputs['Emission Color'].default_value = (0.2, 0.5, 1.0, 1.0)  # Bright cyan glow
+    bsdf.inputs['Emission Strength'].default_value = 0.8
     
     # Add Material Output
     output = nodes.new(type='ShaderNodeOutputMaterial')
@@ -203,11 +203,11 @@ def add_materials_with_bump():
     rotor_nodes.clear()
     rotor_bsdf = rotor_nodes.new(type='ShaderNodeBsdfPrincipled')
     rotor_bsdf.location = (0, 0)
-    rotor_bsdf.inputs['Base Color'].default_value = (0.8, 0.8, 0.9, 1.0)
-    rotor_bsdf.inputs['Metallic'].default_value = 0.7
-    rotor_bsdf.inputs['Roughness'].default_value = 0.3
-    rotor_bsdf.inputs['Emission Color'].default_value = (0.2, 0.4, 0.8, 1.0)
-    rotor_bsdf.inputs['Emission Strength'].default_value = 1.0
+    rotor_bsdf.inputs['Base Color'].default_value = (0.9, 0.9, 1.0, 1.0)  # Bright white
+    rotor_bsdf.inputs['Metallic'].default_value = 0.8
+    rotor_bsdf.inputs['Roughness'].default_value = 0.2
+    rotor_bsdf.inputs['Emission Color'].default_value = (0.5, 0.7, 1.0, 1.0)  # Bright blue-white glow
+    rotor_bsdf.inputs['Emission Strength'].default_value = 1.5
     
     rotor_output = rotor_nodes.new(type='ShaderNodeOutputMaterial')
     rotor_output.location = (400, 0)
@@ -222,21 +222,23 @@ def add_materials_with_bump():
     wing_nodes.clear()
     wing_bsdf = wing_nodes.new(type='ShaderNodeBsdfPrincipled')
     wing_bsdf.location = (0, 0)
-    wing_bsdf.inputs['Base Color'].default_value = (0.05, 0.05, 0.05, 1.0)
-    wing_bsdf.inputs['Metallic'].default_value = 0.8
+    wing_bsdf.inputs['Base Color'].default_value = (0.3, 0.1, 0.6, 1.0)  # Purple base
+    wing_bsdf.inputs['Metallic'].default_value = 0.9
     wing_bsdf.inputs['Roughness'].default_value = 0.1
+    wing_bsdf.inputs['Emission Color'].default_value = (0.4, 0.2, 0.8, 1.0)  # Purple glow
+    wing_bsdf.inputs['Emission Strength'].default_value = 0.6
     
-    # Add carbon fiber pattern
+    # Add colorful pattern
     wave = wing_nodes.new(type='ShaderNodeTexWave')
     wave.location = (-400, 0)
     wave.wave_type = 'BANDS'
-    wave.inputs['Scale'].default_value = 20.0
+    wave.inputs['Scale'].default_value = 15.0
     
     mix = wing_nodes.new(type='ShaderNodeMixRGB')
     mix.location = (-200, 0)
-    mix.inputs['Fac'].default_value = 0.3
-    mix.inputs['Color1'].default_value = (0.05, 0.05, 0.05, 1.0)
-    mix.inputs['Color2'].default_value = (0.2, 0.2, 0.2, 1.0)
+    mix.inputs['Fac'].default_value = 0.4
+    mix.inputs['Color1'].default_value = (0.3, 0.1, 0.6, 1.0)  # Purple
+    mix.inputs['Color2'].default_value = (0.6, 0.3, 1.0, 1.0)  # Bright purple
     
     wing_links.new(wave.outputs['Color'], mix.inputs['Fac'])
     wing_links.new(mix.outputs['Color'], wing_bsdf.inputs['Base Color'])
@@ -298,14 +300,28 @@ for i, angle in enumerate(wing_angles):
     wings.append(wing)
     print(f"Created wing {i+1}/4")
 
-# Add central core detail - make it more visible
+# Add central core detail - make it more visible with bright color
 bpy.ops.mesh.primitive_ico_sphere_add(
     radius=0.4,
     location=(0, 0, 0.2)
 )
 core = bpy.context.active_object
 core.name = "Drone_Core"
-core.data.materials.append(body_mat)
+# Create bright glowing core material
+core_mat = bpy.data.materials.new(name="Core_Material")
+core_mat.use_nodes = True
+core_nodes = core_mat.node_tree.nodes
+core_links = core_mat.node_tree.links
+core_nodes.clear()
+core_bsdf = core_nodes.new(type='ShaderNodeBsdfPrincipled')
+core_bsdf.inputs['Base Color'].default_value = (1.0, 0.8, 0.2, 1.0)  # Bright gold
+core_bsdf.inputs['Metallic'].default_value = 1.0
+core_bsdf.inputs['Roughness'].default_value = 0.1
+core_bsdf.inputs['Emission Color'].default_value = (1.0, 0.9, 0.3, 1.0)  # Gold glow
+core_bsdf.inputs['Emission Strength'].default_value = 2.0
+core_output = core_nodes.new(type='ShaderNodeOutputMaterial')
+core_links.new(core_bsdf.outputs['BSDF'], core_output.inputs['Surface'])
+core.data.materials.append(core_mat)
 print("Created core")
 
 # Add antenna/probe - make it taller
@@ -320,7 +336,13 @@ antenna.name = "Drone_Antenna"
 antenna.data.materials.append(rotor_mat)
 print("Created antenna")
 
-# Add side panels for more detail
+# Add side panels for more detail with colorful accents
+panel_colors = [
+    (1.0, 0.2, 0.2, 1.0),  # Red
+    (0.2, 1.0, 0.2, 1.0),  # Green
+    (0.2, 0.2, 1.0, 1.0),  # Blue
+    (1.0, 0.8, 0.2, 1.0),  # Orange
+]
 for i in range(4):
     angle = (i * math.pi * 2) / 4
     x = math.cos(angle) * 1.3
@@ -334,8 +356,22 @@ for i in range(4):
     panel.name = f"Panel_{i}"
     panel.scale = (0.3, 0.1, 0.2)
     panel.rotation_euler = (0, 0, angle)
-    panel.data.materials.append(body_mat)
-print("Created side panels")
+    # Create colorful panel material
+    panel_mat = bpy.data.materials.new(name=f"Panel_Material_{i}")
+    panel_mat.use_nodes = True
+    panel_nodes = panel_mat.node_tree.nodes
+    panel_links = panel_mat.node_tree.links
+    panel_nodes.clear()
+    panel_bsdf = panel_nodes.new(type='ShaderNodeBsdfPrincipled')
+    panel_bsdf.inputs['Base Color'].default_value = panel_colors[i]
+    panel_bsdf.inputs['Metallic'].default_value = 0.9
+    panel_bsdf.inputs['Roughness'].default_value = 0.2
+    panel_bsdf.inputs['Emission Color'].default_value = panel_colors[i]
+    panel_bsdf.inputs['Emission Strength'].default_value = 0.8
+    panel_output = panel_nodes.new(type='ShaderNodeOutputMaterial')
+    panel_links.new(panel_bsdf.outputs['BSDF'], panel_output.inputs['Surface'])
+    panel.data.materials.append(panel_mat)
+print("Created colorful side panels")
 
 # UV unwrap everything
 print("UV unwrapping all objects...")
