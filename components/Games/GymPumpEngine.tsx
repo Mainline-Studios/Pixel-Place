@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useUser } from '@/contexts/UserContext';
 import { PixelPlaceAPI } from '@/lib/pixelPlaceAPI';
+import { getUserAvatarData, createAvatarMesh } from '@/lib/avatar3DRenderer';
 
 interface GymPumpEngineProps {
   onClose?: () => void;
@@ -72,6 +73,12 @@ export default function GymPumpEngine({ onClose, user }: GymPumpEngineProps) {
           gameStateRef.current.coins = savedProgress.coins || 0;
           gameStateRef.current.level = savedProgress.level || 1;
           setScore(savedProgress);
+        }
+
+        // Load user's avatar data
+        const avatarData = await getUserAvatarData(currentUser);
+        if (!avatarData.skin) {
+          console.warn('No skin found for user, using default');
         }
 
         // Import Three.js
@@ -199,72 +206,57 @@ export default function GymPumpEngine({ onClose, user }: GymPumpEngineProps) {
         benchBack.castShadow = true;
         scene.add(benchBack);
 
-        // Create 3D character (simplified but realistic)
-        const characterGroup = new THREE.Group();
+        // Create 3D character using user's equipped avatar
+        let avatarResult: any = null;
+        if (avatarData && avatarData.skin) {
+          try {
+            avatarResult = createAvatarMesh(
+              THREE,
+              scene,
+              avatarData.skin,
+              avatarData.face,
+              avatarData.accessories,
+              {
+                scale: 1.0,
+                position: { x: 0, y: 0, z: 0 },
+                animation: 'idle'
+              }
+            );
+            characterRef.current = avatarResult.characterGroup;
+          } catch (error) {
+            console.error('Error creating avatar mesh:', error);
+            // Fallback to simple character
+            avatarResult = null;
+          }
+        }
 
-        // Body
-        const bodyGeometry = new THREE.BoxGeometry(0.6, 1.2, 0.4);
-        const bodyMaterial = new THREE.MeshStandardMaterial({
-          color: 0x4a90e2,
-          roughness: 0.7
-        });
-        const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
-        body.position.set(0, 1.2, 0);
-        body.castShadow = true;
-        characterGroup.add(body);
+        // Fallback to simple character if avatar creation failed
+        if (!avatarResult) {
+          const characterGroup = new THREE.Group();
+          const bodyGeometry = new THREE.BoxGeometry(0.6, 1.2, 0.4);
+          const bodyMaterial = new THREE.MeshStandardMaterial({
+            color: 0x4a90e2,
+            roughness: 0.7
+          });
+          const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
+          body.position.set(0, 1.2, 0);
+          body.castShadow = true;
+          characterGroup.add(body);
 
-        // Head
-        const headGeometry = new THREE.SphereGeometry(0.25, 16, 16);
-        const headMaterial = new THREE.MeshStandardMaterial({
-          color: 0xffdbac,
-          roughness: 0.6
-        });
-        const head = new THREE.Mesh(headGeometry, headMaterial);
-        head.position.set(0, 2, 0);
-        head.castShadow = true;
-        characterGroup.add(head);
+          const headGeometry = new THREE.SphereGeometry(0.25, 16, 16);
+          const headMaterial = new THREE.MeshStandardMaterial({
+            color: 0xffdbac,
+            roughness: 0.6
+          });
+          const head = new THREE.Mesh(headGeometry, headMaterial);
+          head.position.set(0, 2, 0);
+          head.castShadow = true;
+          characterGroup.add(head);
 
-        // Arms
-        const armGeometry = new THREE.CylinderGeometry(0.1, 0.1, 0.8, 8);
-        const armMaterial = new THREE.MeshStandardMaterial({
-          color: 0xffdbac,
-          roughness: 0.6
-        });
-
-        // Left arm
-        const leftArm = new THREE.Mesh(armGeometry, armMaterial);
-        leftArm.position.set(-0.4, 1.2, 0);
-        leftArm.rotation.z = Math.PI / 6;
-        leftArm.castShadow = true;
-        characterGroup.add(leftArm);
-
-        // Right arm
-        const rightArm = new THREE.Mesh(armGeometry, armMaterial);
-        rightArm.position.set(0.4, 1.2, 0);
-        rightArm.rotation.z = -Math.PI / 6;
-        rightArm.castShadow = true;
-        characterGroup.add(rightArm);
-
-        // Legs
-        const legGeometry = new THREE.CylinderGeometry(0.12, 0.12, 0.8, 8);
-        const legMaterial = new THREE.MeshStandardMaterial({
-          color: 0x2a2a3a,
-          roughness: 0.7
-        });
-
-        const leftLeg = new THREE.Mesh(legGeometry, legMaterial);
-        leftLeg.position.set(-0.2, 0.4, 0);
-        leftLeg.castShadow = true;
-        characterGroup.add(leftLeg);
-
-        const rightLeg = new THREE.Mesh(legGeometry, legMaterial);
-        rightLeg.position.set(0.2, 0.4, 0);
-        rightLeg.castShadow = true;
-        characterGroup.add(rightLeg);
-
-        characterGroup.position.set(0, 0, 0);
-        scene.add(characterGroup);
-        characterRef.current = characterGroup;
+          characterGroup.position.set(0, 0, 0);
+          scene.add(characterGroup);
+          characterRef.current = characterGroup;
+        }
 
         // Create barbell
         const barbellGroup = new THREE.Group();
@@ -347,15 +339,24 @@ export default function GymPumpEngine({ onClose, user }: GymPumpEngineProps) {
             // Move barbell up
             barbellRef.current.position.y = 1.8 + gameStateRef.current.liftHeight;
 
-            // Animate character arms
-            const leftArm = characterRef.current.children.find((c: any) => c.position.x < 0 && c.geometry?.type === 'CylinderGeometry');
-            const rightArm = characterRef.current.children.find((c: any) => c.position.x > 0 && c.geometry?.type === 'CylinderGeometry');
-
-            if (leftArm) {
-              leftArm.rotation.z = Math.PI / 6 - gameStateRef.current.liftHeight * 0.5;
-            }
-            if (rightArm) {
-              rightArm.rotation.z = -Math.PI / 6 + gameStateRef.current.liftHeight * 0.5;
+            // Animate character arms - use bodyParts if available
+            if (avatarResult?.bodyParts) {
+              const { leftArm, rightArm } = avatarResult.bodyParts;
+              if (leftArm && rightArm) {
+                leftArm.rotation.x = -gameStateRef.current.liftHeight * 0.5;
+                rightArm.rotation.x = -gameStateRef.current.liftHeight * 0.5;
+              }
+            } else {
+              // Fallback: find arms by position
+              const leftArm = characterRef.current.children.find((c: any) => c.position.x < 0 && c.geometry?.type === 'CylinderGeometry');
+              const rightArm = characterRef.current.children.find((c: any) => c.position.x > 0 && c.geometry?.type === 'CylinderGeometry');
+              
+              if (leftArm) {
+                leftArm.rotation.z = Math.PI / 6 - gameStateRef.current.liftHeight * 0.5;
+              }
+              if (rightArm) {
+                rightArm.rotation.z = -Math.PI / 6 + gameStateRef.current.liftHeight * 0.5;
+              }
             }
 
             // Character slight movement

@@ -11,6 +11,8 @@ import {
   inCircle,
   distance,
 } from "@/lib/gameScaling";
+import { getUserAvatarData, createAvatarMesh } from '@/lib/avatar3DRenderer';
+import { useUser } from '@/contexts/UserContext';
 
 /**
  * SuperShowdownCombined
@@ -192,12 +194,38 @@ const DEFAULT_AMMO: Record<string, number> = {
    Component
    --------------------------- */
 
-export default function SuperShowdownCombined(): JSX.Element {
+interface InsaneShowdownProps {
+  user?: any;
+}
+
+export default function SuperShowdownCombined({ user }: InsaneShowdownProps = {}): JSX.Element {
   // Setup & start state
   const [chooseDeathPower, setChooseDeathPower] = useState(false);
   const [deathPower, setDeathPower] = useState<Power>("fire");
   const [startConfirmed, setStartConfirmed] = useState(false);
   const [autoRespawn, setAutoRespawn] = useState(true);
+  
+  // 3D scene refs
+  const containerRef = useRef<HTMLDivElement>(null);
+  const sceneRef = useRef<any>(null);
+  const rendererRef = useRef<any>(null);
+  const cameraRef = useRef<any>(null);
+  const playerAvatarRef = useRef<any>(null);
+  const enemyAvatarRef = useRef<any>(null);
+  const [avatarData, setAvatarData] = useState<{ skin: any; face: any; accessories: any[] } | null>(null);
+  
+  // Get user from context if not provided
+  const { user: contextUser } = useUser();
+  const currentUser = user || contextUser;
+
+  // Load avatar data
+  useEffect(() => {
+    if (currentUser) {
+      getUserAvatarData(currentUser).then(data => {
+        setAvatarData(data);
+      });
+    }
+  }, [currentUser]);
 
   // Pixelcoins & owned powers (persistence like SuperShowdown)
   const [pixelcoins, setPixelcoins] = useState<number>(100);
@@ -1646,7 +1674,24 @@ export default function SuperShowdownCombined(): JSX.Element {
      --------------------------- */
   return (
     <div style={{ maxWidth: 1100, margin: "0 auto", fontFamily: "Inter, Arial, sans-serif", color: "#cfe" }}>
-      <h2>Super Showdown — Combined (All Powers)</h2>
+      <h2>Insane Showdown — 3D Arena with Your Avatar (All Powers)</h2>
+      
+      {/* 3D Scene Container */}
+      {startConfirmed && avatarData?.skin && (
+        <div 
+          ref={containerRef}
+          style={{
+            width: CANVAS_SIZE_PX,
+            height: CANVAS_SIZE_PX,
+            margin: "0 auto",
+            position: "relative",
+            border: "2px solid #334",
+            borderRadius: 8,
+            overflow: "hidden",
+            marginBottom: '20px'
+          }}
+        />
+      )}
 
       {!startConfirmed && (
         <div style={{ border: "1px solid #334", padding: 12, marginBottom: 12, borderRadius: 8 }}>

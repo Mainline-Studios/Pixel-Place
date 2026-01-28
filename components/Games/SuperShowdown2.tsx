@@ -11,6 +11,8 @@ import {
   inCircle,
   distance,
 } from "@/lib/gameScaling";
+import { getUserAvatarData, createAvatarMesh } from '@/lib/avatar3DRenderer';
+import { useUser } from '@/contexts/UserContext';
 
 /**
  * SuperShowdown2 — updated powers with stronger Regen and visual indicators
@@ -137,12 +139,38 @@ const DEFAULT_AMMO: Record<string, number> = {
   doppelganger: 2,
 };
 
-export default function SuperShowdown2(): JSX.Element {
+interface SuperShowdown2Props {
+  user?: any;
+}
+
+export default function SuperShowdown2({ user }: SuperShowdown2Props = {}): JSX.Element {
   // Setup & start state
   const [chooseDeathPower, setChooseDeathPower] = useState(false);
   const [deathPower, setDeathPower] = useState<Power>("mud");
   const [startConfirmed, setStartConfirmed] = useState(false);
   const [autoRespawn, setAutoRespawn] = useState(true);
+  
+  // 3D scene refs
+  const containerRef = useRef<HTMLDivElement>(null);
+  const sceneRef = useRef<any>(null);
+  const rendererRef = useRef<any>(null);
+  const cameraRef = useRef<any>(null);
+  const playerAvatarRef = useRef<any>(null);
+  const enemyAvatarRef = useRef<any>(null);
+  const [avatarData, setAvatarData] = useState<{ skin: any; face: any; accessories: any[] } | null>(null);
+  
+  // Get user from context if not provided
+  const { user: contextUser } = useUser();
+  const currentUser = user || contextUser;
+
+  // Load avatar data
+  useEffect(() => {
+    if (currentUser) {
+      getUserAvatarData(currentUser).then(data => {
+        setAvatarData(data);
+      });
+    }
+  }, [currentUser]);
 
   // --- Store / persistence ---
   const [pixelcoins, setPixelcoins] = useState<number>(120);
@@ -311,12 +339,103 @@ export default function SuperShowdown2(): JSX.Element {
     return () => clearInterval(tid);
   }, []);
 
+  // Initialize 3D scene with avatars (similar to Super Showdown 1)
+  useEffect(() => {
+    if (!containerRef.current || !startConfirmed || !avatarData?.skin) return;
+
+    let THREE: any;
+    let isMounted = true;
+    let animationFrame: number;
+
+    const init3D = async () => {
+      try {
+        THREE = await import('three');
+        
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x0b1020);
+        scene.fog = new THREE.Fog(0x0b1020, 10, MAP_SIZE * 2);
+
+        const camera = new THREE.PerspectiveCamera(60, containerRef.current!.clientWidth / containerRef.current!.clientHeight, 0.1, 1000);
+        camera.position.set(MAP_SIZE / 2, MAP_SIZE * 0.8, MAP_SIZE * 1.2);
+        camera.lookAt(MAP_SIZE / 2, 0, MAP_SIZE / 2);
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(containerRef.current!.clientWidth, containerRef.current!.clientHeight);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        renderer.shadowMap.enabled = true;
+        containerRef.current!.appendChild(renderer.domElement);
+
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+        scene.add(ambientLight);
+        const mainLight = new THREE.DirectionalLight(0xffffff, 0.9);
+        mainLight.position.set(MAP_SIZE / 2, MAP_SIZE, MAP_SIZE / 2);
+        mainLight.castShadow = true;
+        scene.add(mainLight);
+
+        const floor = new THREE.Mesh(
+          new THREE.PlaneGeometry(MAP_SIZE, MAP_SIZE),
+          new THREE.MeshStandardMaterial({ color: 0x0f1a2b, roughness: 0.8 })
+        );
+        floor.rotation.x = -Math.PI / 2;
+        floor.receiveShadow = true;
+        scene.add(floor);
+
+        if (avatarData.skin) {
+          const playerResult = createAvatarMesh(THREE, scene, avatarData.skin, avatarData.face, avatarData.accessories, {
+            scale: 1.0, position: { x: player.pos.x, y: 0, z: player.pos.y }, animation: 'idle'
+          });
+          playerAvatarRef.current = playerResult.characterGroup;
+        }
+
+        const enemySkin = avatarData.skin ? { ...avatarData.skin, colors: { head: '#d25a5a', torso: '#8b0000', arm: '#8b0000', legs: '#8b0000' } } : {
+          id: 'enemy', name: 'Enemy', colors: { head: '#d25a5a', torso: '#8b0000', arm: '#8b0000', legs: '#8b0000' }, price: 0, img: '', isSpecial: false
+        };
+        const enemyResult = createAvatarMesh(THREE, scene, enemySkin, null, [], {
+          scale: 1.0, position: { x: enemy.pos.x, y: 0, z: enemy.pos.y }, animation: 'idle'
+        });
+        enemyAvatarRef.current = enemyResult.characterGroup;
+
+        const animate = () => {
+          if (!isMounted) return;
+          animationFrame = requestAnimationFrame(animate);
+          if (playerAvatarRef.current) {
+            playerAvatarRef.current.position.x = player.pos.x;
+            playerAvatarRef.current.position.z = player.pos.y;
+            playerAvatarRef.current.rotation.y = Math.atan2(aimTarget.x - player.pos.x, aimTarget.y - player.pos.y);
+          }
+          if (enemyAvatarRef.current) {
+            enemyAvatarRef.current.position.x = enemy.pos.x;
+            enemyAvatarRef.current.position.z = enemy.pos.y;
+            enemyAvatarRef.current.rotation.y = Math.atan2(player.pos.x - enemy.pos.x, player.pos.y - enemy.pos.y);
+          }
+          renderer.render(scene, camera);
+        };
+        animate();
+
+        sceneRef.current = scene;
+        rendererRef.current = renderer;
+        cameraRef.current = camera;
+      } catch (error) {
+        console.error('Error initializing 3D scene:', error);
+      }
+    };
+
+    init3D();
+    return () => {
+      isMounted = false;
+      if (animationFrame) cancelAnimationFrame(animationFrame);
+      if (rendererRef.current) rendererRef.current.dispose();
+    };
+  }, [startConfirmed, avatarData, player.pos, enemy.pos, aimTarget]);
+
   // Canvas & drawing
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   useEffect(() => {
-    drawCanvas();
+    if (!startConfirmed || !avatarData?.skin) {
+      drawCanvas();
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [player, enemy, aimTarget, mudPatches, parasites, doppels, startConfirmed, lunarActive, timeNow]);
+  }, [player, enemy, aimTarget, mudPatches, parasites, doppels, startConfirmed, lunarActive, timeNow, avatarData]);
 
   function toPx(v: Vec2) {
     return { x: v.x * STUD_TO_PX, y: v.y * STUD_TO_PX };
@@ -1246,7 +1365,24 @@ export default function SuperShowdown2(): JSX.Element {
   // UI render (includes Midnight overlay and Soleil teleport emblem)
   return (
     <div style={{ maxWidth: 1100, margin: "0 auto", fontFamily: "Inter, Arial, sans-serif", color: "#cfe", position: "relative" }}>
-      <h2>Super Showdown 2 — Custom Powers + Store</h2>
+      <h2>Super Showdown 2 — 3D Arena with Your Avatar</h2>
+      
+      {/* 3D Scene Container */}
+      {startConfirmed && avatarData?.skin && (
+        <div 
+          ref={containerRef}
+          style={{
+            width: CANVAS_SIZE_PX,
+            height: CANVAS_SIZE_PX,
+            margin: "0 auto",
+            position: "relative",
+            border: "2px solid #334",
+            borderRadius: 8,
+            overflow: "hidden",
+            marginBottom: '20px'
+          }}
+        />
+      )}
 
       {/* MIDNIGHT OVERLAY (moon + darkening) */}
       {lunarActive && (

@@ -180,11 +180,13 @@ export default function GamesTab({ user, editMode }: GamesTabProps) {
     // Components that support onClose prop
     const supportsOnClose = ['gymPump', 'hypnosia'].includes(selectedGame);
     
-    // Prepare props based on game type
+    // Prepare props based on game type - pass user to games that need it
     const gameProps = selectedGame === 'gymPump' 
       ? { user, onClose: handleClose }
       : selectedGame === 'hypnosia'
       ? { onClose: handleClose }
+      : ['superShowdown', 'superShowdown2', 'insaneShowdown'].includes(selectedGame)
+      ? { user }
       : {};
     
     return (

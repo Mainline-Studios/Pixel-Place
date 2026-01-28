@@ -10,6 +10,8 @@ import {
   inCircle,
   distance,
 } from "@/lib/gameScaling";
+import { getUserAvatarData, createAvatarMesh } from '@/lib/avatar3DRenderer';
+import { useUser } from '@/contexts/UserContext';
 
 /**
  * SuperShowdown — 3D Arena & 3D Players
@@ -140,12 +142,25 @@ type BlackHole = {
   active: boolean;
 };
 
-export default function SuperShowdown(): JSX.Element {
+interface SuperShowdownProps {
+  user?: any;
+}
+
+export default function SuperShowdown({ user }: SuperShowdownProps = {}): JSX.Element {
   // Setup & start state
   const [chooseDeathPower, setChooseDeathPower] = useState(false);
   const [deathPower, setDeathPower] = useState<Power>("fire");
   const [startConfirmed, setStartConfirmed] = useState(false);
   const [autoRespawn, setAutoRespawn] = useState(true);
+  
+  // 3D scene refs
+  const containerRef = useRef<HTMLDivElement>(null);
+  const sceneRef = useRef<any>(null);
+  const rendererRef = useRef<any>(null);
+  const cameraRef = useRef<any>(null);
+  const playerAvatarRef = useRef<any>(null);
+  const enemyAvatarRef = useRef<any>(null);
+  const [avatarData, setAvatarData] = useState<{ skin: any; face: any; accessories: any[] } | null>(null);
 
   // Pixelcoins and owned powers
   const [pixelcoins, setPixelcoins] = useState<number>(100);
@@ -318,13 +333,226 @@ export default function SuperShowdown(): JSX.Element {
     ammoRef.current["earth"] = 4;
   }, []);
 
-  // Canvas & drawing (keeps accurate click mapping)
+  // Get user from context if not provided
+  const { user: contextUser } = useUser();
+  const currentUser = user || contextUser;
+
+  // Load avatar data
+  useEffect(() => {
+    if (currentUser) {
+      getUserAvatarData(currentUser).then(data => {
+        setAvatarData(data);
+      });
+    }
+  }, [currentUser]);
+
+  // Initialize 3D scene with avatars
+  useEffect(() => {
+    if (!containerRef.current || !startConfirmed || !avatarData?.skin) return;
+
+    let THREE: any;
+    let isMounted = true;
+    let animationFrame: number;
+    const entityMeshesRef: any[] = [];
+
+    const init3D = async () => {
+      try {
+        THREE = await import('three');
+        
+        // Create scene
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x0b1020);
+        scene.fog = new THREE.Fog(0x0b1020, 10, MAP_SIZE * 2);
+
+        // Create camera
+        const camera = new THREE.PerspectiveCamera(
+          60,
+          containerRef.current!.clientWidth / containerRef.current!.clientHeight,
+          0.1,
+          1000
+        );
+        camera.position.set(MAP_SIZE / 2, MAP_SIZE * 0.8, MAP_SIZE * 1.2);
+        camera.lookAt(MAP_SIZE / 2, 0, MAP_SIZE / 2);
+
+        // Create renderer
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(containerRef.current!.clientWidth, containerRef.current!.clientHeight);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        containerRef.current!.appendChild(renderer.domElement);
+
+        // Lighting
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+        scene.add(ambientLight);
+
+        const mainLight = new THREE.DirectionalLight(0xffffff, 0.9);
+        mainLight.position.set(MAP_SIZE / 2, MAP_SIZE, MAP_SIZE / 2);
+        mainLight.castShadow = true;
+        mainLight.shadow.mapSize.width = 2048;
+        mainLight.shadow.mapSize.height = 2048;
+        scene.add(mainLight);
+
+        // Arena floor
+        const floorGeometry = new THREE.PlaneGeometry(MAP_SIZE, MAP_SIZE);
+        const floorMaterial = new THREE.MeshStandardMaterial({
+          color: 0x0f1a2b,
+          roughness: 0.8,
+          metalness: 0.1
+        });
+        const floor = new THREE.Mesh(floorGeometry, floorMaterial);
+        floor.rotation.x = -Math.PI / 2;
+        floor.receiveShadow = true;
+        scene.add(floor);
+
+        // Grid lines
+        const gridHelper = new THREE.GridHelper(MAP_SIZE, MAP_SIZE / 5, 0x1a2a3a, 0x0f1a2b);
+        scene.add(gridHelper);
+
+        // Create player avatar
+        if (avatarData.skin) {
+          const playerResult = createAvatarMesh(
+            THREE,
+            scene,
+            avatarData.skin,
+            avatarData.face,
+            avatarData.accessories,
+            {
+              scale: 1.0,
+              position: { x: player.pos.x, y: 0, z: player.pos.y },
+              animation: 'idle'
+            }
+          );
+          playerAvatarRef.current = playerResult.characterGroup;
+        }
+
+        // Create enemy avatar (red tinted version)
+        const enemySkin = avatarData.skin ? {
+          ...avatarData.skin,
+          colors: {
+            head: '#d25a5a',
+            torso: '#8b0000',
+            arm: '#8b0000',
+            legs: '#8b0000'
+          }
+        } : {
+          id: 'enemy',
+          name: 'Enemy',
+          colors: { head: '#d25a5a', torso: '#8b0000', arm: '#8b0000', legs: '#8b0000' },
+          price: 0,
+          img: '',
+          isSpecial: false
+        };
+
+        const enemyResult = createAvatarMesh(
+          THREE,
+          scene,
+          enemySkin,
+          null,
+          [],
+          {
+            scale: 1.0,
+            position: { x: enemy.pos.x, y: 0, z: enemy.pos.y },
+            animation: 'idle'
+          }
+        );
+        enemyAvatarRef.current = enemyResult.characterGroup;
+
+        // Create entity meshes (bears, whirlpools, etc.)
+        const createEntityMesh = (type: string, pos: Vec2, color: number) => {
+          let geometry: any;
+          if (type === 'bear') {
+            geometry = new THREE.BoxGeometry(1, 1, 1);
+          } else if (type === 'whirlpool') {
+            geometry = new THREE.CylinderGeometry(2, 2, 0.2, 16);
+          } else if (type === 'plant') {
+            geometry = new THREE.ConeGeometry(0.5, 1.5, 8);
+          } else {
+            geometry = new THREE.SphereGeometry(1, 16, 16);
+          }
+          const material = new THREE.MeshStandardMaterial({ color });
+          const mesh = new THREE.Mesh(geometry, material);
+          mesh.position.set(pos.x, 0, pos.y);
+          mesh.castShadow = true;
+          scene.add(mesh);
+          entityMeshesRef.push({ type, mesh, pos });
+          return mesh;
+        };
+
+        // Animation loop
+        const animate = () => {
+          if (!isMounted) return;
+          animationFrame = requestAnimationFrame(animate);
+
+          // Update avatar positions
+          if (playerAvatarRef.current) {
+            playerAvatarRef.current.position.x = player.pos.x;
+            playerAvatarRef.current.position.z = player.pos.y;
+            const angle = Math.atan2(aimTarget.x - player.pos.x, aimTarget.y - player.pos.y);
+            playerAvatarRef.current.rotation.y = angle;
+          }
+
+          if (enemyAvatarRef.current) {
+            enemyAvatarRef.current.position.x = enemy.pos.x;
+            enemyAvatarRef.current.position.z = enemy.pos.y;
+            const dx = player.pos.x - enemy.pos.x;
+            const dy = player.pos.y - enemy.pos.y;
+            enemyAvatarRef.current.rotation.y = Math.atan2(dx, dy);
+          }
+
+          // Update entities
+          entityMeshesRef.forEach(({ type, mesh, pos }) => {
+            if (type === 'bear') {
+              const bear = bears.find(b => b.pos.x === pos.x && b.pos.y === pos.y);
+              if (bear) {
+                mesh.position.x = bear.pos.x;
+                mesh.position.z = bear.pos.y;
+              } else {
+                scene.remove(mesh);
+                mesh.dispose();
+              }
+            }
+            // Add other entity updates as needed
+          });
+
+          renderer.render(scene, camera);
+        };
+
+        animate();
+
+        sceneRef.current = scene;
+        rendererRef.current = renderer;
+        cameraRef.current = camera;
+
+      } catch (error) {
+        console.error('Error initializing 3D scene:', error);
+      }
+    };
+
+    init3D();
+
+    return () => {
+      isMounted = false;
+      if (animationFrame) cancelAnimationFrame(animationFrame);
+      if (rendererRef.current) {
+        rendererRef.current.dispose();
+      }
+      entityMeshesRef.forEach(({ mesh }) => {
+        sceneRef.current?.remove(mesh);
+        mesh.dispose();
+      });
+    };
+  }, [startConfirmed, avatarData, player.pos, enemy.pos, aimTarget, bears, whirlpools, plants, blackHoles]);
+
+  // Canvas & drawing (keeps accurate click mapping) - keep for UI overlay when not in 3D
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
   useEffect(() => {
-    drawCanvas();
+    if (!startConfirmed || !avatarData?.skin) {
+      drawCanvas();
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [player, enemy, aimTarget, bears, whirlpools, plants, blackHoles, startConfirmed]);
+  }, [player, enemy, aimTarget, bears, whirlpools, plants, blackHoles, startConfirmed, avatarData]);
 
   function toPx(v: Vec2) {
     return { x: v.x * STUD_TO_PX, y: v.y * STUD_TO_PX };
@@ -1127,7 +1355,41 @@ export default function SuperShowdown(): JSX.Element {
   // UI & render
   return (
     <div style={{ maxWidth: 1100, margin: "0 auto", fontFamily: "Inter, Arial, sans-serif", color: "#cfe" }}>
-      <h2>Super Showdown — True 3D Arena & 3D Players</h2>
+      <h2>Super Showdown — 3D Arena with Your Avatar</h2>
+      
+      {/* 3D Scene Container */}
+      {startConfirmed && avatarData?.skin && (
+        <div 
+          ref={containerRef}
+          style={{
+            width: '100%',
+            height: '600px',
+            position: 'relative',
+            marginBottom: '20px',
+            border: '2px solid #334',
+            borderRadius: '8px',
+            overflow: 'hidden'
+          }}
+        />
+      )}
+      
+      {/* 2D Canvas for pre-game setup */}
+      {!startConfirmed && (
+        <canvas
+          ref={canvasRef}
+          width={CANVAS_SIZE_PX}
+          height={CANVAS_SIZE_PX}
+          onClick={handleCanvasClick}
+          onMouseMove={handleMouseMove}
+          style={{
+            border: "2px solid #334",
+            borderRadius: 8,
+            cursor: "crosshair",
+            display: 'block',
+            margin: '0 auto'
+          }}
+        />
+      )}
 
       {!startConfirmed && (
         <div style={{ border: "1px solid #334", padding: 12, marginBottom: 12, borderRadius: 8 }}>
