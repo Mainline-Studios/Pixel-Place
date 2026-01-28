@@ -141,12 +141,15 @@ export interface Skin {
 export interface Accessory {
   id: string;
   name: string;
-  type: 'hat' | 'glasses' | 'mask' | 'backpack' | 'weapon' | 'chain' | 'shoes';
+  type: 'hat' | 'glasses' | 'mask' | 'backpack' | 'weapon' | 'chain' | 'shoes' | 'pet' | 'drone';
   price: number;
   img: string;
   color?: string;
   position?: { x: number; y: number; z: number };
   scale?: number;
+  modelUrl?: string; // Path to GLTF/GLB model file (e.g., '/models/drone.glb')
+  floatHeight?: number; // Height above player for floating accessories (default: 3.0)
+  rotationSpeed?: number; // Rotation speed for floating animation (default: 0.5)
 }
 
 export interface PublishedGame {

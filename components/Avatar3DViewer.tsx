@@ -1401,6 +1401,110 @@ export default function Avatar3DViewer({
                   accessoryMesh = petGroup as any;
                 }
                 break;
+              case 'drone':
+                // Floating drone accessory above player - supports GLTF models
+                const droneGroup = new THREE.Group();
+                const floatHeight = accessory.floatHeight || 3.0; // Default 3 units above player
+                const rotationSpeed = accessory.rotationSpeed || 0.5;
+                
+                // Load GLTF model if modelUrl is provided
+                if (accessory.modelUrl) {
+                  import('three/examples/jsm/loaders/GLTFLoader.js').then(({ GLTFLoader }) => {
+                    const loader = new GLTFLoader();
+                    loader.load(
+                      accessory.modelUrl!,
+                      (gltf) => {
+                        if (!isMounted || !droneGroup) return;
+                        
+                        const model = gltf.scene;
+                        
+                        // Scale model appropriately
+                        const scale = accessory.scale || 1.0;
+                        model.scale.set(scale, scale, scale);
+                        
+                        // Center the model
+                        const box = new THREE.Box3().setFromObject(model);
+                        const center = box.getCenter(new THREE.Vector3());
+                        model.position.sub(center);
+                        
+                        droneGroup.add(model);
+                      },
+                      undefined,
+                      (error) => {
+                        console.error('Error loading drone GLTF:', error);
+                        // Fallback to simple representation
+                        createDroneFallback(droneGroup, accessory);
+                      }
+                    );
+                  }).catch(() => {
+                    // Fallback if GLTFLoader fails to import
+                    createDroneFallback(droneGroup, accessory);
+                  });
+                } else {
+                  // Create simple drone representation
+                  createDroneFallback(droneGroup, accessory);
+                }
+                
+                // Position drone floating above player
+                droneGroup.position.set(0, floatHeight, 0);
+                droneGroup.userData.isDrone = true;
+                droneGroup.userData.rotationSpeed = rotationSpeed;
+                
+                // Add floating animation
+                const floatTime = { value: 0 };
+                const animateFloat = () => {
+                  if (!isMounted || !droneGroup) return;
+                  floatTime.value += 0.02;
+                  // Gentle floating motion
+                  droneGroup.position.y = floatHeight + Math.sin(floatTime.value) * 0.2;
+                  // Slow rotation
+                  droneGroup.rotation.y += rotationSpeed * 0.01;
+                };
+                
+                // Store animation function
+                droneGroup.userData.animateFloat = animateFloat;
+                
+                characterGroup.add(droneGroup);
+                accessoryMesh = droneGroup as any;
+                
+                // Helper function for fallback drone
+                const createDroneFallback = (group: any, acc: any) => {
+                  const droneColor = hexToColor(acc.color || '#1a1a2e');
+                  const droneMat = new THREE.MeshStandardMaterial({
+                    color: new THREE.Color(droneColor.r, droneColor.g, droneColor.b),
+                    metalness: 0.9,
+                    roughness: 0.2,
+                    emissive: new THREE.Color(0, 0.3, 0.6),
+                    emissiveIntensity: 0.5
+                  });
+                  
+                  // Main body
+                  const body = new THREE.Mesh(
+                    new THREE.BoxGeometry(0.8, 0.3, 0.8),
+                    droneMat
+                  );
+                  group.add(body);
+                  
+                  // 4 rotors
+                  for (let i = 0; i < 4; i++) {
+                    const angle = (i * Math.PI * 2) / 4;
+                    const rotor = new THREE.Mesh(
+                      new THREE.CylinderGeometry(0.15, 0.15, 0.05, 8),
+                      new THREE.MeshStandardMaterial({
+                        color: new THREE.Color(0.8, 0.8, 0.9),
+                        metalness: 0.7,
+                        roughness: 0.3
+                      })
+                    );
+                    rotor.position.set(
+                      Math.cos(angle) * 0.5,
+                      0.2,
+                      Math.sin(angle) * 0.5
+                    );
+                    group.add(rotor);
+                  }
+                };
+                break;
               default:
                 const defaultGeometry = new THREE.BoxGeometry(0.3, 0.3, 0.3);
                 accessoryMesh = new THREE.Mesh(defaultGeometry, accessoryMaterial);
@@ -1432,6 +1536,13 @@ export default function Avatar3DViewer({
         const animate = () => {
           animationFrameRef.current = requestAnimationFrame(animate);
           animationTime += 0.016; // ~60fps
+
+          // Animate floating drones
+          characterGroup.children.forEach((child: any) => {
+            if (child.userData?.isDrone && child.userData?.animateFloat) {
+              child.userData.animateFloat();
+            }
+          });
 
           // Apply rotation based on mouse position
           if (interactive && isHovered) {
