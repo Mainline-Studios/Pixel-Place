@@ -8,13 +8,16 @@ import bmesh
 from mathutils import Vector
 import math
 
-# Ensure we're in Object mode
-if bpy.context.active_object and bpy.context.active_object.mode != 'OBJECT':
-    bpy.ops.object.mode_set(mode='OBJECT')
+# Clear existing mesh objects (more robust method)
+# Switch to Object mode if needed
+if bpy.context.active_object:
+    if bpy.context.active_object.mode != 'OBJECT':
+        bpy.ops.object.mode_set(mode='OBJECT')
 
-# Clear existing mesh objects
-bpy.ops.object.select_all(action='SELECT')
-bpy.ops.object.delete(use_global=False)
+# Select all objects and delete them
+for obj in list(bpy.context.scene.objects):
+    if obj.type == 'MESH':
+        bpy.data.objects.remove(obj, do_unlink=True)
 
 # Create new collection for drone
 drone_collection = bpy.data.collections.new("SciFi_Drone")
