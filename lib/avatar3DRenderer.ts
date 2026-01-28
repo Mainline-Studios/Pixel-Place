@@ -95,10 +95,17 @@ export function createAvatarMesh(
     }
   };
 
-  // Create pixelated texture
+  // Create pixelated texture (only works in browser)
   const createPixelatedTexture = (color: { r: number, g: number, b: number }, pixelSize: number = 8) => {
+    if (typeof document === 'undefined') {
+      // Server-side: return a simple colored material instead
+      return null;
+    }
+    
     const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d')!;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return null;
+    
     const size = 512;
     canvas.width = size;
     canvas.height = size;
@@ -180,10 +187,15 @@ export function createAvatarMesh(
   const glowIntensity = faceGlowIntensity || skin.materials?.torso?.emissiveIntensity || skin.materials?.head?.emissiveIntensity || 0.6;
 
   // Create materials
+  const headTexture = createPixelatedTexture(headColor, 8);
+  const torsoTexture = createPixelatedTexture(torsoColor, 8);
+  const armTexture = createPixelatedTexture(armColor, 8);
+  const legTexture = createPixelatedTexture(legColor, 8);
+
   const headMaterial = (hasGlow && (faceHasGlow || skin.isSpecial))
     ? createGlowMaterial(headColor, true, glowColor, glowIntensity)
     : new THREE.MeshStandardMaterial({
-        map: createPixelatedTexture(headColor, 8),
+        ...(headTexture ? { map: headTexture } : {}),
         color: new THREE.Color(headColor.r, headColor.g, headColor.b),
         roughness: 0.8,
         metalness: 0.0
@@ -192,7 +204,7 @@ export function createAvatarMesh(
   const torsoMaterial = hasGlow
     ? createGlowMaterial(torsoColor, true, glowColor, glowIntensity)
     : new THREE.MeshStandardMaterial({
-        map: createPixelatedTexture(torsoColor, 8),
+        ...(torsoTexture ? { map: torsoTexture } : {}),
         color: new THREE.Color(torsoColor.r, torsoColor.g, torsoColor.b),
         roughness: 0.7,
         metalness: 0.1
@@ -201,7 +213,7 @@ export function createAvatarMesh(
   const armMaterial = hasGlow
     ? createGlowMaterial(armColor, true, glowColor, glowIntensity)
     : new THREE.MeshStandardMaterial({
-        map: createPixelatedTexture(armColor, 8),
+        ...(armTexture ? { map: armTexture } : {}),
         color: new THREE.Color(armColor.r, armColor.g, armColor.b),
         roughness: 0.7,
         metalness: 0.1
@@ -210,7 +222,7 @@ export function createAvatarMesh(
   const legMaterial = hasGlow
     ? createGlowMaterial(legColor, true, glowColor, glowIntensity)
     : new THREE.MeshStandardMaterial({
-        map: createPixelatedTexture(legColor, 8),
+        ...(legTexture ? { map: legTexture } : {}),
         color: new THREE.Color(legColor.r, legColor.g, legColor.b),
         roughness: 0.7,
         metalness: 0.1

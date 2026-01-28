@@ -31,6 +31,11 @@ export default function GymPumpEngine({ onClose, user }: GymPumpEngineProps) {
   const [isLifting, setIsLifting] = useState(false);
   const [liftProgress, setLiftProgress] = useState(0);
   const [gameStarted, setGameStarted] = useState(false);
+  const [exerciseType, setExerciseType] = useState<'bench' | 'curl' | 'squat'>('bench');
+  const [rhythmPhase, setRhythmPhase] = useState<'down' | 'up' | 'hold'>('down');
+  const [rhythmProgress, setRhythmProgress] = useState(0);
+  const [combo, setCombo] = useState(0);
+  const [streak, setStreak] = useState(0);
   // #region agent log
   fetch('http://127.0.0.1:7242/ingest/002741fb-cb98-444e-83cd-7086902151aa',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'GymPumpEngine.tsx:20',message:'After all useState hooks',data:{hookCount:4},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
   // #endregion
@@ -258,51 +263,72 @@ export default function GymPumpEngine({ onClose, user }: GymPumpEngineProps) {
           characterRef.current = characterGroup;
         }
 
-        // Create barbell
+        // Create barbell - will be attached to player hands
         const barbellGroup = new THREE.Group();
 
-        // Barbell bar
-        const barGeometry = new THREE.CylinderGeometry(0.02, 0.02, 1.2, 16);
+        // Barbell bar (thicker, more realistic)
+        const barGeometry = new THREE.CylinderGeometry(0.025, 0.025, 1.4, 32);
         const barMaterial = new THREE.MeshStandardMaterial({
-          color: 0x888888,
-          metalness: 0.9,
-          roughness: 0.2
+          color: 0xb0b0b0,
+          metalness: 0.95,
+          roughness: 0.1,
+          envMapIntensity: 1.0
         });
         const bar = new THREE.Mesh(barGeometry, barMaterial);
         bar.rotation.z = Math.PI / 2;
         bar.castShadow = true;
         barbellGroup.add(bar);
 
-        // Weight plates
-        const plateGeometry = new THREE.CylinderGeometry(0.3, 0.3, 0.1, 16);
-        const plateMaterial = new THREE.MeshStandardMaterial({
-          color: 0xff4444,
-          metalness: 0.7,
-          roughness: 0.3
+        // Collars (metal rings)
+        const collarGeometry = new THREE.TorusGeometry(0.05, 0.01, 16, 32);
+        const collarMaterial = new THREE.MeshStandardMaterial({
+          color: 0x888888,
+          metalness: 0.9,
+          roughness: 0.15
         });
+        for (let side of [-1, 1]) {
+          const collar = new THREE.Mesh(collarGeometry, collarMaterial);
+          collar.position.set(side * 0.7, 0, 0);
+          collar.rotation.x = Math.PI / 2;
+          collar.castShadow = true;
+          barbellGroup.add(collar);
+        }
 
+        // Weight plates (more detailed)
         const weights: any[] = [];
-        // Left side plates
-        for (let i = 0; i < 3; i++) {
+        const plateConfigs = [
+          { radius: 0.25, thickness: 0.08, color: 0xff0000, pos: -0.85 }, // 25kg red
+          { radius: 0.22, thickness: 0.08, color: 0x0000ff, pos: -0.95 }, // 20kg blue
+          { radius: 0.19, thickness: 0.08, color: 0x00ff00, pos: -1.05 }, // 15kg green
+        ];
+
+        for (const config of plateConfigs) {
+          // Left side
+          const plateGeometry = new THREE.CylinderGeometry(config.radius, config.radius, config.thickness, 32);
+          const plateMaterial = new THREE.MeshStandardMaterial({
+            color: config.color,
+            metalness: 0.8,
+            roughness: 0.3
+          });
           const plate = new THREE.Mesh(plateGeometry, plateMaterial);
-          plate.position.set(-0.6 - i * 0.15, 0, 0);
+          plate.position.set(config.pos, 0, 0);
           plate.rotation.z = Math.PI / 2;
           plate.castShadow = true;
           barbellGroup.add(plate);
           weights.push(plate);
+
+          // Right side (mirror)
+          const plate2 = new THREE.Mesh(plateGeometry, plateMaterial);
+          plate2.position.set(-config.pos, 0, 0);
+          plate2.rotation.z = Math.PI / 2;
+          plate2.castShadow = true;
+          barbellGroup.add(plate2);
+          weights.push(plate2);
         }
 
-        // Right side plates
-        for (let i = 0; i < 3; i++) {
-          const plate = new THREE.Mesh(plateGeometry, plateMaterial);
-          plate.position.set(0.6 + i * 0.15, 0, 0);
-          plate.rotation.z = Math.PI / 2;
-          plate.castShadow = true;
-          barbellGroup.add(plate);
-          weights.push(plate);
-        }
-
-        barbellGroup.position.set(0, 1.8, 0);
+        // Initially position barbell at hands level (will be attached)
+        barbellGroup.position.set(0, 1.5, 0.3);
+        barbellGroup.rotation.x = 0;
         scene.add(barbellGroup);
         barbellRef.current = barbellGroup;
         weightsRef.current = weights;
@@ -327,59 +353,128 @@ export default function GymPumpEngine({ onClose, user }: GymPumpEngineProps) {
             characterRef.current.position.y = breatheAmount;
           }
 
-          // Update lifting animation
+          // Update lifting animation with rhythm-based mechanics
           if (gameStateRef.current.isLifting && barbellRef.current && characterRef.current) {
             const liftTime = (Date.now() - gameStateRef.current.liftStartTime) / 1000;
-            const maxLiftHeight = 0.8;
-            const liftSpeed = 0.5;
-
-            gameStateRef.current.liftHeight = Math.min(liftTime * liftSpeed, maxLiftHeight);
-            setLiftProgress(gameStateRef.current.liftHeight / maxLiftHeight);
-
-            // Move barbell up
-            barbellRef.current.position.y = 1.8 + gameStateRef.current.liftHeight;
-
-            // Animate character arms - use bodyParts if available
-            if (avatarResult?.bodyParts) {
-              const { leftArm, rightArm } = avatarResult.bodyParts;
-              if (leftArm && rightArm) {
-                leftArm.rotation.x = -gameStateRef.current.liftHeight * 0.5;
-                rightArm.rotation.x = -gameStateRef.current.liftHeight * 0.5;
-              }
+            const rhythmCycle = 2.0; // 2 seconds per full cycle (down-up)
+            const cycleProgress = (liftTime % rhythmCycle) / rhythmCycle;
+            
+            // Determine phase
+            let currentPhase: 'down' | 'up' | 'hold' = 'down';
+            if (cycleProgress < 0.4) {
+              currentPhase = 'down';
+            } else if (cycleProgress < 0.9) {
+              currentPhase = 'up';
             } else {
-              // Fallback: find arms by position
-              const leftArm = characterRef.current.children.find((c: any) => c.position.x < 0 && c.geometry?.type === 'CylinderGeometry');
-              const rightArm = characterRef.current.children.find((c: any) => c.position.x > 0 && c.geometry?.type === 'CylinderGeometry');
-              
-              if (leftArm) {
-                leftArm.rotation.z = Math.PI / 6 - gameStateRef.current.liftHeight * 0.5;
+              currentPhase = 'hold';
+            }
+            setRhythmPhase(currentPhase);
+            setRhythmProgress(cycleProgress);
+
+            // Calculate lift height based on exercise type and phase
+            let liftHeight = 0;
+            let armRotationX = 0;
+            let armRotationZ = 0;
+            
+            if (exerciseType === 'bench') {
+              // Bench press: arms go from down to up
+              if (currentPhase === 'down') {
+                liftHeight = 0.2 * (cycleProgress / 0.4);
+                armRotationX = -0.3 + (0.3 * (cycleProgress / 0.4));
+              } else if (currentPhase === 'up') {
+                const upProgress = (cycleProgress - 0.4) / 0.5;
+                liftHeight = 0.2 + (0.6 * upProgress);
+                armRotationX = 0.3 - (0.6 * upProgress);
+              } else {
+                liftHeight = 0.8;
+                armRotationX = -0.3;
               }
-              if (rightArm) {
-                rightArm.rotation.z = -Math.PI / 6 + gameStateRef.current.liftHeight * 0.5;
+            } else if (exerciseType === 'curl') {
+              // Bicep curl: arms bend at elbow
+              if (currentPhase === 'down') {
+                liftHeight = 0.3 * (cycleProgress / 0.4);
+                armRotationZ = -0.5 + (0.5 * (cycleProgress / 0.4));
+              } else if (currentPhase === 'up') {
+                const upProgress = (cycleProgress - 0.4) / 0.5;
+                liftHeight = 0.3 + (0.5 * upProgress);
+                armRotationZ = 0.5 - (1.0 * upProgress);
+              } else {
+                liftHeight = 0.8;
+                armRotationZ = -0.5;
               }
             }
 
-            // Character slight movement
-            characterRef.current.position.y = Math.sin(time * 8) * 0.05;
+            gameStateRef.current.liftHeight = liftHeight;
+            setLiftProgress(liftHeight / 0.8);
 
-            // Check if lift is complete
-            if (gameStateRef.current.liftHeight >= maxLiftHeight) {
-              // Complete lift
-              gameStateRef.current.power += 10 + Math.floor(gameStateRef.current.level * 0.5);
-              gameStateRef.current.coins += 5 + Math.floor(gameStateRef.current.level * 0.3);
+            // Attach barbell to hands and move with arms
+            if (avatarResult?.bodyParts) {
+              const { leftArm, rightArm, torso } = avatarResult.bodyParts;
+              
+              // Calculate hand positions based on arm rotations
+              const handOffsetY = Math.sin(armRotationX) * 0.9;
+              const handOffsetZ = Math.cos(armRotationX) * 0.9;
+              
+              // Position barbell at hands (using simple vector math)
+              const leftHandX = -0.5;
+              const leftHandY = 0.9 + handOffsetY;
+              const leftHandZ = handOffsetZ;
+              const rightHandX = 0.5;
+              const rightHandY = 0.9 + handOffsetY;
+              const rightHandZ = handOffsetZ;
+              
+              // Center between hands
+              const barbellCenterX = (leftHandX + rightHandX) / 2;
+              const barbellCenterY = (leftHandY + rightHandY) / 2;
+              const barbellCenterZ = (leftHandZ + rightHandZ) / 2;
+              
+              barbellRef.current.position.set(barbellCenterX, barbellCenterY, barbellCenterZ);
+              barbellRef.current.rotation.x = armRotationX;
+              barbellRef.current.rotation.z = armRotationZ;
+              
+              // Animate arms
+              if (leftArm && rightArm) {
+                leftArm.rotation.x = armRotationX;
+                leftArm.rotation.z = armRotationZ;
+                rightArm.rotation.x = armRotationX;
+                rightArm.rotation.z = -armRotationZ; // Mirror for right arm
+              }
+              
+              // Slight torso movement
+              if (torso) {
+                torso.rotation.x = Math.sin(time * 2) * 0.05 * liftHeight;
+              }
+            } else {
+              // Fallback animation
+              barbellRef.current.position.y = 1.5 + liftHeight;
+              barbellRef.current.rotation.x = armRotationX;
+            }
+
+            // Check for perfect timing (bonus points)
+            const perfectTiming = cycleProgress > 0.88 && cycleProgress < 0.92;
+            if (perfectTiming && currentPhase === 'hold') {
+              // Perfect rep bonus
+            }
+
+            // Complete rep when cycle finishes
+            if (cycleProgress > 0.95) {
+              const repPower = 10 + Math.floor(gameStateRef.current.level * 0.5);
+              const repCoins = 5 + Math.floor(gameStateRef.current.level * 0.3);
+              
+              // Combo bonus
+              const comboBonus = Math.min(streak, 10);
+              gameStateRef.current.power += repPower + comboBonus;
+              gameStateRef.current.coins += repCoins + Math.floor(comboBonus * 0.5);
               gameStateRef.current.level = Math.floor(gameStateRef.current.power / 100) + 1;
+              
+              setStreak(prev => prev + 1);
+              setCombo(prev => prev + 1);
 
               setScore({
                 power: gameStateRef.current.power,
                 coins: gameStateRef.current.coins,
                 level: gameStateRef.current.level
               });
-
-              // Reset
-              gameStateRef.current.isLifting = false;
-              gameStateRef.current.liftHeight = 0;
-              setIsLifting(false);
-              setLiftProgress(0);
 
               // Sync progress
               api.syncGameProgress('gym-pump', {
@@ -389,9 +484,29 @@ export default function GymPumpEngine({ onClose, user }: GymPumpEngineProps) {
               });
             }
           } else if (!gameStateRef.current.isLifting && barbellRef.current) {
-            // Return barbell to start position
-            if (barbellRef.current.position.y > 1.8) {
-              barbellRef.current.position.y = Math.max(1.8, barbellRef.current.position.y - 0.05);
+              // Return to rest position
+            if (avatarResult?.bodyParts) {
+              const { leftArm, rightArm } = avatarResult.bodyParts;
+              if (leftArm && rightArm) {
+                const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
+                leftArm.rotation.x = lerp(leftArm.rotation.x, 0, 0.1);
+                leftArm.rotation.z = lerp(leftArm.rotation.z, 0, 0.1);
+                rightArm.rotation.x = lerp(rightArm.rotation.x, 0, 0.1);
+                rightArm.rotation.z = lerp(rightArm.rotation.z, 0, 0.1);
+              }
+            }
+            const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
+            barbellRef.current.position.y = lerp(barbellRef.current.position.y, 1.5, 0.1);
+            barbellRef.current.rotation.x = lerp(barbellRef.current.rotation.x, 0, 0.1);
+            
+            // Reset combo if not lifting for too long
+            if (streak > 0) {
+              setTimeout(() => {
+                if (!gameStateRef.current.isLifting) {
+                  setStreak(0);
+                  setCombo(0);
+                }
+              }, 3000);
             }
           }
 
@@ -409,15 +524,28 @@ export default function GymPumpEngine({ onClose, user }: GymPumpEngineProps) {
         };
         window.addEventListener('resize', handleResize);
 
-        // Handle keyboard
+        // Handle keyboard - rhythm-based lifting
         const handleKeyDown = (e: KeyboardEvent) => {
-          if (e.code === 'Space' && !gameStateRef.current.isLifting) {
+          if (e.code === 'Space') {
             e.preventDefault();
-            gameStateRef.current.isLifting = true;
-            gameStateRef.current.liftStartTime = Date.now();
-            setIsLifting(true);
-            setGameStarted(true);
+            if (!gameStateRef.current.isLifting) {
+              // Start lifting
+              gameStateRef.current.isLifting = true;
+              gameStateRef.current.liftStartTime = Date.now();
+              setIsLifting(true);
+              setGameStarted(true);
+            }
           }
+          
+          // Exercise type switching
+          if (e.key === '1') {
+            setExerciseType('bench');
+          } else if (e.key === '2') {
+            setExerciseType('curl');
+          } else if (e.key === '3') {
+            setExerciseType('squat');
+          }
+          
           if (e.key === 'Escape' && onClose) {
             onClose();
           }
@@ -425,19 +553,18 @@ export default function GymPumpEngine({ onClose, user }: GymPumpEngineProps) {
 
         const handleKeyUp = (e: KeyboardEvent) => {
           if (e.code === 'Space' && gameStateRef.current.isLifting) {
-            // Release early - partial lift
-            if (gameStateRef.current.liftHeight > 0.3) {
-              // Still get some reward
-              gameStateRef.current.power += Math.floor(5 * (gameStateRef.current.liftHeight / 0.8));
-              gameStateRef.current.coins += Math.floor(3 * (gameStateRef.current.liftHeight / 0.8));
-              setScore({
-                power: gameStateRef.current.power,
-                coins: gameStateRef.current.coins,
-                level: gameStateRef.current.level
-              });
+            // Stop lifting - but keep rhythm going if in good phase
+            // Only stop if held too long or released at bad time
+            const liftTime = (Date.now() - gameStateRef.current.liftStartTime) / 1000;
+            const cycleProgress = (liftTime % 2.0) / 2.0;
+            
+            // Allow stopping only at rest phase
+            if (cycleProgress < 0.1 || cycleProgress > 0.95) {
+              gameStateRef.current.isLifting = false;
+              setIsLifting(false);
+              setStreak(0);
+              setCombo(0);
             }
-            gameStateRef.current.isLifting = false;
-            setIsLifting(false);
           }
         };
 
@@ -533,7 +660,7 @@ export default function GymPumpEngine({ onClose, user }: GymPumpEngineProps) {
         <div>⭐ Level: {score.level}</div>
       </div>
 
-      {/* Lift Progress Bar */}
+      {/* Rhythm Indicator & Progress */}
       {isLifting && (
         <div
           style={{
@@ -541,25 +668,89 @@ export default function GymPumpEngine({ onClose, user }: GymPumpEngineProps) {
             bottom: '100px',
             left: '50%',
             transform: 'translateX(-50%)',
-            width: '400px',
-            height: '30px',
-            background: 'rgba(0, 0, 0, 0.7)',
-            borderRadius: '15px',
-            padding: '4px',
-            zIndex: 10001,
-            border: '2px solid rgba(255, 255, 255, 0.2)'
+            width: '500px',
+            zIndex: 10001
           }}
         >
+          {/* Rhythm Bar */}
           <div
             style={{
-              width: `${liftProgress * 100}%`,
-              height: '100%',
-              background: 'linear-gradient(90deg, #ff4444, #ff8888)',
-              borderRadius: '12px',
-              transition: 'width 0.1s linear',
-              boxShadow: '0 0 20px rgba(255, 68, 68, 0.5)'
+              width: '100%',
+              height: '40px',
+              background: 'rgba(0, 0, 0, 0.8)',
+              borderRadius: '20px',
+              padding: '4px',
+              marginBottom: '12px',
+              border: '2px solid rgba(255, 255, 255, 0.3)',
+              position: 'relative',
+              overflow: 'hidden'
             }}
-          />
+          >
+            <div
+              style={{
+                width: `${rhythmProgress * 100}%`,
+                height: '100%',
+                background: rhythmPhase === 'up' 
+                  ? 'linear-gradient(90deg, #4caf50, #8bc34a)'
+                  : rhythmPhase === 'hold'
+                  ? 'linear-gradient(90deg, #ff9800, #ffc107)'
+                  : 'linear-gradient(90deg, #2196f3, #03a9f4)',
+                borderRadius: '16px',
+                transition: 'width 0.05s linear',
+                boxShadow: `0 0 20px ${rhythmPhase === 'up' ? 'rgba(76, 175, 80, 0.6)' : rhythmPhase === 'hold' ? 'rgba(255, 152, 0, 0.6)' : 'rgba(33, 150, 243, 0.6)'}`
+              }}
+            />
+            <div style={{
+              position: 'absolute',
+              top: '50%',
+              left: '50%',
+              transform: 'translate(-50%, -50%)',
+              color: '#fff',
+              fontWeight: 'bold',
+              fontSize: '14px',
+              textTransform: 'uppercase',
+              textShadow: '0 2px 4px rgba(0,0,0,0.5)'
+            }}>
+              {rhythmPhase === 'up' ? '⬆️ LIFT UP!' : rhythmPhase === 'hold' ? '⏸️ HOLD!' : '⬇️ LOWER'}
+            </div>
+          </div>
+          
+          {/* Combo & Streak Display */}
+          {(combo > 0 || streak > 0) && (
+            <div style={{
+              display: 'flex',
+              gap: '12px',
+              justifyContent: 'center',
+              marginTop: '8px'
+            }}>
+              {combo > 0 && (
+                <div style={{
+                  background: 'rgba(255, 152, 0, 0.9)',
+                  padding: '8px 16px',
+                  borderRadius: '12px',
+                  color: '#fff',
+                  fontWeight: 'bold',
+                  fontSize: '16px',
+                  boxShadow: '0 4px 12px rgba(255, 152, 0, 0.4)'
+                }}>
+                  🔥 {combo}x COMBO!
+                </div>
+              )}
+              {streak > 0 && (
+                <div style={{
+                  background: 'rgba(76, 175, 80, 0.9)',
+                  padding: '8px 16px',
+                  borderRadius: '12px',
+                  color: '#fff',
+                  fontWeight: 'bold',
+                  fontSize: '16px',
+                  boxShadow: '0 4px 12px rgba(76, 175, 80, 0.4)'
+                }}>
+                  ⚡ {streak} STREAK
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
 
@@ -580,40 +771,56 @@ export default function GymPumpEngine({ onClose, user }: GymPumpEngineProps) {
             zIndex: 10001,
             textAlign: 'center',
             boxShadow: '0 4px 20px rgba(0, 0, 0, 0.7)',
-            border: '2px solid rgba(255, 255, 255, 0.2)'
+            border: '2px solid rgba(255, 255, 255, 0.2)',
+            maxWidth: '500px'
           }}
         >
           <div style={{ marginBottom: '12px', fontWeight: 'bold', fontSize: '24px' }}>
             🏋️ Welcome to Gym Pump!
           </div>
-          <div>Press <strong style={{ color: '#4a90e2' }}>SPACE</strong> to lift weights!</div>
-          <div style={{ marginTop: '8px', fontSize: '16px', opacity: 0.8 }}>
-            Hold SPACE to complete a full lift and earn power & coins
+          <div style={{ marginBottom: '12px' }}>
+            Press <strong style={{ color: '#4a90e2' }}>SPACE</strong> to start lifting!
+          </div>
+          <div style={{ marginTop: '12px', fontSize: '16px', opacity: 0.9 }}>
+            <div style={{ marginBottom: '8px' }}>🎯 <strong>Rhythm-Based Lifting:</strong></div>
+            <div style={{ marginBottom: '8px' }}>Follow the rhythm - lift on the beat!</div>
+            <div style={{ marginBottom: '8px' }}>🔥 <strong>Combo System:</strong> Keep lifting for bonus rewards!</div>
+            <div style={{ marginTop: '12px', fontSize: '14px', opacity: 0.7 }}>
+              <div>Press <strong>1</strong> for Bench Press</div>
+              <div>Press <strong>2</strong> for Bicep Curls</div>
+              <div>Press <strong>3</strong> for Squats</div>
+            </div>
           </div>
         </div>
       )}
 
-      {isLifting && (
-        <div
-          style={{
-            position: 'absolute',
-            bottom: '40px',
-            left: '50%',
-            transform: 'translateX(-50%)',
-            background: 'rgba(255, 68, 68, 0.9)',
-            padding: '16px 24px',
-            borderRadius: '12px',
-            color: '#fff',
-            fontFamily: 'Arial, sans-serif',
-            fontSize: '18px',
-            zIndex: 10001,
-            fontWeight: 'bold',
-            boxShadow: '0 4px 20px rgba(255, 68, 68, 0.5)'
-          }}
-        >
-          💪 LIFTING! Hold SPACE...
+      {/* Exercise Type Display */}
+      <div
+        style={{
+          position: 'absolute',
+          top: '20px',
+          right: '20px',
+          background: 'rgba(0, 0, 0, 0.8)',
+          padding: '12px 20px',
+          borderRadius: '12px',
+          color: '#fff',
+          fontFamily: 'Arial, sans-serif',
+          fontSize: '16px',
+          zIndex: 10001,
+          boxShadow: '0 4px 12px rgba(0, 0, 0, 0.5)',
+          border: '2px solid rgba(255, 255, 255, 0.1)'
+        }}
+      >
+        <div style={{ marginBottom: '8px', fontWeight: 'bold', fontSize: '14px', opacity: 0.8 }}>
+          Exercise Type:
         </div>
-      )}
+        <div style={{ fontSize: '18px', fontWeight: 'bold' }}>
+          {exerciseType === 'bench' ? '🏋️ Bench Press' : exerciseType === 'curl' ? '💪 Bicep Curls' : '🦵 Squats'}
+        </div>
+        <div style={{ marginTop: '8px', fontSize: '12px', opacity: 0.6 }}>
+          Press 1/2/3 to switch
+        </div>
+      </div>
 
       {/* Close Button */}
       {onClose && (
