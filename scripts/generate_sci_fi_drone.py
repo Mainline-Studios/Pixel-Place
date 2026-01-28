@@ -167,10 +167,10 @@ def add_materials_with_bump():
     bsdf = nodes.new(type='ShaderNodeBsdfPrincipled')
     bsdf.location = (0, 0)
     bsdf.inputs['Base Color'].default_value = (0.2, 0.4, 0.8, 1.0)  # Bright blue
-    bsdf.inputs['Metallic'].default_value = 0.9
-    bsdf.inputs['Roughness'].default_value = 0.2
-    bsdf.inputs['Emission Color'].default_value = (0.2, 0.5, 1.0, 1.0)  # Bright cyan glow
-    bsdf.inputs['Emission Strength'].default_value = 0.8
+    bsdf.inputs['Metallic'].default_value = 0.95
+    bsdf.inputs['Roughness'].default_value = 0.15
+    bsdf.inputs['Emission Color'].default_value = (0.3, 0.6, 1.0, 1.0)  # Bright cyan glow
+    bsdf.inputs['Emission Strength'].default_value = 1.2  # Stronger glow
     
     # Add Material Output
     output = nodes.new(type='ShaderNodeOutputMaterial')
@@ -203,11 +203,11 @@ def add_materials_with_bump():
     rotor_nodes.clear()
     rotor_bsdf = rotor_nodes.new(type='ShaderNodeBsdfPrincipled')
     rotor_bsdf.location = (0, 0)
-    rotor_bsdf.inputs['Base Color'].default_value = (0.9, 0.9, 1.0, 1.0)  # Bright white
-    rotor_bsdf.inputs['Metallic'].default_value = 0.8
-    rotor_bsdf.inputs['Roughness'].default_value = 0.2
-    rotor_bsdf.inputs['Emission Color'].default_value = (0.5, 0.7, 1.0, 1.0)  # Bright blue-white glow
-    rotor_bsdf.inputs['Emission Strength'].default_value = 1.5
+    rotor_bsdf.inputs['Base Color'].default_value = (0.95, 0.95, 1.0, 1.0)  # Bright white
+    rotor_bsdf.inputs['Metallic'].default_value = 0.9
+    rotor_bsdf.inputs['Roughness'].default_value = 0.15
+    rotor_bsdf.inputs['Emission Color'].default_value = (0.6, 0.8, 1.0, 1.0)  # Bright blue-white glow
+    rotor_bsdf.inputs['Emission Strength'].default_value = 2.0  # Very bright rotors
     
     rotor_output = rotor_nodes.new(type='ShaderNodeOutputMaterial')
     rotor_output.location = (400, 0)
@@ -222,11 +222,11 @@ def add_materials_with_bump():
     wing_nodes.clear()
     wing_bsdf = wing_nodes.new(type='ShaderNodeBsdfPrincipled')
     wing_bsdf.location = (0, 0)
-    wing_bsdf.inputs['Base Color'].default_value = (0.3, 0.1, 0.6, 1.0)  # Purple base
-    wing_bsdf.inputs['Metallic'].default_value = 0.9
-    wing_bsdf.inputs['Roughness'].default_value = 0.1
-    wing_bsdf.inputs['Emission Color'].default_value = (0.4, 0.2, 0.8, 1.0)  # Purple glow
-    wing_bsdf.inputs['Emission Strength'].default_value = 0.6
+    wing_bsdf.inputs['Base Color'].default_value = (0.4, 0.2, 0.7, 1.0)  # Purple base
+    wing_bsdf.inputs['Metallic'].default_value = 0.95
+    wing_bsdf.inputs['Roughness'].default_value = 0.08
+    wing_bsdf.inputs['Emission Color'].default_value = (0.5, 0.3, 1.0, 1.0)  # Bright purple glow
+    wing_bsdf.inputs['Emission Strength'].default_value = 1.0  # Stronger wing glow
     
     # Add colorful pattern
     wave = wing_nodes.new(type='ShaderNodeTexWave')
@@ -314,17 +314,18 @@ core_nodes = core_mat.node_tree.nodes
 core_links = core_mat.node_tree.links
 core_nodes.clear()
 core_bsdf = core_nodes.new(type='ShaderNodeBsdfPrincipled')
-core_bsdf.inputs['Base Color'].default_value = (1.0, 0.8, 0.2, 1.0)  # Bright gold
+core_bsdf.inputs['Base Color'].default_value = (1.0, 0.85, 0.3, 1.0)  # Bright gold
 core_bsdf.inputs['Metallic'].default_value = 1.0
-core_bsdf.inputs['Roughness'].default_value = 0.1
-core_bsdf.inputs['Emission Color'].default_value = (1.0, 0.9, 0.3, 1.0)  # Gold glow
-core_bsdf.inputs['Emission Strength'].default_value = 2.0
+core_bsdf.inputs['Roughness'].default_value = 0.05
+core_bsdf.inputs['Emission Color'].default_value = (1.0, 0.95, 0.4, 1.0)  # Bright gold glow
+core_bsdf.inputs['Emission Strength'].default_value = 3.0  # Very bright core
+core_bsdf.inputs['Transmission'].default_value = 0.3  # Slight glass effect
 core_output = core_nodes.new(type='ShaderNodeOutputMaterial')
 core_links.new(core_bsdf.outputs['BSDF'], core_output.inputs['Surface'])
 core.data.materials.append(core_mat)
 print("Created core")
 
-# Add antenna/probe - make it taller
+# Add antenna/probe - make it taller with glowing tip
 bpy.ops.mesh.primitive_cylinder_add(
     vertices=8,
     radius=0.08,
@@ -334,9 +335,41 @@ bpy.ops.mesh.primitive_cylinder_add(
 antenna = bpy.context.active_object
 antenna.name = "Drone_Antenna"
 antenna.data.materials.append(rotor_mat)
-print("Created antenna")
 
-# Add side panels for more detail with colorful accents
+# Add glowing tip to antenna
+bpy.ops.mesh.primitive_ico_sphere_add(
+    radius=0.12,
+    location=(0, 0, 1.2)
+)
+antenna_tip = bpy.context.active_object
+antenna_tip.name = "Antenna_Tip"
+# Create bright glowing tip material
+tip_mat = bpy.data.materials.new(name="Antenna_Tip_Material")
+tip_mat.use_nodes = True
+tip_nodes = tip_mat.node_tree.nodes
+tip_links = tip_mat.node_tree.links
+tip_nodes.clear()
+tip_bsdf = tip_nodes.new(type='ShaderNodeBsdfPrincipled')
+tip_bsdf.inputs['Base Color'].default_value = (0.0, 1.0, 1.0, 1.0)  # Cyan
+tip_bsdf.inputs['Metallic'].default_value = 0.0
+tip_bsdf.inputs['Roughness'].default_value = 0.0
+tip_bsdf.inputs['Emission Color'].default_value = (0.0, 1.0, 1.0, 1.0)  # Bright cyan
+tip_bsdf.inputs['Emission Strength'].default_value = 3.0
+tip_bsdf.inputs['Transmission'].default_value = 0.8  # Glass-like
+tip_output = tip_nodes.new(type='ShaderNodeOutputMaterial')
+tip_links.new(tip_bsdf.outputs['BSDF'], tip_output.inputs['Surface'])
+antenna_tip.data.materials.append(tip_mat)
+
+# Join antenna parts
+bpy.ops.object.select_all(action='DESELECT')
+antenna.select_set(True)
+antenna_tip.select_set(True)
+bpy.context.view_layer.objects.active = antenna
+bpy.ops.object.join()
+antenna.name = "Drone_Antenna"
+print("Created antenna with glowing tip")
+
+# Add side panels for more detail with colorful glowing accents
 panel_colors = [
     (1.0, 0.2, 0.2, 1.0),  # Red
     (0.2, 1.0, 0.2, 1.0),  # Green
@@ -356,7 +389,7 @@ for i in range(4):
     panel.name = f"Panel_{i}"
     panel.scale = (0.3, 0.1, 0.2)
     panel.rotation_euler = (0, 0, angle)
-    # Create colorful panel material
+    # Create colorful glowing panel material
     panel_mat = bpy.data.materials.new(name=f"Panel_Material_{i}")
     panel_mat.use_nodes = True
     panel_nodes = panel_mat.node_tree.nodes
@@ -365,13 +398,88 @@ for i in range(4):
     panel_bsdf = panel_nodes.new(type='ShaderNodeBsdfPrincipled')
     panel_bsdf.inputs['Base Color'].default_value = panel_colors[i]
     panel_bsdf.inputs['Metallic'].default_value = 0.9
-    panel_bsdf.inputs['Roughness'].default_value = 0.2
+    panel_bsdf.inputs['Roughness'].default_value = 0.1
     panel_bsdf.inputs['Emission Color'].default_value = panel_colors[i]
-    panel_bsdf.inputs['Emission Strength'].default_value = 0.8
+    panel_bsdf.inputs['Emission Strength'].default_value = 1.5  # Stronger glow
     panel_output = panel_nodes.new(type='ShaderNodeOutputMaterial')
     panel_links.new(panel_bsdf.outputs['BSDF'], panel_output.inputs['Surface'])
     panel.data.materials.append(panel_mat)
-print("Created colorful side panels")
+print("Created colorful glowing side panels")
+
+# Add glowing lights/sensors around the body
+light_colors = [
+    (1.0, 0.0, 0.0, 1.0),  # Red
+    (0.0, 1.0, 0.0, 1.0),  # Green
+    (0.0, 0.0, 1.0, 1.0),  # Blue
+    (1.0, 1.0, 0.0, 1.0),  # Yellow
+    (1.0, 0.0, 1.0, 1.0),  # Magenta
+    (0.0, 1.0, 1.0, 1.0),  # Cyan
+]
+for i in range(6):
+    angle = (i * math.pi * 2) / 6
+    x = math.cos(angle) * 1.4
+    y = math.sin(angle) * 1.4
+    z = 0.3
+    bpy.ops.mesh.primitive_ico_sphere_add(
+        radius=0.08,
+        location=(x, y, z)
+    )
+    light = bpy.context.active_object
+    light.name = f"Light_{i}"
+    # Create bright glowing light material
+    light_mat = bpy.data.materials.new(name=f"Light_Material_{i}")
+    light_mat.use_nodes = True
+    light_nodes = light_mat.node_tree.nodes
+    light_links = light_mat.node_tree.links
+    light_nodes.clear()
+    light_bsdf = light_nodes.new(type='ShaderNodeBsdfPrincipled')
+    light_bsdf.inputs['Base Color'].default_value = light_colors[i]
+    light_bsdf.inputs['Metallic'].default_value = 0.0
+    light_bsdf.inputs['Roughness'].default_value = 0.0
+    light_bsdf.inputs['Emission Color'].default_value = light_colors[i]
+    light_bsdf.inputs['Emission Strength'].default_value = 4.0  # Very bright
+    light_bsdf.inputs['Transmission'].default_value = 0.9  # Glass-like
+    light_output = light_nodes.new(type='ShaderNodeOutputMaterial')
+    light_links.new(light_bsdf.outputs['BSDF'], light_output.inputs['Surface'])
+    light.data.materials.append(light_mat)
+print("Created glowing lights/sensors")
+
+# Add glowing energy rings around rotors
+for i in range(12):
+    angle = (i * math.pi * 2) / 12
+    x = math.cos(angle) * 2.0
+    y = math.sin(angle) * 2.0
+    z = 0.4
+    bpy.ops.mesh.primitive_torus_add(
+        major_radius=0.25,
+        minor_radius=0.03,
+        location=(x, y, z)
+    )
+    ring = bpy.context.active_object
+    ring.name = f"Energy_Ring_{i}"
+    ring.rotation_euler = (math.pi / 2, 0, angle)
+    # Create glowing energy ring material
+    ring_mat = bpy.data.materials.new(name=f"Ring_Material_{i}")
+    ring_mat.use_nodes = True
+    ring_nodes = ring_mat.node_tree.nodes
+    ring_links = ring_mat.node_tree.links
+    ring_nodes.clear()
+    ring_bsdf = ring_nodes.new(type='ShaderNodeBsdfPrincipled')
+    # Alternate colors for rings
+    if i % 2 == 0:
+        ring_color = (0.0, 0.8, 1.0, 1.0)  # Cyan
+    else:
+        ring_color = (0.8, 0.0, 1.0, 1.0)  # Purple
+    ring_bsdf.inputs['Base Color'].default_value = ring_color
+    ring_bsdf.inputs['Metallic'].default_value = 0.0
+    ring_bsdf.inputs['Roughness'].default_value = 0.0
+    ring_bsdf.inputs['Emission Color'].default_value = ring_color
+    ring_bsdf.inputs['Emission Strength'].default_value = 3.0
+    ring_bsdf.inputs['Transmission'].default_value = 0.8
+    ring_output = ring_nodes.new(type='ShaderNodeOutputMaterial')
+    ring_links.new(ring_bsdf.outputs['BSDF'], ring_output.inputs['Surface'])
+    ring.data.materials.append(ring_mat)
+print("Created glowing energy rings")
 
 # UV unwrap everything
 print("UV unwrapping all objects...")
@@ -389,6 +497,10 @@ bpy.ops.object.origin_set(type='ORIGIN_GEOMETRY', center='MEDIAN')
 
 # Add smooth shading
 bpy.ops.object.shade_smooth()
+
+# Add edge split modifier for sharper edges on glowing parts
+bpy.ops.object.modifier_add(type='EDGE_SPLIT')
+bpy.context.object.modifiers["EdgeSplit"].split_angle = 1.047  # 60 degrees
 
 # Frame the view to see the entire drone (with error handling)
 try:
