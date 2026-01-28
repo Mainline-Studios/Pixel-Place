@@ -378,13 +378,104 @@ export default function SuperShowdownCombined({ user }: InsaneShowdownProps = {}
     ammoRef.current = { ...DEFAULT_AMMO };
   }, []);
 
+  // Initialize 3D scene with avatars
+  useEffect(() => {
+    if (!containerRef.current || !startConfirmed || !avatarData?.skin) return;
+
+    let THREE: any;
+    let isMounted = true;
+    let animationFrame: number;
+
+    const init3D = async () => {
+      try {
+        THREE = await import('three');
+        
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x0b1020);
+        scene.fog = new THREE.Fog(0x0b1020, 10, MAP_SIZE * 2);
+
+        const camera = new THREE.PerspectiveCamera(60, containerRef.current!.clientWidth / containerRef.current!.clientHeight, 0.1, 1000);
+        camera.position.set(MAP_SIZE / 2, MAP_SIZE * 0.8, MAP_SIZE * 1.2);
+        camera.lookAt(MAP_SIZE / 2, 0, MAP_SIZE / 2);
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(containerRef.current!.clientWidth, containerRef.current!.clientHeight);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        renderer.shadowMap.enabled = true;
+        containerRef.current!.appendChild(renderer.domElement);
+
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+        scene.add(ambientLight);
+        const mainLight = new THREE.DirectionalLight(0xffffff, 0.9);
+        mainLight.position.set(MAP_SIZE / 2, MAP_SIZE, MAP_SIZE / 2);
+        mainLight.castShadow = true;
+        scene.add(mainLight);
+
+        const floor = new THREE.Mesh(
+          new THREE.PlaneGeometry(MAP_SIZE, MAP_SIZE),
+          new THREE.MeshStandardMaterial({ color: 0x0f1a2b, roughness: 0.8 })
+        );
+        floor.rotation.x = -Math.PI / 2;
+        floor.receiveShadow = true;
+        scene.add(floor);
+
+        if (avatarData.skin) {
+          const playerResult = createAvatarMesh(THREE, scene, avatarData.skin, avatarData.face, avatarData.accessories, {
+            scale: 1.0, position: { x: player.pos.x, y: 0, z: player.pos.y }, animation: 'idle'
+          });
+          playerAvatarRef.current = playerResult.characterGroup;
+        }
+
+        const enemySkin = avatarData.skin ? { ...avatarData.skin, colors: { head: '#d25a5a', torso: '#8b0000', arm: '#8b0000', legs: '#8b0000' } } : {
+          id: 'enemy', name: 'Enemy', colors: { head: '#d25a5a', torso: '#8b0000', arm: '#8b0000', legs: '#8b0000' }, price: 0, img: '', isSpecial: false
+        };
+        const enemyResult = createAvatarMesh(THREE, scene, enemySkin, null, [], {
+          scale: 1.0, position: { x: enemy.pos.x, y: 0, z: enemy.pos.y }, animation: 'idle'
+        });
+        enemyAvatarRef.current = enemyResult.characterGroup;
+
+        const animate = () => {
+          if (!isMounted) return;
+          animationFrame = requestAnimationFrame(animate);
+          if (playerAvatarRef.current) {
+            playerAvatarRef.current.position.x = player.pos.x;
+            playerAvatarRef.current.position.z = player.pos.y;
+            playerAvatarRef.current.rotation.y = Math.atan2(aimTarget.x - player.pos.x, aimTarget.y - player.pos.y);
+          }
+          if (enemyAvatarRef.current) {
+            enemyAvatarRef.current.position.x = enemy.pos.x;
+            enemyAvatarRef.current.position.z = enemy.pos.y;
+            enemyAvatarRef.current.rotation.y = Math.atan2(player.pos.x - enemy.pos.x, player.pos.y - enemy.pos.y);
+          }
+          renderer.render(scene, camera);
+        };
+        animate();
+
+        sceneRef.current = scene;
+        rendererRef.current = renderer;
+        cameraRef.current = camera;
+      } catch (error) {
+        console.error('Error initializing 3D scene:', error);
+      }
+    };
+
+    init3D();
+    return () => {
+      isMounted = false;
+      if (animationFrame) cancelAnimationFrame(animationFrame);
+      if (rendererRef.current) rendererRef.current.dispose();
+    };
+  }, [startConfirmed, avatarData, player.pos, enemy.pos, aimTarget]);
+
   // Canvas & drawing (keeps accurate click mapping)
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
   useEffect(() => {
-    drawCanvas();
+    if (!startConfirmed || !avatarData?.skin) {
+      drawCanvas();
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [player, enemy, aimTarget, bears, whirlpools, plants, blackHoles, mudPatches, parasites, doppels, startConfirmed]);
+  }, [player, enemy, aimTarget, bears, whirlpools, plants, blackHoles, mudPatches, parasites, doppels, startConfirmed, avatarData]);
 
   function toPx(v: Vec2) {
     return { x: v.x * STUD_TO_PX, y: v.y * STUD_TO_PX };
