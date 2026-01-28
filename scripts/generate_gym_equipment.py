@@ -155,61 +155,83 @@ def create_bench():
     collection = bpy.context.scene.collection
     
     # Main bench pad
-    bpy.ops.mesh.primitive_box_add(
-        size=1,
-        location=(0, 0, 0.1),
-        scale=(2, 0.8, 0.1)
-    )
-    bench_pad = bpy.context.active_object
-    bench_pad.name = "Bench_Pad"
+    try:
+        bpy.ops.mesh.primitive_box_add(
+            size=1,
+            location=(0, 0, 0.1),
+            scale=(2, 0.8, 0.1)
+        )
+        bench_pad = bpy.context.active_object
+        if not bench_pad:
+            raise Exception("Failed to create bench pad")
+        bench_pad.name = "Bench_Pad"
+    except Exception as e:
+        print(f"Error creating bench pad: {e}")
+        return None
     
     # Bench back support (angled)
-    bpy.ops.mesh.primitive_box_add(
-        size=1,
-        location=(0, -0.3, 0.5),
-        scale=(2, 0.8, 0.4)
-    )
-    bench_back = bpy.context.active_object
-    bench_back.name = "Bench_Back"
-    bench_back.rotation_euler = (0.3, 0, 0)  # Slight angle
+    try:
+        bpy.ops.mesh.primitive_box_add(
+            size=1,
+            location=(0, -0.3, 0.5),
+            scale=(2, 0.8, 0.4)
+        )
+        bench_back = bpy.context.active_object
+        if bench_back:
+            bench_back.name = "Bench_Back"
+            bench_back.rotation_euler = (0.3, 0, 0)  # Slight angle
+    except Exception as e:
+        print(f"Warning: Could not create bench back: {e}")
     
     # Legs
-    for x_pos in [-1.5, 1.5]:
-        for y_pos in [-0.8, 0.8]:
-            bpy.ops.mesh.primitive_cylinder_add(
-                vertices=16,
-                radius=0.03,
-                depth=0.2,
-                location=(x_pos, y_pos, 0)
-            )
-            leg = bpy.context.active_object
-            leg.name = f"Bench_Leg_{x_pos}_{y_pos}"
+    try:
+        for x_pos in [-1.5, 1.5]:
+            for y_pos in [-0.8, 0.8]:
+                bpy.ops.mesh.primitive_cylinder_add(
+                    vertices=16,
+                    radius=0.03,
+                    depth=0.2,
+                    location=(x_pos, y_pos, 0)
+                )
+                leg = bpy.context.active_object
+                if leg:
+                    leg.name = f"Bench_Leg_{x_pos}_{y_pos}"
+    except Exception as e:
+        print(f"Warning: Could not create all bench legs: {e}")
     
     # Material (black padded vinyl)
-    bench_mat = bpy.data.materials.new(name="Bench_Material")
-    bench_mat.use_nodes = True
-    bsdf = bench_mat.node_tree.nodes["Principled BSDF"]
-    bsdf.inputs["Base Color"].default_value = (0.1, 0.1, 0.1, 1.0)
-    bsdf.inputs["Roughness"].default_value = 0.8
-    bsdf.inputs["Metallic"].default_value = 0.0
-    
-    for obj in bpy.context.scene.objects:
-        if "Bench" in obj.name:
-            obj.data.materials.append(bench_mat)
+    try:
+        bench_mat = bpy.data.materials.new(name="Bench_Material")
+        bench_mat.use_nodes = True
+        bsdf = bench_mat.node_tree.nodes["Principled BSDF"]
+        bsdf.inputs["Base Color"].default_value = (0.1, 0.1, 0.1, 1.0)
+        bsdf.inputs["Roughness"].default_value = 0.8
+        bsdf.inputs["Metallic"].default_value = 0.0
+        
+        for obj in bpy.context.scene.objects:
+            if "Bench" in obj.name:
+                obj.data.materials.append(bench_mat)
+    except Exception as e:
+        print(f"Warning: Could not apply bench material: {e}")
     
     # Join bench parts
-    bpy.ops.object.select_all(action='DESELECT')
-    bench_parts = [obj for obj in bpy.context.scene.objects if "Bench" in obj.name]
-    
-    if len(bench_parts) > 1:
-        for obj in bench_parts:
-            obj.select_set(True)
-        bpy.context.view_layer.objects.active = bench_pad
-        try:
-            bpy.ops.object.join()
-        except:
-            pass
-    bench_pad.name = "Bench"
+    try:
+        bpy.ops.object.select_all(action='DESELECT')
+        bench_parts = [obj for obj in bpy.context.scene.objects if "Bench" in obj.name]
+        
+        if len(bench_parts) > 1:
+            for obj in bench_parts:
+                obj.select_set(True)
+            if bench_pad:
+                bpy.context.view_layer.objects.active = bench_pad
+                try:
+                    bpy.ops.object.join()
+                except:
+                    print("Warning: Could not join bench parts, keeping separate")
+        if bench_pad:
+            bench_pad.name = "Bench"
+    except Exception as e:
+        print(f"Warning: Could not join bench: {e}")
     
     return bench_pad
 
@@ -289,7 +311,10 @@ for weight in [5, 10, 20, 25]:
 
 # Create bench
 bench = create_bench()
-bench.location = (0, 0, 0)
+if bench:
+    bench.location = (0, 0, 0)
+else:
+    print("Warning: Bench creation failed, continuing without bench")
 
 # Create dumbbells
 dumbbell1 = create_dumbbell()
@@ -297,7 +322,21 @@ dumbbell1.location = (-2, 0, 1.5)
 dumbbell2 = create_dumbbell()
 dumbbell2.location = (2, 0, 1.5)
 
-# Set up viewport
-bpy.ops.view3d.view_all()
+# Set up viewport (only if in 3D viewport context)
+try:
+    # Try to frame all objects in viewport
+    for area in bpy.context.screen.areas:
+        if area.type == 'VIEW_3D':
+            override = bpy.context.copy()
+            override['area'] = area
+            override['region'] = area.regions[-1]
+            try:
+                bpy.ops.view3d.view_all(override)
+            except:
+                pass
+            break
+except:
+    print("Note: Could not adjust viewport (this is OK if running headless)")
+    
 print("Gym equipment created successfully!")
 print("Export as GLB: File > Export > glTF 2.0 (.glb/.gltf)")
