@@ -8,6 +8,10 @@ import bmesh
 from mathutils import Vector
 import math
 
+# Ensure we're in Object mode
+if bpy.context.active_object and bpy.context.active_object.mode != 'OBJECT':
+    bpy.ops.object.mode_set(mode='OBJECT')
+
 # Clear existing mesh objects
 bpy.ops.object.select_all(action='SELECT')
 bpy.ops.object.delete(use_global=False)
