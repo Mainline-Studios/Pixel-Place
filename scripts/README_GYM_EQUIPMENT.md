@@ -20,10 +20,35 @@ The script creates:
 
 ## Exporting
 
-1. Select the equipment you want to export
-2. Go to `File > Export > glTF 2.0 (.glb/.gltf)`
-3. Choose location and export as `.glb` format
-4. Place exported files in `/public/models/` directory
+You have two options:
+
+### Option 1: Export All Together (Current Setup)
+- All equipment is in one file as separate objects
+- Select all objects (A key to select all)
+- Go to `File > Export > glTF 2.0 (.glb/.gltf)`
+- Export as single `.glb` file
+- This creates one file with all equipment (useful for scenes)
+
+### Option 2: Export Separately (Recommended for Games)
+1. **Export Barbell:**
+   - Select only the "Barbell" object
+   - `File > Export > glTF 2.0`
+   - Save as `barbell.glb`
+   - Place in `/public/models/`
+
+2. **Export Bench:**
+   - Select only the "Bench" object
+   - Export as `bench.glb`
+
+3. **Export Weight Plates:**
+   - Select all "Weight_Plate_*" objects
+   - Export as `weight_plates.glb`
+
+4. **Export Dumbbells:**
+   - Select both "Dumbbell" objects
+   - Export as `dumbbells.glb`
+
+**Note:** Having them all in one file is perfectly fine! You can export the whole scene or individual objects as needed.
 
 ## Features
 
