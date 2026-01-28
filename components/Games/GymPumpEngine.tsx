@@ -48,6 +48,8 @@ export default function GymPumpEngine({ onClose, user }: GymPumpEngineProps) {
   const barbellRef = useRef<any>(null);
   const weightsRef = useRef<any[]>([]);
   const animationFrameRef = useRef<number | null>(null);
+  const avatarResultRef = useRef<any>(null);
+  const avatarDataRef = useRef<any>(null);
   const gameStateRef = useRef({
     power: 0,
     coins: 0,
@@ -57,6 +59,9 @@ export default function GymPumpEngine({ onClose, user }: GymPumpEngineProps) {
     liftStartTime: 0,
     animationTime: 0
   });
+  
+  // Body type based on power level (weak to jacked)
+  const [bodyType, setBodyType] = useState<'weak' | 'normal' | 'athletic' | 'strong' | 'jacked'>('normal');
 
   useEffect(() => {
     if (!containerRef.current || !currentUser) return;
@@ -211,7 +216,23 @@ export default function GymPumpEngine({ onClose, user }: GymPumpEngineProps) {
         benchBack.castShadow = true;
         scene.add(benchBack);
 
-        // Create 3D character using user's equipped avatar
+        // Determine body type based on power level (defined outside to be accessible in animate loop)
+        const determineBodyType = (power: number): 'weak' | 'normal' | 'athletic' | 'strong' | 'jacked' => {
+          if (power < 50) return 'weak';
+          if (power < 200) return 'normal';
+          if (power < 500) return 'athletic';
+          if (power < 1000) return 'strong';
+          return 'jacked';
+        };
+
+        const currentBodyType = determineBodyType(gameStateRef.current.power);
+        setBodyType(currentBodyType);
+        
+        // Store refs for use in animate loop
+        avatarDataRef.current = avatarData;
+        const determineBodyTypeRef = { func: determineBodyType };
+
+        // Create 3D character using user's equipped avatar with body type
         let avatarResult: any = null;
         if (avatarData && avatarData.skin) {
           try {
@@ -224,10 +245,12 @@ export default function GymPumpEngine({ onClose, user }: GymPumpEngineProps) {
               {
                 scale: 1.0,
                 position: { x: 0, y: 0, z: 0 },
-                animation: 'idle'
+                animation: 'idle',
+                bodyType: currentBodyType  // Apply body type based on power
               }
             );
             characterRef.current = avatarResult.characterGroup;
+            avatarResultRef.current = avatarResult;
           } catch (error) {
             console.error('Error creating avatar mesh:', error);
             // Fallback to simple character
@@ -263,75 +286,86 @@ export default function GymPumpEngine({ onClose, user }: GymPumpEngineProps) {
           characterRef.current = characterGroup;
         }
 
-        // Create barbell - will be attached to player hands
-        const barbellGroup = new THREE.Group();
+        // Load barbell from GLB file (or fallback to procedural)
+        const loadBarbell = async () => {
+          try {
+            const { GLTFLoader } = await import('three/examples/jsm/loaders/GLTFLoader.js');
+            const loader = new GLTFLoader();
+            
+            loader.load(
+              '/models/gym/barbell.glb',
+              (gltf) => {
+                const model = gltf.scene;
+                model.scale.set(1, 1, 1);
+                model.position.set(0, 1.5, 0.3);
+                model.castShadow = true;
+                model.traverse((child: any) => {
+                  if (child.isMesh) {
+                    child.castShadow = true;
+                    child.receiveShadow = true;
+                  }
+                });
+                scene.add(model);
+                barbellRef.current = model;
+                console.log('Barbell loaded from GLB');
+              },
+              undefined,
+              (error) => {
+                console.warn('Could not load barbell.glb, using fallback:', error);
+                createFallbackBarbell();
+              }
+            );
+          } catch (error) {
+            console.warn('GLTFLoader not available, using fallback:', error);
+            createFallbackBarbell();
+          }
+        };
 
-        // Barbell bar (thicker, more realistic)
-        const barGeometry = new THREE.CylinderGeometry(0.025, 0.025, 1.4, 32);
-        const barMaterial = new THREE.MeshStandardMaterial({
-          color: 0xb0b0b0,
-          metalness: 0.95,
-          roughness: 0.1,
-          envMapIntensity: 1.0
-        });
-        const bar = new THREE.Mesh(barGeometry, barMaterial);
-        bar.rotation.z = Math.PI / 2;
-        bar.castShadow = true;
-        barbellGroup.add(bar);
-
-        // Collars (metal rings)
-        const collarGeometry = new THREE.TorusGeometry(0.05, 0.01, 16, 32);
-        const collarMaterial = new THREE.MeshStandardMaterial({
-          color: 0x888888,
-          metalness: 0.9,
-          roughness: 0.15
-        });
-        for (let side of [-1, 1]) {
-          const collar = new THREE.Mesh(collarGeometry, collarMaterial);
-          collar.position.set(side * 0.7, 0, 0);
-          collar.rotation.x = Math.PI / 2;
-          collar.castShadow = true;
-          barbellGroup.add(collar);
-        }
-
-        // Weight plates (more detailed)
-        const weights: any[] = [];
-        const plateConfigs = [
-          { radius: 0.25, thickness: 0.08, color: 0xff0000, pos: -0.85 }, // 25kg red
-          { radius: 0.22, thickness: 0.08, color: 0x0000ff, pos: -0.95 }, // 20kg blue
-          { radius: 0.19, thickness: 0.08, color: 0x00ff00, pos: -1.05 }, // 15kg green
-        ];
-
-        for (const config of plateConfigs) {
-          // Left side
-          const plateGeometry = new THREE.CylinderGeometry(config.radius, config.radius, config.thickness, 32);
-          const plateMaterial = new THREE.MeshStandardMaterial({
-            color: config.color,
-            metalness: 0.8,
-            roughness: 0.3
+        const createFallbackBarbell = () => {
+          // Fallback procedural barbell
+          const barbellGroup = new THREE.Group();
+          const barGeometry = new THREE.CylinderGeometry(0.025, 0.025, 1.4, 32);
+          const barMaterial = new THREE.MeshStandardMaterial({
+            color: 0xb0b0b0,
+            metalness: 0.95,
+            roughness: 0.1
           });
-          const plate = new THREE.Mesh(plateGeometry, plateMaterial);
-          plate.position.set(config.pos, 0, 0);
-          plate.rotation.z = Math.PI / 2;
-          plate.castShadow = true;
-          barbellGroup.add(plate);
-          weights.push(plate);
+          const bar = new THREE.Mesh(barGeometry, barMaterial);
+          bar.rotation.z = Math.PI / 2;
+          bar.castShadow = true;
+          barbellGroup.add(bar);
 
-          // Right side (mirror)
-          const plate2 = new THREE.Mesh(plateGeometry, plateMaterial);
-          plate2.position.set(-config.pos, 0, 0);
-          plate2.rotation.z = Math.PI / 2;
-          plate2.castShadow = true;
-          barbellGroup.add(plate2);
-          weights.push(plate2);
-        }
+          const weights: any[] = [];
+          const plateConfigs = [
+            { radius: 0.25, thickness: 0.08, color: 0xff0000, pos: -0.85 },
+            { radius: 0.22, thickness: 0.08, color: 0x0000ff, pos: -0.95 },
+            { radius: 0.19, thickness: 0.08, color: 0x00ff00, pos: -1.05 },
+          ];
 
-        // Initially position barbell at hands level (will be attached)
-        barbellGroup.position.set(0, 1.5, 0.3);
-        barbellGroup.rotation.x = 0;
-        scene.add(barbellGroup);
-        barbellRef.current = barbellGroup;
-        weightsRef.current = weights;
+          for (const config of plateConfigs) {
+            const plateGeometry = new THREE.CylinderGeometry(config.radius, config.radius, config.thickness, 32);
+            const plateMaterial = new THREE.MeshStandardMaterial({
+              color: config.color,
+              metalness: 0.8,
+              roughness: 0.3
+            });
+            for (let side of [-1, 1]) {
+              const plate = new THREE.Mesh(plateGeometry, plateMaterial);
+              plate.position.set(config.pos * side, 0, 0);
+              plate.rotation.z = Math.PI / 2;
+              plate.castShadow = true;
+              barbellGroup.add(plate);
+              weights.push(plate);
+            }
+          }
+
+          barbellGroup.position.set(0, 1.5, 0.3);
+          scene.add(barbellGroup);
+          barbellRef.current = barbellGroup;
+          weightsRef.current = weights;
+        };
+
+        loadBarbell();
 
         // Store refs
         sceneRef.current = scene;
@@ -352,6 +386,7 @@ export default function GymPumpEngine({ onClose, user }: GymPumpEngineProps) {
             const breatheAmount = Math.sin(time * 2) * 0.02;
             characterRef.current.position.y = breatheAmount;
           }
+
 
           // Update lifting animation with rhythm-based mechanics
           if (gameStateRef.current.isLifting && barbellRef.current && characterRef.current) {
@@ -456,7 +491,7 @@ export default function GymPumpEngine({ onClose, user }: GymPumpEngineProps) {
               // Perfect rep bonus
             }
 
-            // Complete rep when cycle finishes
+              // Complete rep when cycle finishes
             if (cycleProgress > 0.95) {
               const repPower = 10 + Math.floor(gameStateRef.current.level * 0.5);
               const repCoins = 5 + Math.floor(gameStateRef.current.level * 0.3);
@@ -469,6 +504,35 @@ export default function GymPumpEngine({ onClose, user }: GymPumpEngineProps) {
               
               setStreak(prev => prev + 1);
               setCombo(prev => prev + 1);
+
+              // Update body type if power threshold crossed
+              const newBodyType = determineBodyTypeRef.func(gameStateRef.current.power);
+              if (newBodyType !== bodyType) {
+                setBodyType(newBodyType);
+                // Recreate avatar with new body type (preserves skin and accessories)
+                const currentAvatarData = avatarDataRef.current;
+                const currentAvatarResult = avatarResultRef.current;
+                if (currentAvatarData && currentAvatarData.skin && currentAvatarResult) {
+                  // Remove old avatar
+                  scene.remove(currentAvatarResult.characterGroup);
+                  // Create new one with updated body type
+                  const newAvatarResult = createAvatarMesh(
+                    THREE,
+                    scene,
+                    currentAvatarData.skin,
+                    currentAvatarData.face,
+                    currentAvatarData.accessories,
+                    {
+                      scale: 1.0,
+                      position: { x: 0, y: 0, z: 0 },
+                      animation: 'idle',
+                      bodyType: newBodyType
+                    }
+                  );
+                  characterRef.current = newAvatarResult.characterGroup;
+                  avatarResultRef.current = newAvatarResult;
+                }
+              }
 
               setScore({
                 power: gameStateRef.current.power,
@@ -657,7 +721,19 @@ export default function GymPumpEngine({ onClose, user }: GymPumpEngineProps) {
           💪 Power: {score.power}
         </div>
         <div style={{ marginBottom: '8px' }}>🪙 Coins: {score.coins}</div>
-        <div>⭐ Level: {score.level}</div>
+        <div style={{ marginBottom: '8px' }}>⭐ Level: {score.level}</div>
+        <div style={{ 
+          marginTop: '8px', 
+          padding: '4px 8px', 
+          background: bodyType === 'jacked' ? 'rgba(255, 215, 0, 0.3)' : 
+                      bodyType === 'strong' ? 'rgba(255, 140, 0, 0.3)' :
+                      bodyType === 'athletic' ? 'rgba(76, 175, 80, 0.3)' : 'rgba(100, 100, 100, 0.3)',
+          borderRadius: '6px',
+          fontSize: '14px',
+          fontWeight: 'bold'
+        }}>
+          💪 Body: {bodyType.charAt(0).toUpperCase() + bodyType.slice(1)}
+        </div>
       </div>
 
       {/* Rhythm Indicator & Progress */}
