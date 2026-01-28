@@ -9,17 +9,50 @@ from mathutils import Vector
 
 # Clear existing mesh objects
 def clear_scene():
-    bpy.ops.object.select_all(action='SELECT')
-    bpy.ops.object.delete(use_global=False)
+    # More robust clearing - iterate through objects directly
+    # Switch to object mode first
+    try:
+        if bpy.context.active_object:
+            if hasattr(bpy.context.active_object, 'mode') and bpy.context.active_object.mode != 'OBJECT':
+                bpy.ops.object.mode_set(mode='OBJECT')
+    except:
+        pass
+    
+    # Delete all mesh objects
+    try:
+        objects_to_delete = [obj for obj in bpy.context.scene.objects if obj.type == 'MESH']
+        for obj in objects_to_delete:
+            try:
+                bpy.data.objects.remove(obj, do_unlink=True)
+            except:
+                pass
+    except:
+        pass
+    
+    # Clear any remaining collections (except default)
+    try:
+        for collection in list(bpy.data.collections):
+            if collection.name not in ['Collection']:  # Keep default collection
+                try:
+                    bpy.data.collections.remove(collection)
+                except:
+                    pass
+    except:
+        pass
 
-clear_scene()
+# Only clear if running in Blender
+try:
+    clear_scene()
+except Exception as e:
+    print(f"Warning: Could not clear scene: {e}")
+    print("Continuing anyway...")
 
 # ============================================
 # BARBELL
 # ============================================
 def create_barbell():
-    barbell_group = bpy.data.collections.new("Barbell")
-    bpy.context.scene.collection.children.link(barbell_group)
+    # Use default collection instead of creating new one
+    collection = bpy.context.scene.collection
     
     # Main bar (cylindrical)
     bpy.ops.mesh.primitive_cylinder_add(
@@ -59,15 +92,19 @@ def create_barbell():
         bsdf.inputs["Roughness"].default_value = 0.15
         collar.data.materials.append(collar_mat)
     
-    # Select all barbell parts
+    # Select all barbell parts and join
     bpy.ops.object.select_all(action='DESELECT')
-    for obj in bpy.context.scene.objects:
-        if "Barbell" in obj.name:
-            obj.select_set(True)
+    barbell_parts = [obj for obj in bpy.context.scene.objects if "Barbell" in obj.name]
     
-    # Join into one object
-    bpy.context.view_layer.objects.active = bar
-    bpy.ops.object.join()
+    if len(barbell_parts) > 1:
+        for obj in barbell_parts:
+            obj.select_set(True)
+        bpy.context.view_layer.objects.active = bar
+        try:
+            bpy.ops.object.join()
+        except:
+            # If join fails, just keep them separate
+            pass
     bar.name = "Barbell"
     
     return bar
@@ -86,18 +123,8 @@ def create_weight_plate(radius=0.3, thickness=0.08, weight_kg=10):
     plate = bpy.context.active_object
     plate.name = f"Weight_Plate_{weight_kg}kg"
     
-    # Create hole in center
-    bpy.ops.object.mode_set(mode='EDIT')
-    bmesh_obj = bmesh.from_mesh(plate.data)
-    bmesh.ops.create_circle(
-        bmesh_obj,
-        segments=16,
-        radius=0.03,
-        matrix=((1, 0, 0), (0, 1, 0), (0, 0, 1))
-    )
-    bmesh.ops.delete(bmesh_obj, geom=[bmesh_obj.faces[-1]], context='FACES')
-    bmesh.update_edit_mesh(plate.data)
-    bpy.ops.object.mode_set(mode='OBJECT')
+    # Note: For a hole in the center, you can use a boolean modifier in Blender
+    # For now, we'll keep the plate solid for simplicity
     
     # Material based on weight (red for heavy, blue for light)
     plate_mat = bpy.data.materials.new(name=f"Plate_{weight_kg}kg")
@@ -124,8 +151,8 @@ def create_weight_plate(radius=0.3, thickness=0.08, weight_kg=10):
 # BENCH PRESS BENCH
 # ============================================
 def create_bench():
-    bench_group = bpy.data.collections.new("Bench")
-    bpy.context.scene.collection.children.link(bench_group)
+    # Use default collection
+    collection = bpy.context.scene.collection
     
     # Main bench pad
     bpy.ops.mesh.primitive_box_add(
@@ -172,11 +199,16 @@ def create_bench():
     
     # Join bench parts
     bpy.ops.object.select_all(action='DESELECT')
-    for obj in bpy.context.scene.objects:
-        if "Bench" in obj.name:
+    bench_parts = [obj for obj in bpy.context.scene.objects if "Bench" in obj.name]
+    
+    if len(bench_parts) > 1:
+        for obj in bench_parts:
             obj.select_set(True)
-    bpy.context.view_layer.objects.active = bench_pad
-    bpy.ops.object.join()
+        bpy.context.view_layer.objects.active = bench_pad
+        try:
+            bpy.ops.object.join()
+        except:
+            pass
     bench_pad.name = "Bench"
     
     return bench_pad
@@ -186,8 +218,8 @@ def create_bench():
 # ============================================
 def create_dumbbell():
     """Create a single dumbbell"""
-    dumbbell_group = bpy.data.collections.new("Dumbbell")
-    bpy.context.scene.collection.children.link(dumbbell_group)
+    # Use default collection
+    collection = bpy.context.scene.collection
     
     # Handle
     bpy.ops.mesh.primitive_cylinder_add(
@@ -226,11 +258,16 @@ def create_dumbbell():
     
     # Join
     bpy.ops.object.select_all(action='DESELECT')
-    for obj in bpy.context.scene.objects:
-        if "Dumbbell" in obj.name:
+    dumbbell_parts = [obj for obj in bpy.context.scene.objects if "Dumbbell" in obj.name]
+    
+    if len(dumbbell_parts) > 1:
+        for obj in dumbbell_parts:
             obj.select_set(True)
-    bpy.context.view_layer.objects.active = handle
-    bpy.ops.object.join()
+        bpy.context.view_layer.objects.active = handle
+        try:
+            bpy.ops.object.join()
+        except:
+            pass
     handle.name = "Dumbbell"
     
     return handle
