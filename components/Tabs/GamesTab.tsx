@@ -25,6 +25,7 @@ interface GameInfo {
   name: string;
   description: string;
   icon: string;
+  thumbnail?: string; // gameplay image path, e.g. /images/games/gym-pump.png
   category: string;
   is3D?: boolean;
   component: React.ComponentType<any>;
@@ -38,6 +39,7 @@ const games: GameInfo[] = [
     name: 'Gym Pump',
     description: 'Lift weights, build power, and climb the leaderboard!',
     icon: '💪',
+    thumbnail: '/images/games/gym-pump.svg',
     category: 'Action',
     component: GymPumpEngine,
   },
@@ -46,6 +48,7 @@ const games: GameInfo[] = [
     name: 'Hypnosia',
     description: 'Test your deduction skills in this mysterious game!',
     icon: '🔮',
+    thumbnail: '/images/games/hypnosia.svg',
     category: 'Puzzle',
     component: Hypnosia,
   },
@@ -54,6 +57,7 @@ const games: GameInfo[] = [
     name: 'Underwater Odyssey',
     description: 'Explore the depths of the ocean in this adventure series!',
     icon: '🌊',
+    thumbnail: '/images/games/underwater-odyssey.svg',
     category: 'Adventure',
     component: UnderwaterOddyseySeries,
   },
@@ -62,6 +66,7 @@ const games: GameInfo[] = [
     name: 'Super Showdown 2',
     description: 'Epic arena battles with powerful abilities!',
     icon: '⚔️',
+    thumbnail: '/images/games/super-showdown-2.svg',
     category: 'Action',
     component: SuperShowdown2,
   },
@@ -70,6 +75,7 @@ const games: GameInfo[] = [
     name: 'Super Showdown',
     description: 'Original arena combat experience!',
     icon: '🎯',
+    thumbnail: '/images/games/super-showdown.svg',
     category: 'Action',
     component: SuperShowdown,
   },
@@ -78,6 +84,7 @@ const games: GameInfo[] = [
     name: 'Red Rover',
     description: 'Classic team-based multiplayer game!',
     icon: '🏃',
+    thumbnail: '/images/games/red-rover.svg',
     category: 'Multiplayer',
     component: RedRover,
   },
@@ -86,6 +93,7 @@ const games: GameInfo[] = [
     name: 'Jungle Journey',
     description: 'Navigate through the jungle and collect fruits!',
     icon: '🌴',
+    thumbnail: '/images/games/jungle-journey.svg',
     category: 'Adventure',
     component: JungleJourneySeries,
   },
@@ -94,6 +102,7 @@ const games: GameInfo[] = [
     name: 'Chess',
     description: 'Classic chess game - challenge yourself or play online!',
     icon: '♟️',
+    thumbnail: '/images/games/chess.svg',
     category: 'Strategy',
     component: Chess,
   },
@@ -102,6 +111,7 @@ const games: GameInfo[] = [
     name: 'Floor Is Lava',
     description: 'Jump from platform to platform - don\'t touch the lava!',
     icon: '🌋',
+    thumbnail: '/images/games/floor-is-lava.svg',
     category: 'Platformer',
     component: FloorIsLava,
   },
@@ -110,6 +120,7 @@ const games: GameInfo[] = [
     name: 'Insane Showdown',
     description: 'Ultimate combined arena battle experience!',
     icon: '🔥',
+    thumbnail: '/images/games/insane-showdown.svg',
     category: 'Action',
     component: SuperShowdownCombined,
   },
@@ -256,11 +267,45 @@ export default function GamesTab({ user, editMode }: GamesTabProps) {
             }}
           >
             <div style={{
-              fontSize: '48px',
-              textAlign: 'center',
-              marginBottom: '16px'
+              width: '100%',
+              aspectRatio: '16/9',
+              borderRadius: '12px',
+              overflow: 'hidden',
+              marginBottom: '16px',
+              background: 'var(--panel-soft)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
             }}>
-              {game.icon}
+              {game.thumbnail ? (
+                <img
+                  src={game.thumbnail}
+                  alt={game.name}
+                  style={{
+                    width: '100%',
+                    height: '100%',
+                    objectFit: 'cover',
+                    display: 'block'
+                  }}
+                  onError={(e) => {
+                    const el = e.target as HTMLImageElement;
+                    el.style.display = 'none';
+                    (el.nextElementSibling as HTMLElement)?.style.setProperty('display', 'flex');
+                  }}
+                />
+              ) : null}
+              <span
+                style={{
+                  fontSize: '48px',
+                  lineHeight: 1,
+                  display: game.thumbnail ? 'none' : 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}
+                aria-hidden
+              >
+                {game.icon}
+              </span>
             </div>
             <div style={{
               fontSize: '20px',

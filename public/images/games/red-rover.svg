@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 180" width="320" height="180">
+  <defs>
+    <linearGradient id="field" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" style="stop-color:#14532d"/><stop offset="100%" style="stop-color:#052e16"/></linearGradient>
+  </defs>
+  <rect width="320" height="180" fill="url(#field)"/>
+  <line x1="160" y1="0" x2="160" y2="180" stroke="#fef08a" stroke-width="2" stroke-dasharray="8 4"/>
+  <rect x="70" y="75" width="28" height="35" rx="4" fill="#dc2626"/>
+  <rect x="222" y="75" width="28" height="35" rx="4" fill="#2563eb"/>
+  <rect x="85" y="78" width="28" height="35" rx="4" fill="#dc2626"/>
+  <rect x="207" y="78" width="28" height="35" rx="4" fill="#2563eb"/>
+  <circle cx="160" cy="95" r="18" fill="#fef08a" opacity="0.9"/>
+  <text x="160" y="155" text-anchor="middle" fill="#bef264" font-size="12" font-family="system-ui,sans-serif">Red Rover — Team vs team</text>
+  <text x="160" y="172" text-anchor="middle" fill="#6b7280" font-size="9" font-family="system-ui,sans-serif">Multiplayer</text>
+</svg>
