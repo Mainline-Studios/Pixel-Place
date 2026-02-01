@@ -4,7 +4,6 @@ import { useState, useEffect } from 'react';
 import { User, UserMadeGame } from '@/types';
 import { getUserMadeGames, deleteUserMadeGame } from '@/lib/storage';
 import UserMadeGamePlayer from '../Games/UserMadeGamePlayer';
-import GymPumpEngine from '../Games/GymPumpEngine';
 import Hypnosia from '../Games/Hypnosia';
 import UnderwaterOddyseySeries from '../Games/UnderwaterOddyseySeries';
 import SuperShowdown2 from '../Games/SuperShowdown2';
@@ -33,14 +32,6 @@ interface GameInfo {
 
 // All available games
 const games: GameInfo[] = [
-  {
-    id: 'gymPump',
-    name: 'Gym Pump',
-    description: 'Lift weights, build power, and climb the leaderboard!',
-    icon: '💪',
-    category: 'Action',
-    component: GymPumpEngine,
-  },
   {
     id: 'hypnosia',
     name: 'Hypnosia',
@@ -152,7 +143,7 @@ export default function GamesTab({ user, editMode }: GamesTabProps) {
     const gameInfo = games.find(g => g.id === selectedGame);
     
     // Components that support onClose prop
-    const supportsOnClose = ['gymPump', 'hypnosia'].includes(selectedGame);
+    const supportsOnClose = ['hypnosia'].includes(selectedGame);
     
     return (
       <div style={{ position: 'relative', width: '100%', minHeight: '100%' }}>
@@ -178,9 +169,7 @@ export default function GamesTab({ user, editMode }: GamesTabProps) {
             ← Back
           </button>
         )}
-        {selectedGame === 'gymPump' ? (
-          <GameComponent user={user} onClose={handleClose} />
-        ) : selectedGame === 'hypnosia' ? (
+        {selectedGame === 'hypnosia' ? (
           <GameComponent onClose={handleClose} />
         ) : (
           <GameComponent />
@@ -268,7 +257,7 @@ export default function GamesTab({ user, editMode }: GamesTabProps) {
       <div className="ai-box" style={{ marginTop: '24px' }}>
         <div className="ai-label">Game Instructions</div>
         <div className="ai-output" style={{ fontSize: '13px', lineHeight: '1.8' }}>
-          <strong>Gym Pump:</strong> Lift weights, build power, and climb the leaderboard! Use the game controls to play.
+          Choose a game above and click "Play Now" to start playing!
         </div>
       </div>
 

@@ -21,6 +21,30 @@ export async function GET() {
     const db = getDb();
     const rows = db.prepare('SELECT * FROM published_games ORDER BY ts DESC').all();
     const games = rows.map(gameFromRow);
+    
+    // Also include built-in games
+    try {
+      const { BUILTIN_GAMES } = await import('@/lib/builtinGames');
+      const builtinMap = new Map(BUILTIN_GAMES.map(g => [g.gameCode || g.title, g]));
+      
+      // Remove built-in games that are already in the database
+      games.forEach(g => {
+        const key = g.gameCode || g.title;
+        if (builtinMap.has(key)) {
+          builtinMap.delete(key);
+        }
+      });
+      
+      // Add remaining built-in games
+      const newBuiltin = Array.from(builtinMap.values());
+      games.push(...newBuiltin);
+    } catch (error) {
+      console.error('Error loading built-in games:', error);
+    }
+    
+    // Sort by timestamp (newest first)
+    games.sort((a, b) => (b.ts || 0) - (a.ts || 0));
+    
     return NextResponse.json(games);
   } catch (error) {
     console.error('Error reading published games:', error);

@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react';
 import { User } from '@/types';
-import GymPumpEngine from '../Games/GymPumpEngine';
 import Hypnosia from '../Games/Hypnosia';
 import UnderwaterOddyseySeries from '../Games/UnderwaterOddyseySeries';
 import SuperShowdown2 from '../Games/SuperShowdown2';
@@ -28,14 +27,6 @@ interface GameInfo {
 }
 
 const games: GameInfo[] = [
-  {
-    id: 'gymPump',
-    name: 'Gym Pump',
-    description: 'Lift weights, build power, and climb the leaderboard!',
-    icon: '💪',
-    category: 'Action',
-    component: GymPumpEngine,
-  },
   {
     id: 'hypnosia',
     name: 'Hypnosia',
@@ -183,7 +174,7 @@ export default function PlayTab({ user, editMode }: PlayTabProps) {
       setLoadError(null);
     };
     
-    const supportsOnClose = ['gymPump', 'hypnosia'].includes(selectedGame);
+    const supportsOnClose = ['hypnosia'].includes(selectedGame);
     
     // #region agent log
     useEffect(() => {
@@ -279,9 +270,7 @@ export default function PlayTab({ user, editMode }: PlayTabProps) {
             ← Back
           </button>
         )}
-        {selectedGame === 'gymPump' ? (
-          <GameComponent user={user} onClose={handleClose} />
-        ) : selectedGame === 'hypnosia' ? (
+        {selectedGame === 'hypnosia' ? (
           <GameComponent onClose={handleClose} />
         ) : (
           <GameComponent />

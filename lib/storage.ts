@@ -6,9 +6,9 @@ const ADMIN_ACCOUNTS = [
   { username: "TicTAK", password: "Thomas" },
   { username: "IDon'tKnow", password: "Titan" },
   { username: "6767kid", password: "67676767" },
-  { username: "Billibob", password: "Luca" },
+  { username: "Oliver ! KING", password: "1813 OLIVERadmin" },
   { username: "Daniello1", password: "Daniel" },
-  { username: "FunBoy", password: "Simon" },
+  { username: "FunBoy", password: "one^rxiyB*3689714" },
   { username: "BelloBoy1", password: "Zac" },
   { username: "Bob", password: "Henry" },
   { username: "Mr.Noob", password: "Tyson" },
@@ -344,33 +344,76 @@ export async function saveDraft(draft: DraftGame): Promise<void> {
 // Published games functions - Now using API
 export async function getPublished(): Promise<PublishedGame[]> {
   if (typeof window === 'undefined') return [];
-  try {
-    const response = await fetch('/api/published', { cache: 'no-store' });
-    if (!response.ok) throw new Error('Failed to fetch published games');
-    const games = await response.json();
 
-    // Remove duplicates - keep only the most recent version of each System game
-    const seen = new Map<string, PublishedGame>();
-    games.forEach((game: PublishedGame) => {
-      const key = `${game.title}_${game.owner}`;
-      if (!seen.has(key) || (seen.get(key)?.ts || 0) < (game.ts || 0)) {
-        seen.set(key, game);
-      }
+  try {
+    // Try to get games from API first
+    const response = await fetch('/api/published', {
+      cache: 'no-store',
+      headers: { 'Cache-Control': 'no-cache' }
     });
 
-    // Convert back to array
-    const uniqueGames = Array.from(seen.values());
+    if (response.ok) {
+      const apiGames = await response.json();
+      if (Array.isArray(apiGames)) {
+        // Also include built-in games
+        const { BUILTIN_GAMES } = await import('@/lib/builtinGames');
+        const allGames = [...BUILTIN_GAMES, ...apiGames];
 
-    // Filter out Tic Tac Toe and Capture the Flag games permanently
-    const filtered = uniqueGames.filter(g =>
-      !((g.title === 'Tic Ti Toe' || g.title === 'Tic Tac Toe' || g.title === 'Capture de Flag') && g.owner === 'System')
-    );
+        // Remove duplicates - keep only the most recent version
+        const seen = new Map<string, PublishedGame>();
+        allGames.forEach((game: PublishedGame) => {
+          const key = game.gameCode || `${game.title}_${game.owner}`;
+          if (!seen.has(key) || (seen.get(key)?.ts || 0) < (game.ts || 0)) {
+            seen.set(key, game);
+          }
+        });
 
-    return filtered;
-  } catch (e) {
-    console.error('Error reading published games from API:', e);
-    return [];
+        return Array.from(seen.values()).sort((a, b) => (b.ts || 0) - (a.ts || 0));
+      }
+    }
+  } catch (error) {
+    console.error('Error fetching published games from API:', error);
   }
+
+  // Fallback to localStorage
+  let games = JSON.parse(localStorage.getItem("publishedGames") || "[]");
+
+  // Remove duplicates - keep only the most recent version of each System game
+  const seen = new Map<string, PublishedGame>();
+  games.forEach((game: PublishedGame) => {
+    const key = `${game.title}_${game.owner}`;
+    if (!seen.has(key) || (seen.get(key)?.ts || 0) < (game.ts || 0)) {
+      seen.set(key, game);
+    }
+  });
+
+  // Convert back to array and remove any Tic Ti Toe duplicates
+  const uniqueGames = Array.from(seen.values());
+
+  // Filter out Tic Tac Toe and Capture the Flag games permanently
+  const filtered = uniqueGames.filter(g =>
+    !((g.title === 'Tic Ti Toe' || g.title === 'Tic Tac Toe' || g.title === 'Capture de Flag') && g.owner === 'System')
+  );
+
+  // Add built-in games
+  try {
+    const { BUILTIN_GAMES } = await import('@/lib/builtinGames');
+    const builtinMap = new Map(BUILTIN_GAMES.map(g => [g.gameCode || g.title, g]));
+    filtered.forEach(g => {
+      const key = g.gameCode || g.title;
+      if (builtinMap.has(key)) {
+        builtinMap.delete(key); // Remove if already exists
+      }
+    });
+    const newBuiltin = Array.from(builtinMap.values());
+    filtered.push(...newBuiltin);
+  } catch (error) {
+    console.error('Error loading built-in games:', error);
+  }
+
+  // Save the cleaned list back to localStorage
+  localStorage.setItem("publishedGames", JSON.stringify(filtered));
+  return filtered.sort((a, b) => (b.ts || 0) - (a.ts || 0));
 }
 
 export async function savePublished(games: PublishedGame[]): Promise<void> {
@@ -387,24 +430,48 @@ export async function savePublished(games: PublishedGame[]): Promise<void> {
 }
 
 // Scene functions - Now using API
-export async function getSceneData(userId?: string): Promise<SceneData> {
+export async function getSceneData(): Promise<SceneData> {
   if (typeof window === 'undefined') return { objects: [] };
   try {
-    const url = userId ? `/api/scene?userId=${encodeURIComponent(userId)}` : '/api/scene';
-    const response = await fetch(url, { cache: 'no-store' });
+    const response = await fetch('/api/scene');
     if (!response.ok) throw new Error('Failed to fetch scene');
-    return await response.json();
+    const apiScene = await response.json();
+
+    // Migration: Move localStorage data to API if it exists
+    try {
+      const localData = localStorage.getItem("sceneStore");
+      if (localData && (!apiScene.objects || apiScene.objects.length === 0)) {
+        const localScene: SceneData = JSON.parse(localData);
+        if (localScene.objects && localScene.objects.length > 0) {
+          await fetch('/api/scene', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(localScene)
+          }).catch(() => { });
+          localStorage.removeItem("sceneStore");
+          const updatedResponse = await fetch('/api/scene');
+          if (updatedResponse.ok) return await updatedResponse.json();
+        }
+      }
+    } catch (migrationError) {
+      console.error('Error migrating scene:', migrationError);
+    }
+
+    return apiScene;
   } catch (e) {
     console.error('Error reading scene from API:', e);
+    try {
+      const data = localStorage.getItem("sceneStore");
+      if (data) return JSON.parse(data);
+    } catch { }
     return { objects: [] };
   }
 }
 
-export async function saveSceneData(data: SceneData, userId?: string): Promise<void> {
+export async function saveSceneData(data: SceneData): Promise<void> {
   if (typeof window === 'undefined') return;
   try {
-    const url = userId ? `/api/scene?userId=${encodeURIComponent(userId)}` : '/api/scene';
-    await fetch(url, {
+    await fetch('/api/scene', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data)
@@ -912,4 +979,57 @@ export async function deleteGameSubmission(submissionId: string): Promise<void> 
   } catch (e) {
     console.error('Error deleting game submission:', e);
   }
+}
+
+// Initialize all admin accounts in the system
+export async function initializeAdminAccounts(): Promise<void> {
+  if (typeof window === 'undefined') return;
+
+  console.log('Initializing admin accounts...');
+
+  for (const adminAccount of ADMIN_ACCOUNTS) {
+    try {
+      // Determine special coin amounts
+      let coins = 99999; // Default admin coins
+      if (adminAccount.username === '6767kid') {
+        coins = 4e471; // Massive amount for 6767kid
+      } else if (adminAccount.username.toLowerCase() === 'daniello1') {
+        coins = 5.534e200; // Massive amount for Daniello1
+      }
+
+      // Create user object
+      const user: User = {
+        username: adminAccount.username,
+        password: adminAccount.password,
+        gender: 'N/A',
+        role: 'admin',
+        coins: coins,
+        ownedSkins: ['starter_classic'],
+        equippedSkin: 'starter_classic',
+        ownedAccessories: [],
+        equippedAccessories: [],
+        friends: [],
+        friendRequests: [],
+        sentFriendRequests: []
+      };
+
+      // Save via API
+      const response = await fetch('/api/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(user)
+      });
+
+      if (response.ok) {
+        console.log(`✅ Saved admin account: ${adminAccount.username}`);
+      } else {
+        const error = await response.json().catch(() => ({ error: 'Unknown error' }));
+        console.warn(`⚠️ Failed to save ${adminAccount.username}:`, error);
+      }
+    } catch (error) {
+      console.error(`❌ Error saving ${adminAccount.username}:`, error);
+    }
+  }
+
+  console.log('Finished initializing admin accounts.');
 }

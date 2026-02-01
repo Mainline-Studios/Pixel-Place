@@ -19,7 +19,7 @@
       "ixel_ace",
       "banana_man"
     ],
-    "equippedSkin": "cheeseburger",
+    "equippedSkin": "blue_star_boy",
     "ownedAccessories": [
       "wizard_hat",
       "cool_sunglasses",
@@ -208,7 +208,7 @@
       "skin_1768516225295",
       "ixel_ace"
     ],
-    "equippedSkin": "ixel_ace",
+    "equippedSkin": "cheeseburger",
     "ownedAccessories": [
       "wizard_hat",
       "cool_sunglasses",
@@ -279,5 +279,22 @@
         "status": "pending"
       }
     ]
+  },
+  {
+    "username": "laird123",
+    "password": "laird123",
+    "gender": "Male",
+    "role": "user",
+    "coins": 0,
+    "ownedSkins": [
+      "starter_classic",
+      "blue_blob"
+    ],
+    "equippedSkin": "blue_blob",
+    "isDonor": false,
+    "ownedAccessories": [],
+    "equippedAccessories": {},
+    "friends": [],
+    "sentFriendRequests": []
   }
 ]

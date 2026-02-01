@@ -6,6 +6,8 @@ import { Renderer } from './Renderer';
 import { Scene } from './Scene';
 import { Camera } from '../camera/Camera';
 import { Entity } from '../entities/Entity';
+import { Input } from '../input/Input';
+import { Physics } from '../physics/Physics';
 
 export class Engine {
   private renderer: Renderer;
@@ -15,6 +17,8 @@ export class Engine {
   private animationFrameId: number | null = null;
   private lastTime: number = 0;
   private isRunning: boolean = false;
+  private input: Input;
+  private physics: Physics;
 
   constructor(container: HTMLElement) {
     this.container = container;
@@ -28,6 +32,12 @@ export class Engine {
     // Create camera
     this.camera = new Camera();
     this.camera.setAspect(this.renderer.getSize().width / this.renderer.getSize().height);
+    
+    // Initialize input system
+    this.input = Input.getInstance();
+    
+    // Initialize physics system
+    this.physics = new Physics();
   }
 
   /**
@@ -42,6 +52,27 @@ export class Engine {
    */
   getCamera(): Camera {
     return this.camera;
+  }
+
+  /**
+   * Get the input system
+   */
+  getInput(): Input {
+    return this.input;
+  }
+
+  /**
+   * Get the physics system
+   */
+  getPhysics(): Physics {
+    return this.physics;
+  }
+
+  /**
+   * Get the renderer's canvas element
+   */
+  getCanvas(): HTMLCanvasElement {
+    return this.renderer.getCanvas();
   }
 
   /**
@@ -76,8 +107,14 @@ export class Engine {
     const deltaTime = (currentTime - this.lastTime) / 1000; // Convert to seconds
     this.lastTime = currentTime;
     
+    // Update physics
+    this.physics.update(deltaTime);
+    
     // Update scene
     this.scene.update(deltaTime);
+    
+    // Update input (clear pressed/released states)
+    this.input.update();
     
     // Render
     this.render();

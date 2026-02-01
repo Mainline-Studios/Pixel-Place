@@ -125,7 +125,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     }
   }, [user]);
 
-  const login = async (username: string, password: string): Promise<{ success: boolean; message: string }> => {
+  const login = async (username: string, password: string): Promise<{ success: boolean; message: string; ban?: any }> => {
     if (!username || !password) {
       return { success: false, message: 'Enter username and password.' };
     }
@@ -137,6 +137,54 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       return { success: false, message: 'This account has been banned. Please contact an administrator.', ban: ban || undefined };
     }
 
+    // Try to login via API first (for hashed passwords)
+    try {
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password })
+      });
+      
+      const data = await response.json();
+      
+      if (response.ok && data.success && data.user) {
+        // Successful login
+        const found = data.user as User;
+        
+        // Ensure arrays exist
+        if (!found.ownedSkins) found.ownedSkins = ['starter_classic'];
+        if (!found.ownedAccessories) found.ownedAccessories = [];
+        if (!found.equippedAccessories) found.equippedAccessories = {};
+        
+        // Special coins for 6767kid - massive amount
+        if (found.username === '6767kid') {
+          found.coins = 4e471;
+        } else if (found.username.toLowerCase() === 'daniello1') {
+          found.coins = 5.534e200;
+        }
+        
+        setUser(found);
+        if (typeof window !== 'undefined') {
+          try {
+            sessionStorage.setItem('pixelPlaceLoggedInUser', found.username);
+          } catch (error) {
+            console.error('Error saving user session:', error);
+          }
+        }
+        return { success: true, message: '' };
+      } else if (response.status === 401 || response.status === 404) {
+        // Password incorrect or user not found - return the error message
+        return { success: false, message: data.message || 'Incorrect password.' };
+      } else if (response.status >= 400) {
+        // Other API errors - return error message
+        return { success: false, message: data.message || 'Login failed. Please try again.' };
+      }
+    } catch (apiError) {
+      console.error('API login error, falling back to local:', apiError);
+      // Continue to fallback only if it's a network error, not an auth error
+    }
+    
+    // Fallback to local storage for legacy accounts
     let users = await getUsers();
     let found = users.find(x => x.username === username);
 
@@ -173,6 +221,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       return { success: false, message: 'Account not found. Please create one first.' };
     }
 
+    // For legacy accounts with plain text passwords
     if (found.password !== password) {
       return { success: false, message: 'Incorrect password.' };
     }
@@ -285,35 +334,85 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
   const updateUser = async (updates: Partial<User>) => {
     if (!user) return;
 
+    // Update local state immediately for responsive UI
     const updatedUser = { ...user, ...updates };
     setUser(updatedUser);
 
-    const users = await getUsers();
-    const index = users.findIndex(u => u.username.toLowerCase() === user.username.toLowerCase());
-    if (index !== -1) {
-      // Merge updates to preserve existing data like friends, ownedSkins, ownedAccessories
-      const existingUser = users[index];
-      users[index] = { 
-        ...existingUser, 
-        ...updates,
-        // Preserve friends array if not being updated
-        friends: updates.friends !== undefined ? updates.friends : existingUser.friends || [],
-        // Preserve ownedSkins if not being updated
-        ownedSkins: updates.ownedSkins !== undefined ? updates.ownedSkins : existingUser.ownedSkins || [],
-        // Preserve ownedAccessories if not being updated
-        ownedAccessories: updates.ownedAccessories !== undefined ? updates.ownedAccessories : existingUser.ownedAccessories || []
-      };
-      await saveUsers(users);
-      
-      // Also update via API PUT to ensure persistence
+    // Fetch fresh user data from API to ensure we have the latest
+    try {
+      const response = await fetch('/api/users');
+      if (response.ok) {
+        const allUsers = await response.json();
+        const index = allUsers.findIndex((u: User) => u.username.toLowerCase() === user.username.toLowerCase());
+        
+        if (index !== -1) {
+          // Merge updates with existing data, preserving all fields
+          const existingUser = allUsers[index];
+          const mergedUser: User = {
+            ...existingUser,
+            ...updates,
+            // Always preserve these arrays - merge if updating, keep existing if not
+            friends: updates.friends !== undefined ? updates.friends : (existingUser.friends || []),
+            ownedSkins: updates.ownedSkins !== undefined ? updates.ownedSkins : (existingUser.ownedSkins || []),
+            ownedAccessories: updates.ownedAccessories !== undefined ? updates.ownedAccessories : (existingUser.ownedAccessories || []),
+            equippedAccessories: updates.equippedAccessories !== undefined ? updates.equippedAccessories : (existingUser.equippedAccessories || {}),
+            sentFriendRequests: updates.sentFriendRequests !== undefined ? updates.sentFriendRequests : (existingUser.sentFriendRequests || []),
+            friendRequests: updates.friendRequests !== undefined ? updates.friendRequests : (existingUser.friendRequests || []),
+            ownedServers: updates.ownedServers !== undefined ? updates.ownedServers : (existingUser.ownedServers || []),
+            // Preserve password - don't overwrite it
+            password: existingUser.password || user.password,
+            // Preserve other fields
+            gender: updates.gender !== undefined ? updates.gender : (existingUser.gender || user.gender),
+            role: updates.role !== undefined ? updates.role : (existingUser.role || user.role),
+            equippedSkin: updates.equippedSkin !== undefined ? updates.equippedSkin : (existingUser.equippedSkin || user.equippedSkin),
+            coins: updates.coins !== undefined ? updates.coins : (existingUser.coins !== undefined ? existingUser.coins : user.coins)
+          };
+          
+          // Save to API - this will update the database
+          const saveResponse = await fetch('/api/users', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(mergedUser)
+          });
+          
+          if (saveResponse.ok) {
+            // Update local state with the saved data to ensure consistency
+            const savedUser = await saveResponse.json();
+            setUser({ ...updatedUser, ...savedUser });
+          } else {
+            console.error('Failed to save user:', await saveResponse.text());
+          }
+        } else {
+          // User not found in API, save directly
+          const mergedUser: User = {
+            ...user,
+            ...updates,
+            password: user.password
+          };
+          
+          await fetch('/api/users', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(mergedUser)
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Error updating user:', error);
+      // Fallback: try to save directly
       try {
+        const mergedUser: User = {
+          ...user,
+          ...updates,
+          password: user.password
+        };
         await fetch('/api/users', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(users[index])
+          body: JSON.stringify(mergedUser)
         });
-      } catch (error) {
-        console.error('Error saving user to API:', error);
+      } catch (fallbackError) {
+        console.error('Fallback save also failed:', fallbackError);
       }
     }
   };

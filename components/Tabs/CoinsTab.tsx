@@ -161,7 +161,7 @@ export default function CoinsTab({ user, editMode }: CoinsTabProps) {
         }
       } catch (error: any) {
         console.error('Checkout error:', error);
-        // Silent error - no alert
+        alert(`Payment Error: ${error.message || 'Failed to process payment. Please check the browser console for details.'}`);
         setLoading(null);
       }
       return;
@@ -197,7 +197,7 @@ export default function CoinsTab({ user, editMode }: CoinsTabProps) {
       // Redirect to Stripe Checkout
       const stripe = await stripePromise;
       if (!stripe) {
-        throw new Error('Stripe failed to load');
+        throw new Error('Stripe failed to load. Please check NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY in your .env.local file.');
       }
 
       const { error } = await stripe.redirectToCheckout({
@@ -209,7 +209,7 @@ export default function CoinsTab({ user, editMode }: CoinsTabProps) {
       }
     } catch (error: any) {
       console.error('Checkout error:', error);
-      // Silent error - no alert
+      alert(`Payment Error: ${error.message || 'Failed to process payment. Please check the browser console for details.'}`);
       setLoading(null);
     }
   };

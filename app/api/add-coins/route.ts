@@ -33,13 +33,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Only allow free coins for specific users (like 6767kid)
+    // Allow free coins for specific users (like 6767kid)
+    // Also allow manual coin addition for any user (for fixing webhook issues after payment)
+    // Note: In production, you might want to add admin authentication or verify payment
     const allowedFreeUsers = ['6767kid'];
-    if (!allowedFreeUsers.includes(userId)) {
-      return NextResponse.json(
-        { error: 'Free coins not available for this user' },
-        { status: 403 }
-      );
+    const isFreeUser = allowedFreeUsers.includes(userId);
+    
+    if (!isFreeUser) {
+      // Allow manual coin addition - useful for fixing webhook issues after successful payment
+      console.log(`Manual coin addition for ${userId}: ${coins} coins (likely fixing webhook issue)`);
     }
 
     // Read users from file
