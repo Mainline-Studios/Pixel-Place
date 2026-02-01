@@ -1,8 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDb } from '@/lib/db';
 import { User } from '@/types';
+import { hashPassword, verifyPassword } from '@/lib/auth';
 
 function userFromRow(row: any): User {
+  // Parse equippedAccessories - it can be an object or array, normalize to object
+  let equippedAccessories: any = {};
+  try {
+    const parsed = JSON.parse(row.equipped_accessories || '{}');
+    if (Array.isArray(parsed)) {
+      // Convert array to object if needed (legacy format)
+      equippedAccessories = {};
+    } else if (parsed && typeof parsed === 'object') {
+      equippedAccessories = parsed;
+    }
+  } catch {
+    equippedAccessories = {};
+  }
+  
   return {
     username: row.username,
     password: row.password_hash, // Note: In production, never return password hashes
@@ -10,9 +25,9 @@ function userFromRow(row: any): User {
     role: (row.role || 'user') as 'admin' | 'user',
     coins: row.coins || 0,
     ownedSkins: JSON.parse(row.owned_skins || '[]'),
-    equippedSkin: row.equipped_skin || '',
+    equippedSkin: row.equipped_skin || 'starter_classic',
     ownedAccessories: JSON.parse(row.owned_accessories || '[]'),
-    equippedAccessories: JSON.parse(row.equipped_accessories || '[]'),
+    equippedAccessories: equippedAccessories,
     ownedServers: JSON.parse(row.owned_servers || '[]'),
     friends: JSON.parse(row.friends || '[]'),
     friendRequests: JSON.parse(row.friend_requests || '[]'),
@@ -41,16 +56,33 @@ export async function POST(request: NextRequest) {
     const existing = db.prepare('SELECT * FROM users WHERE LOWER(username) = LOWER(?)').get(newUser.username);
     
     if (existing) {
-      // Update existing user
+      // Update existing user - properly merge all fields
       const existingUser = userFromRow(existing);
       const updatedUser = {
         ...existingUser,
         ...newUser,
-        friends: newUser.friends !== undefined ? newUser.friends : existingUser.friends,
-        ownedSkins: newUser.ownedSkins !== undefined ? newUser.ownedSkins : existingUser.ownedSkins,
-        ownedAccessories: newUser.ownedAccessories !== undefined ? newUser.ownedAccessories : existingUser.ownedAccessories,
-        sentFriendRequests: newUser.sentFriendRequests !== undefined ? newUser.sentFriendRequests : existingUser.sentFriendRequests
+        // Always preserve arrays - merge if provided, keep existing if not
+        friends: newUser.friends !== undefined ? newUser.friends : (existingUser.friends || []),
+        ownedSkins: newUser.ownedSkins !== undefined ? newUser.ownedSkins : (existingUser.ownedSkins || []),
+        ownedAccessories: newUser.ownedAccessories !== undefined ? newUser.ownedAccessories : (existingUser.ownedAccessories || []),
+        equippedAccessories: newUser.equippedAccessories !== undefined ? newUser.equippedAccessories : (existingUser.equippedAccessories || {}),
+        sentFriendRequests: newUser.sentFriendRequests !== undefined ? newUser.sentFriendRequests : (existingUser.sentFriendRequests || []),
+        friendRequests: newUser.friendRequests !== undefined ? newUser.friendRequests : (existingUser.friendRequests || []),
+        ownedServers: newUser.ownedServers !== undefined ? newUser.ownedServers : (existingUser.ownedServers || []),
+        // Preserve password if not being updated
+        password: newUser.password || existingUser.password,
+        // Preserve other important fields
+        gender: newUser.gender !== undefined ? newUser.gender : existingUser.gender,
+        role: newUser.role !== undefined ? newUser.role : existingUser.role,
+        equippedSkin: newUser.equippedSkin !== undefined ? newUser.equippedSkin : existingUser.equippedSkin,
+        coins: newUser.coins !== undefined ? newUser.coins : existingUser.coins
       };
+      
+      // Hash password if it's provided and not already hashed
+      let passwordHash = updatedUser.password;
+      if (passwordHash && !passwordHash.startsWith('$2a$') && !passwordHash.startsWith('$2b$') && !passwordHash.startsWith('$2y$')) {
+        passwordHash = await hashPassword(passwordHash);
+      }
       
       db.prepare(`
         UPDATE users SET
@@ -70,7 +102,7 @@ export async function POST(request: NextRequest) {
           updated_at = strftime('%s', 'now')
         WHERE id = ?
       `).run(
-        updatedUser.password,
+        passwordHash,
         updatedUser.gender,
         updatedUser.role,
         updatedUser.coins,
@@ -88,7 +120,12 @@ export async function POST(request: NextRequest) {
       
       return NextResponse.json(updatedUser);
     } else {
-      // Create new user
+      // Create new user - hash password if not already hashed
+      let passwordHash = newUser.password;
+      if (passwordHash && !passwordHash.startsWith('$2a$') && !passwordHash.startsWith('$2b$') && !passwordHash.startsWith('$2y$')) {
+        passwordHash = await hashPassword(passwordHash);
+      }
+      
       const result = db.prepare(`
         INSERT INTO users (
           username, password_hash, gender, role, coins, owned_skins, equipped_skin,
@@ -97,7 +134,7 @@ export async function POST(request: NextRequest) {
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `).run(
         newUser.username,
-        newUser.password,
+        passwordHash,
         newUser.gender || '',
         newUser.role || 'user',
         newUser.coins || 0,
@@ -140,6 +177,12 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
     
+    // Hash password if it's provided and not already hashed
+    let passwordHash = updatedUser.password;
+    if (passwordHash && !passwordHash.startsWith('$2a$') && !passwordHash.startsWith('$2b$') && !passwordHash.startsWith('$2y$')) {
+      passwordHash = await hashPassword(passwordHash);
+    }
+    
     db.prepare(`
       UPDATE users SET
         password_hash = ?,
@@ -158,7 +201,7 @@ export async function PUT(request: NextRequest) {
         updated_at = strftime('%s', 'now')
       WHERE id = ?
     `).run(
-      updatedUser.password,
+      passwordHash,
       updatedUser.gender,
       updatedUser.role,
       updatedUser.coins,

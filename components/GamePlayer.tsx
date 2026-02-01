@@ -200,11 +200,100 @@ export default function GamePlayer({ game, onClose }: GamePlayerProps) {
   }, [isOnline, serverId, game.ts, game.multiplayer]);
 
   useEffect(() => {
-    if (!containerRef.current || !game.gameCode) return;
+    if (!containerRef.current) return;
     
-    // Built-in games should not go through GamePlayer
-    if (game.gameCode === 'builtin_schoolAdventure') {
-      setError('This game should open directly, not through GamePlayer');
+    // Handle built-in games that use React components
+    if (game.gameCode && game.gameCode.startsWith('builtin_')) {
+      setIsLoading(false);
+      
+      const loadBuiltinGame = async () => {
+        try {
+          const gameId = game.gameCode!.replace('builtin_', '');
+          let GameComponent: React.ComponentType<any> | null = null;
+          
+          // Map game IDs to components
+          switch (gameId) {
+            case 'hypnosia':
+              GameComponent = (await import('@/components/Games/Hypnosia')).default;
+              break;
+            case 'underwaterOdyssey':
+              GameComponent = (await import('@/components/Games/UnderwaterOddyseySeries')).default;
+              break;
+            case 'superShowdown2':
+              GameComponent = (await import('@/components/Games/SuperShowdown2')).default;
+              break;
+            case 'superShowdown':
+              GameComponent = (await import('@/components/Games/SuperShowdown')).default;
+              break;
+            case 'redRover':
+              GameComponent = (await import('@/components/Games/RedRover')).default;
+              break;
+            case 'jungleJourney':
+              GameComponent = (await import('@/components/Games/JungleJourneySeries')).default;
+              break;
+            case 'chess':
+              GameComponent = (await import('@/components/Games/Chess')).default;
+              break;
+            case 'floorIsLava':
+              GameComponent = (await import('@/components/Games/FloorIsLava')).default;
+              break;
+            case 'insaneShowdown':
+              GameComponent = (await import('@/components/Games/InsaneShowdown')).default;
+              break;
+            case 'hideAndSeek':
+              GameComponent = (await import('@/components/Games/HideAndSeek')).default;
+              break;
+            case 'ghostInTheDark':
+              GameComponent = (await import('@/components/Games/GhostInTheDark')).default;
+              break;
+            case 'cityLife':
+              GameComponent = (await import('@/components/Games/CityLife')).default;
+              break;
+            case 'celestialSeries':
+              GameComponent = (await import('@/components/Games/CelestialSeriesExploration')).default;
+              break;
+            case 'superShowdown2D':
+              GameComponent = (await import('@/components/Games/SuperShowdown2D')).default;
+              break;
+            default:
+              setError(`Built-in game "${gameId}" not found`);
+              return;
+          }
+          
+          if (GameComponent && containerRef.current) {
+            // Use React to render the component
+            const React = await import('react');
+            const ReactDOM = await import('react-dom/client');
+            
+            // Clear container
+            containerRef.current.innerHTML = '';
+            
+            // Create root and render component
+            const root = ReactDOM.createRoot(containerRef.current);
+            root.render(React.createElement(GameComponent, { 
+              onClose: onClose,
+              user: user 
+            }));
+            
+            // Store cleanup function
+            cleanupRef.current = () => {
+              root.unmount();
+            };
+            
+            setError(null);
+          }
+        } catch (err: any) {
+          console.error('Error loading built-in game:', err);
+          setError(`Failed to load game: ${err.message || 'Unknown error'}`);
+        }
+      };
+      
+      loadBuiltinGame();
+      return;
+    }
+    
+    if (!game.gameCode) {
+      setError('Game code is missing');
       setIsLoading(false);
       return;
     }
