@@ -9,52 +9,39 @@ interface SplashScreenProps {
 
 export default function SplashScreen({ onComplete }: SplashScreenProps) {
   const [phase, setPhase] = useState<'mainline' | 'pixelplace'>('mainline');
-  const [opacity, setOpacity] = useState(0);
+  const [mainlineOpacity, setMainlineOpacity] = useState(0);
+  const [pixelPlaceOpacity, setPixelPlaceOpacity] = useState(0);
   const [show, setShow] = useState(true);
 
   useEffect(() => {
-    // Phase 1: Fade in "MAINLINE STUDIOS"
-    const fadeInMainline = setTimeout(() => {
-      setOpacity(1);
-    }, 100);
+    // Phase 1: Mainline Studios — fade in
+    const fadeInMainline = setTimeout(() => setMainlineOpacity(1), 100);
+    // Hold
+    const holdMainline = setTimeout(() => {}, 2200);
+    // Fade out
+    const fadeOutMainline = setTimeout(() => setMainlineOpacity(0), 2500);
 
-    // Phase 2: Hold "MAINLINE STUDIOS"
-    const holdMainline = setTimeout(() => {
-      setOpacity(1);
-    }, 2000);
-
-    // Phase 3: Fade out "MAINLINE STUDIOS"
-    const fadeOutMainline = setTimeout(() => {
-      setOpacity(0);
-    }, 2500);
-
-    // Phase 4: Switch to "PIXEL PLACE" with logo
-    const switchToPixelPlace = setTimeout(() => {
+    // Switch to Pixel Place (show immediately so animations are visible)
+    const switchPhase = setTimeout(() => {
       setPhase('pixelplace');
-      setOpacity(1);
-    }, 3000);
+      setPixelPlaceOpacity(1);
+    }, 3200);
+    // Hold
+    const holdPixelPlace = setTimeout(() => {}, 5200);
+    // Fade out
+    const fadeOutPixelPlace = setTimeout(() => setPixelPlaceOpacity(0), 5700);
 
-    // Phase 5: Hold "PIXEL PLACE"
-    const holdPixelPlace = setTimeout(() => {
-      setOpacity(1);
-    }, 4500);
-
-    // Phase 6: Fade out "PIXEL PLACE"
-    const fadeOutPixelPlace = setTimeout(() => {
-      setOpacity(0);
-    }, 5000);
-
-    // Phase 7: Hide and complete
+    // Hide and complete
     const hide = setTimeout(() => {
       setShow(false);
       onComplete();
-    }, 6000);
+    }, 6400);
 
     return () => {
       clearTimeout(fadeInMainline);
       clearTimeout(holdMainline);
       clearTimeout(fadeOutMainline);
-      clearTimeout(switchToPixelPlace);
+      clearTimeout(switchPhase);
       clearTimeout(holdPixelPlace);
       clearTimeout(fadeOutPixelPlace);
       clearTimeout(hide);
@@ -77,36 +64,109 @@ export default function SplashScreen({ onComplete }: SplashScreenProps) {
         alignItems: 'center',
         justifyContent: 'center',
         zIndex: 9999,
-        opacity,
-        transition: 'opacity 0.8s ease-in-out',
       }}
     >
-      {phase === 'mainline' ? (
-        <h1
+      <style>{`
+        @keyframes splashScaleIn {
+          0% { opacity: 0; transform: scale(0.3); }
+          70% { transform: scale(1.08); }
+          100% { opacity: 1; transform: scale(1); }
+        }
+        @keyframes splashPulse {
+          0%, 100% { transform: scale(1); }
+          50% { transform: scale(1.03); }
+        }
+        .splash-logo-mainline {
+          animation: splashScaleIn 1s ease-out forwards;
+        }
+        .splash-logo-pixelplace {
+          animation: splashScaleIn 1s ease-out forwards;
+        }
+        .splash-text {
+          animation: splashScaleIn 0.8s ease-out 0.2s forwards;
+          opacity: 0;
+        }
+        .splash-presents {
+          animation: splashScaleIn 0.6s ease-out 0.5s forwards;
+          opacity: 0;
+        }
+      `}</style>
+
+      {/* Mainline Studios phase */}
+      {phase === 'mainline' && (
+        <div
           style={{
-            fontSize: '48px',
-            fontWeight: 700,
-            color: '#ffffff',
-            margin: 0,
-            textShadow: '0 0 30px rgba(43, 108, 176, 0.8), 0 0 60px rgba(43, 108, 176, 0.5)',
-            letterSpacing: '4px',
+            position: 'absolute',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            opacity: mainlineOpacity,
+            transition: 'opacity 0.8s ease-in-out',
           }}
         >
-          MAINLINE STUDIOS
-        </h1>
-      ) : (
-        <>
-          <div style={{ marginBottom: '30px', position: 'relative', width: '120px', height: '120px', borderRadius: '20px', overflow: 'hidden' }}>
+          <div className="splash-logo-mainline" style={{ marginBottom: '24px', position: 'relative', width: 120, height: 120, borderRadius: '20px', overflow: 'hidden' }}>
             <Image
               src="/logo.png"
-              alt="Pixel Place Logo"
+              alt="Logo"
               width={120}
               height={120}
               style={{ objectFit: 'contain', borderRadius: '20px' }}
               priority
             />
           </div>
+          <h1
+            className="splash-text"
+            style={{
+              fontSize: '42px',
+              fontWeight: 700,
+              color: '#ffffff',
+              margin: 0,
+              textShadow: '0 0 30px rgba(43, 108, 176, 0.8), 0 0 60px rgba(43, 108, 176, 0.5)',
+              letterSpacing: '4px',
+            }}
+          >
+            MAINLINE STUDIOS
+          </h1>
+          <div
+            className="splash-presents"
+            style={{
+              fontSize: '18px',
+              color: 'rgba(255,255,255,0.85)',
+              marginTop: '12px',
+              letterSpacing: '3px',
+            }}
+          >
+            presents
+          </div>
+        </div>
+      )}
+
+      {/* Pixel Place phase */}
+      {phase === 'pixelplace' && (
+        <div
+          style={{
+            position: 'absolute',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            opacity: pixelPlaceOpacity,
+            transition: 'opacity 0.8s ease-in-out',
+          }}
+        >
+          <div className="splash-logo-pixelplace" style={{ marginBottom: '24px', position: 'relative', width: 140, height: 140, borderRadius: '20px', overflow: 'hidden' }}>
+            <Image
+              src="/logo.png"
+              alt="Pixel Place Logo"
+              width={140}
+              height={140}
+              style={{ objectFit: 'contain', borderRadius: '20px' }}
+              priority
+            />
+          </div>
           <h2
+            className="splash-text"
             style={{
               fontSize: '48px',
               fontWeight: 700,
@@ -118,7 +178,7 @@ export default function SplashScreen({ onComplete }: SplashScreenProps) {
           >
             PIXEL PLACE
           </h2>
-        </>
+        </div>
       )}
     </div>
   );
