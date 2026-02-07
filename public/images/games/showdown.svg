@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 180" width="320" height="180">
+  <defs>
+    <linearGradient id="arena" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#0a0e1a"/>
+      <stop offset="50%" style="stop-color:#0f1629"/>
+      <stop offset="100%" style="stop-color:#0a0e1a"/>
+    </linearGradient>
+    <radialGradient id="glow">
+      <stop offset="0%" style="stop-color:#00d4ff"/>
+      <stop offset="100%" style="stop-color:transparent"/>
+    </radialGradient>
+  </defs>
+  <rect width="320" height="180" fill="url(#arena)"/>
+  <rect x="4" y="4" width="312" height="172" fill="none" stroke="#00d4ff" stroke-width="2" opacity="0.6"/>
+  <circle cx="110" cy="90" r="28" fill="#00d4ff" opacity="0.3"/>
+  <circle cx="110" cy="90" r="20" fill="#00d4ff"/>
+  <circle cx="210" cy="90" r="28" fill="#f72585" opacity="0.3"/>
+  <circle cx="210" cy="90" r="20" fill="#ff4757"/>
+  <path d="M95 85 L105 70 L115 85 M205 85 L215 70 L225 85" fill="none" stroke="#fee440" stroke-width="2"/>
+  <circle cx="160" cy="140" r="6" fill="#ffd166"/>
+  <circle cx="200" cy="50" r="5" fill="#9b5de5"/>
+  <text x="160" y="168" text-anchor="middle" fill="#00d4ff" font-size="14" font-weight="bold" font-family="system-ui,sans-serif">Showdown</text>
+  <text x="160" y="178" text-anchor="middle" fill="#94a3b8" font-size="9" font-family="system-ui,sans-serif">Arena combat " Neon style</text>
+</svg>

@@ -5,13 +5,11 @@ import { User } from '@/types';
 import GymPumpEngine from '../Games/GymPumpEngine';
 import Hypnosia from '../Games/Hypnosia';
 import UnderwaterOddyseySeries from '../Games/UnderwaterOddyseySeries';
-import SuperShowdown2 from '../Games/SuperShowdown2';
-import SuperShowdown from '../Games/SuperShowdown';
+import Showdown from '../Games/Showdown';
 import RedRover from '../Games/RedRover';
 import JungleJourneySeries from '../Games/JungleJourneySeries';
 import Chess from '../Games/Chess';
 import FloorIsLava from '../Games/FloorIsLava';
-import SuperShowdownCombined from '../Games/InsaneShowdown';
 
 interface PlayTabProps {
   user: User;
@@ -53,20 +51,12 @@ const games: GameInfo[] = [
     component: UnderwaterOddyseySeries,
   },
   {
-    id: 'superShowdown2',
-    name: 'Super Showdown 2',
-    description: 'Epic arena battles with powerful abilities!',
+    id: 'showdown',
+    name: 'Showdown',
+    description: 'Neon arena combat — 8 powers, pixelcoins, pickups!',
     icon: '⚔️',
     category: 'Action',
-    component: SuperShowdown2,
-  },
-  {
-    id: 'superShowdown',
-    name: 'Super Showdown',
-    description: 'Original arena combat experience!',
-    icon: '🎯',
-    category: 'Action',
-    component: SuperShowdown,
+    component: Showdown,
   },
   {
     id: 'redRover',
@@ -99,14 +89,6 @@ const games: GameInfo[] = [
     icon: '🌋',
     category: 'Platformer',
     component: FloorIsLava,
-  },
-  {
-    id: 'insaneShowdown',
-    name: 'Insane Showdown',
-    description: 'Ultimate combined arena battle experience!',
-    icon: '🔥',
-    category: 'Action',
-    component: SuperShowdownCombined,
   },
 ];
 

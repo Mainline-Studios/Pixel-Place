@@ -7,13 +7,11 @@ import UserMadeGamePlayer from '../Games/UserMadeGamePlayer';
 import GymPumpEngine from '../Games/GymPumpEngine';
 import Hypnosia from '../Games/Hypnosia';
 import UnderwaterOddyseySeries from '../Games/UnderwaterOddyseySeries';
-import SuperShowdown2 from '../Games/SuperShowdown2';
-import SuperShowdown from '../Games/SuperShowdown';
+import Showdown from '../Games/Showdown';
 import RedRover from '../Games/RedRover';
 import JungleJourneySeries from '../Games/JungleJourneySeries';
 import Chess from '../Games/Chess';
 import FloorIsLava from '../Games/FloorIsLava';
-import SuperShowdownCombined from '../Games/InsaneShowdown';
 
 interface GamesTabProps {
   user: User;
@@ -62,22 +60,14 @@ const games: GameInfo[] = [
     component: UnderwaterOddyseySeries,
   },
   {
-    id: 'superShowdown2',
-    name: 'Super Showdown 2',
-    description: 'Epic arena battles with powerful abilities!',
+    id: 'showdown',
+    name: 'Showdown',
+    description: 'Neon arena combat — 8 powers, pixelcoins, pickups!',
     icon: '⚔️',
-    thumbnail: '/images/games/super-showdown-2.svg',
+    thumbnail: '/images/games/showdown.svg',
     category: 'Action',
-    component: SuperShowdown2,
-  },
-  {
-    id: 'superShowdown',
-    name: 'Super Showdown',
-    description: 'Original arena combat experience!',
-    icon: '🎯',
-    thumbnail: '/images/games/super-showdown.svg',
-    category: 'Action',
-    component: SuperShowdown,
+    is3D: false,
+    component: Showdown,
   },
   {
     id: 'redRover',
@@ -114,15 +104,6 @@ const games: GameInfo[] = [
     thumbnail: '/images/games/floor-is-lava.svg',
     category: 'Platformer',
     component: FloorIsLava,
-  },
-  {
-    id: 'insaneShowdown',
-    name: 'Insane Showdown',
-    description: 'Ultimate combined arena battle experience!',
-    icon: '🔥',
-    thumbnail: '/images/games/insane-showdown.svg',
-    category: 'Action',
-    component: SuperShowdownCombined,
   },
 ];
 
@@ -196,7 +177,7 @@ export default function GamesTab({ user, editMode }: GamesTabProps) {
       ? { user, onClose: handleClose }
       : selectedGame === 'hypnosia'
       ? { onClose: handleClose }
-      : ['superShowdown', 'superShowdown2', 'insaneShowdown'].includes(selectedGame)
+      : selectedGame === 'showdown'
       ? { user }
       : {};
     
