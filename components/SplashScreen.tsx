@@ -90,6 +90,14 @@ export default function SplashScreen({ onComplete }: SplashScreenProps) {
           animation: splashScaleIn 0.6s ease-out 0.5s forwards;
           opacity: 0;
         }
+        .splash-motto {
+          animation: splashScaleIn 0.6s ease-out 0.5s forwards;
+          opacity: 0;
+        }
+        .splash-features {
+          animation: splashScaleIn 0.5s ease-out 0.8s forwards;
+          opacity: 0;
+        }
       `}</style>
 
       {/* Mainline Studios phase */}
@@ -178,6 +186,28 @@ export default function SplashScreen({ onComplete }: SplashScreenProps) {
           >
             PIXEL PLACE
           </h2>
+          <div
+            className="splash-motto"
+            style={{
+              fontSize: '18px',
+              color: 'rgba(255,255,255,0.9)',
+              marginTop: '14px',
+              letterSpacing: '2px',
+            }}
+          >
+            Play. Create. Share.
+          </div>
+          <div
+            className="splash-features"
+            style={{
+              fontSize: '14px',
+              color: 'rgba(255,255,255,0.7)',
+              marginTop: '8px',
+              letterSpacing: '1px',
+            }}
+          >
+            Games • Avatars • Pixels
+          </div>
         </div>
       )}
     </div>
