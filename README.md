@@ -318,7 +318,7 @@ For issues, questions, or suggestions:
 - Open an issue on GitHub
 - Contact
    ```
-     bdawgsawesome@icloud.com
+     bdawgsaweaome@icloud.com
  for further help.
 
 ---
