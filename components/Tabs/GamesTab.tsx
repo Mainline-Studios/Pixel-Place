@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { User, UserMadeGame } from '@/types';
 import { getUserMadeGames, deleteUserMadeGame } from '@/lib/storage';
+import { subscribeToUserMadeGames } from '@/lib/firestoreClient';
 import UserMadeGamePlayer from '../Games/UserMadeGamePlayer';
 import GymPumpEngine from '../Games/GymPumpEngine';
 import Hypnosia from '../Games/Hypnosia';
@@ -124,15 +125,19 @@ export default function GamesTab({ user, editMode }: GamesTabProps) {
   fetch('http://127.0.0.1:7242/ingest/002741fb-cb98-444e-83cd-7086902151aa',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'GamesTab.tsx:122',message:'After useState userMadeGames',data:{userMadeGamesCount:userMadeGames.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
   // #endregion
 
+  // Real-time games from Firestore (instant updates when games are added/edited in Firebase Console)
   useEffect(() => {
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/002741fb-cb98-444e-83cd-7086902151aa',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'GamesTab.tsx:123',message:'useEffect called',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-    // #endregion
-    const loadGames = async () => {
-      const games = await getUserMadeGames();
-      setUserMadeGames(games);
-    };
-    loadGames();
+    const unsub = subscribeToUserMadeGames((games) => {
+      setUserMadeGames(games as UserMadeGame[]);
+    });
+    return () => unsub();
+  }, []);
+
+  // Fallback initial load from API (e.g. if Firestore client not ready)
+  useEffect(() => {
+    getUserMadeGames().then((games) => {
+      if (games.length > 0) setUserMadeGames((prev) => prev.length === 0 ? games : prev);
+    });
   }, []);
 
   const handleDeleteGame = async (gameId: string, gameTitle: string) => {

@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getDocuments, getFirestoreInstance } from '@/lib/firestore';
+import { getFirestoreInstance } from '@/lib/firestore';
+
+export const dynamic = 'force-dynamic';
 
 interface GameScore {
   id: string;

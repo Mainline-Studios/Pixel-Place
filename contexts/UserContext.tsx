@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { User, Ban } from '@/types';
 import { initializeStorage, getUsers, saveUsers, ADMIN_ACCOUNTS_LIST, isUserBanned, getBanForUser, getBannedUsersSync } from '@/lib/storage';
+import { subscribeToUser } from '@/lib/firestoreClient';
 import { containsEmoji } from '@/lib/utils';
 
 interface UserContextType {
@@ -126,6 +127,20 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       }
     }
   }, [user]);
+
+  // Real-time Firestore sync: when admin changes role/coins/etc in Firestore, user sees it instantly
+  useEffect(() => {
+    if (!user?.username) return;
+    const unsub = subscribeToUser(user.username, (firestoreUser) => {
+      if (firestoreUser) {
+        setUser((prev) => {
+          if (!prev) return firestoreUser;
+          return { ...firestoreUser, ownedSkins: firestoreUser.ownedSkins || prev.ownedSkins, ownedAccessories: firestoreUser.ownedAccessories || prev.ownedAccessories, equippedAccessories: firestoreUser.equippedAccessories || prev.equippedAccessories };
+        });
+      }
+    });
+    return () => unsub();
+  }, [user?.username]);
 
   // Sync safety points from backend (Firebase)
   useEffect(() => {
