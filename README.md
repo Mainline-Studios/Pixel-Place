@@ -74,7 +74,13 @@
    
    
    
-9. **The Series**
+9. **Showdown** ⚔️
+   
+   - Neon arena combat with 8 powers
+   - Collect pixelcoins, unlock powers, battle bots
+   - WASD move, mouse aim, click to shoot
+
+10. **The Series**
     
     
    - **Celestial Exploration**
@@ -84,10 +90,10 @@
      
    - **Mountain March**
      
-   - Climb the mounyain with friends to reach the top, don't fall
+   - Climb the mountain with friends to reach the top, don't fall
      
      
-   - **Underwater Oddysey**
+   - **Underwater Odyssey**
      
    - Find out about the wonders of the ocean, living in a submarine
      
@@ -97,7 +103,7 @@
    -Hike the jungle and avoid some weird things
      
      
-10. **Ghost in the Dark**
+11. **Ghost in the Dark**
     
     -Fun game where you find out who is NOT one of us
     
@@ -110,7 +116,7 @@
     
 12. **City Life**
     
-    -A roleplay to simulate adulthood and entrepeneurship to kids
+    -A roleplay to simulate adulthood and entrepreneurship to kids
 
     -A game to teach you about the world
     
@@ -139,7 +145,7 @@
 
 1. **Clone the repository**
    ```bash
-   git clone https://github.com/Mainline-Studios/Pixel-Place.git
+   git clone https://github.com/BDawgsAwesome1-MAINLINESTUDIOSOFFICIAL/Pixel-Place.git
    cd Pixel-Place
    ```
 
@@ -312,7 +318,7 @@ For issues, questions, or suggestions:
 - Open an issue on GitHub
 - Contact
    ```
-     bdawgsaweaome@icloud.com
+     bdawgsawesome@icloud.com
  for further help.
 
 ---
