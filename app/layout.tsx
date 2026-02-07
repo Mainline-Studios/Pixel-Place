@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import "./globals.css";
 import Script from "next/script";
 import { UserProvider } from "@/contexts/UserContext";
-import OldBrowserBlocker from "@/components/OldBrowserBlocker";
 
 export const metadata: Metadata = {
   title: "Pixel Place",
@@ -24,11 +23,9 @@ export default function RootLayout({
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
       </head>
       <body>
-        <OldBrowserBlocker>
-          <UserProvider>
-            {children}
-          </UserProvider>
-        </OldBrowserBlocker>
+        <UserProvider>
+          {children}
+        </UserProvider>
       </body>
     </html>
   );
