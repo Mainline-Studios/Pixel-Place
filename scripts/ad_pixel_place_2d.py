@@ -499,3 +499,4 @@ if __name__ == "__main__":
 # Logo: public/logo.png. Save .blend in project folder so the script finds it.
 # Run: Scripting -> Open ad_pixel_place_2d.py -> Run Script. Then Numpad 0, Space to play.
 # =============================================================================
+Now let me update the Pixel Place splash screen to match the Mainline Studios style with proper animations.

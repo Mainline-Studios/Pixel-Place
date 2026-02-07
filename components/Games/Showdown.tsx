@@ -148,7 +148,7 @@ export default function Showdown({ user }: ShowdownProps): JSX.Element {
   const keysRef = useRef<Record<string, boolean>>({});
   const screenShakeRef = useRef(0);
 
-  const [pixelcoins, setPixelcoins] = useState(() => loadJSON('showdown_pixelcoins', 3000));
+  const [pixelcoins, setPixelcoins] = useState(() => loadJSON('showdown_pixelcoins', 150));
   const [ownedPowers, setOwnedPowers] = useState<Record<Power, boolean>>(() => {
     const base = loadJSON<Record<string, boolean>>('showdown_ownedPowers', {});
     const out: Record<Power, boolean> = {} as Record<Power, boolean>;
