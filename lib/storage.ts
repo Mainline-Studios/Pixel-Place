@@ -712,11 +712,11 @@ export async function markMessageAsRead(messageId: string): Promise<void> {
 }
 
 
-// User-made games functions - Using API
+// User-made games functions - Using API (writes go to Firestore instantly)
 export async function getUserMadeGames(): Promise<UserMadeGame[]> {
   if (typeof window === 'undefined') return [];
   try {
-    const response = await fetch('/api/usermadegamefiles');
+    const response = await fetch('/api/games', { cache: 'no-store' });
     if (!response.ok) throw new Error('Failed to fetch user-made games');
     return await response.json();
   } catch (e) {
@@ -728,7 +728,7 @@ export async function getUserMadeGames(): Promise<UserMadeGame[]> {
 export async function saveUserMadeGame(game: UserMadeGame): Promise<void> {
   if (typeof window === 'undefined') return;
   try {
-    await fetch('/api/usermadegamefiles', {
+    await fetch('/api/games', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(game)
@@ -741,7 +741,7 @@ export async function saveUserMadeGame(game: UserMadeGame): Promise<void> {
 export async function deleteUserMadeGame(gameId: string): Promise<void> {
   if (typeof window === 'undefined') return;
   try {
-    await fetch(`/api/usermadegamefiles?id=${encodeURIComponent(gameId)}`, {
+    await fetch(`/api/games?id=${encodeURIComponent(gameId)}`, {
       method: 'DELETE'
     });
   } catch (e) {
