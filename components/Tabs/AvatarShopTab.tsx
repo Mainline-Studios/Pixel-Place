@@ -70,7 +70,7 @@ function RarityBadge({ rarity }: { rarity: string }) {
   );
 }
 
-const MIN_SKIN_PRICE = 100;
+const MIN_SKIN_PRICE = 10;
 const DEFAULT_SKIN_COLORS = {
   head: '#f4c2a1',
   torso: '#4d536f',
@@ -645,11 +645,46 @@ export default function AvatarShopTab({ user, editMode }: AvatarShopTabProps) {
     const availableSkins = regularSkins.filter(s => !user.ownedSkins?.includes(s.id));
     const availableFaces = faces.filter(f => !user.ownedFaces?.includes(f.id));
     const premiumSkins = availableSkins.filter(s => s.isSpecial && s.safetyPointsPrice && s.use3d !== false);
-    const regularAvailableSkins = availableSkins.filter(s => !s.isSpecial);
+    const starterSkins = availableSkins.filter(s => !s.isSpecial && s.price === 10);
+    const regularAvailableSkins = availableSkins.filter(s => !s.isSpecial && s.price !== 10);
     const availableAccessories = accessories.filter(a => !user.ownedAccessories?.includes(a.id));
 
     return (
       <div>
+        {/* Starter Skins - 10 Pixel-Coins - Perfect for new players! */}
+        {starterSkins.length > 0 && (
+          <div className="ai-box" style={{ marginBottom: '24px', border: '2px solid rgba(0, 170, 255, 0.4)', boxShadow: '0 0 24px rgba(0, 170, 255, 0.15)' }}>
+            <div className="skins-section-title" style={{ color: '#00aaff' }}>🌟 Starter Skins — 10 Pixel-Coins Each</div>
+            <div className="smalltext" style={{ marginBottom: '12px' }}>
+              Start with 10 Pixel-Coins! Personalize your avatar right away. All skins use 3D models.
+            </div>
+            <div className="skins-grid">
+              {starterSkins.map((s) => {
+                const affordable = (user.coins || 0) >= 10;
+                return (
+                  <div key={s.id} className="skin-card" style={{ border: '2px solid rgba(0, 170, 255, 0.3)' }}>
+                    <SkinThumb skin={s} previewMode="3d" width={100} height={100} />
+                    <div className="skin-name">{escapeHTML(s.name)}</div>
+                    <div className="skin-meta">
+                      <span className="price-tag" style={{ color: '#00aaff' }}>💠 10 Pixel-Coins</span>
+                    </div>
+                    <div className="skin-actions">
+                      <button
+                        className="btn"
+                        disabled={!affordable}
+                        onClick={() => handlePurchase(s)}
+                        style={affordable ? { background: 'linear-gradient(135deg, #00aaff, #0088cc)' } : {}}
+                      >
+                        {affordable ? 'Buy for 10 💠' : 'Need 10 Coins'}
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
         {/* Safety Points Skins Section */}
         {premiumSkins.length > 0 && (
           <div className="ai-box" style={{ marginBottom: '24px' }}>

@@ -72,7 +72,7 @@ export async function POST(request: NextRequest) {
         password: '', // Will be hashed
         gender: gender || '',
         role: role || 'user',
-        coins: coins !== undefined ? coins : (role === 'admin' ? 99999 : 0),
+        coins: coins !== undefined ? coins : (role === 'admin' ? 99999 : 10),
         ownedSkins: ['starter_classic'],
         equippedSkin: 'starter_classic',
         ownedAccessories: [],

@@ -91,7 +91,7 @@ export async function POST(request: NextRequest) {
         password: '', // No password for Google users
         gender: '',
         role: 'user',
-        coins: 0,
+        coins: 10,
         ownedSkins: ['starter_classic'],
         equippedSkin: 'starter_classic',
         ownedAccessories: [],
@@ -112,7 +112,7 @@ export async function POST(request: NextRequest) {
         password_hash: '', // No password for Google users
         gender: '',
         role: 'user',
-        coins: 0,
+        coins: 10,
         owned_skins: ['starter_classic'],
         equipped_skin: 'starter_classic',
         owned_accessories: [],

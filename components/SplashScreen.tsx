@@ -58,7 +58,7 @@ export default function SplashScreen({ onComplete }: SplashScreenProps) {
         left: 0,
         right: 0,
         bottom: 0,
-        background: 'radial-gradient(circle at 50% 50%, #0f1117 0%, #000000 100%)',
+        background: 'radial-gradient(circle at 50% 50%, #1a1d29 0%, #0f1117 100%)',
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
@@ -206,7 +206,7 @@ export default function SplashScreen({ onComplete }: SplashScreenProps) {
               letterSpacing: '1px',
             }}
           >
-            Games • Avatars • Pixels
+            Games • Avatars • 10 Pixel-Coins to start
           </div>
         </div>
       )}
