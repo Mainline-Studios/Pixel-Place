@@ -885,7 +885,7 @@ export default function SuperShowdown2D(): JSX.Element {
     setPlayers((prev) => prev.map((p) => (p.id === me.id ? { ...p, lastShot: now } : p)));
   }
 
-  function usePower(power?: Power) {
+  function triggerPower(power?: Power) {
     const me = localPlayer();
     if (!me || me.hp <= 0) return;
     const pw = power || me.power;
@@ -1126,7 +1126,7 @@ export default function SuperShowdown2D(): JSX.Element {
                   <button onClick={() => playerShoot()} style={{ padding: "8px 10px", marginRight: 6 }}>
                     Shoot
                   </button>
-                  <button onClick={() => usePower()} style={{ padding: "8px 10px" }}>
+                  <button onClick={() => triggerPower()} style={{ padding: "8px 10px" }}>
                     Use Power ({local.power}) — ammo: {ammoRef.current[local.power] ?? 0}
                   </button>
                 </div>
