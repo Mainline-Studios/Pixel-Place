@@ -1,0 +1,5 @@
+# Standalone HTML/markdown files mistakenly with .tsx extension
+components/Games/CityLife.tsx
+components/Games/HideAndSeek.tsx
+components/Games/MusicalMayhem.tsx
+components/Games/GhostInTheDarkThumbnail.tsx

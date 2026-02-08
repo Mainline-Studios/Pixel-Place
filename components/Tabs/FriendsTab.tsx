@@ -779,7 +779,7 @@ export default function FriendsTab({ user, editMode }: FriendsTabProps) {
                 })}
                 {filteredUsers.length === 0 && searchQuery && (
                   <div style={{ color: 'var(--text-dim)', textAlign: 'center', padding: '20px' }}>
-                    No users found matching "{searchQuery}"
+                    No users found matching &quot;{searchQuery}&quot;
                   </div>
                 )}
                 {filteredUsers.length === 0 && !searchQuery && allUsers.length === 0 && (

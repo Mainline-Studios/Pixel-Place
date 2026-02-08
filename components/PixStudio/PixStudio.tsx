@@ -1201,7 +1201,7 @@ function createGame(container) {
                             </div>
                           )}
                           <div style={{ color: '#888', fontSize: '10px', marginTop: '8px', fontStyle: 'italic' }}>
-                            💡 Tip: Ask for specific features like "add physics" or "create a camera system"
+                            💡 Tip: Ask for specific features like &quot;add physics&quot; or &quot;create a camera system&quot;
                           </div>
                         </div>
                       )}

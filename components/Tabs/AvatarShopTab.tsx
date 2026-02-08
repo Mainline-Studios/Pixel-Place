@@ -508,7 +508,7 @@ export default function AvatarShopTab({ user, editMode }: AvatarShopTabProps) {
           <div className="ai-box" style={{ marginBottom: '24px' }}>
             <div className="skins-section-title">Your Skins</div>
             <div className="smalltext" style={{ marginBottom: '8px' }}>
-              Equip a skin to change your avatar's appearance
+              Equip a skin to change your avatar&apos;s appearance
             </div>
             <div className="skins-grid">
               {ownedSkins.map((s) => {
@@ -547,11 +547,11 @@ export default function AvatarShopTab({ user, editMode }: AvatarShopTabProps) {
           <div className="ai-box" style={{ marginBottom: '24px' }}>
             <div className="skins-section-title">Your Faces</div>
             <div className="smalltext" style={{ marginBottom: '8px' }}>
-              Equip a face to change your avatar's head appearance
+              Equip a face to change your avatar&apos;s head appearance
             </div>
             {ownedFaces.length === 0 ? (
               <div style={{ textAlign: 'center', padding: '40px', color: '#888' }}>
-                You don't own any faces yet. Visit the Grocery Store to buy some!
+                You don&apos;t own any faces yet. Visit the Grocery Store to buy some!
               </div>
             ) : (
               <div className="skins-grid">
@@ -598,7 +598,7 @@ export default function AvatarShopTab({ user, editMode }: AvatarShopTabProps) {
             </div>
             {ownedAccessories.length === 0 ? (
               <div style={{ textAlign: 'center', padding: '40px', color: '#888' }}>
-                You don't own any accessories yet. Visit the Grocery Store to buy some!
+                You don&apos;t own any accessories yet. Visit the Grocery Store to buy some!
               </div>
             ) : (
               <div className="skins-grid">
