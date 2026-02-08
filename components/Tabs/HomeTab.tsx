@@ -75,6 +75,19 @@ export default function HomeTab({ user, editMode, onResetPublished }: HomeTabPro
       width: '100%',
       minHeight: '100%'
     }}>
+      {/* Welcome / Tagline */}
+      <div style={{
+        marginBottom: '32px',
+        padding: '20px 24px',
+        background: 'linear-gradient(135deg, rgba(0, 170, 255, 0.08) 0%, rgba(0, 170, 255, 0.04) 100%)',
+        borderRadius: '12px',
+        border: '1px solid rgba(0, 170, 255, 0.2)'
+      }}>
+        <p style={{ margin: 0, color: 'var(--text-main)', fontSize: '15px', lineHeight: 1.6 }}>
+          <strong>Pixel Place</strong> is a delightful and welcoming online game for kids and teens. Dive into games crafted by others, then unleash your creativity to design your own games for everyone to enjoy. You start with <strong>10 Pixel-Coins</strong> to personalize your avatar — head to the Avatar Shop to pick a style! We add new games regularly, and safety is our priority: the game is fully moderated.
+        </p>
+      </div>
+
       {/* Large Home Title - Roblox Style */}
       <h1 style={{
         fontSize: '36px',

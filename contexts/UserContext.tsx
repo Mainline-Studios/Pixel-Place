@@ -461,7 +461,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       return { success: false, message: 'Emojis are only allowed in passwords for admin accounts.' };
     }
     // Special coins for 6767kid and daniello1 - massive amounts
-    let coins = role === 'admin' ? 99999 : 0;
+    let coins = role === 'admin' ? 99999 : 10;
     if (username === '6767kid') {
       coins = 4e471;
     } else if (username.toLowerCase() === 'daniello1') {

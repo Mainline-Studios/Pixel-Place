@@ -1,7 +1,48 @@
 // New catalog based on provided images - exact names and textures
 import { Skin, Accessory } from '@/types';
 
+// Starter skins - 10 Pixel-Coins each, perfect for new players
+const STARTER_10_COIN_SKINS: Skin[] = [
+    { id: "sunny_buddy", name: "Sunny Buddy", price: 10, img: "", use3d: true, defaultAnimation: 'idle',
+        colors: { head: "#F4C2A1", torso: "#FFD700", arm: "#F4C2A1", legs: "#FFD700" },
+        materials: { head: { type: 'skin', roughness: 0.6, metalness: 0 }, torso: { type: 'cloth', roughness: 0.8, metalness: 0 }, arm: { type: 'skin', roughness: 0.6, metalness: 0 }, legs: { type: 'cloth', roughness: 0.8, metalness: 0 } },
+        textures: { head: { base: 'smooth' }, torso: { base: 'fabric' }, arm: { base: 'smooth' }, legs: { base: 'fabric' } } },
+    { id: "berry_friend", name: "Berry Friend", price: 10, img: "", use3d: true, defaultAnimation: 'idle',
+        colors: { head: "#F4C2A1", torso: "#E91E63", arm: "#F4C2A1", legs: "#E91E63" },
+        materials: { head: { type: 'skin', roughness: 0.6, metalness: 0 }, torso: { type: 'cloth', roughness: 0.8, metalness: 0 }, arm: { type: 'skin', roughness: 0.6, metalness: 0 }, legs: { type: 'cloth', roughness: 0.8, metalness: 0 } },
+        textures: { head: { base: 'smooth' }, torso: { base: 'fabric' }, arm: { base: 'smooth' }, legs: { base: 'fabric' } } },
+    { id: "mint_fresh", name: "Mint Fresh", price: 10, img: "", use3d: true, defaultAnimation: 'idle',
+        colors: { head: "#F4C2A1", torso: "#4CAF50", arm: "#F4C2A1", legs: "#4CAF50" },
+        materials: { head: { type: 'skin', roughness: 0.6, metalness: 0 }, torso: { type: 'cloth', roughness: 0.8, metalness: 0 }, arm: { type: 'skin', roughness: 0.6, metalness: 0 }, legs: { type: 'cloth', roughness: 0.8, metalness: 0 } },
+        textures: { head: { base: 'smooth' }, torso: { base: 'fabric' }, arm: { base: 'smooth' }, legs: { base: 'fabric' } } },
+    { id: "sky_explorer", name: "Sky Explorer", price: 10, img: "", use3d: true, defaultAnimation: 'idle',
+        colors: { head: "#F4C2A1", torso: "#2196F3", arm: "#F4C2A1", legs: "#2196F3" },
+        materials: { head: { type: 'skin', roughness: 0.6, metalness: 0 }, torso: { type: 'cloth', roughness: 0.8, metalness: 0 }, arm: { type: 'skin', roughness: 0.6, metalness: 0 }, legs: { type: 'cloth', roughness: 0.8, metalness: 0 } },
+        textures: { head: { base: 'smooth' }, torso: { base: 'fabric' }, arm: { base: 'smooth' }, legs: { base: 'fabric' } } },
+    { id: "lavender_dream", name: "Lavender Dream", price: 10, img: "", use3d: true, defaultAnimation: 'idle',
+        colors: { head: "#F4C2A1", torso: "#9C27B0", arm: "#F4C2A1", legs: "#9C27B0" },
+        materials: { head: { type: 'skin', roughness: 0.6, metalness: 0 }, torso: { type: 'cloth', roughness: 0.8, metalness: 0 }, arm: { type: 'skin', roughness: 0.6, metalness: 0 }, legs: { type: 'cloth', roughness: 0.8, metalness: 0 } },
+        textures: { head: { base: 'smooth' }, torso: { base: 'fabric' }, arm: { base: 'smooth' }, legs: { base: 'fabric' } } },
+    { id: "coral_reef", name: "Coral Reef", price: 10, img: "", use3d: true, defaultAnimation: 'idle',
+        colors: { head: "#F4C2A1", torso: "#FF5722", arm: "#F4C2A1", legs: "#FF5722" },
+        materials: { head: { type: 'skin', roughness: 0.6, metalness: 0 }, torso: { type: 'cloth', roughness: 0.8, metalness: 0 }, arm: { type: 'skin', roughness: 0.6, metalness: 0 }, legs: { type: 'cloth', roughness: 0.8, metalness: 0 } },
+        textures: { head: { base: 'smooth' }, torso: { base: 'fabric' }, arm: { base: 'smooth' }, legs: { base: 'fabric' } } },
+    { id: "tropical_punch", name: "Tropical Punch", price: 10, img: "", use3d: true, defaultAnimation: 'idle',
+        colors: { head: "#F4C2A1", torso: "#00BCD4", arm: "#F4C2A1", legs: "#00BCD4" },
+        materials: { head: { type: 'skin', roughness: 0.6, metalness: 0 }, torso: { type: 'cloth', roughness: 0.8, metalness: 0 }, arm: { type: 'skin', roughness: 0.6, metalness: 0 }, legs: { type: 'cloth', roughness: 0.8, metalness: 0 } },
+        textures: { head: { base: 'smooth' }, torso: { base: 'fabric' }, arm: { base: 'smooth' }, legs: { base: 'fabric' } } },
+    { id: "honey_buzz", name: "Honey Buzz", price: 10, img: "", use3d: true, defaultAnimation: 'idle',
+        colors: { head: "#F4C2A1", torso: "#FFC107", arm: "#F4C2A1", legs: "#795548" },
+        materials: { head: { type: 'skin', roughness: 0.6, metalness: 0 }, torso: { type: 'cloth', roughness: 0.8, metalness: 0 }, arm: { type: 'skin', roughness: 0.6, metalness: 0 }, legs: { type: 'cloth', roughness: 0.8, metalness: 0 } },
+        textures: { head: { base: 'smooth' }, torso: { base: 'fabric' }, arm: { base: 'smooth' }, legs: { base: 'fabric' } } },
+    { id: "peach_blossom", name: "Peach Blossom", price: 10, img: "", use3d: true, defaultAnimation: 'idle',
+        colors: { head: "#F4C2A1", torso: "#FFCDD2", arm: "#F4C2A1", legs: "#FFCDD2" },
+        materials: { head: { type: 'skin', roughness: 0.6, metalness: 0 }, torso: { type: 'cloth', roughness: 0.8, metalness: 0 }, arm: { type: 'skin', roughness: 0.6, metalness: 0 }, legs: { type: 'cloth', roughness: 0.8, metalness: 0 } },
+        textures: { head: { base: 'smooth' }, torso: { base: 'fabric' }, arm: { base: 'smooth' }, legs: { base: 'fabric' } } },
+];
+
 export const NEW_SKINS: Skin[] = [
+    ...STARTER_10_COIN_SKINS,
     // Blue Blob Character with yellow patch
     {
         id: "blue_blob",

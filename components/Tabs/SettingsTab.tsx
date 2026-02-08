@@ -5,6 +5,8 @@ import { User, Skin, TabContent } from '@/types';
 import { getSkins, getTabContent } from '@/lib/storage';
 import { escapeHTML } from '@/lib/utils';
 import { useUser } from '@/contexts/UserContext';
+import { useStyle } from '@/components/StyleProvider';
+import { STYLE_OPTIONS } from '@/lib/styleTheme';
 import AdminPanelTab from './AdminPanelTab';
 
 interface SettingsTabProps {
@@ -15,6 +17,7 @@ interface SettingsTabProps {
 }
 
 export default function SettingsTab({ user, editMode, onToggleEditMode, onResetPublished }: SettingsTabProps) {
+  const { style, setStyle } = useStyle();
   const coins = typeof user.coins === 'number' ? user.coins : 0;
   const [skins, setSkins] = useState<Skin[]>([]);
   const [tabContent, setTabContent] = useState<TabContent>({} as TabContent);
@@ -74,6 +77,28 @@ export default function SettingsTab({ user, editMode, onToggleEditMode, onResetP
           </div>
         </div>
       )}
+      <div className="ai-box">
+        <div className="ai-label">Style</div>
+        <div className="ai-output" style={{ marginBottom: '12px' }}>
+          Pick a visual style for Pixel Place.
+        </div>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+          {STYLE_OPTIONS.map((opt) => (
+            <button
+              key={opt.id}
+              className="btn"
+              onClick={() => setStyle(opt.id)}
+              style={{
+                background: style === opt.id ? 'var(--accent-bg-hover)' : 'var(--accent-bg)',
+                borderColor: style === opt.id ? 'var(--accent)' : 'var(--border)',
+              }}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
       <div className="ai-box">
         <div className="ai-label">Settings Info</div>
         <div className="ai-output">{tabContent.settings || ''}</div>

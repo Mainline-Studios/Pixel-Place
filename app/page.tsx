@@ -153,10 +153,12 @@ function AppContent() {
         </div>
       )}
       
-      {/* Ensure background is always visible */}
+      {/* Ensure background is visible - avoid pure black */}
       <style jsx global>{`
         html, body {
-          background: #0f1117 !important;
+          background: #1a1d29 !important;
+          background-image: radial-gradient(circle at 20% 20%, #2a2e3d 0%, #1a1d29 60%) !important;
+          color: #f2f2f5 !important;
           min-height: 100vh;
         }
       `}</style>
