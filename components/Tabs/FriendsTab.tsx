@@ -97,7 +97,7 @@ export default function FriendsTab({ user, editMode }: FriendsTabProps) {
         // Mark messages as read
         msgs.forEach((msg: Message) => {
           if (msg.to.toLowerCase() === user.username.toLowerCase() && !msg.read) {
-            fetch('/api/messages', {
+            fetch(apiUrl('/api/messages'), {
               method: 'PUT',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ id: msg.id, read: true })
@@ -191,7 +191,7 @@ export default function FriendsTab({ user, editMode }: FriendsTabProps) {
         await loadFriendsData();
         await loadAllUsers(); // Refresh user list too
         // Update user context
-        const updatedFriendsData = await fetch(apiUrl(`/api/friends?username=${encodeURIComponent(user.username)}`, {
+        const updatedFriendsData = await fetch(apiUrl(`/api/friends?username=${encodeURIComponent(user.username)}`), {
           cache: 'no-store'
         }).then(r => r.json());
         updateUser({ friends: updatedFriendsData.friends.map((f: User) => f.username) });
@@ -242,7 +242,7 @@ export default function FriendsTab({ user, editMode }: FriendsTabProps) {
           setMessages([]);
         }
         // Update user context
-        const updatedFriendsData = await fetch(apiUrl(`/api/friends?username=${encodeURIComponent(user.username)}`, {
+        const updatedFriendsData = await fetch(apiUrl(`/api/friends?username=${encodeURIComponent(user.username)}`), {
           cache: 'no-store'
         }).then(r => r.json());
         updateUser({ friends: updatedFriendsData.friends.map((f: User) => f.username) });
@@ -257,7 +257,7 @@ export default function FriendsTab({ user, editMode }: FriendsTabProps) {
     if (!selectedFriend || !newMessage.trim()) return;
 
     try {
-      const response = await fetch('/api/messages', {
+      const response = await fetch(apiUrl('/api/messages'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -280,7 +280,7 @@ export default function FriendsTab({ user, editMode }: FriendsTabProps) {
   const handleJoinFriend = async (friendUsername: string) => {
     try {
       // Get friend's current game session
-      const presenceResponse = await fetch(apiUrl(`/api/presence?username=${encodeURIComponent(friendUsername)}`);
+      const presenceResponse = await fetch(apiUrl(`/api/presence?username=${encodeURIComponent(friendUsername)}`));
       if (presenceResponse.ok) {
         const presence = await presenceResponse.json();
         if (presence.isOnline && presence.currentSessionId) {

@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { User, DraftGame } from '@/types';
 import { getDraft, saveDraft } from '@/lib/storage';
+import { apiUrl } from '@/lib/apiBaseUrl';
 
 interface AIGameGeneratorProps {
   user: User;
@@ -47,7 +48,7 @@ export default function AIGameGenerator({ user, onCodeGenerated, onSwitchToCodeE
     setGeneratedCode(null);
 
     try {
-      const response = await fetch('/api/generate-game', {
+      const response = await fetch(apiUrl('/api/generate-game'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

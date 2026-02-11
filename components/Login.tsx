@@ -183,7 +183,7 @@ export default function Login() {
       const idToken = await result.user.getIdToken();
       
       // Call backend to create/update user
-      const response = await fetch('/api/auth/google', {
+      const response = await fetch(apiUrl('/api/auth/google'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ idToken })

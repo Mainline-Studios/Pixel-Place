@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { User, PublishedGame, SceneData, SceneObject } from '@/types';
 import { getPublished, savePublished, getSceneData, saveSceneData } from '@/lib/storage';
+import { apiUrl } from '@/lib/apiBaseUrl';
 
 interface PixStudioProps {
   user: User;
@@ -372,7 +373,7 @@ function createGame(container) {
     setAiResponse('');
 
     try {
-      const response = await fetch('/api/generate-game', {
+      const response = await fetch(apiUrl('/api/generate-game'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { User, CoinPack } from '@/types';
 import { getTabContent } from '@/lib/storage';
+import { apiUrl } from '@/lib/apiBaseUrl';
 import { useUser } from '@/contexts/UserContext';
 import { loadStripe } from '@stripe/stripe-js';
 import HolidayBundle from '@/components/HolidayBundle';
@@ -88,7 +89,7 @@ export default function CoinsTab({ user, editMode }: CoinsTabProps) {
 
       try {
         // Add coins directly without payment
-        const response = await fetch('/api/add-coins', {
+        const response = await fetch(apiUrl('/api/add-coins'), {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -128,7 +129,7 @@ export default function CoinsTab({ user, editMode }: CoinsTabProps) {
 
       try {
         // Create checkout session for $5
-        const response = await fetch('/api/checkout', {
+        const response = await fetch(apiUrl('/api/checkout'), {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -176,7 +177,7 @@ export default function CoinsTab({ user, editMode }: CoinsTabProps) {
 
     try {
       // Create checkout session
-      const response = await fetch('/api/checkout', {
+      const response = await fetch(apiUrl('/api/checkout'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

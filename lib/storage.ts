@@ -286,7 +286,7 @@ export async function saveSceneData(data: SceneData, userId?: string): Promise<v
 export async function getPrebuiltGames(): Promise<PrebuiltGame[]> {
   if (typeof window === 'undefined') return [];
   try {
-    const response = await fetch(apiUrl('/api/prebuilt');
+    const response = await fetch(apiUrl('/api/prebuilt'));
     if (!response.ok) throw new Error('Failed to fetch prebuilt games');
     const apiGames = await response.json();
 
@@ -302,7 +302,7 @@ export async function getPrebuiltGames(): Promise<PrebuiltGame[]> {
             body: JSON.stringify(localGames)
           }).catch(() => { });
           localStorage.removeItem("prebuiltGames");
-          const updatedResponse = await fetch(apiUrl('/api/prebuilt');
+          const updatedResponse = await fetch(apiUrl('/api/prebuilt'));
           if (updatedResponse.ok) return await updatedResponse.json();
         }
       }
@@ -340,7 +340,7 @@ export async function savePrebuiltGames(games: PrebuiltGame[]): Promise<void> {
 export async function getBannedUsers(): Promise<Ban[]> {
   if (typeof window === 'undefined') return [];
   try {
-    const response = await fetch(apiUrl('/api/bans');
+    const response = await fetch(apiUrl('/api/bans'));
     if (!response.ok) throw new Error('Failed to fetch bans');
     const bans = await response.json();
     // Filter out expired bans
@@ -481,7 +481,7 @@ export async function unbanUser(username: string): Promise<void> {
 export async function getReports(): Promise<Report[]> {
   if (typeof window === 'undefined') return [];
   try {
-    const response = await fetch(apiUrl('/api/reports');
+    const response = await fetch(apiUrl('/api/reports'));
     if (!response.ok) throw new Error('Failed to fetch reports');
     return await response.json();
   } catch (e) {
@@ -544,7 +544,7 @@ export async function updateReportStatus(reportId: string, status: Report['statu
 export async function getBanAppeals(): Promise<BanAppeal[]> {
   if (typeof window === 'undefined') return [];
   try {
-    const response = await fetch(apiUrl('/api/appeals');
+    const response = await fetch(apiUrl('/api/appeals'));
     if (!response.ok) throw new Error('Failed to fetch appeals');
     return await response.json();
   } catch (e) {
@@ -754,7 +754,7 @@ export async function deleteUserMadeGame(gameId: string): Promise<void> {
 export async function getGameSubmissions(): Promise<GameSubmission[]> {
   if (typeof window === 'undefined') return [];
   try {
-    const response = await fetch(apiUrl('/api/gamesubmissions');
+    const response = await fetch(apiUrl('/api/gamesubmissions'));
     if (!response.ok) throw new Error('Failed to fetch game submissions');
     return await response.json();
   } catch (e) {
