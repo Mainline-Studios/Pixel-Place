@@ -89,12 +89,7 @@ export default function CoinsTab({ user, editMode }: CoinsTabProps) {
 
       try {
         // Add coins directly without payment
-<<<<<<< HEAD
-        const response = await fetch(apiUrl('/api/add-coins'), {
-=======
-        const response = await fetch('/api/add-coins', {
->>>>>>> 2a2d123e02e38c15847705d20e0fdd4b963e9328
-          method: 'POST',
+        const response = await fetch(apiUrl('/api/add-coins'), {          method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
@@ -133,12 +128,7 @@ export default function CoinsTab({ user, editMode }: CoinsTabProps) {
 
       try {
         // Create checkout session for $5
-<<<<<<< HEAD
-        const response = await fetch(apiUrl('/api/checkout'), {
-=======
-        const response = await fetch('/api/checkout', {
->>>>>>> 2a2d123e02e38c15847705d20e0fdd4b963e9328
-          method: 'POST',
+        const response = await fetch(apiUrl('/api/checkout'), {          method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
@@ -170,12 +160,7 @@ export default function CoinsTab({ user, editMode }: CoinsTabProps) {
         }
       } catch (error: any) {
         console.error('Checkout error:', error);
-<<<<<<< HEAD
-        // Silent error - no alert
-=======
-        alert(`Payment Error: ${error.message || 'Failed to process payment. Please check the browser console for details.'}`);
->>>>>>> 2a2d123e02e38c15847705d20e0fdd4b963e9328
-        setLoading(null);
+        // Silent error - no alert        setLoading(null);
       }
       return;
     }
@@ -222,12 +207,7 @@ export default function CoinsTab({ user, editMode }: CoinsTabProps) {
       }
     } catch (error: any) {
       console.error('Checkout error:', error);
-<<<<<<< HEAD
-      // Silent error - no alert
-=======
-      alert(`Payment Error: ${error.message || 'Failed to process payment. Please check the browser console for details.'}`);
->>>>>>> 2a2d123e02e38c15847705d20e0fdd4b963e9328
-      setLoading(null);
+      // Silent error - no alert      setLoading(null);
     }
   };
 

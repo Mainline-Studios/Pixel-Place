@@ -90,9 +90,6 @@ export async function GET(request: NextRequest) {
 // POST - Send friend request, accept, or decline
 export async function POST(request: NextRequest) {
   try {
-=======
-    const db = getDb();
->>>>>>> 2a2d123e02e38c15847705d20e0fdd4b963e9328
     const body = await request.json();
     const { action, fromUsername, toUsername } = body;
 
@@ -104,7 +101,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Cannot send friend request to yourself' }, { status: 400 });
     }
 
-<<<<<<< HEAD
     const fromUserDoc = await getDocument(COLLECTIONS.USERS, fromUsername.toLowerCase());
     const toUserDoc = await getDocument(COLLECTIONS.USERS, toUsername.toLowerCase());
 

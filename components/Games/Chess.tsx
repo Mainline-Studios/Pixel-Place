@@ -940,12 +940,7 @@ export default function Chess(): JSX.Element {
           <ul style={{ margin: "6px 0 0 18px" }}>
             <li>Click a piece of the side to move to see legal moves highlighted (moves that would leave your king in check are excluded).</li>
             <li>Click a highlighted square to move. Captures, en-passant, castling, promotions are supported.</li>
-<<<<<<< HEAD
-            <li>On pawn promotion you&apos;ll be prompted to choose a piece.</li>
-=======
-            <li>On pawn promotion you'll be prompted to choose a piece.</li>
->>>>>>> 2a2d123e02e38c15847705d20e0fdd4b963e9328
-            <li>Multiplayer uses WebSocket — host creates a room and plays white; joiner plays black. Consider running an authoritative server for production.</li>
+            <li>On pawn promotion you&apos;ll be prompted to choose a piece.</li>            <li>Multiplayer uses WebSocket — host creates a room and plays white; joiner plays black. Consider running an authoritative server for production.</li>
           </ul>
         </div>
       </div>

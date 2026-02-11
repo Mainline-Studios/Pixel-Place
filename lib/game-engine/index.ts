@@ -15,7 +15,6 @@ export { Part } from './entities/Part';
 // Camera
 export { Camera } from './camera/Camera';
 
-<<<<<<< HEAD
 =======
 // Input
 export { Input } from './input/Input';
@@ -44,12 +43,6 @@ import { Entity } from './entities/Entity';
 import { Part } from './entities/Part';
 import { Camera } from './camera/Camera';
 <<<<<<< HEAD
-=======
-import { Input } from './input/Input';
-import { Physics } from './physics/Physics';
-import { AssetLoader } from './assets/AssetLoader';
->>>>>>> 2a2d123e02e38c15847705d20e0fdd4b963e9328
-
 // Create a namespace-like object for easy access
 export const PixelEngine = {
   Engine,
@@ -57,15 +50,7 @@ export const PixelEngine = {
   Renderer,
   Entity,
   Part,
-<<<<<<< HEAD
-  Camera
-=======
-  Camera,
-  Input,
-  Physics,
-  AssetLoader
->>>>>>> 2a2d123e02e38c15847705d20e0fdd4b963e9328
-};
+  Camera};
 
 // Default export
 export default PixelEngine;

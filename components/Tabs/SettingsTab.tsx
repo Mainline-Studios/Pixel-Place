@@ -5,37 +5,8 @@ import { User, Skin, TabContent } from '@/types';
 import { getSkins, getTabContent } from '@/lib/storage';
 import { escapeHTML } from '@/lib/utils';
 import { useUser } from '@/contexts/UserContext';
-<<<<<<< HEAD
 import { useStyle } from '@/components/StyleProvider';
-import { STYLE_OPTIONS } from '@/lib/styleTheme';
-=======
->>>>>>> 2a2d123e02e38c15847705d20e0fdd4b963e9328
-import AdminPanelTab from './AdminPanelTab';
-
-interface SettingsTabProps {
-  user: User;
-  editMode: boolean;
-  onToggleEditMode: () => void;
-  onResetPublished?: () => void;
-}
-
-export default function SettingsTab({ user, editMode, onToggleEditMode, onResetPublished }: SettingsTabProps) {
-  const { style, setStyle } = useStyle();
-  const coins = typeof user.coins === 'number' ? user.coins : 0;
-  const [skins, setSkins] = useState<Skin[]>([]);
-  const [tabContent, setTabContent] = useState<TabContent>({} as TabContent);
-
-
-  useEffect(() => {
-    // Load data immediately without blocking
-    const loadData = async () => {
-      try {
-<<<<<<< HEAD
-        const skinsData = await getSkins();
-=======
-        const skinsData = getSkins();
->>>>>>> 2a2d123e02e38c15847705d20e0fdd4b963e9328
-        const tabData = await getTabContent();
+import { STYLE_OPTIONS } from '@/lib/styleTheme';        const tabData = await getTabContent();
         setSkins(Array.isArray(skinsData) ? skinsData : []);
         setTabContent(tabData || ({} as TabContent));
       } catch (error) {
@@ -85,7 +56,6 @@ export default function SettingsTab({ user, editMode, onToggleEditMode, onResetP
         </div>
       )}
       <div className="ai-box">
-<<<<<<< HEAD
         <div className="ai-label">Style</div>
         <div className="ai-output" style={{ marginBottom: '12px' }}>
           Pick a visual style for Pixel Place.
@@ -111,13 +81,6 @@ export default function SettingsTab({ user, editMode, onToggleEditMode, onResetP
         <div className="ai-label">Settings Info</div>
         <div className="ai-output">{tabContent.settings || ''}</div>
       </div>
-
-=======
-        <div className="ai-label">Settings Info</div>
-        <div className="ai-output">{tabContent.settings || ''}</div>
-      </div>
-
->>>>>>> 2a2d123e02e38c15847705d20e0fdd4b963e9328
       {/* Admin Panel - Only visible to admins */}
       {user.role === 'admin' && (
         <div style={{ marginTop: '40px' }}>

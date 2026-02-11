@@ -7,17 +7,10 @@ import { getPublished, savePublished } from '@/lib/storage';
 import TopBar from './TopBar';
 import Sidebar from './Sidebar';
 import HomeTab from '../Tabs/HomeTab';
-<<<<<<< HEAD
 // DiscoverTab removed - merged into HomeTab
 import PlayTab from '../Tabs/PlayTab';
 import AvatarShopTab from '../Tabs/AvatarShopTab';
-import CreateTab from '../Tabs/CreateTab';
-=======
-// DiscoverTab and PlayTab removed - merged into HomeTab
-// CreateTab removed
-import AvatarShopTab from '../Tabs/AvatarShopTab';
->>>>>>> 2a2d123e02e38c15847705d20e0fdd4b963e9328
-import StudioTab from '../Tabs/StudioTab';
+import CreateTab from '../Tabs/CreateTab';import StudioTab from '../Tabs/StudioTab';
 import CoinsTab from '../Tabs/CoinsTab';
 import ServersTab from '../Tabs/ServersTab';
 import FriendsTab from '../Tabs/FriendsTab';
@@ -45,21 +38,13 @@ export default function Dashboard({ user }: DashboardProps) {
     switch (currentTab) {
       case 'home':
         return <HomeTab user={user} editMode={editMode} />;
-<<<<<<< HEAD
       // Discover tab was merged into Home tab - removed
       case 'play':
         return <PlayTab user={user} editMode={editMode} />;
       case 'avatarShop':
         return <AvatarShopTab user={user} editMode={editMode} />;
       case 'createGame':
-        return <CreateTab user={user} editMode={editMode} />;
-=======
-      // Discover tab and Play tab were merged into Home tab - removed
-      // Create tab removed
-      case 'avatarShop':
-        return <AvatarShopTab user={user} editMode={editMode} />;
->>>>>>> 2a2d123e02e38c15847705d20e0fdd4b963e9328
-      case 'studio':
+        return <CreateTab user={user} editMode={editMode} />;      case 'studio':
         return <StudioTab user={user} editMode={editMode} />;
       case 'coins':
         return <CoinsTab user={user} editMode={editMode} />;
