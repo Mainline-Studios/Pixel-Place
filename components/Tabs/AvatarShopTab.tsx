@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import React from 'react';
 import { User, Skin, Accessory } from '@/types';
 import { getSkins, saveSkins, getAccessories, saveAccessories } from '@/lib/storage';
+import { apiUrl } from '@/lib/apiBaseUrl';
 import { escapeHTML } from '@/lib/utils';
 import { useUser } from '@/contexts/UserContext';
 import Avatar3DViewer from '@/components/Avatar3DViewer';
@@ -348,7 +349,7 @@ export default function AvatarShopTab({ user, editMode }: AvatarShopTabProps) {
             
             // Sync safety points to backend
             try {
-              await fetch('/api/safety', {
+              await fetch(apiUrl('/api/safety'), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -393,7 +394,7 @@ export default function AvatarShopTab({ user, editMode }: AvatarShopTabProps) {
           
           // Also update backend safety points
           try {
-            await fetch('/api/safety', {
+            await fetch(apiUrl('/api/safety'), {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
@@ -449,7 +450,7 @@ export default function AvatarShopTab({ user, editMode }: AvatarShopTabProps) {
     try {
       await updateUser({ equippedFace: faceId });
       // Also sync to backend
-      await fetch('/api/faces', {
+      await fetch(apiUrl('/api/faces'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

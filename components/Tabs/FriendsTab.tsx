@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { User, FriendRequest, Message } from '@/types';
 import { getUsers } from '@/lib/storage';
+import { apiUrl } from '@/lib/apiBaseUrl';
 import { useUser } from '@/contexts/UserContext';
 import { useFriendsOnlineStatus, useOnlineStatus, updateCurrentGame, OnlineStatus } from '@/lib/onlineStatus';
 
@@ -61,7 +62,7 @@ export default function FriendsTab({ user, editMode }: FriendsTabProps) {
   // Load friends data - non-blocking
   const loadFriendsData = async () => {
     try {
-      const response = await fetch(`/api/friends?username=${encodeURIComponent(user.username)}`, {
+      const response = await fetch(apiUrl(`/api/friends?username=${encodeURIComponent(user.username)}`), {
         cache: 'no-store',
         headers: {
           'Cache-Control': 'no-cache'
@@ -89,7 +90,7 @@ export default function FriendsTab({ user, editMode }: FriendsTabProps) {
   // Load messages for selected friend
   const loadMessages = async (friendUsername: string) => {
     try {
-      const response = await fetch(`/api/messages?username=${encodeURIComponent(user.username)}&with=${encodeURIComponent(friendUsername)}`);
+      const response = await fetch(apiUrl(`/api/messages?username=${encodeURIComponent(user.username)}&with=${encodeURIComponent(friendUsername)}`));
       if (response.ok) {
         const msgs = await response.json();
         setMessages(msgs);
@@ -147,7 +148,7 @@ export default function FriendsTab({ user, editMode }: FriendsTabProps) {
   // Send friend request
   const sendFriendRequest = async (toUsername: string) => {
     try {
-      const response = await fetch('/api/friends', {
+      const response = await fetch(apiUrl('/api/friends'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -177,7 +178,7 @@ export default function FriendsTab({ user, editMode }: FriendsTabProps) {
   // Accept friend request
   const acceptFriendRequest = async (fromUsername: string) => {
     try {
-      const response = await fetch('/api/friends', {
+      const response = await fetch(apiUrl('/api/friends'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -190,7 +191,7 @@ export default function FriendsTab({ user, editMode }: FriendsTabProps) {
         await loadFriendsData();
         await loadAllUsers(); // Refresh user list too
         // Update user context
-        const updatedFriendsData = await fetch(`/api/friends?username=${encodeURIComponent(user.username)}`, {
+        const updatedFriendsData = await fetch(apiUrl(`/api/friends?username=${encodeURIComponent(user.username)}`, {
           cache: 'no-store'
         }).then(r => r.json());
         updateUser({ friends: updatedFriendsData.friends.map((f: User) => f.username) });
@@ -203,7 +204,7 @@ export default function FriendsTab({ user, editMode }: FriendsTabProps) {
   // Decline friend request
   const declineFriendRequest = async (fromUsername: string) => {
     try {
-      const response = await fetch('/api/friends', {
+      const response = await fetch(apiUrl('/api/friends'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -224,7 +225,7 @@ export default function FriendsTab({ user, editMode }: FriendsTabProps) {
   const removeFriend = async (friendUsername: string) => {
     if (!confirm(`Remove ${friendUsername} from your friends?`)) return;
     try {
-      const response = await fetch('/api/friends', {
+      const response = await fetch(apiUrl('/api/friends'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -241,7 +242,7 @@ export default function FriendsTab({ user, editMode }: FriendsTabProps) {
           setMessages([]);
         }
         // Update user context
-        const updatedFriendsData = await fetch(`/api/friends?username=${encodeURIComponent(user.username)}`, {
+        const updatedFriendsData = await fetch(apiUrl(`/api/friends?username=${encodeURIComponent(user.username)}`, {
           cache: 'no-store'
         }).then(r => r.json());
         updateUser({ friends: updatedFriendsData.friends.map((f: User) => f.username) });
@@ -279,12 +280,12 @@ export default function FriendsTab({ user, editMode }: FriendsTabProps) {
   const handleJoinFriend = async (friendUsername: string) => {
     try {
       // Get friend's current game session
-      const presenceResponse = await fetch(`/api/presence?username=${encodeURIComponent(friendUsername)}`);
+      const presenceResponse = await fetch(apiUrl(`/api/presence?username=${encodeURIComponent(friendUsername)}`);
       if (presenceResponse.ok) {
         const presence = await presenceResponse.json();
         if (presence.isOnline && presence.currentSessionId) {
           // Friend is in a game - join it
-          const joinResponse = await fetch('/api/game-sessions', {
+          const joinResponse = await fetch(apiUrl('/api/game-sessions'), {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -300,7 +301,7 @@ export default function FriendsTab({ user, editMode }: FriendsTabProps) {
           }
         } else {
           // Friend is online but not in a game - create a new game session
-          const gameResponse = await fetch('/api/game-sessions', {
+          const gameResponse = await fetch(apiUrl('/api/game-sessions'), {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -312,7 +313,7 @@ export default function FriendsTab({ user, editMode }: FriendsTabProps) {
           if (gameResponse.ok) {
             const result = await gameResponse.json();
             // Invite friend to join
-            await fetch('/api/game-sessions', {
+            await fetch(apiUrl('/api/game-sessions'), {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({

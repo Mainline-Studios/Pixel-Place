@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useUser } from '@/contexts/UserContext';
 import BanScreen from './BanScreen';
 import { auth, googleProvider, getRecaptchaVerifier, clearRecaptchaVerifier } from '@/lib/firebaseClient';
+import { apiUrl } from '@/lib/apiBaseUrl';
 import { signInWithPopup, signInWithCredential } from 'firebase/auth';
 
 export default function Login() {

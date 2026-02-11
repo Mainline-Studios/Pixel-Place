@@ -1,5 +1,7 @@
 'use client';
 
+import { apiUrl } from '@/lib/apiBaseUrl';
+
 /**
  * Tracks user playtime and updates backend
  */
