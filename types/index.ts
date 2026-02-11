@@ -49,7 +49,7 @@ export interface Message {
 
 export interface Accessory {
   id: string;
-  type: 'hat' | 'chain' | 'glasses' | 'shirt' | 'pants' | 'shoes' | 'backpack' | 'wings' | 'pet' | 'other';
+  type: 'hat' | 'chain' | 'glasses' | 'shirt' | 'pants' | 'shoes' | 'backpack' | 'wings' | 'pet' | 'drone' | 'other';
   name: string;
   position?: { x: number; y: number; z: number };
   rotation?: { x: number; y: number; z: number };
