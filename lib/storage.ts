@@ -1,5 +1,6 @@
 import { User, Skin, PublishedGame, DraftGame, SceneData, TabContent, GameServer, ServerPlan, FriendRequest, Message, Accessory, PrebuiltGame, Ban, BanAppeal, UserMadeGame, GameSubmission, Report } from '@/types';
 import { NEW_SKINS, NEW_ACCESSORIES } from './newCatalog';
+import { apiUrl } from './apiBaseUrl';
 
 const ADMIN_ACCOUNTS = [
   { username: "admin", password: "extra" },
@@ -31,7 +32,7 @@ export function initializeStorage() {
 export async function getUsers(): Promise<User[]> {
   if (typeof window === 'undefined') return [];
   try {
-    const response = await fetch('/api/users', {
+    const response = await fetch(apiUrl('/api/users'), {
       cache: 'no-store', // Always fetch fresh data
       headers: {
         'Cache-Control': 'no-cache'
@@ -65,7 +66,7 @@ export async function getUsers(): Promise<User[]> {
             console.log(`Migrating ${usersToMigrate.length} users from localStorage to API`);
             // Migrate users that don't exist in API
             for (const user of usersToMigrate) {
-              await fetch('/api/users', {
+              await fetch(apiUrl('/api/users'), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(user)
@@ -74,7 +75,7 @@ export async function getUsers(): Promise<User[]> {
             // Remove from localStorage after successful migration
             localStorage.removeItem("pixelPlaceUsers");
             // Fetch updated list
-            const updatedResponse = await fetch('/api/users', { cache: 'no-store' });
+            const updatedResponse = await fetch(apiUrl('/api/users'), { cache: 'no-store' });
             if (updatedResponse.ok) {
               const updatedUsers = await updatedResponse.json();
               console.log(`getUsers: After migration, fetched ${updatedUsers.length} users`);
@@ -98,7 +99,7 @@ export async function getUsers(): Promise<User[]> {
         // Try to migrate even on error
         if (users.length > 0) {
           for (const user of users) {
-            await fetch('/api/users', {
+            await fetch(apiUrl('/api/users'), {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify(user)
@@ -117,7 +118,7 @@ export async function saveUsers(users: User[]): Promise<void> {
   try {
     // Save each user (API handles updates if user exists)
     for (const user of users) {
-      await fetch('/api/users', {
+      await fetch(apiUrl('/api/users'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(user)
@@ -133,7 +134,7 @@ export async function saveUsers(users: User[]): Promise<void> {
 export async function getSkins(): Promise<Skin[]> {
   if (typeof window === 'undefined') return [];
   try {
-    const response = await fetch('/api/skins', { cache: 'no-store' });
+    const response = await fetch(apiUrl('/api/skins'), { cache: 'no-store' });
     if (!response.ok) throw new Error('Failed to fetch skins');
     return await response.json();
   } catch (e) {
@@ -145,7 +146,7 @@ export async function getSkins(): Promise<Skin[]> {
 export async function saveSkins(skins: Skin[]): Promise<void> {
   if (typeof window === 'undefined') return;
   try {
-    await fetch('/api/skins', {
+    await fetch(apiUrl('/api/skins'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(skins)
@@ -159,7 +160,7 @@ export async function saveSkins(skins: Skin[]): Promise<void> {
 export async function getTabContent(): Promise<TabContent> {
   if (typeof window === 'undefined') return {} as TabContent;
   try {
-    const response = await fetch('/api/tabcontent', { cache: 'no-store' });
+    const response = await fetch(apiUrl('/api/tabcontent'), { cache: 'no-store' });
     if (!response.ok) throw new Error('Failed to fetch tab content');
     return await response.json();
   } catch (e) {
@@ -171,7 +172,7 @@ export async function getTabContent(): Promise<TabContent> {
 export async function saveTabContent(content: TabContent): Promise<void> {
   if (typeof window === 'undefined') return;
   try {
-    await fetch('/api/tabcontent', {
+    await fetch(apiUrl('/api/tabcontent'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(content)
@@ -198,7 +199,7 @@ export async function getDraft(username?: string): Promise<DraftGame> {
 export async function saveDraft(draft: DraftGame): Promise<void> {
   if (typeof window === 'undefined') return;
   try {
-    await fetch('/api/draft', {
+    await fetch(apiUrl('/api/draft'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(draft)
@@ -212,7 +213,7 @@ export async function saveDraft(draft: DraftGame): Promise<void> {
 export async function getPublished(): Promise<PublishedGame[]> {
   if (typeof window === 'undefined') return [];
   try {
-    const response = await fetch('/api/published', { cache: 'no-store' });
+    const response = await fetch(apiUrl('/api/published'), { cache: 'no-store' });
     if (!response.ok) throw new Error('Failed to fetch published games');
     const games = await response.json();
 
@@ -243,7 +244,7 @@ export async function getPublished(): Promise<PublishedGame[]> {
 export async function savePublished(games: PublishedGame[]): Promise<void> {
   if (typeof window === 'undefined') return;
   try {
-    await fetch('/api/published', {
+    await fetch(apiUrl('/api/published'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(games)
@@ -285,7 +286,7 @@ export async function saveSceneData(data: SceneData, userId?: string): Promise<v
 export async function getPrebuiltGames(): Promise<PrebuiltGame[]> {
   if (typeof window === 'undefined') return [];
   try {
-    const response = await fetch('/api/prebuilt');
+    const response = await fetch(apiUrl('/api/prebuilt');
     if (!response.ok) throw new Error('Failed to fetch prebuilt games');
     const apiGames = await response.json();
 
@@ -295,13 +296,13 @@ export async function getPrebuiltGames(): Promise<PrebuiltGame[]> {
       if (localData && apiGames.length === 0) {
         const localGames: PrebuiltGame[] = JSON.parse(localData);
         if (localGames.length > 0) {
-          await fetch('/api/prebuilt', {
+          await fetch(apiUrl('/api/prebuilt'), {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(localGames)
           }).catch(() => { });
           localStorage.removeItem("prebuiltGames");
-          const updatedResponse = await fetch('/api/prebuilt');
+          const updatedResponse = await fetch(apiUrl('/api/prebuilt');
           if (updatedResponse.ok) return await updatedResponse.json();
         }
       }
@@ -323,7 +324,7 @@ export async function getPrebuiltGames(): Promise<PrebuiltGame[]> {
 export async function savePrebuiltGames(games: PrebuiltGame[]): Promise<void> {
   if (typeof window === 'undefined') return;
   try {
-    await fetch('/api/prebuilt', {
+    await fetch(apiUrl('/api/prebuilt'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(games)
@@ -339,7 +340,7 @@ export async function savePrebuiltGames(games: PrebuiltGame[]): Promise<void> {
 export async function getBannedUsers(): Promise<Ban[]> {
   if (typeof window === 'undefined') return [];
   try {
-    const response = await fetch('/api/bans');
+    const response = await fetch(apiUrl('/api/bans');
     if (!response.ok) throw new Error('Failed to fetch bans');
     const bans = await response.json();
     // Filter out expired bans
@@ -370,7 +371,7 @@ export async function saveBannedUsers(bans: Ban[]): Promise<void> {
   try {
     // Save each ban
     for (const ban of bans) {
-      await fetch('/api/bans', {
+      await fetch(apiUrl('/api/bans'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(ban)
@@ -453,7 +454,7 @@ export async function banUser(username: string, bannedBy: string, reason: string
   };
 
   try {
-    const response = await fetch('/api/bans', {
+    const response = await fetch(apiUrl('/api/bans'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(newBan)
@@ -468,7 +469,7 @@ export async function banUser(username: string, bannedBy: string, reason: string
 export async function unbanUser(username: string): Promise<void> {
   if (typeof window === 'undefined') return;
   try {
-    await fetch(`/api/bans?username=${encodeURIComponent(username)}`, {
+    await fetch(apiUrl(`/api/bans?username=${encodeURIComponent(username)}`), {
       method: 'DELETE'
     });
   } catch (e) {
@@ -480,7 +481,7 @@ export async function unbanUser(username: string): Promise<void> {
 export async function getReports(): Promise<Report[]> {
   if (typeof window === 'undefined') return [];
   try {
-    const response = await fetch('/api/reports');
+    const response = await fetch(apiUrl('/api/reports');
     if (!response.ok) throw new Error('Failed to fetch reports');
     return await response.json();
   } catch (e) {
@@ -511,7 +512,7 @@ export async function createReport(reportedUsername: string, reporterUsername: s
   };
 
   try {
-    const response = await fetch('/api/reports', {
+    const response = await fetch(apiUrl('/api/reports'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(newReport)
@@ -529,7 +530,7 @@ export async function createReport(reportedUsername: string, reporterUsername: s
 export async function updateReportStatus(reportId: string, status: Report['status'], adminUsername: string, notes?: string): Promise<void> {
   if (typeof window === 'undefined') return;
   try {
-    await fetch('/api/reports', {
+    await fetch(apiUrl('/api/reports'), {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id: reportId, status, reviewedBy: adminUsername, adminNotes: notes })
@@ -543,7 +544,7 @@ export async function updateReportStatus(reportId: string, status: Report['statu
 export async function getBanAppeals(): Promise<BanAppeal[]> {
   if (typeof window === 'undefined') return [];
   try {
-    const response = await fetch('/api/appeals');
+    const response = await fetch(apiUrl('/api/appeals');
     if (!response.ok) throw new Error('Failed to fetch appeals');
     return await response.json();
   } catch (e) {
@@ -586,7 +587,7 @@ export async function createBanAppeal(username: string, ban: Ban, appealMessage:
   };
 
   try {
-    const response = await fetch('/api/appeals', {
+    const response = await fetch(apiUrl('/api/appeals'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(newAppeal)
@@ -604,7 +605,7 @@ export async function createBanAppeal(username: string, ban: Ban, appealMessage:
 export async function updateBanAppealStatus(appealId: string, status: BanAppeal['status'], adminUsername: string, notes?: string, shouldUnban?: boolean): Promise<void> {
   if (typeof window === 'undefined') return;
   try {
-    await fetch('/api/appeals', {
+    await fetch(apiUrl('/api/appeals'), {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id: appealId, status, reviewedBy: adminUsername, adminNotes: notes, shouldUnban })
@@ -637,7 +638,7 @@ export function getServerPlans(): ServerPlan[] {
 export async function getAccessories(): Promise<Accessory[]> {
   if (typeof window === 'undefined') return [];
   try {
-    const response = await fetch('/api/accessories', { cache: 'no-store' });
+    const response = await fetch(apiUrl('/api/accessories'), { cache: 'no-store' });
     if (!response.ok) throw new Error('Failed to fetch accessories');
     return await response.json();
   } catch (e) {
@@ -649,7 +650,7 @@ export async function getAccessories(): Promise<Accessory[]> {
 export async function saveAccessories(accessories: Accessory[]): Promise<void> {
   if (typeof window === 'undefined') return;
   try {
-    await fetch('/api/accessories', {
+    await fetch(apiUrl('/api/accessories'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(accessories)
@@ -683,7 +684,7 @@ export async function getMessagesAPI(username: string, withUsername?: string): P
 export async function sendMessage(fromUsername: string, toUsername: string, message: string): Promise<string> {
   if (typeof window === 'undefined') return '';
   try {
-    const response = await fetch('/api/messages', {
+    const response = await fetch(apiUrl('/api/messages'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ fromUsername, toUsername, message })
@@ -701,7 +702,7 @@ export async function sendMessage(fromUsername: string, toUsername: string, mess
 export async function markMessageAsRead(messageId: string): Promise<void> {
   if (typeof window === 'undefined') return;
   try {
-    await fetch('/api/messages', {
+    await fetch(apiUrl('/api/messages'), {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id: messageId, read: true })
@@ -716,7 +717,7 @@ export async function markMessageAsRead(messageId: string): Promise<void> {
 export async function getUserMadeGames(): Promise<UserMadeGame[]> {
   if (typeof window === 'undefined') return [];
   try {
-    const response = await fetch('/api/games', { cache: 'no-store' });
+    const response = await fetch(apiUrl('/api/games'), { cache: 'no-store' });
     if (!response.ok) throw new Error('Failed to fetch user-made games');
     return await response.json();
   } catch (e) {
@@ -728,7 +729,7 @@ export async function getUserMadeGames(): Promise<UserMadeGame[]> {
 export async function saveUserMadeGame(game: UserMadeGame): Promise<void> {
   if (typeof window === 'undefined') return;
   try {
-    await fetch('/api/games', {
+    await fetch(apiUrl('/api/games'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(game)
@@ -741,7 +742,7 @@ export async function saveUserMadeGame(game: UserMadeGame): Promise<void> {
 export async function deleteUserMadeGame(gameId: string): Promise<void> {
   if (typeof window === 'undefined') return;
   try {
-    await fetch(`/api/games?id=${encodeURIComponent(gameId)}`, {
+    await fetch(apiUrl(`/api/games?id=${encodeURIComponent(gameId)}`), {
       method: 'DELETE'
     });
   } catch (e) {
@@ -753,7 +754,7 @@ export async function deleteUserMadeGame(gameId: string): Promise<void> {
 export async function getGameSubmissions(): Promise<GameSubmission[]> {
   if (typeof window === 'undefined') return [];
   try {
-    const response = await fetch('/api/gamesubmissions');
+    const response = await fetch(apiUrl('/api/gamesubmissions');
     if (!response.ok) throw new Error('Failed to fetch game submissions');
     return await response.json();
   } catch (e) {
@@ -765,7 +766,7 @@ export async function getGameSubmissions(): Promise<GameSubmission[]> {
 export async function saveGameSubmission(submission: GameSubmission): Promise<void> {
   if (typeof window === 'undefined') return;
   try {
-    await fetch('/api/gamesubmissions', {
+    await fetch(apiUrl('/api/gamesubmissions'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(submission)
@@ -778,7 +779,7 @@ export async function saveGameSubmission(submission: GameSubmission): Promise<vo
 export async function deleteGameSubmission(submissionId: string): Promise<void> {
   if (typeof window === 'undefined') return;
   try {
-    await fetch(`/api/gamesubmissions?id=${encodeURIComponent(submissionId)}`, {
+    await fetch(apiUrl(`/api/gamesubmissions?id=${encodeURIComponent(submissionId)}`), {
       method: 'DELETE'
     });
   } catch (e) {

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useUser } from '@/contexts/UserContext';
+import { apiUrl } from '@/lib/apiBaseUrl';
 
 interface BreakReminderProps {
   onTakeBreak?: () => void;

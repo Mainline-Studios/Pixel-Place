@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { getFirestore, onSnapshot, doc, setDoc, serverTimestamp, Firestore } from 'firebase/firestore';
 import { initializeApp, getApps, FirebaseApp } from 'firebase/app';
 import { firebaseConfig } from './firebaseConfig';
+import { apiUrl } from './apiBaseUrl';
 
 // Initialize Firebase app if not already initialized (client-side only)
 let app: FirebaseApp | undefined = undefined;

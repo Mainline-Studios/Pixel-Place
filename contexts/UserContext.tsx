@@ -4,6 +4,7 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { User, Ban } from '@/types';
 import { initializeStorage, getUsers, saveUsers, ADMIN_ACCOUNTS_LIST, isUserBanned, getBanForUser, getBannedUsersSync } from '@/lib/storage';
 import { subscribeToUser } from '@/lib/firestoreClient';
+import { apiUrl } from '@/lib/apiBaseUrl';
 import { containsEmoji } from '@/lib/utils';
 
 interface UserContextType {
@@ -149,7 +150,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
 
     const syncSafetyPoints = async () => {
       try {
-        const response = await fetch(`/api/safety?username=${encodeURIComponent(user.username)}`);
+        const response = await fetch(apiUrl(`/api/safety?username=${encodeURIComponent(user.username)}`));
         const data = await response.json();
         if (cancelled || typeof data?.safetyPoints !== 'number') return;
         setUser((prev) => {
@@ -339,7 +340,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     // Sync safety points from backend
     if (!isOffline) {
       try {
-        const safetyResponse = await fetch(`/api/safety?username=${found.username}`);
+        const safetyResponse = await fetch(apiUrl(`/api/safety?username=${found.username}`));
         if (safetyResponse.ok) {
           const safetyData = await safetyResponse.json();
           found.safetyPoints = safetyData.safetyPoints || 0;
@@ -522,7 +523,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     // Sync safety points to backend if updated
     if (updates.safetyPoints !== undefined) {
       try {
-        await fetch('/api/safety', {
+        await fetch(apiUrl('/api/safety'), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -559,7 +560,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       
       // Also update via API PUT to ensure persistence
       try {
-        await fetch('/api/users', {
+        await fetch(apiUrl('/api/users'), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(users[index])
