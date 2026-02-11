@@ -5,22 +5,13 @@ import { User, UserMadeGame } from '@/types';
 import { getUserMadeGames, deleteUserMadeGame } from '@/lib/storage';
 import { subscribeToUserMadeGames } from '@/lib/firestoreClient';
 import UserMadeGamePlayer from '../Games/UserMadeGamePlayer';
-<<<<<<< HEAD
 import GymPumpEngine from '../Games/GymPumpEngine';
 import Hypnosia from '../Games/Hypnosia';
 import UnderwaterOddyseySeries from '../Games/UnderwaterOddyseySeries';
-import Showdown from '../Games/Showdown';
-=======
-import Hypnosia from '../Games/Hypnosia';
-import UnderwaterOddyseySeries from '../Games/UnderwaterOddyseySeries';
-import SuperShowdown2 from '../Games/SuperShowdown2';
-import SuperShowdown from '../Games/SuperShowdown';
->>>>>>> 2a2d123e02e38c15847705d20e0fdd4b963e9328
-import RedRover from '../Games/RedRover';
+import Showdown from '../Games/Showdown';import RedRover from '../Games/RedRover';
 import JungleJourneySeries from '../Games/JungleJourneySeries';
 import Chess from '../Games/Chess';
 import FloorIsLava from '../Games/FloorIsLava';
-<<<<<<< HEAD
 =======
 import SuperShowdownCombined from '../Games/InsaneShowdown';
 >>>>>>> 2a2d123e02e38c15847705d20e0fdd4b963e9328
@@ -82,62 +73,11 @@ const games: GameInfo[] = [
     is3D: false,
     component: Showdown,
   },
-  {
-=======
-    id: 'hypnosia',
-    name: 'Hypnosia',
-    description: 'Test your deduction skills in this mysterious game!',
-    icon: '🔮',
-    category: 'Puzzle',
-    component: Hypnosia,
-  },
-  {
-    id: 'underwaterOdyssey',
-    name: 'Underwater Odyssey',
-    description: 'Explore the depths of the ocean in this adventure series!',
-    icon: '🌊',
-    category: 'Adventure',
-    component: UnderwaterOddyseySeries,
-  },
-  {
-    id: 'superShowdown2',
-    name: 'Super Showdown 2',
-    description: 'Epic arena battles with powerful abilities!',
-    icon: '⚔️',
-    category: 'Action',
-    component: SuperShowdown2,
-  },
-  {
-    id: 'superShowdown',
-    name: 'Super Showdown',
-    description: 'Original arena combat experience!',
-    icon: '🎯',
-    category: 'Action',
-    component: SuperShowdown,
-  },
-  {
->>>>>>> 2a2d123e02e38c15847705d20e0fdd4b963e9328
-    id: 'redRover',
+  {    id: 'redRover',
     name: 'Red Rover',
     description: 'Classic team-based multiplayer game!',
     icon: '🏃',
-<<<<<<< HEAD
-    thumbnail: '/images/games/red-rover.svg',
-=======
->>>>>>> 2a2d123e02e38c15847705d20e0fdd4b963e9328
-    category: 'Multiplayer',
-    component: RedRover,
-  },
-  {
-    id: 'jungleJourney',
-    name: 'Jungle Journey',
-    description: 'Navigate through the jungle and collect fruits!',
-    icon: '🌴',
-<<<<<<< HEAD
-    thumbnail: '/images/games/jungle-journey.svg',
-=======
->>>>>>> 2a2d123e02e38c15847705d20e0fdd4b963e9328
-    category: 'Adventure',
+    thumbnail: '/images/games/red-rover.svg',    category: 'Adventure',
     component: JungleJourneySeries,
   },
   {
@@ -145,35 +85,7 @@ const games: GameInfo[] = [
     name: 'Chess',
     description: 'Classic chess game - challenge yourself or play online!',
     icon: '♟️',
-<<<<<<< HEAD
-    thumbnail: '/images/games/chess.svg',
-=======
->>>>>>> 2a2d123e02e38c15847705d20e0fdd4b963e9328
-    category: 'Strategy',
-    component: Chess,
-  },
-  {
-    id: 'floorIsLava',
-    name: 'Floor Is Lava',
-    description: 'Jump from platform to platform - don\'t touch the lava!',
-    icon: '🌋',
-<<<<<<< HEAD
-    thumbnail: '/images/games/floor-is-lava.svg',
-    category: 'Platformer',
-    component: FloorIsLava,
-=======
-    category: 'Platformer',
-    component: FloorIsLava,
-  },
-  {
-    id: 'insaneShowdown',
-    name: 'Insane Showdown',
-    description: 'Ultimate combined arena battle experience!',
-    icon: '🔥',
-    category: 'Action',
-    component: SuperShowdownCombined,
->>>>>>> 2a2d123e02e38c15847705d20e0fdd4b963e9328
-  },
+    thumbnail: '/images/games/chess.svg',  },
 ];
 
 export default function GamesTab({ user, editMode }: GamesTabProps) {
@@ -234,7 +146,6 @@ export default function GamesTab({ user, editMode }: GamesTabProps) {
   }
 
   if (selectedGame && GameComponent) {
-<<<<<<< HEAD
     // #region agent log
     fetch('http://127.0.0.1:7242/ingest/002741fb-cb98-444e-83cd-7086902151aa',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'GamesTab.tsx:150',message:'Early return selectedGame',data:{selectedGame},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
     // #endregion
@@ -256,18 +167,7 @@ export default function GamesTab({ user, editMode }: GamesTabProps) {
       : {};
     
     return (
-      <div key={selectedGame} style={{ position: 'relative', width: '100%', minHeight: '100%' }}>
-=======
-    const handleClose = () => setSelectedGame(null);
-    const gameInfo = games.find(g => g.id === selectedGame);
-    
-    // Components that support onClose prop
-    const supportsOnClose = ['hypnosia'].includes(selectedGame);
-    
-    return (
-      <div style={{ position: 'relative', width: '100%', minHeight: '100%' }}>
->>>>>>> 2a2d123e02e38c15847705d20e0fdd4b963e9328
-        {!supportsOnClose && (
+      <div key={selectedGame} style={{ position: 'relative', width: '100%', minHeight: '100%' }}>        {!supportsOnClose && (
           <button
             onClick={handleClose}
             style={{
@@ -288,7 +188,6 @@ export default function GamesTab({ user, editMode }: GamesTabProps) {
           >
             ← Back
           </button>
-<<<<<<< HEAD
 =======
         )}
         {selectedGame === 'hypnosia' ? (
@@ -416,11 +315,7 @@ export default function GamesTab({ user, editMode }: GamesTabProps) {
         <div className="ai-label">Game Instructions</div>
         <div className="ai-output" style={{ fontSize: '13px', lineHeight: '1.8' }}>
 <<<<<<< HEAD
-          <strong>Gym Pump:</strong> Lift weights, build power, and climb the leaderboard! Use the game controls to play.
-=======
-          Choose a game above and click "Play Now" to start playing!
->>>>>>> 2a2d123e02e38c15847705d20e0fdd4b963e9328
-        </div>
+          <strong>Gym Pump:</strong> Lift weights, build power, and climb the leaderboard! Use the game controls to play.        </div>
       </div>
 
       {userMadeGames.length > 0 && (

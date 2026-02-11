@@ -1,7 +1,6 @@
 // New catalog based on provided images - exact names and textures
 import { Skin, Accessory } from '@/types';
 
-<<<<<<< HEAD
 // Starter skins - 10 Pixel-Coins each, perfect for new players
 const STARTER_10_COIN_SKINS: Skin[] = [
     { id: "sunny_buddy", name: "Sunny Buddy", price: 10, img: "", use3d: true, defaultAnimation: 'idle',
@@ -43,11 +42,7 @@ const STARTER_10_COIN_SKINS: Skin[] = [
 ];
 
 export const NEW_SKINS: Skin[] = [
-    ...STARTER_10_COIN_SKINS,
-=======
-export const NEW_SKINS: Skin[] = [
->>>>>>> 2a2d123e02e38c15847705d20e0fdd4b963e9328
-    // Blue Blob Character with yellow patch
+    ...STARTER_10_COIN_SKINS,    // Blue Blob Character with yellow patch
     {
         id: "blue_blob",
         name: "Blue Blob",

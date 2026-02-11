@@ -3,65 +3,14 @@
 import { useState, useEffect } from 'react';
 import { useUser } from '@/contexts/UserContext';
 import BanScreen from './BanScreen';
-<<<<<<< HEAD
 import { auth, googleProvider, getRecaptchaVerifier, clearRecaptchaVerifier } from '@/lib/firebaseClient';
 import { apiUrl } from '@/lib/apiBaseUrl';
 import { signInWithPopup, signInWithCredential } from 'firebase/auth';
-=======
->>>>>>> 2a2d123e02e38c15847705d20e0fdd4b963e9328
-
-export default function Login() {
-  const [mode, setMode] = useState<'signin' | 'signup'>('signin');
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
-  const [gender, setGender] = useState<'Male' | 'Female' | 'Other' | ''>('');
-  const [birthMonth, setBirthMonth] = useState('');
-  const [birthDay, setBirthDay] = useState('');
-  const [birthYear, setBirthYear] = useState('');
-  const [message, setMessage] = useState('');
-  const [banInfo, setBanInfo] = useState<any>(null);
-  const [showTerms, setShowTerms] = useState(false);
-  const [showPrivacy, setShowPrivacy] = useState(false);
-<<<<<<< HEAD
-  const [isLoading, setIsLoading] = useState(false);
-  const [loadingText, setLoadingText] = useState('');
-  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
-  const { login, createAccount, loginWithGoogle } = useUser();
-
-  // Initialize reCAPTCHA on mount
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      // Create invisible reCAPTCHA container
-      let container = document.getElementById('recaptcha-container');
-      if (!container) {
-        container = document.createElement('div');
-        container.id = 'recaptcha-container';
-        container.style.display = 'none';
-        document.body.appendChild(container);
-      }
-
-      // Initialize reCAPTCHA
-      try {
-        getRecaptchaVerifier('recaptcha-container');
-      } catch (error) {
-        console.warn('reCAPTCHA initialization warning:', error);
-      }
-    }
-
-    return () => {
-      clearRecaptchaVerifier();
-    };
-  }, []);
-=======
-  const { login, createAccount } = useUser();
->>>>>>> 2a2d123e02e38c15847705d20e0fdd4b963e9328
-
   const handleSignIn = async () => {
     if (!username || !password) {
       setMessage('Enter both username and password.');
       return;
     }
-<<<<<<< HEAD
     
     setIsLoading(true);
     setLoadingText('Signing in...');
@@ -103,20 +52,7 @@ export default function Login() {
     } catch (error) {
       setIsLoading(false);
       setLoadingText('');
-      setMessage('An error occurred. You may be offline.');
-=======
-    if (password.length < 6) {
-      setMessage('Password must be at least 6 characters.');
-      return;
-    }
-    const result = await login(username, password);
-    if (result.ban) {
-      setBanInfo(result.ban);
-    } else {
-      setMessage(result.message);
-      setBanInfo(null);
->>>>>>> 2a2d123e02e38c15847705d20e0fdd4b963e9328
-    }
+      setMessage('An error occurred. You may be offline.');    }
   };
 
   // Note: We can't reliably filter emojis during typing for login/signup
@@ -135,7 +71,6 @@ export default function Login() {
       setMessage('Username and password are required.');
       return;
     }
-<<<<<<< HEAD
     if (password.length < 6) {
       setMessage('Password must be at least 6 characters.');
       return;
@@ -181,20 +116,7 @@ export default function Login() {
     } catch (error) {
       setIsLoading(false);
       setLoadingText('');
-      setMessage('An error occurred. You may be offline.');
-=======
-    if (password.length < 8) {
-      setMessage('Password must be at least 8 characters.');
-      return;
-    }
-    const result = await createAccount(username, password, gender);
-    setMessage(result.message);
-    setBanInfo(null);
-    if (result.success) {
-      // Auto sign in after successful sign up
-      await handleSignIn();
->>>>>>> 2a2d123e02e38c15847705d20e0fdd4b963e9328
-    }
+      setMessage('An error occurred. You may be offline.');    }
   };
 
   const handleAppealSubmitted = () => {
@@ -293,7 +215,6 @@ export default function Login() {
                 onChange={handlePasswordChange}
                 onKeyPress={(e) => e.key === 'Enter' && handleSignIn()}
               />
-<<<<<<< HEAD
 =======
               <div className="input-hint">At least 6 characters</div>
 >>>>>>> 2a2d123e02e38c15847705d20e0fdd4b963e9328
@@ -308,12 +229,7 @@ export default function Login() {
 <<<<<<< HEAD
                 disabled={isLoading}
               >
-                {isLoading && loadingText === 'Signing in...' ? 'Signing in...' : 'Sign In'}
-=======
-              >
-                Sign In
->>>>>>> 2a2d123e02e38c15847705d20e0fdd4b963e9328
-              </button>
+                {isLoading && loadingText === 'Signing in...' ? 'Signing in...' : 'Sign In'}              </button>
               <button 
                 className="btn auth-btn" 
                 onClick={(e) => {
@@ -338,7 +254,6 @@ export default function Login() {
               >
                 Create
               </button>
-<<<<<<< HEAD
               
               <div style={{ marginTop: '16px', textAlign: 'center', color: '#888' }}>
                 <div style={{ marginBottom: '12px' }}>or</div>
@@ -373,62 +288,6 @@ export default function Login() {
                   )}
                 </button>
               </div>
-=======
->>>>>>> 2a2d123e02e38c15847705d20e0fdd4b963e9328
-            </>
-          ) : (
-            <>
-              <h2 className="signup-title">PIXEL PLACE IS A FUN PLACE TO BE!</h2>
-
-              <div className="birthday-section">
-                <label>Birthday</label>
-                <div className="birthday-inputs">
-                  <select
-                    value={birthMonth}
-                    onChange={(e) => setBirthMonth(e.target.value)}
-                    className="birthday-select"
-                  >
-                    <option value="">Month</option>
-                    {Array.from({ length: 12 }, (_, i) => (
-                      <option key={i + 1} value={i + 1}>{['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'][i]}</option>
-                    ))}
-                  </select>
-                  <select
-                    value={birthDay}
-                    onChange={(e) => setBirthDay(e.target.value)}
-                    className="birthday-select"
-                  >
-                    <option value="">Day</option>
-                    {Array.from({ length: 31 }, (_, i) => (
-                      <option key={i + 1} value={i + 1}>{i + 1}</option>
-                    ))}
-                  </select>
-                  <select
-                    value={birthYear}
-                    onChange={(e) => setBirthYear(e.target.value)}
-                    className="birthday-select"
-                  >
-                    <option value="">Year</option>
-                    {Array.from({ length: 100 }, (_, i) => {
-                      const year = new Date().getFullYear() - i;
-                      return <option key={year} value={year}>{year}</option>;
-                    })}
-                  </select>
-                </div>
-              </div>
-
-              <input
-                id="user"
-                placeholder="Username"
-                value={username}
-                onChange={handleUsernameChange}
-              />
-<<<<<<< HEAD
-              <div className="input-hint">Please do not use your real name</div>
-=======
-              <div className="input-hint">not you name!</div>
->>>>>>> 2a2d123e02e38c15847705d20e0fdd4b963e9328
-
               <input
                 id="pass"
                 type="password"
@@ -436,12 +295,7 @@ export default function Login() {
                 value={password}
                 onChange={handlePasswordChange}
               />
-<<<<<<< HEAD
               <div className="input-hint">At least 6 characters</div>
-=======
-              <div className="input-hint">At least 8 characters</div>
->>>>>>> 2a2d123e02e38c15847705d20e0fdd4b963e9328
-
               <div className="gender-section">
                 <label>Gender (Optional)</label>
                 <div className="gender-buttons">
@@ -573,7 +427,6 @@ export default function Login() {
                   handleSignUp();
                 }}
                 type="button"
-<<<<<<< HEAD
                 disabled={isLoading}
               >
                 {isLoading && loadingText === 'Signing up...' ? 'Signing up...' : 'Sign Up'}
@@ -611,13 +464,7 @@ export default function Login() {
                     </>
                   )}
                 </button>
-              </div>
-=======
-              >
-                Sign Up
-              </button>
->>>>>>> 2a2d123e02e38c15847705d20e0fdd4b963e9328
-            </>
+              </div>            </>
           )}
 
           <div id="msg" className={message ? 'show' : ''}>{message}</div>

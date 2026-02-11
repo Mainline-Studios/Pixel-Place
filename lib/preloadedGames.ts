@@ -1,6 +1,5 @@
 import { PublishedGame } from '@/types';
 
-<<<<<<< HEAD
 // Gym Pump Game - Preloaded (ONLY GAME)
 export const GYM_PUMP_PRELOADED_GAME: PublishedGame = {
   title: 'Gym Pump',
@@ -15,6 +14,3 @@ export const GYM_PUMP_PRELOADED_GAME: PublishedGame = {
 };
 
 // All other games have been removed - only Gym Pump remains
-=======
-// No preloaded games - all games are user-published
->>>>>>> 2a2d123e02e38c15847705d20e0fdd4b963e9328

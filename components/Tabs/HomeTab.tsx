@@ -6,21 +6,8 @@ import { getSkins, getPublished, getUsers } from '@/lib/storage';
 import { escapeHTML } from '@/lib/utils';
 import GamePlayer from '@/components/GamePlayer';
 import Avatar3DViewer from '@/components/Avatar3DViewer';
-<<<<<<< HEAD
 import { GYM_PUMP_PRELOADED_GAME } from '@/lib/preloadedGames';
 import GymPumpEngine from '@/components/Games/GymPumpEngine';
-=======
-import Hypnosia from '../Games/Hypnosia';
-import UnderwaterOddyseySeries from '../Games/UnderwaterOddyseySeries';
-import SuperShowdown2 from '../Games/SuperShowdown2';
-import SuperShowdown from '../Games/SuperShowdown';
-import RedRover from '../Games/RedRover';
-import JungleJourneySeries from '../Games/JungleJourneySeries';
-import Chess from '../Games/Chess';
-import FloorIsLava from '../Games/FloorIsLava';
-import SuperShowdownCombined from '../Games/InsaneShowdown';
->>>>>>> 2a2d123e02e38c15847705d20e0fdd4b963e9328
-
 interface HomeTabProps {
   user: User;
   editMode: boolean;
@@ -113,12 +100,7 @@ const builtInGames: GameInfo[] = [
 
 export default function HomeTab({ user, editMode, onResetPublished }: HomeTabProps) {
   const [selectedGame, setSelectedGame] = useState<PublishedGame | null>(null);
-<<<<<<< HEAD
-  const [showGymPump, setShowGymPump] = useState(false);
-=======
-  const [selectedBuiltInGame, setSelectedBuiltInGame] = useState<string | null>(null);
->>>>>>> 2a2d123e02e38c15847705d20e0fdd4b963e9328
-  const [published, setPublished] = useState<PublishedGame[]>([]);
+  const [showGymPump, setShowGymPump] = useState(false);  const [published, setPublished] = useState<PublishedGame[]>([]);
   const [users, setUsers] = useState<User[]>([]);
   const [skins, setSkins] = useState(getSkins());
   const [isLoading, setIsLoading] = useState(false);
@@ -133,12 +115,7 @@ export default function HomeTab({ user, editMode, onResetPublished }: HomeTabPro
           getPublished().catch(() => []),
           getUsers().catch(() => [])
         ]);
-<<<<<<< HEAD
         const skinsData = await getSkins();
-=======
-        const skinsData = getSkins();
->>>>>>> 2a2d123e02e38c15847705d20e0fdd4b963e9328
-
         setPublished(Array.isArray(publishedData) ? publishedData : []);
         setUsers(Array.isArray(usersData) ? usersData : []);
         setSkins(Array.isArray(skinsData) ? skinsData : []);
@@ -156,48 +133,10 @@ export default function HomeTab({ user, editMode, onResetPublished }: HomeTabPro
     return () => clearInterval(interval);
   }, [user]);
 
-<<<<<<< HEAD
   // Include preloaded games
   const publishedArray = Array.isArray(published) ? published : [];
   const allGames = [...publishedArray];
   const sortedGames = allGames.slice().sort((a, b) => b.ts - a.ts);
-=======
-  // Handle built-in game loading
-  useEffect(() => {
-    if (selectedBuiltInGame) {
-      setIsLoading(true);
-      setLoadError(null);
-      const timeout = setTimeout(() => {
-        setIsLoading((currentLoading) => {
-          if (currentLoading) {
-            setLoadError('Game is taking longer than expected to load. Please try again.');
-            return false;
-          }
-          return currentLoading;
-        });
-      }, 10000);
-      return () => clearTimeout(timeout);
-    } else {
-      setIsLoading(false);
-      setLoadError(null);
-    }
-  }, [selectedBuiltInGame]);
-
-  // Handle game component mount
-  useEffect(() => {
-    if (selectedBuiltInGame) {
-      const timer = setTimeout(() => {
-        setIsLoading(false);
-      }, 500);
-      return () => clearTimeout(timer);
-    }
-  }, [selectedBuiltInGame]);
-
-  // Include published games only
-  const publishedArray = Array.isArray(published) ? published : [];
-  const sortedGames = publishedArray.slice().sort((a, b) => b.ts - a.ts);
->>>>>>> 2a2d123e02e38c15847705d20e0fdd4b963e9328
-
   // Get friends - show first 8
   const friends = (user.friends || []).slice(0, 8);
   const usersArray = Array.isArray(users) ? users : [];
@@ -205,126 +144,9 @@ export default function HomeTab({ user, editMode, onResetPublished }: HomeTabPro
     .filter(u => u && u.username && friends.includes(u.username))
     .slice(0, 8);
 
-<<<<<<< HEAD
   if (showGymPump) {
     return <GymPumpEngine user={user} onClose={() => setShowGymPump(false)} />;
   }
-
-=======
-  // Handle built-in game selection
-  const selectedGameInfo = builtInGames.find(g => g.id === selectedBuiltInGame);
-  const GameComponent = selectedGameInfo?.component;
-
-  // If a built-in game is selected, render it
-  if (selectedBuiltInGame && GameComponent) {
-    const handleClose = () => {
-      setSelectedBuiltInGame(null);
-      setIsLoading(false);
-      setLoadError(null);
-    };
-    
-    const supportsOnClose = ['hypnosia'].includes(selectedBuiltInGame);
-    
-    return (
-      <div style={{ position: 'relative', width: '100%', minHeight: '100%', background: 'var(--bg-main)' }}>
-        {isLoading && (
-          <div style={{
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            background: 'rgba(0, 0, 0, 0.8)',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 1000,
-            gap: '16px'
-          }}>
-            <div style={{
-              width: '50px',
-              height: '50px',
-              border: '4px solid rgba(255, 255, 255, 0.3)',
-              borderTop: '4px solid #00aaff',
-              borderRadius: '50%',
-              animation: 'spin 1s linear infinite'
-            }} />
-            <div style={{ color: '#ffffff', fontSize: '16px' }}>Loading game...</div>
-            <style>{`
-              @keyframes spin {
-                0% { transform: rotate(0deg); }
-                100% { transform: rotate(360deg); }
-              }
-            `}</style>
-          </div>
-        )}
-        {loadError && (
-          <div style={{
-            position: 'absolute',
-            top: '20px',
-            left: '50%',
-            transform: 'translateX(-50%)',
-            background: '#ff4d4d',
-            color: '#ffffff',
-            padding: '12px 24px',
-            borderRadius: '8px',
-            zIndex: 1001,
-            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.3)'
-          }}>
-            {loadError}
-            <button
-              onClick={() => {
-                setLoadError(null);
-                setIsLoading(false);
-              }}
-              style={{
-                marginLeft: '12px',
-                background: 'rgba(255, 255, 255, 0.2)',
-                border: 'none',
-                color: '#ffffff',
-                padding: '4px 8px',
-                borderRadius: '4px',
-                cursor: 'pointer'
-              }}
-            >
-              Dismiss
-            </button>
-          </div>
-        )}
-        {!supportsOnClose && (
-          <button
-            onClick={handleClose}
-            style={{
-              position: 'absolute',
-              top: '16px',
-              right: '16px',
-              zIndex: 999,
-              padding: '8px 16px',
-              background: '#00aaff',
-              color: '#ffffff',
-              border: 'none',
-              borderRadius: '6px',
-              cursor: 'pointer',
-              fontSize: '14px',
-              fontWeight: '600',
-              boxShadow: '0 2px 8px rgba(0,0,0,0.3)'
-            }}
-          >
-            ← Back
-          </button>
-        )}
-        {selectedBuiltInGame === 'hypnosia' ? (
-          <GameComponent onClose={handleClose} />
-        ) : (
-          <GameComponent />
-        )}
-      </div>
-    );
-  }
-
-  // If a published game is selected, render it
->>>>>>> 2a2d123e02e38c15847705d20e0fdd4b963e9328
   if (selectedGame) {
     return <GamePlayer game={selectedGame} onClose={() => setSelectedGame(null)} />;
   }

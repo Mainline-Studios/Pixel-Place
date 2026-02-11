@@ -6,7 +6,6 @@ import { Renderer } from './Renderer';
 import { Scene } from './Scene';
 import { Camera } from '../camera/Camera';
 import { Entity } from '../entities/Entity';
-<<<<<<< HEAD
 =======
 import { Input } from '../input/Input';
 import { Physics } from '../physics/Physics';
@@ -21,11 +20,6 @@ export class Engine {
   private lastTime: number = 0;
   private isRunning: boolean = false;
 <<<<<<< HEAD
-=======
-  private input: Input;
-  private physics: Physics;
->>>>>>> 2a2d123e02e38c15847705d20e0fdd4b963e9328
-
   constructor(container: HTMLElement) {
     this.container = container;
     
@@ -38,7 +32,6 @@ export class Engine {
     // Create camera
     this.camera = new Camera();
     this.camera.setAspect(this.renderer.getSize().width / this.renderer.getSize().height);
-<<<<<<< HEAD
 =======
     
     // Initialize input system
@@ -64,31 +57,7 @@ export class Engine {
   }
 
   /**
-<<<<<<< HEAD
-=======
-   * Get the input system
-   */
-  getInput(): Input {
-    return this.input;
-  }
-
-  /**
-   * Get the physics system
-   */
-  getPhysics(): Physics {
-    return this.physics;
-  }
-
-  /**
-   * Get the renderer's canvas element
-   */
-  getCanvas(): HTMLCanvasElement {
-    return this.renderer.getCanvas();
-  }
-
-  /**
->>>>>>> 2a2d123e02e38c15847705d20e0fdd4b963e9328
-   * Start the engine
+<<<<<<< HEAD   * Start the engine
    */
   start(): void {
     if (this.isRunning) return;
@@ -119,22 +88,9 @@ export class Engine {
     const deltaTime = (currentTime - this.lastTime) / 1000; // Convert to seconds
     this.lastTime = currentTime;
     
-<<<<<<< HEAD
     // Update scene
     this.scene.update(deltaTime);
-    
-=======
-    // Update physics
-    this.physics.update(deltaTime);
-    
-    // Update scene
-    this.scene.update(deltaTime);
-    
-    // Update input (clear pressed/released states)
-    this.input.update();
-    
->>>>>>> 2a2d123e02e38c15847705d20e0fdd4b963e9328
-    // Render
+        // Render
     this.render();
     
     // Continue loop
