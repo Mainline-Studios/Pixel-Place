@@ -64,7 +64,7 @@ export async function checkFirebaseConnection(): Promise<boolean> {
     const timeoutId = setTimeout(() => controller.abort(), 2000); // 2 second timeout
     
     try {
-      const response = await fetch('/api/presence?username=_connection_test', {
+      const response = await fetch(apiUrl('/api/presence?username=_connection_test'), {
         method: 'GET',
         signal: controller.signal
       });

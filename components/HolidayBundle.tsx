@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { User } from '@/types';
 import { useUser } from '@/contexts/UserContext';
 import { getSkins, getAccessories, saveSkins, saveAccessories } from '@/lib/storage';
+import { apiUrl } from '@/lib/apiBaseUrl';
 
 interface HolidayBundleProps {
     user: User;

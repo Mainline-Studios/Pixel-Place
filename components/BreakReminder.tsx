@@ -30,7 +30,7 @@ export default function BreakReminder({ onTakeBreak, onDismiss }: BreakReminderP
 
     const checkBreakStatus = async () => {
       try {
-        const response = await fetch(`/api/safety?username=${user.username}`);
+        const response = await fetch(apiUrl(`/api/safety?username=${user.username}`));
         const data = await response.json();
         setSafetyData(data);
         const hasActiveBreak = !!data.breakInProgress && !!data.breakEndsAt;
@@ -177,7 +177,7 @@ export default function BreakReminder({ onTakeBreak, onDismiss }: BreakReminderP
             <button
               onClick={async () => {
                 try {
-                  const response = await fetch('/api/safety', {
+                  const response = await fetch(apiUrl('/api/safety'), {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
@@ -262,7 +262,7 @@ export default function BreakReminder({ onTakeBreak, onDismiss }: BreakReminderP
               return;
             }
             try {
-              await fetch('/api/safety', {
+              await fetch(apiUrl('/api/safety'), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({

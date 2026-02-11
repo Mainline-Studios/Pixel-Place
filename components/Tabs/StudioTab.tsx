@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { User, SceneObject, DraftGame, UserMadeGame } from '@/types';
 import { getDraft, saveDraft } from '@/lib/storage';
+import { apiUrl } from '@/lib/apiBaseUrl';
 import { useUser } from '@/contexts/UserContext';
 import { toast } from '@/lib/toast';
 
@@ -278,7 +279,7 @@ export default function StudioTab({ user, editMode }: StudioTabProps) {
 
   const loadSceneObjects = async (scene: any, THREE: any) => {
     try {
-      const response = await fetch('/api/scene');
+      const response = await fetch(apiUrl('/api/scene'));
       const saved = await response.json();
       if (!saved || !saved.objects) return;
 
@@ -388,7 +389,7 @@ export default function StudioTab({ user, editMode }: StudioTabProps) {
     };
     
     try {
-      const response = await fetch('/api/scene', {
+      const response = await fetch(apiUrl('/api/scene'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
@@ -446,7 +447,7 @@ export default function StudioTab({ user, editMode }: StudioTabProps) {
     };
 
     try {
-      const response = await fetch('/api/games', {
+      const response = await fetch(apiUrl('/api/games'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(game),
