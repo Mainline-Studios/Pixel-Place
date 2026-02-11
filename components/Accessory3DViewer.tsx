@@ -54,6 +54,7 @@ export default function Accessory3DViewer({
     let accessoryGroup: any;
     let isMounted = true;
 
+<<<<<<< HEAD
     // Dynamic import for Three.js and GLTFLoader
     Promise.all([
       import('three'),
@@ -64,6 +65,14 @@ export default function Accessory3DViewer({
       try {
         THREE = threeModule;
         const GLTFLoader = gltfLoaderModule?.GLTFLoader;
+=======
+    // Dynamic import for Three.js
+    import('three').then((module) => {
+      if (!isMounted || !canvasRef.current) return;
+
+      try {
+        THREE = module;
+>>>>>>> 2a2d123e02e38c15847705d20e0fdd4b963e9328
 
         const canvas = canvasRef.current!;
         const renderer = new THREE.WebGLRenderer({
@@ -71,6 +80,7 @@ export default function Accessory3DViewer({
           antialias: true,
           alpha: true
         });
+<<<<<<< HEAD
         rendererRef.current = renderer;
         renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
         renderer.setSize(width, height);
@@ -83,12 +93,22 @@ export default function Accessory3DViewer({
 
         const scene = new THREE.Scene();
         sceneRef.current = scene;
+=======
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        renderer.setSize(width, height);
+        renderer.setClearColor(0x000000, 0);
+
+        const scene = new THREE.Scene();
+>>>>>>> 2a2d123e02e38c15847705d20e0fdd4b963e9328
 
         // Camera setup - centered on accessory
         const camera = new THREE.PerspectiveCamera(50, width / height, 0.1, 1000);
         camera.position.set(0, 0, 3);
         camera.lookAt(0, 0, 0);
+<<<<<<< HEAD
         cameraRef.current = camera;
+=======
+>>>>>>> 2a2d123e02e38c15847705d20e0fdd4b963e9328
 
         // Lighting
         const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
@@ -105,6 +125,7 @@ export default function Accessory3DViewer({
         // Create accessory group
         accessoryGroup = new THREE.Group();
         scene.add(accessoryGroup);
+<<<<<<< HEAD
         accessoryGroupRef.current = accessoryGroup;
 
         // Load GLTF model if modelUrl is provided
@@ -139,6 +160,8 @@ export default function Accessory3DViewer({
           );
           return; // Exit early, model will be added when loaded
         }
+=======
+>>>>>>> 2a2d123e02e38c15847705d20e0fdd4b963e9328
 
         // Create pixelated texture
         const createPixelatedTexture = (color: {r: number, g: number, b: number}, pixelSize: number = 8) => {
@@ -165,11 +188,14 @@ export default function Accessory3DViewer({
           }
           
           const texture = new THREE.CanvasTexture(canvas);
+<<<<<<< HEAD
           if ('colorSpace' in texture && THREE.SRGBColorSpace) {
             (texture as any).colorSpace = THREE.SRGBColorSpace;
           } else if ('encoding' in texture && THREE.sRGBEncoding) {
             (texture as any).encoding = THREE.sRGBEncoding;
           }
+=======
+>>>>>>> 2a2d123e02e38c15847705d20e0fdd4b963e9328
           texture.magFilter = THREE.NearestFilter;
           texture.minFilter = THREE.NearestFilter;
           texture.wrapS = THREE.RepeatWrapping;
@@ -839,6 +865,7 @@ export default function Accessory3DViewer({
             }
             break;
 
+<<<<<<< HEAD
           case 'drone':
             // Drone accessory - will be loaded from GLTF if modelUrl exists
             // Fallback to simple representation if no model
@@ -878,6 +905,8 @@ export default function Accessory3DViewer({
             }
             break;
 
+=======
+>>>>>>> 2a2d123e02e38c15847705d20e0fdd4b963e9328
           default:
             // Default accessory display
             const defaultAccessory = new THREE.Mesh(
@@ -887,6 +916,7 @@ export default function Accessory3DViewer({
             accessoryGroup.add(defaultAccessory);
         }
 
+<<<<<<< HEAD
         // Helper function for default accessory creation (used in error fallback)
         const createDefaultAccessory = () => {
           if (!accessoryGroup) return;
@@ -897,6 +927,8 @@ export default function Accessory3DViewer({
           accessoryGroup.add(defaultAccessory);
         };
 
+=======
+>>>>>>> 2a2d123e02e38c15847705d20e0fdd4b963e9328
         // Auto-rotate for display
         const animate = () => {
           if (!isMounted || !accessoryGroup) return;

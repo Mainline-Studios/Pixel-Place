@@ -4,13 +4,19 @@ import { useState, useEffect, useRef } from 'react';
 import React from 'react';
 import { User, Skin, Accessory } from '@/types';
 import { getSkins, saveSkins, getAccessories, saveAccessories } from '@/lib/storage';
+<<<<<<< HEAD
 import { apiUrl } from '@/lib/apiBaseUrl';
+=======
+>>>>>>> 2a2d123e02e38c15847705d20e0fdd4b963e9328
 import { escapeHTML } from '@/lib/utils';
 import { useUser } from '@/contexts/UserContext';
 import Avatar3DViewer from '@/components/Avatar3DViewer';
 import Accessory3DThumbnail from '@/components/Accessory3DThumbnail';
+<<<<<<< HEAD
 import FaceThumb from '@/components/FaceThumb';
 import Skin2DPreview from '@/components/Skin2DPreview';
+=======
+>>>>>>> 2a2d123e02e38c15847705d20e0fdd4b963e9328
 
 interface AvatarShopTabProps {
   user: User;
@@ -71,6 +77,7 @@ function RarityBadge({ rarity }: { rarity: string }) {
   );
 }
 
+<<<<<<< HEAD
 const MIN_SKIN_PRICE = 10;
 const DEFAULT_SKIN_COLORS = {
   head: '#f4c2a1',
@@ -112,6 +119,11 @@ function SkinThumb({ skin, previewMode, width = 80, height = 80 }: { skin: Skin;
   const [isVisible, setIsVisible] = useState(false);
   const [is3DReady, setIs3DReady] = useState(false);
   const [has3DError, setHas3DError] = useState(false);
+=======
+function SkinThumb({ skin }: { skin: Skin }) {
+  const [hasError, setHasError] = useState(false);
+  const [isVisible, setIsVisible] = useState(false);
+>>>>>>> 2a2d123e02e38c15847705d20e0fdd4b963e9328
   const containerRef = useRef<HTMLDivElement>(null);
   
   useEffect(() => {
@@ -132,6 +144,7 @@ function SkinThumb({ skin, previewMode, width = 80, height = 80 }: { skin: Skin;
     
     return () => observer.disconnect();
   }, []);
+<<<<<<< HEAD
 
   useEffect(() => {
     if (previewMode === '3d') {
@@ -142,13 +155,23 @@ function SkinThumb({ skin, previewMode, width = 80, height = 80 }: { skin: Skin;
 
   // Validate skin has required properties
   if (!skin) {
+=======
+  
+  // Validate skin has required properties
+  if (!skin || !skin.colors || hasError) {
+>>>>>>> 2a2d123e02e38c15847705d20e0fdd4b963e9328
     return (
       <div
         ref={containerRef}
         className="skin-thumb"
         style={{
+<<<<<<< HEAD
           width,
           height,
+=======
+          width: 80,
+          height: 80,
+>>>>>>> 2a2d123e02e38c15847705d20e0fdd4b963e9328
           background: '#333',
           borderRadius: '8px',
           display: 'flex',
@@ -158,15 +181,22 @@ function SkinThumb({ skin, previewMode, width = 80, height = 80 }: { skin: Skin;
           fontSize: '10px'
         }}
       >
+<<<<<<< HEAD
         Invalid
+=======
+        {hasError ? 'Error' : 'Invalid'}
+>>>>>>> 2a2d123e02e38c15847705d20e0fdd4b963e9328
       </div>
     );
   }
 
+<<<<<<< HEAD
   const show3D = previewMode === '3d' && isVisible && !has3DError;
   const showSpinner = previewMode === '3d' && isVisible && !is3DReady && !has3DError;
   const show2D = previewMode === '2d' || !is3DReady || has3DError;
 
+=======
+>>>>>>> 2a2d123e02e38c15847705d20e0fdd4b963e9328
   return (
     <div
       ref={containerRef}
@@ -182,6 +212,7 @@ function SkinThumb({ skin, previewMode, width = 80, height = 80 }: { skin: Skin;
         position: 'relative'
       }}
     >
+<<<<<<< HEAD
       {show2D && <Skin2DPreview skin={skin} width={width} height={height} />}
       {show3D && (
         <div style={{ position: 'absolute', inset: 0, opacity: is3DReady ? 1 : 0, transition: 'opacity 0.2s' }}>
@@ -205,6 +236,39 @@ function SkinThumb({ skin, previewMode, width = 80, height = 80 }: { skin: Skin;
         <div className="avatar-preview-spinner">
           <div className="avatar-preview-spinner-ring" />
         </div>
+=======
+      {isVisible ? (
+        <ErrorBoundary 
+          fallback={
+            <div 
+              style={{ 
+                width: 80, 
+                height: 80, 
+                background: '#333', 
+                borderRadius: '8px', 
+                display: 'flex', 
+                alignItems: 'center', 
+                justifyContent: 'center', 
+                color: '#888', 
+                fontSize: '10px' 
+              }}
+            >
+              Error
+            </div>
+          }
+          onError={() => setHasError(true)}
+        >
+          <Avatar3DViewer
+            skin={skin}
+            width={80}
+            height={80}
+            interactive={false}
+            animation={skin.defaultAnimation || 'idle'}
+          />
+        </ErrorBoundary>
+      ) : (
+        <div style={{ width: 80, height: 80, background: '#333', borderRadius: '8px' }} />
+>>>>>>> 2a2d123e02e38c15847705d20e0fdd4b963e9328
       )}
     </div>
   );
@@ -243,6 +307,7 @@ export default function AvatarShopTab({ user, editMode }: AvatarShopTabProps) {
   const { updateUser } = useUser();
   const [skins, setSkins] = useState<Skin[]>([]);
   const [accessories, setAccessories] = useState<Accessory[]>([]);
+<<<<<<< HEAD
   const [mainTab, setMainTab] = useState<'locker' | 'store'>('locker');
   const [lockerTab, setLockerTab] = useState<'skins' | 'faces' | 'accessories'>('skins');
   const [previewMode, setPreviewMode] = useState<'2d' | '3d'>('2d');
@@ -420,12 +485,92 @@ export default function AvatarShopTab({ user, editMode }: AvatarShopTabProps) {
     const formattedPrice = price.toLocaleString('en-US');
     
     if (userCoins < price) {
+=======
+  // TODO: Remove this banner when new currency is released - set to false or delete the banner code
+  const [showCurrencyBanner, setShowCurrencyBanner] = useState(true);
+  // Load data synchronously - getSkins and getAccessories are synchronous functions
+  useEffect(() => {
+    try {
+      // These are synchronous localStorage calls - instant
+      const skinsData = getSkins();
+      const accessoriesData = getAccessories();
+      
+      // Validate and filter out invalid skins
+      // Also filter out admin-only skins for non-admins
+      const validSkins = (Array.isArray(skinsData) ? skinsData : []).filter((skin: Skin) => {
+        // Check if skin is valid
+        if (!skin || !skin.id || !skin.colors || 
+            !skin.colors.head || !skin.colors.torso || 
+            !skin.colors.arm || !skin.colors.legs) {
+          return false;
+        }
+        // Filter out admin-only skins for non-admins
+        if (skin.adminOnly && user.role !== 'admin') {
+          return false;
+        }
+        return true;
+      });
+      
+      const validAccessories = (Array.isArray(accessoriesData) ? accessoriesData : []).filter((acc: Accessory) => {
+        return acc && acc.id && acc.type && acc.name;
+      });
+      
+      setSkins(validSkins);
+      setAccessories(validAccessories);
+    } catch (error: any) {
+      // Silent error - don't block UI, just use empty arrays
+      setSkins([]);
+      setAccessories([]);
+    }
+  }, [user.role]);
+  const ownedSkins = skins.filter((s) => user.ownedSkins?.includes(s.id));
+  const ownedAccessories = accessories.filter((a) => user.ownedAccessories?.includes(a.id));
+  
+  // Find equipped skin with validation
+  let equippedSkin = skins.find((s) => s.id === user.equippedSkin);
+  if (!equippedSkin && skins.length > 0) {
+    // Fallback to first skin if equipped skin not found
+    equippedSkin = skins[0];
+  }
+  
+  // Ensure equippedSkin has required properties
+  if (equippedSkin) {
+    if (!equippedSkin.colors) {
+      equippedSkin = {
+        ...equippedSkin,
+        colors: {
+          head: '#f4c2a1',
+          torso: '#4d536f',
+          arm: '#3a3f56',
+          legs: '#3a3f56'
+        }
+      };
+    }
+  }
+  
+  const equippedSkinName = equippedSkin ? equippedSkin.name : 'None';
+
+  const handlePurchase = async (skin: Skin) => {
+    if (user.ownedSkins?.includes(skin.id)) {
+      return; // Already owned - silent fail
+    }
+
+    const userCoins = user.coins || 0;
+    const formattedUserCoins = userCoins.toLocaleString('en-US');
+    const formattedPrice = skin.price.toLocaleString('en-US');
+    
+    if (userCoins < skin.price) {
+>>>>>>> 2a2d123e02e38c15847705d20e0fdd4b963e9328
       return; // Not enough coins - silent fail
     }
 
     if (confirm(`Buy ${skin.name} for ${formattedPrice} Coins?\nYour balance: ${formattedUserCoins}`)) {
       try {
+<<<<<<< HEAD
         const newCoins = (user.coins || 0) - price;
+=======
+        const newCoins = (user.coins || 0) - skin.price;
+>>>>>>> 2a2d123e02e38c15847705d20e0fdd4b963e9328
         const newOwnedSkins = [...(user.ownedSkins || []), skin.id];
         
         // Save purchase to backend - updateUser already saves and updates state
@@ -443,6 +588,7 @@ export default function AvatarShopTab({ user, editMode }: AvatarShopTabProps) {
     updateUser({ equippedSkin: skinId });
   };
 
+<<<<<<< HEAD
   const handleEquipFace = async (faceId: string) => {
     if (!user.ownedFaces?.includes(faceId)) {
       return; // Silent fail - don't own face
@@ -477,6 +623,8 @@ export default function AvatarShopTab({ user, editMode }: AvatarShopTabProps) {
     await updateUser({ equippedAccessories: Array.from(current) });
   };
 
+=======
+>>>>>>> 2a2d123e02e38c15847705d20e0fdd4b963e9328
   const handlePurchaseAccessory = async (accessory: Accessory) => {
     if (user.ownedAccessories?.includes(accessory.id)) {
       return; // Already owned - silent fail
@@ -494,6 +642,7 @@ export default function AvatarShopTab({ user, editMode }: AvatarShopTabProps) {
       try {
         const newCoins = (user.coins || 0) - accessory.price;
         const newOwnedAccessories = [...(user.ownedAccessories || []), accessory.id];
+<<<<<<< HEAD
         await updateUser({ coins: newCoins, ownedAccessories: newOwnedAccessories });
       } catch (error) {
         // Silent error handling
@@ -637,9 +786,101 @@ export default function AvatarShopTab({ user, editMode }: AvatarShopTabProps) {
           </div>
         </div>
       );
+=======
+        
+        // Save purchase to backend - updateUser already saves and updates state
+        await updateUser({ coins: newCoins, ownedAccessories: newOwnedAccessories });
+        setAccessories([...accessories]);
+      } catch (error) {
+        // Silent error handling
+      }
     }
   };
 
+  const handleEquipAccessory = (accessoryId: string, type: string) => {
+    if (!user.ownedAccessories?.includes(accessoryId)) {
+      return; // Silent fail - don't own accessory
+    }
+    const newEquipped = { ...(user.equippedAccessories || {}) };
+    newEquipped[type] = accessoryId;
+    updateUser({ equippedAccessories: newEquipped });
+  };
+
+  const handleUnequipAccessory = (type: string) => {
+    const newEquipped = { ...(user.equippedAccessories || {}) };
+    delete newEquipped[type];
+    updateUser({ equippedAccessories: newEquipped });
+  };
+
+  const handleAddSkin = async () => {
+    if (user.role !== 'admin') {
+      return; // Silent fail - not admin
+    }
+
+    const name = prompt('Skin name?');
+    if (!name) return;
+    const priceStr = prompt('Price in coins? (0 for free)');
+    // Rarity system removed
+    const torsoColor = prompt('Main color hex (like #4d536f)', '#4d536f');
+    const headColor = prompt('Head color hex (or press Enter to use main color)', torsoColor || '#4d536f');
+    const armColor = prompt('Arm color hex (or press Enter to use main color)', torsoColor || '#4d536f');
+    const legColor = prompt('Leg color hex (or press Enter to use main color)', torsoColor || '#4d536f');
+
+    const addAccessories = confirm('Add accessories? (chains, hats, etc.)');
+    const accessories = [];
+
+    if (addAccessories) {
+      let addMore = true;
+      while (addMore) {
+        const accessoryType = prompt('Accessory type: hat / chain / glasses / shirt / pants / shoes / backpack / other', 'chain');
+        if (accessoryType) {
+          const accessoryName = prompt('Accessory name?', accessoryType);
+          const accessoryColor = prompt('Accessory color hex?', '#888888');
+          accessories.push({
+            id: 'acc_' + Date.now() + '_' + Math.random(),
+            type: (accessoryType.toLowerCase() as any) || 'other',
+            name: accessoryName || accessoryType,
+            color: accessoryColor || '#888888'
+          });
+        }
+        addMore = confirm('Add another accessory?');
+      }
+    }
+
+    const newSkin: Skin = {
+      id: 'skin_' + Date.now(),
+      name,
+      // rarity removed
+      price: parseInt(priceStr || '0', 10),
+      img: name,
+      use3d: true,
+      defaultAnimation: 'idle',
+      colors: {
+        head: headColor || torsoColor || '#4d536f',
+        torso: torsoColor || '#4d536f',
+        arm: armColor || torsoColor || '#4d536f',
+        legs: legColor || torsoColor || '#4d536f',
+      },
+      accessories: accessories.length > 0 ? accessories : undefined,
+    };
+
+    try {
+      const updatedSkins = [...skins, newSkin];
+      await saveSkins(updatedSkins);
+      setSkins(updatedSkins);
+    } catch (error) {
+      // Silent error handling
+    }
+  };
+
+  const handleDeleteSkin = (skin: Skin) => {
+    if (user.role !== 'admin') {
+      return; // Silent fail - not admin
+>>>>>>> 2a2d123e02e38c15847705d20e0fdd4b963e9328
+    }
+  };
+
+<<<<<<< HEAD
   // Render Grocery Store tab
   const renderGroceryStore = () => {
     // Filter out owned items
@@ -866,12 +1107,25 @@ export default function AvatarShopTab({ user, editMode }: AvatarShopTabProps) {
         )}
       </div>
     );
+=======
+    if (confirm(`Delete skin "${skin.name}"? This action cannot be undone.`)) {
+      try {
+        const updatedSkins = skins.filter((s) => s.id !== skin.id);
+        saveSkins(updatedSkins);
+        setSkins(updatedSkins);
+      } catch (error) {
+        // Silent error handling
+      }
+    }
+>>>>>>> 2a2d123e02e38c15847705d20e0fdd4b963e9328
   };
+
 
   return (
     <>
       <h2 className="section-title">Avatar Shop</h2>
       
+<<<<<<< HEAD
       {/* Main Tab Navigation */}
       <div style={{
         display: 'flex',
@@ -1014,6 +1268,299 @@ export default function AvatarShopTab({ user, editMode }: AvatarShopTabProps) {
 
       {/* Content */}
       {mainTab === 'locker' ? renderLockerRoom() : renderGroceryStore()}
+=======
+      {/* NEW CURRENCY BANNER - Easy to remove: set showCurrencyBanner to false or delete this block */}
+      {showCurrencyBanner && (
+        <div style={{
+          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+          border: '2px solid rgba(255, 255, 255, 0.3)',
+          borderRadius: '12px',
+          padding: '16px 20px',
+          marginBottom: '24px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          boxShadow: '0 4px 20px rgba(102, 126, 234, 0.4)',
+          position: 'relative',
+          overflow: 'hidden'
+        }}>
+          <div style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent)',
+            animation: 'shimmer 3s infinite',
+            pointerEvents: 'none'
+          }} />
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', zIndex: 1 }}>
+            <span style={{ fontSize: '28px' }}>💎</span>
+            <div>
+              <div style={{ 
+                fontSize: '16px', 
+                fontWeight: 'bold', 
+                color: '#ffffff',
+                textShadow: '0 2px 4px rgba(0, 0, 0, 0.3)'
+              }}>
+                NEW CURRENCY COMING SOON
+              </div>
+              <div style={{ 
+                fontSize: '12px', 
+                color: 'rgba(255, 255, 255, 0.9)',
+                marginTop: '4px'
+              }}>
+                Stay tuned for exciting updates!
+              </div>
+            </div>
+          </div>
+          <button
+            onClick={() => setShowCurrencyBanner(false)}
+            style={{
+              background: 'rgba(255, 255, 255, 0.2)',
+              border: '1px solid rgba(255, 255, 255, 0.3)',
+              borderRadius: '6px',
+              color: '#ffffff',
+              padding: '6px 12px',
+              cursor: 'pointer',
+              fontSize: '14px',
+              fontWeight: 'bold',
+              transition: 'all 0.2s',
+              zIndex: 1
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = 'rgba(255, 255, 255, 0.3)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = 'rgba(255, 255, 255, 0.2)';
+            }}
+          >
+            ✕
+          </button>
+          <style>{`
+            @keyframes shimmer {
+              0% { transform: translateX(-100%); }
+              100% { transform: translateX(100%); }
+            }
+          `}</style>
+        </div>
+      )}
+      
+      {user.role === 'admin' && (
+        <div className="section-block">
+          <div className="section-header">
+            <div className="section-header-left">
+              <h3 className="section-title">Admin Tools</h3>
+            </div>
+            <div className="section-header-right">
+              <button className="btn" onClick={handleAddSkin}>
+                Add New Skin (Admin)
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      <div className="ai-box">
+        <div className="ai-label">Equipped Skin</div>
+        <div className="ai-output">
+          Currently wearing: {escapeHTML(equippedSkinName)}
+          You can equip a skin you own below.
+        </div>
+      </div>
+      <div className="ai-box">
+        <div className="skins-section-title">Owned Skins</div>
+        <div className="skins-grid">
+          {ownedSkins.length === 0 ? (
+            <div className="smalltext">You don&apos;t own any extra skins yet.</div>
+          ) : (
+            ownedSkins.map((s) => {
+              const equippedAccessoriesList = Object.values(user.equippedAccessories || {}).map(id => 
+                accessories.find(a => a.id === id)
+              ).filter(Boolean) as Accessory[];
+              
+              return (
+              <div key={s.id} className="skin-card">
+                <SkinThumb skin={s} accessories={s.id === user.equippedSkin ? equippedAccessoriesList : []} />
+                <div className="skin-name">{escapeHTML(s.name)}</div>
+                <div className="skin-meta">
+                  <span className="price-tag">{s.price === 0 ? 'Free' : 'Cost ' + s.price + ' Coins'}</span>
+                </div>
+                <div className="skin-actions">
+                  <button
+                    className="btn"
+                    onClick={() => handleEquip(s.id)}
+                    disabled={user.equippedSkin === s.id}
+                  >
+                    {user.equippedSkin === s.id ? 'Equipped' : 'Equip'}
+                  </button>
+                  {user.role === 'admin' && (
+                    <button
+                      className="btn"
+                      style={{
+                        marginTop: '8px',
+                        background: '#5a1f1f',
+                        border: '1px solid #8b2d2d',
+                        color: '#ff6b6b'
+                      }}
+                      onClick={() => handleDeleteSkin(s)}
+                    >
+                      Delete Skin
+                    </button>
+                  )}
+                </div>
+              </div>
+              );
+            })
+          )}
+        </div>
+      </div>
+      <div className="ai-box">
+        <div className="skins-section-title">Shop</div>
+        <div className="smalltext" style={{ marginBottom: '8px' }}>
+          Rarer skins cost more. Legendary skins are the most expensive.
+        </div>
+        <div className="skins-grid">
+          {skins.map((s) => {
+            const owned = user.ownedSkins?.includes(s.id);
+            const equipped = user.equippedSkin === s.id;
+            const affordable = (user.coins || 0) >= s.price;
+
+            return (
+              <div key={s.id} className="skin-card">
+                <SkinThumb skin={s} accessories={[]} />
+                <div className="skin-name">{escapeHTML(s.name)}</div>
+                <div className="skin-meta">
+                  <span className="price-tag">{s.price === 0 ? 'Free' : 'Cost ' + s.price + ' Coins'}</span>
+                </div>
+                <div className="skin-actions">
+                  {owned ? (
+                    <button
+                      className="btn"
+                      onClick={() => handleEquip(s.id)}
+                      disabled={equipped}
+                    >
+                      {equipped ? 'Equipped' : 'Equip'}
+                    </button>
+                  ) : (
+                    <button
+                      className="btn"
+                      disabled={!affordable}
+                      onClick={() => handlePurchase(s)}
+                    >
+                      Buy for {s.price} 💠
+                    </button>
+                  )}
+                  {user.role === 'admin' && (
+                    <button
+                      className="btn"
+                      style={{
+                        marginTop: '8px',
+                        background: '#5a1f1f',
+                        border: '1px solid #8b2d2d',
+                        color: '#ff6b6b'
+                      }}
+                      onClick={() => handleDeleteSkin(s)}
+                    >
+                      Delete Skin
+                    </button>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      <div className="ai-box">
+        <div className="skins-section-title">Accessories</div>
+        <div className="smalltext" style={{ marginBottom: '8px' }}>
+          Customize your avatar with hats, glasses, masks, and more. Mix and match different accessories!
+        </div>
+        
+        {ownedAccessories.length > 0 && (
+          <>
+            <div style={{ marginBottom: '16px', paddingBottom: '16px', borderBottom: '1px solid var(--border)' }}>
+              <div className="skins-section-title" style={{ fontSize: '14px', marginBottom: '12px' }}>Equipped Accessories</div>
+              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                {Object.entries(user.equippedAccessories || {}).map(([type, accessoryId]) => {
+                  const acc = accessories.find(a => a.id === accessoryId);
+                  if (!acc) return null;
+                  return (
+                    <div key={type} style={{ 
+                      padding: '8px 12px', 
+                      background: 'var(--panel-soft)', 
+                      borderRadius: '8px',
+                      border: '1px solid var(--border)',
+                      fontSize: '12px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px'
+                    }}>
+                      <span>{acc.name}</span>
+                      <button 
+                        className="btn" 
+                        onClick={() => handleUnequipAccessory(type)}
+                        style={{ padding: '4px 8px', fontSize: '10px' }}
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </>
+        )}
+
+        <div className="skins-grid">
+          {accessories.map((acc) => {
+            const owned = user.ownedAccessories?.includes(acc.id);
+            const equipped = user.equippedAccessories?.[acc.type] === acc.id;
+            const affordable = (user.coins || 0) >= acc.price;
+
+            return (
+              <div key={acc.id} className="skin-card">
+                <ErrorBoundary fallback={<div style={{ width: 80, height: 80, background: '#333', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#888', fontSize: '10px' }}>Error</div>}>
+                  {equippedSkin ? (
+                    <Accessory3DThumbnail 
+                      accessory={acc} 
+                      skin={equippedSkin} 
+                      equippedAccessories={user.equippedAccessories}
+                    />
+                  ) : (
+                    <div style={{ width: 80, height: 80, background: '#333', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#888', fontSize: '10px' }}>No Skin</div>
+                  )}
+                </ErrorBoundary>
+                <div className="skin-name">{escapeHTML(acc.name)}</div>
+                <div className="skin-meta">
+                  <span style={{ fontSize: '11px', color: '#8b90a8' }}>{acc.type}</span>
+                  <br />
+                  <span className="price-tag">{acc.price} Coins</span>
+                </div>
+                <div className="skin-actions">
+                  {owned ? (
+                    <button
+                      className="btn"
+                      onClick={() => equipped ? handleUnequipAccessory(acc.type) : handleEquipAccessory(acc.id, acc.type)}
+                    >
+                      {equipped ? 'Unequip' : 'Equip'}
+                    </button>
+                  ) : (
+                    <button
+                      className="btn"
+                      disabled={!affordable}
+                      onClick={() => handlePurchaseAccessory(acc)}
+                    >
+                      Buy for {acc.price} 💠
+                    </button>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+>>>>>>> 2a2d123e02e38c15847705d20e0fdd4b963e9328
     </>
   );
 }

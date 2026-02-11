@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAdmin } from '@/lib/middleware';
+<<<<<<< HEAD
 import { setDocument, deleteDocument, getDocuments, COLLECTIONS } from '@/lib/firestore';
+=======
+// These games are not currently exported - commented out for now
+// import { TIC_TAC_TOE_PRELOADED_GAME, CAPTURE_THE_FLAG_PRELOADED_GAME, HIDE_AND_SEEK_PRELOADED_GAME } from '@/lib/preloadedGames';
+>>>>>>> 2a2d123e02e38c15847705d20e0fdd4b963e9328
 import { PublishedGame } from '@/types';
 
 export async function POST(request: NextRequest) {

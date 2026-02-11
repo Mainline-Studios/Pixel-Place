@@ -1,15 +1,24 @@
 import { User, Skin, PublishedGame, DraftGame, SceneData, TabContent, GameServer, ServerPlan, FriendRequest, Message, Accessory, PrebuiltGame, Ban, BanAppeal, UserMadeGame, GameSubmission, Report } from '@/types';
 import { NEW_SKINS, NEW_ACCESSORIES } from './newCatalog';
+<<<<<<< HEAD
 import { apiUrl } from './apiBaseUrl';
+=======
+>>>>>>> 2a2d123e02e38c15847705d20e0fdd4b963e9328
 
 const ADMIN_ACCOUNTS = [
   { username: "admin", password: "extra" },
   { username: "TicTAK", password: "Thomas" },
   { username: "IDon'tKnow", password: "Titan" },
   { username: "6767kid", password: "67676767" },
+<<<<<<< HEAD
   { username: "Billibob", password: "Luca" },
   { username: "Daniello1", password: "Daniel" },
   { username: "FunBoy", password: "Simon" },
+=======
+  { username: "Oliver ! KING", password: "1813 OLIVERadmin" },
+  { username: "Daniello1", password: "Daniel" },
+  { username: "FunBoy", password: "one^rxiyB*3689714" },
+>>>>>>> 2a2d123e02e38c15847705d20e0fdd4b963e9328
   { username: "BelloBoy1", password: "Zac" },
   { username: "Bob", password: "Henry" },
   { username: "Mr.Noob", password: "Tyson" },
@@ -22,17 +31,127 @@ export const ADMIN_ACCOUNTS_LIST = ADMIN_ACCOUNTS;
 // This function is kept for backward compatibility but doesn't use localStorage
 export function initializeStorage() {
   if (typeof window === 'undefined') return;
+<<<<<<< HEAD
   
   // All data is now stored in Firebase Firestore (cloud)
   // No local storage initialization needed
   console.log('Storage initialized - all data stored in Firebase cloud');
+=======
+
+  // Ensure localStorage is available
+  try {
+    if (!window.localStorage) {
+      console.error('localStorage is not available');
+      return;
+    }
+  } catch (e) {
+    console.error('Error accessing localStorage:', e);
+    return;
+  }
+
+  // Replace ALL skins with new collection based on images - DELETE EVERYTHING FIRST
+  const initialSkins: Skin[] = [...NEW_SKINS];
+
+  // REPLACE ALL skins - completely delete old ones, no merging
+  localStorage.setItem("skinsCatalog", JSON.stringify(initialSkins));
+  console.log(`Deleted all old skins and replaced with ${initialSkins.length} new skins.`);
+
+  if (!localStorage.getItem("tabContent")) {
+    const tabContent: TabContent = {
+      home: "Welcome to Pixel Place. This is your activity hub.",
+      discover: "Discover live published games from creators.",
+      avatarShop: "Buy and equip skins here. Rarer skins cost more Pixel Coins.",
+      createGame: "Start building a new world or experience.",
+      studio: "Use the 3D Studio to build, move, and save objects in your world.",
+      coins: "Get Pixel Coins to spend on skins.",
+      friends: "Add friends, party up, and message each other.",
+      settings: "Account details, ."
+    };
+    localStorage.setItem("tabContent", JSON.stringify(tabContent));
+  }
+
+  if (!localStorage.getItem("pixelPlaceUsers")) {
+    localStorage.setItem("pixelPlaceUsers", JSON.stringify([]));
+  }
+
+  if (!localStorage.getItem("sceneStore")) {
+    localStorage.setItem("sceneStore", JSON.stringify({ objects: [] }));
+  }
+
+  if (!localStorage.getItem("draftGame")) {
+    localStorage.setItem("draftGame", JSON.stringify({ title: "", desc: "", owner: "" }));
+  }
+
+  if (!localStorage.getItem("publishedGames")) {
+    localStorage.setItem("publishedGames", JSON.stringify([]));
+  }
+
+  if (!localStorage.getItem("gameServers")) {
+    localStorage.setItem("gameServers", JSON.stringify([]));
+  }
+
+  if (!localStorage.getItem("serverPlans")) {
+    const defaultPlans: ServerPlan[] = [
+      {
+        id: 'plan_small',
+        name: 'Small Server',
+        maxPlayers: 10,
+        price: 500,
+        description: 'Perfect for small groups',
+        features: ['10 max players', 'Basic support', 'Standard performance']
+      },
+      {
+        id: 'plan_medium',
+        name: 'Medium Server',
+        maxPlayers: 25,
+        price: 1500,
+        description: 'Great for medium communities',
+        features: ['25 max players', 'Priority support', 'Enhanced performance']
+      },
+      {
+        id: 'plan_large',
+        name: 'Large Server',
+        maxPlayers: 50,
+        price: 3000,
+        description: 'For large communities',
+        features: ['50 max players', 'Premium support', 'Maximum performance']
+      }
+    ];
+    localStorage.setItem("serverPlans", JSON.stringify(defaultPlans));
+  }
+
+  if (!localStorage.getItem("friendRequests")) {
+    localStorage.setItem("friendRequests", JSON.stringify([]));
+  }
+
+  if (!localStorage.getItem("messages")) {
+    localStorage.setItem("messages", JSON.stringify([]));
+  }
+
+  // DELETE ALL GAMES - Start completely fresh
+  const existingGames: PublishedGame[] = [];
+
+  localStorage.setItem("publishedGames", JSON.stringify(existingGames));
+  console.log('Deleted all games.');
+
+  // REPLACE ALL accessories with new collection - DELETE EVERYTHING FIRST
+  const initialAccessories: Accessory[] = [...NEW_ACCESSORIES];
+
+  // Always replace accessories - completely delete old ones, no merging
+  localStorage.setItem("accessoriesCatalog", JSON.stringify(initialAccessories));
+  console.log(`Deleted all old accessories and replaced with ${initialAccessories.length} new accessories.`);
+>>>>>>> 2a2d123e02e38c15847705d20e0fdd4b963e9328
 }
 
 // User functions - Now using API
 export async function getUsers(): Promise<User[]> {
   if (typeof window === 'undefined') return [];
   try {
+<<<<<<< HEAD
     const response = await fetch(apiUrl('/api/users'), {
+=======
+    const response = await fetch('/api/users', {
+>>>>>>> 2a2d123e02e38c15847705d20e0fdd4b963e9328
       cache: 'no-store', // Always fetch fresh data
       headers: {
         'Cache-Control': 'no-cache'
@@ -75,7 +194,11 @@ export async function getUsers(): Promise<User[]> {
             // Remove from localStorage after successful migration
             localStorage.removeItem("pixelPlaceUsers");
             // Fetch updated list
+<<<<<<< HEAD
             const updatedResponse = await fetch(apiUrl('/api/users'), { cache: 'no-store' });
+=======
+            const updatedResponse = await fetch('/api/users', { cache: 'no-store' });
+>>>>>>> 2a2d123e02e38c15847705d20e0fdd4b963e9328
             if (updatedResponse.ok) {
               const updatedUsers = await updatedResponse.json();
               console.log(`getUsers: After migration, fetched ${updatedUsers.length} users`);
@@ -118,7 +241,11 @@ export async function saveUsers(users: User[]): Promise<void> {
   try {
     // Save each user (API handles updates if user exists)
     for (const user of users) {
+<<<<<<< HEAD
       await fetch(apiUrl('/api/users'), {
+=======
+      await fetch('/api/users', {
+>>>>>>> 2a2d123e02e38c15847705d20e0fdd4b963e9328
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(user)
@@ -130,6 +257,7 @@ export async function saveUsers(users: User[]): Promise<void> {
 }
 
 // Skin functions - Using localStorage
+<<<<<<< HEAD
 // Skin functions - Using API (Firebase)
 export async function getSkins(): Promise<Skin[]> {
   if (typeof window === 'undefined') return [];
@@ -141,10 +269,16 @@ export async function getSkins(): Promise<Skin[]> {
     console.error('Error reading skins from API:', e);
     return [];
   }
+=======
+export function getSkins(): Skin[] {
+  if (typeof window === 'undefined') return [];
+  return JSON.parse(localStorage.getItem("skinsCatalog") || "[]");
+>>>>>>> 2a2d123e02e38c15847705d20e0fdd4b963e9328
 }
 
-export async function saveSkins(skins: Skin[]): Promise<void> {
+export function saveSkins(skins: Skin[]): void {
   if (typeof window === 'undefined') return;
+<<<<<<< HEAD
   try {
     await fetch(apiUrl('/api/skins'), {
       method: 'POST',
@@ -157,14 +291,52 @@ export async function saveSkins(skins: Skin[]): Promise<void> {
 }
 
 // Tab content functions - Using API (Firebase)
+=======
+  localStorage.setItem("skinsCatalog", JSON.stringify(skins));
+}
+
+// Tab content functions - Now using API
+>>>>>>> 2a2d123e02e38c15847705d20e0fdd4b963e9328
 export async function getTabContent(): Promise<TabContent> {
   if (typeof window === 'undefined') return {} as TabContent;
   try {
     const response = await fetch(apiUrl('/api/tabcontent'), { cache: 'no-store' });
     if (!response.ok) throw new Error('Failed to fetch tab content');
+<<<<<<< HEAD
     return await response.json();
   } catch (e) {
     console.error('Error reading tab content from API:', e);
+=======
+    const apiContent = await response.json();
+
+    // Migration: Move localStorage data to API if it exists
+    try {
+      const localData = localStorage.getItem("tabContent");
+      if (localData && Object.keys(apiContent).length === 0) {
+        const localContent: TabContent = JSON.parse(localData);
+        if (Object.keys(localContent).length > 0) {
+          await fetch('/api/tabcontent', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(localContent)
+          }).catch(() => { });
+          localStorage.removeItem("tabContent");
+          const updatedResponse = await fetch('/api/tabcontent');
+          if (updatedResponse.ok) return await updatedResponse.json();
+        }
+      }
+    } catch (migrationError) {
+      console.error('Error migrating tab content:', migrationError);
+    }
+
+    return apiContent;
+  } catch (e) {
+    console.error('Error reading tab content from API:', e);
+    try {
+      const data = localStorage.getItem("tabContent");
+      if (data) return JSON.parse(data);
+    } catch { }
+>>>>>>> 2a2d123e02e38c15847705d20e0fdd4b963e9328
     return {} as TabContent;
   }
 }
@@ -189,9 +361,41 @@ export async function getDraft(username?: string): Promise<DraftGame> {
     const url = username ? `/api/draft?username=${encodeURIComponent(username)}` : '/api/draft';
     const response = await fetch(url, { cache: 'no-store' });
     if (!response.ok) throw new Error('Failed to fetch draft');
+<<<<<<< HEAD
     return await response.json();
   } catch (e) {
     console.error('Error reading draft from API:', e);
+=======
+    const apiDraft = await response.json();
+
+    // Migration: Move localStorage data to API if it exists
+    try {
+      const localData = localStorage.getItem("draftGame");
+      if (localData && (!apiDraft.title && !apiDraft.desc && !apiDraft.owner)) {
+        const localDraft: DraftGame = JSON.parse(localData);
+        if (localDraft.title || localDraft.desc || localDraft.owner) {
+          await fetch('/api/draft', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(localDraft)
+          }).catch(() => { });
+          localStorage.removeItem("draftGame");
+          const updatedResponse = await fetch('/api/draft');
+          if (updatedResponse.ok) return await updatedResponse.json();
+        }
+      }
+    } catch (migrationError) {
+      console.error('Error migrating draft:', migrationError);
+    }
+
+    return apiDraft;
+  } catch (e) {
+    console.error('Error reading draft from API:', e);
+    try {
+      const data = localStorage.getItem("draftGame");
+      if (data) return JSON.parse(data);
+    } catch { }
+>>>>>>> 2a2d123e02e38c15847705d20e0fdd4b963e9328
     return { title: "", desc: "", owner: "" };
   }
 }
@@ -212,7 +416,9 @@ export async function saveDraft(draft: DraftGame): Promise<void> {
 // Published games functions - Now using API
 export async function getPublished(): Promise<PublishedGame[]> {
   if (typeof window === 'undefined') return [];
+
   try {
+<<<<<<< HEAD
     const response = await fetch(apiUrl('/api/published'), { cache: 'no-store' });
     if (!response.ok) throw new Error('Failed to fetch published games');
     const games = await response.json();
@@ -238,7 +444,76 @@ export async function getPublished(): Promise<PublishedGame[]> {
   } catch (e) {
     console.error('Error reading published games from API:', e);
     return [];
+=======
+    // Try to get games from API first
+    const response = await fetch('/api/published', {
+      cache: 'no-store',
+      headers: { 'Cache-Control': 'no-cache' }
+    });
+
+    if (response.ok) {
+      const apiGames = await response.json();
+      if (Array.isArray(apiGames)) {
+        // Also include built-in games
+        const { BUILTIN_GAMES } = await import('@/lib/builtinGames');
+        const allGames = [...BUILTIN_GAMES, ...apiGames];
+
+        // Remove duplicates - keep only the most recent version
+        const seen = new Map<string, PublishedGame>();
+        allGames.forEach((game: PublishedGame) => {
+          const key = game.gameCode || `${game.title}_${game.owner}`;
+          if (!seen.has(key) || (seen.get(key)?.ts || 0) < (game.ts || 0)) {
+            seen.set(key, game);
+          }
+        });
+
+        return Array.from(seen.values()).sort((a, b) => (b.ts || 0) - (a.ts || 0));
+      }
+    }
+  } catch (error) {
+    console.error('Error fetching published games from API:', error);
   }
+
+  // Fallback to localStorage
+  let games = JSON.parse(localStorage.getItem("publishedGames") || "[]");
+
+  // Remove duplicates - keep only the most recent version of each System game
+  const seen = new Map<string, PublishedGame>();
+  games.forEach((game: PublishedGame) => {
+    const key = `${game.title}_${game.owner}`;
+    if (!seen.has(key) || (seen.get(key)?.ts || 0) < (game.ts || 0)) {
+      seen.set(key, game);
+    }
+  });
+
+  // Convert back to array and remove any Tic Ti Toe duplicates
+  const uniqueGames = Array.from(seen.values());
+
+  // Filter out Tic Tac Toe and Capture the Flag games permanently
+  const filtered = uniqueGames.filter(g =>
+    !((g.title === 'Tic Ti Toe' || g.title === 'Tic Tac Toe' || g.title === 'Capture de Flag') && g.owner === 'System')
+  );
+
+  // Add built-in games
+  try {
+    const { BUILTIN_GAMES } = await import('@/lib/builtinGames');
+    const builtinMap = new Map(BUILTIN_GAMES.map(g => [g.gameCode || g.title, g]));
+    filtered.forEach(g => {
+      const key = g.gameCode || g.title;
+      if (builtinMap.has(key)) {
+        builtinMap.delete(key); // Remove if already exists
+      }
+    });
+    const newBuiltin = Array.from(builtinMap.values());
+    filtered.push(...newBuiltin);
+  } catch (error) {
+    console.error('Error loading built-in games:', error);
+>>>>>>> 2a2d123e02e38c15847705d20e0fdd4b963e9328
+  }
+
+  // Save the cleaned list back to localStorage
+  localStorage.setItem("publishedGames", JSON.stringify(filtered));
+  return filtered.sort((a, b) => (b.ts || 0) - (a.ts || 0));
 }
 
 export async function savePublished(games: PublishedGame[]): Promise<void> {
@@ -258,12 +533,46 @@ export async function savePublished(games: PublishedGame[]): Promise<void> {
 export async function getSceneData(userId?: string): Promise<SceneData> {
   if (typeof window === 'undefined') return { objects: [] };
   try {
+<<<<<<< HEAD
     const url = userId ? `/api/scene?userId=${encodeURIComponent(userId)}` : '/api/scene';
     const response = await fetch(url, { cache: 'no-store' });
     if (!response.ok) throw new Error('Failed to fetch scene');
     return await response.json();
   } catch (e) {
     console.error('Error reading scene from API:', e);
+=======
+    const response = await fetch('/api/scene');
+    if (!response.ok) throw new Error('Failed to fetch scene');
+    const apiScene = await response.json();
+
+    // Migration: Move localStorage data to API if it exists
+    try {
+      const localData = localStorage.getItem("sceneStore");
+      if (localData && (!apiScene.objects || apiScene.objects.length === 0)) {
+        const localScene: SceneData = JSON.parse(localData);
+        if (localScene.objects && localScene.objects.length > 0) {
+          await fetch('/api/scene', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(localScene)
+          }).catch(() => { });
+          localStorage.removeItem("sceneStore");
+          const updatedResponse = await fetch('/api/scene');
+          if (updatedResponse.ok) return await updatedResponse.json();
+        }
+      }
+    } catch (migrationError) {
+      console.error('Error migrating scene:', migrationError);
+    }
+
+    return apiScene;
+  } catch (e) {
+    console.error('Error reading scene from API:', e);
+    try {
+      const data = localStorage.getItem("sceneStore");
+      if (data) return JSON.parse(data);
+    } catch { }
+>>>>>>> 2a2d123e02e38c15847705d20e0fdd4b963e9328
     return { objects: [] };
   }
 }
@@ -340,7 +649,11 @@ export async function savePrebuiltGames(games: PrebuiltGame[]): Promise<void> {
 export async function getBannedUsers(): Promise<Ban[]> {
   if (typeof window === 'undefined') return [];
   try {
+<<<<<<< HEAD
     const response = await fetch(apiUrl('/api/bans'));
+=======
+    const response = await fetch('/api/bans');
+>>>>>>> 2a2d123e02e38c15847705d20e0fdd4b963e9328
     if (!response.ok) throw new Error('Failed to fetch bans');
     const bans = await response.json();
     // Filter out expired bans
@@ -371,7 +684,11 @@ export async function saveBannedUsers(bans: Ban[]): Promise<void> {
   try {
     // Save each ban
     for (const ban of bans) {
+<<<<<<< HEAD
       await fetch(apiUrl('/api/bans'), {
+=======
+      await fetch('/api/bans', {
+>>>>>>> 2a2d123e02e38c15847705d20e0fdd4b963e9328
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(ban)
@@ -388,6 +705,7 @@ export async function isUserBanned(username: string): Promise<boolean> {
 
   const usernameLower = username.trim().toLowerCase();
   const bans = await getBannedUsers();
+<<<<<<< HEAD
   const now = Date.now();
   const ban = bans.find(b => {
     if (b.username.toLowerCase() !== usernameLower) return false;
@@ -396,6 +714,9 @@ export async function isUserBanned(username: string): Promise<boolean> {
     if (b.expiresAt && b.expiresAt > now) return true;
     return false;
   });
+=======
+  const ban = bans.find(b => b.username.toLowerCase() === usernameLower);
+>>>>>>> 2a2d123e02e38c15847705d20e0fdd4b963e9328
   return !!ban;
 }
 
@@ -405,6 +726,7 @@ export async function getBanForUser(username: string): Promise<Ban | null> {
 
   const usernameLower = username.trim().toLowerCase();
   const bans = await getBannedUsers();
+<<<<<<< HEAD
   const now = Date.now();
   return bans.find(b => {
     if (b.username.toLowerCase() !== usernameLower) return false;
@@ -413,6 +735,9 @@ export async function getBanForUser(username: string): Promise<Ban | null> {
     if (b.expiresAt && b.expiresAt > now) return true;
     return false;
   }) || null;
+=======
+  return bans.find(b => b.username.toLowerCase() === usernameLower) || null;
+>>>>>>> 2a2d123e02e38c15847705d20e0fdd4b963e9328
 }
 
 // Sync versions for compatibility
@@ -454,7 +779,11 @@ export async function banUser(username: string, bannedBy: string, reason: string
   };
 
   try {
+<<<<<<< HEAD
     const response = await fetch(apiUrl('/api/bans'), {
+=======
+    const response = await fetch('/api/bans', {
+>>>>>>> 2a2d123e02e38c15847705d20e0fdd4b963e9328
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(newBan)
@@ -469,7 +798,11 @@ export async function banUser(username: string, bannedBy: string, reason: string
 export async function unbanUser(username: string): Promise<void> {
   if (typeof window === 'undefined') return;
   try {
+<<<<<<< HEAD
     await fetch(apiUrl(`/api/bans?username=${encodeURIComponent(username)}`), {
+=======
+    await fetch(`/api/bans?username=${encodeURIComponent(username)}`, {
+>>>>>>> 2a2d123e02e38c15847705d20e0fdd4b963e9328
       method: 'DELETE'
     });
   } catch (e) {
@@ -481,7 +814,11 @@ export async function unbanUser(username: string): Promise<void> {
 export async function getReports(): Promise<Report[]> {
   if (typeof window === 'undefined') return [];
   try {
+<<<<<<< HEAD
     const response = await fetch(apiUrl('/api/reports'));
+=======
+    const response = await fetch('/api/reports');
+>>>>>>> 2a2d123e02e38c15847705d20e0fdd4b963e9328
     if (!response.ok) throw new Error('Failed to fetch reports');
     return await response.json();
   } catch (e) {
@@ -512,7 +849,11 @@ export async function createReport(reportedUsername: string, reporterUsername: s
   };
 
   try {
+<<<<<<< HEAD
     const response = await fetch(apiUrl('/api/reports'), {
+=======
+    const response = await fetch('/api/reports', {
+>>>>>>> 2a2d123e02e38c15847705d20e0fdd4b963e9328
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(newReport)
@@ -530,7 +871,11 @@ export async function createReport(reportedUsername: string, reporterUsername: s
 export async function updateReportStatus(reportId: string, status: Report['status'], adminUsername: string, notes?: string): Promise<void> {
   if (typeof window === 'undefined') return;
   try {
+<<<<<<< HEAD
     await fetch(apiUrl('/api/reports'), {
+=======
+    await fetch('/api/reports', {
+>>>>>>> 2a2d123e02e38c15847705d20e0fdd4b963e9328
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id: reportId, status, reviewedBy: adminUsername, adminNotes: notes })
@@ -544,7 +889,11 @@ export async function updateReportStatus(reportId: string, status: Report['statu
 export async function getBanAppeals(): Promise<BanAppeal[]> {
   if (typeof window === 'undefined') return [];
   try {
+<<<<<<< HEAD
     const response = await fetch(apiUrl('/api/appeals'));
+=======
+    const response = await fetch('/api/appeals');
+>>>>>>> 2a2d123e02e38c15847705d20e0fdd4b963e9328
     if (!response.ok) throw new Error('Failed to fetch appeals');
     return await response.json();
   } catch (e) {
@@ -587,7 +936,11 @@ export async function createBanAppeal(username: string, ban: Ban, appealMessage:
   };
 
   try {
+<<<<<<< HEAD
     const response = await fetch(apiUrl('/api/appeals'), {
+=======
+    const response = await fetch('/api/appeals', {
+>>>>>>> 2a2d123e02e38c15847705d20e0fdd4b963e9328
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(newAppeal)
@@ -605,7 +958,11 @@ export async function createBanAppeal(username: string, ban: Ban, appealMessage:
 export async function updateBanAppealStatus(appealId: string, status: BanAppeal['status'], adminUsername: string, notes?: string, shouldUnban?: boolean): Promise<void> {
   if (typeof window === 'undefined') return;
   try {
+<<<<<<< HEAD
     await fetch(apiUrl('/api/appeals'), {
+=======
+    await fetch('/api/appeals', {
+>>>>>>> 2a2d123e02e38c15847705d20e0fdd4b963e9328
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id: appealId, status, reviewedBy: adminUsername, adminNotes: notes, shouldUnban })
@@ -634,6 +991,7 @@ export function getServerPlans(): ServerPlan[] {
 // All data now stored in Firebase - these functions are deprecated
 // Use API functions instead (getMessagesAPI, etc.)
 
+<<<<<<< HEAD
 // Accessory functions - Using API (Firebase)
 export async function getAccessories(): Promise<Accessory[]> {
   if (typeof window === 'undefined') return [];
@@ -648,8 +1006,51 @@ export async function getAccessories(): Promise<Accessory[]> {
 }
 
 export async function saveAccessories(accessories: Accessory[]): Promise<void> {
+=======
+// Friend request functions
+export function getFriendRequests(): FriendRequest[] {
+  if (typeof window === 'undefined') return [];
+  return JSON.parse(localStorage.getItem("friendRequests") || "[]");
+}
+
+export function saveFriendRequests(requests: FriendRequest[]): void {
   if (typeof window === 'undefined') return;
+  localStorage.setItem("friendRequests", JSON.stringify(requests));
+}
+
+// Message functions
+export function getMessages(): Message[] {
+  if (typeof window === 'undefined') return [];
+  return JSON.parse(localStorage.getItem("messages") || "[]");
+}
+
+export function saveMessages(messages: Message[]): void {
+>>>>>>> 2a2d123e02e38c15847705d20e0fdd4b963e9328
+  if (typeof window === 'undefined') return;
+  localStorage.setItem("messages", JSON.stringify(messages));
+}
+
+// Accessory functions
+export function getAccessories(): Accessory[] {
+  if (typeof window === 'undefined') return [];
+  return JSON.parse(localStorage.getItem("accessoriesCatalog") || "[]");
+}
+
+export function saveAccessories(accessories: Accessory[]): void {
+  if (typeof window === 'undefined') return;
+  localStorage.setItem("accessoriesCatalog", JSON.stringify(accessories));
+}
+
+
+
+
+
+
+// Message functions - Using API (renamed to avoid conflict)
+export async function getMessagesAPI(username: string, withUsername?: string): Promise<any[]> {
+  if (typeof window === 'undefined') return [];
   try {
+<<<<<<< HEAD
     await fetch(apiUrl('/api/accessories'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -689,6 +1090,28 @@ export async function sendMessage(fromUsername: string, toUsername: string, mess
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ fromUsername, toUsername, message })
     });
+=======
+    const url = withUsername
+      ? `/api/messages?username=${encodeURIComponent(username)}&with=${encodeURIComponent(withUsername)}`
+      : `/api/messages?username=${encodeURIComponent(username)}`;
+    const response = await fetch(url);
+    if (!response.ok) throw new Error('Failed to fetch messages');
+    return await response.json();
+  } catch (e) {
+    console.error('Error reading messages from API:', e);
+    return [];
+  }
+}
+
+export async function sendMessage(fromUsername: string, toUsername: string, message: string): Promise<string> {
+  if (typeof window === 'undefined') return '';
+  try {
+    const response = await fetch('/api/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ fromUsername, toUsername, message })
+    });
+>>>>>>> 2a2d123e02e38c15847705d20e0fdd4b963e9328
     if (response.ok) {
       const saved = await response.json();
       return saved.id;
@@ -702,7 +1125,11 @@ export async function sendMessage(fromUsername: string, toUsername: string, mess
 export async function markMessageAsRead(messageId: string): Promise<void> {
   if (typeof window === 'undefined') return;
   try {
+<<<<<<< HEAD
     await fetch(apiUrl('/api/messages'), {
+=======
+    await fetch('/api/messages', {
+>>>>>>> 2a2d123e02e38c15847705d20e0fdd4b963e9328
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id: messageId, read: true })
@@ -713,11 +1140,19 @@ export async function markMessageAsRead(messageId: string): Promise<void> {
 }
 
 
+<<<<<<< HEAD
 // User-made games functions - Using API (writes go to Firestore instantly)
 export async function getUserMadeGames(): Promise<UserMadeGame[]> {
   if (typeof window === 'undefined') return [];
   try {
     const response = await fetch(apiUrl('/api/games'), { cache: 'no-store' });
+=======
+// User-made games functions - Using API
+export async function getUserMadeGames(): Promise<UserMadeGame[]> {
+  if (typeof window === 'undefined') return [];
+  try {
+    const response = await fetch('/api/usermadegamefiles');
+>>>>>>> 2a2d123e02e38c15847705d20e0fdd4b963e9328
     if (!response.ok) throw new Error('Failed to fetch user-made games');
     return await response.json();
   } catch (e) {
@@ -729,7 +1164,11 @@ export async function getUserMadeGames(): Promise<UserMadeGame[]> {
 export async function saveUserMadeGame(game: UserMadeGame): Promise<void> {
   if (typeof window === 'undefined') return;
   try {
+<<<<<<< HEAD
     await fetch(apiUrl('/api/games'), {
+=======
+    await fetch('/api/usermadegamefiles', {
+>>>>>>> 2a2d123e02e38c15847705d20e0fdd4b963e9328
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(game)
@@ -742,7 +1181,11 @@ export async function saveUserMadeGame(game: UserMadeGame): Promise<void> {
 export async function deleteUserMadeGame(gameId: string): Promise<void> {
   if (typeof window === 'undefined') return;
   try {
+<<<<<<< HEAD
     await fetch(apiUrl(`/api/games?id=${encodeURIComponent(gameId)}`), {
+=======
+    await fetch(`/api/usermadegamefiles?id=${encodeURIComponent(gameId)}`, {
+>>>>>>> 2a2d123e02e38c15847705d20e0fdd4b963e9328
       method: 'DELETE'
     });
   } catch (e) {
@@ -754,7 +1197,11 @@ export async function deleteUserMadeGame(gameId: string): Promise<void> {
 export async function getGameSubmissions(): Promise<GameSubmission[]> {
   if (typeof window === 'undefined') return [];
   try {
+<<<<<<< HEAD
     const response = await fetch(apiUrl('/api/gamesubmissions'));
+=======
+    const response = await fetch('/api/gamesubmissions');
+>>>>>>> 2a2d123e02e38c15847705d20e0fdd4b963e9328
     if (!response.ok) throw new Error('Failed to fetch game submissions');
     return await response.json();
   } catch (e) {
@@ -766,7 +1213,11 @@ export async function getGameSubmissions(): Promise<GameSubmission[]> {
 export async function saveGameSubmission(submission: GameSubmission): Promise<void> {
   if (typeof window === 'undefined') return;
   try {
+<<<<<<< HEAD
     await fetch(apiUrl('/api/gamesubmissions'), {
+=======
+    await fetch('/api/gamesubmissions', {
+>>>>>>> 2a2d123e02e38c15847705d20e0fdd4b963e9328
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(submission)
@@ -779,10 +1230,70 @@ export async function saveGameSubmission(submission: GameSubmission): Promise<vo
 export async function deleteGameSubmission(submissionId: string): Promise<void> {
   if (typeof window === 'undefined') return;
   try {
+<<<<<<< HEAD
     await fetch(apiUrl(`/api/gamesubmissions?id=${encodeURIComponent(submissionId)}`), {
+=======
+    await fetch(`/api/gamesubmissions?id=${encodeURIComponent(submissionId)}`, {
+>>>>>>> 2a2d123e02e38c15847705d20e0fdd4b963e9328
       method: 'DELETE'
     });
   } catch (e) {
     console.error('Error deleting game submission:', e);
   }
 }
+<<<<<<< HEAD
+=======
+
+// Initialize all admin accounts in the system
+export async function initializeAdminAccounts(): Promise<void> {
+  if (typeof window === 'undefined') return;
+
+  console.log('Initializing admin accounts...');
+
+  for (const adminAccount of ADMIN_ACCOUNTS) {
+    try {
+      // Determine special coin amounts
+      let coins = 99999; // Default admin coins
+      if (adminAccount.username === '6767kid') {
+        coins = 4e471; // Massive amount for 6767kid
+      } else if (adminAccount.username.toLowerCase() === 'daniello1') {
+        coins = 5.534e200; // Massive amount for Daniello1
+      }
+
+      // Create user object
+      const user: User = {
+        username: adminAccount.username,
+        password: adminAccount.password,
+        gender: 'N/A',
+        role: 'admin',
+        coins: coins,
+        ownedSkins: ['starter_classic'],
+        equippedSkin: 'starter_classic',
+        ownedAccessories: [],
+        equippedAccessories: [],
+        friends: [],
+        friendRequests: [],
+        sentFriendRequests: []
+      };
+
+      // Save via API
+      const response = await fetch('/api/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(user)
+      });
+
+      if (response.ok) {
+        console.log(`✅ Saved admin account: ${adminAccount.username}`);
+      } else {
+        const error = await response.json().catch(() => ({ error: 'Unknown error' }));
+        console.warn(`⚠️ Failed to save ${adminAccount.username}:`, error);
+      }
+    } catch (error) {
+      console.error(`❌ Error saving ${adminAccount.username}:`, error);
+    }
+  }
+
+  console.log('Finished initializing admin accounts.');
+}
+>>>>>>> 2a2d123e02e38c15847705d20e0fdd4b963e9328

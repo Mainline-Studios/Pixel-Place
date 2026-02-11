@@ -89,7 +89,11 @@ export default function CoinsTab({ user, editMode }: CoinsTabProps) {
 
       try {
         // Add coins directly without payment
+<<<<<<< HEAD
         const response = await fetch(apiUrl('/api/add-coins'), {
+=======
+        const response = await fetch('/api/add-coins', {
+>>>>>>> 2a2d123e02e38c15847705d20e0fdd4b963e9328
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -129,7 +133,11 @@ export default function CoinsTab({ user, editMode }: CoinsTabProps) {
 
       try {
         // Create checkout session for $5
+<<<<<<< HEAD
         const response = await fetch(apiUrl('/api/checkout'), {
+=======
+        const response = await fetch('/api/checkout', {
+>>>>>>> 2a2d123e02e38c15847705d20e0fdd4b963e9328
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -162,7 +170,11 @@ export default function CoinsTab({ user, editMode }: CoinsTabProps) {
         }
       } catch (error: any) {
         console.error('Checkout error:', error);
+<<<<<<< HEAD
         // Silent error - no alert
+=======
+        alert(`Payment Error: ${error.message || 'Failed to process payment. Please check the browser console for details.'}`);
+>>>>>>> 2a2d123e02e38c15847705d20e0fdd4b963e9328
         setLoading(null);
       }
       return;
@@ -198,7 +210,7 @@ export default function CoinsTab({ user, editMode }: CoinsTabProps) {
       // Redirect to Stripe Checkout
       const stripe = await stripePromise;
       if (!stripe) {
-        throw new Error('Stripe failed to load');
+        throw new Error('Stripe failed to load. Please check NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY in your .env.local file.');
       }
 
       const { error } = await stripe.redirectToCheckout({
@@ -210,7 +222,11 @@ export default function CoinsTab({ user, editMode }: CoinsTabProps) {
       }
     } catch (error: any) {
       console.error('Checkout error:', error);
+<<<<<<< HEAD
       // Silent error - no alert
+=======
+      alert(`Payment Error: ${error.message || 'Failed to process payment. Please check the browser console for details.'}`);
+>>>>>>> 2a2d123e02e38c15847705d20e0fdd4b963e9328
       setLoading(null);
     }
   };

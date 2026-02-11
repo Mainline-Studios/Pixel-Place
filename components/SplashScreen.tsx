@@ -8,6 +8,7 @@ interface SplashScreenProps {
 }
 
 export default function SplashScreen({ onComplete }: SplashScreenProps) {
+<<<<<<< HEAD
   const [phase, setPhase] = useState<'mainline' | 'pixelplace'>('mainline');
   const [mainlineOpacity, setMainlineOpacity] = useState(0);
   const [pixelPlaceOpacity, setPixelPlaceOpacity] = useState(0);
@@ -30,11 +31,32 @@ export default function SplashScreen({ onComplete }: SplashScreenProps) {
     const holdPixelPlace = setTimeout(() => {}, 5200);
     // Fade out
     const fadeOutPixelPlace = setTimeout(() => setPixelPlaceOpacity(0), 5700);
+=======
+  const [opacity, setOpacity] = useState(0);
+  const [show, setShow] = useState(true);
+
+  useEffect(() => {
+    // Fade in
+    const fadeIn = setTimeout(() => {
+      setOpacity(1);
+    }, 100);
+
+    // Hold
+    const hold = setTimeout(() => {
+      setOpacity(1);
+    }, 2500);
+
+    // Fade out
+    const fadeOut = setTimeout(() => {
+      setOpacity(0);
+    }, 3000);
+>>>>>>> 2a2d123e02e38c15847705d20e0fdd4b963e9328
 
     // Hide and complete
     const hide = setTimeout(() => {
       setShow(false);
       onComplete();
+<<<<<<< HEAD
     }, 6400);
 
     return () => {
@@ -44,6 +66,14 @@ export default function SplashScreen({ onComplete }: SplashScreenProps) {
       clearTimeout(switchPhase);
       clearTimeout(holdPixelPlace);
       clearTimeout(fadeOutPixelPlace);
+=======
+    }, 4000);
+
+    return () => {
+      clearTimeout(fadeIn);
+      clearTimeout(hold);
+      clearTimeout(fadeOut);
+>>>>>>> 2a2d123e02e38c15847705d20e0fdd4b963e9328
       clearTimeout(hide);
     };
   }, [onComplete]);
@@ -64,6 +94,7 @@ export default function SplashScreen({ onComplete }: SplashScreenProps) {
         alignItems: 'center',
         justifyContent: 'center',
         zIndex: 9999,
+<<<<<<< HEAD
       }}
     >
       <style>{`
@@ -210,6 +241,34 @@ export default function SplashScreen({ onComplete }: SplashScreenProps) {
           </div>
         </div>
       )}
+=======
+        opacity,
+        transition: 'opacity 0.8s ease-in-out',
+      }}
+    >
+      <div style={{ marginBottom: '30px', position: 'relative', width: '120px', height: '120px' }}>
+        <Image
+          src="/logo.png"
+          alt="Pixel Place Logo"
+          width={120}
+          height={120}
+          style={{ objectFit: 'contain' }}
+          priority
+        />
+      </div>
+      <h2
+        style={{
+          fontSize: '48px',
+          fontWeight: 700,
+          color: '#ffffff',
+          margin: 0,
+          textShadow: '0 0 30px rgba(43, 108, 176, 0.8), 0 0 60px rgba(43, 108, 176, 0.5)',
+          letterSpacing: '4px',
+        }}
+      >
+        PIXEL PLACE
+      </h2>
+>>>>>>> 2a2d123e02e38c15847705d20e0fdd4b963e9328
     </div>
   );
 }

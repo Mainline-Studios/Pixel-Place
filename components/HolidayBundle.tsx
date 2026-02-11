@@ -4,7 +4,10 @@ import { useState, useEffect, useRef } from 'react';
 import { User } from '@/types';
 import { useUser } from '@/contexts/UserContext';
 import { getSkins, getAccessories, saveSkins, saveAccessories } from '@/lib/storage';
+<<<<<<< HEAD
 import { apiUrl } from '@/lib/apiBaseUrl';
+=======
+>>>>>>> 2a2d123e02e38c15847705d20e0fdd4b963e9328
 
 interface HolidayBundleProps {
     user: User;
@@ -412,11 +415,18 @@ export default function HolidayBundle({ user, onClose }: HolidayBundleProps) {
                 // Save spin state
                 savePurchaseState(true, true, rewards[selectedIndex]);
 
+<<<<<<< HEAD
                 // Add reward to user's inventory with themed colors (async)
                 (async () => {
                     const reward = rewards[selectedIndex];
                     if (reward.type === 'skin') {
                         const skins = await getSkins();
+=======
+                // Add reward to user's inventory with themed colors
+                const reward = rewards[selectedIndex];
+                if (reward.type === 'skin') {
+                    const skins = getSkins();
+>>>>>>> 2a2d123e02e38c15847705d20e0fdd4b963e9328
 
                     // Get themed colors based on reward
                     let colors = { head: '#FFDBB3', torso: '#4169E1', arm: '#FFDBB3', legs: '#4169E1' };
@@ -488,10 +498,16 @@ export default function HolidayBundle({ user, onClose }: HolidayBundleProps) {
                         img: '',
                         special: true
                     };
+<<<<<<< HEAD
                         accessories.push(newAccessory);
                         await saveAccessories(accessories);
                     }
                 })();
+=======
+                    accessories.push(newAccessory);
+                    saveAccessories(accessories);
+                }
+>>>>>>> 2a2d123e02e38c15847705d20e0fdd4b963e9328
             }
         };
 
@@ -526,7 +542,11 @@ export default function HolidayBundle({ user, onClose }: HolidayBundleProps) {
         }
 
         try {
+<<<<<<< HEAD
             const response = await fetch(apiUrl('/api/checkout'), {
+=======
+            const response = await fetch('/api/checkout', {
+>>>>>>> 2a2d123e02e38c15847705d20e0fdd4b963e9328
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({

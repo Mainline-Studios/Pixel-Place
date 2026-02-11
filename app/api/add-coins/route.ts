@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+<<<<<<< HEAD
 import { getDocument, setDocument, queryDocuments, COLLECTIONS } from '@/lib/firestore';
 import { User } from '@/types';
 
@@ -18,6 +19,28 @@ function userFromDoc(doc: any): User {
     friendRequests: Array.isArray(doc.friend_requests) ? doc.friend_requests : (typeof doc.friend_requests === 'string' ? JSON.parse(doc.friend_requests || '[]') : []),
     sentFriendRequests: Array.isArray(doc.sent_friend_requests) ? doc.sent_friend_requests : (typeof doc.sent_friend_requests === 'string' ? JSON.parse(doc.sent_friend_requests || '[]') : [])
   };
+=======
+import { promises as fs } from 'fs';
+import path from 'path';
+import { User } from '@/types';
+
+const DATA_DIR = path.join(process.cwd(), 'data');
+const USERS_FILE = path.join(DATA_DIR, 'users.json');
+
+async function readUsers(): Promise<User[]> {
+  try {
+    const data = await fs.readFile(USERS_FILE, 'utf-8');
+    return JSON.parse(data);
+  } catch (error) {
+    // File doesn't exist, return empty array
+    return [];
+  }
+}
+
+async function writeUsers(users: User[]): Promise<void> {
+  await fs.mkdir(DATA_DIR, { recursive: true });
+  await fs.writeFile(USERS_FILE, JSON.stringify(users, null, 2), 'utf-8');
+>>>>>>> 2a2d123e02e38c15847705d20e0fdd4b963e9328
 }
 
 // API endpoint to add coins directly (for free coins, admin grants, etc.)
@@ -32,6 +55,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
+<<<<<<< HEAD
     // Only allow free coins for specific users (like 6767kid)
     const allowedFreeUsers = ['6767kid'];
     if (!allowedFreeUsers.includes(userId)) {
@@ -47,6 +71,26 @@ export async function POST(request: NextRequest) {
 
     if (!userDoc) {
       // User doesn't exist yet - create them (for admin accounts that auto-create on login)
+=======
+    // Allow free coins for specific users (like 6767kid)
+    // Also allow manual coin addition for any user (for fixing webhook issues after payment)
+    // Note: In production, you might want to add admin authentication or verify payment
+    const allowedFreeUsers = ['6767kid'];
+    const isFreeUser = allowedFreeUsers.includes(userId);
+    
+    if (!isFreeUser) {
+      // Allow manual coin addition - useful for fixing webhook issues after successful payment
+      console.log(`Manual coin addition for ${userId}: ${coins} coins (likely fixing webhook issue)`);
+    }
+
+    // Read users from file
+    const users = await readUsers();
+    const userIndex = users.findIndex((u) => u.username.toLowerCase() === userId.toLowerCase());
+
+    if (userIndex === -1) {
+      // User doesn't exist yet - create them (for admin accounts that auto-create on login)
+      // Check if it's an admin account that should be created
+>>>>>>> 2a2d123e02e38c15847705d20e0fdd4b963e9328
       const ADMIN_ACCOUNTS = [
         { username: "admin", password: "extra" },
         { username: "TicTAK", password: "Thomas" },
@@ -64,6 +108,7 @@ export async function POST(request: NextRequest) {
       const adminAccount = ADMIN_ACCOUNTS.find(a => a.username.toLowerCase() === userId.toLowerCase());
       
       if (adminAccount) {
+<<<<<<< HEAD
         // Create the admin user in Firestore
         const initialCoins = setAmount !== undefined ? setAmount : (coins || 0);
         const newUserData = {
@@ -83,6 +128,24 @@ export async function POST(request: NextRequest) {
         };
         
         await setDocument(COLLECTIONS.USERS, adminAccount.username.toLowerCase(), newUserData);
+=======
+        // Create the admin user
+        const initialCoins = setAmount !== undefined ? setAmount : (coins || 0);
+        const newUser: User = {
+          username: adminAccount.username,
+          password: adminAccount.password,
+          gender: 'N/A',
+          role: 'admin',
+          coins: initialCoins, // Start with the specified coins
+          ownedSkins: ['starter_classic'],
+          equippedSkin: 'starter_classic',
+          ownedAccessories: [],
+          equippedAccessories: {},
+          friends: [] // Preserve friends array
+        };
+        users.push(newUser);
+        await writeUsers(users);
+>>>>>>> 2a2d123e02e38c15847705d20e0fdd4b963e9328
         
         return NextResponse.json({
           success: true,
@@ -98,6 +161,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Update existing user's coin balance
+<<<<<<< HEAD
     const user = userFromDoc(userDoc);
     const newCoins = setAmount !== undefined ? setAmount : (user.coins + coins);
     
@@ -105,11 +169,32 @@ export async function POST(request: NextRequest) {
       coins: newCoins,
       updated_at: Date.now()
     });
+=======
+    if (setAmount !== undefined) {
+      // Set to specific amount
+      users[userIndex].coins = setAmount;
+    } else {
+      // Add to current amount
+      const currentCoins = typeof users[userIndex].coins === 'number' ? users[userIndex].coins : 0;
+      users[userIndex].coins = currentCoins + coins;
+    }
+    
+    // Preserve friends array if it exists
+    if (!users[userIndex].friends) {
+      users[userIndex].friends = [];
+    }
+    
+    await writeUsers(users);
+>>>>>>> 2a2d123e02e38c15847705d20e0fdd4b963e9328
 
     return NextResponse.json({
       success: true,
       message: setAmount !== undefined ? `Set coins to ${setAmount} for ${userId}` : `Added ${coins} coins to ${userId}`,
+<<<<<<< HEAD
       newBalance: newCoins
+=======
+      newBalance: users[userIndex].coins
+>>>>>>> 2a2d123e02e38c15847705d20e0fdd4b963e9328
     });
   } catch (error: any) {
     console.error('Add coins error:', error);
@@ -119,3 +204,7 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+<<<<<<< HEAD
+=======
+
+>>>>>>> 2a2d123e02e38c15847705d20e0fdd4b963e9328

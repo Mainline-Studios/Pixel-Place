@@ -3,9 +3,12 @@
 import { useState, useEffect } from 'react';
 import { useUser } from '@/contexts/UserContext';
 import BanScreen from './BanScreen';
+<<<<<<< HEAD
 import { auth, googleProvider, getRecaptchaVerifier, clearRecaptchaVerifier } from '@/lib/firebaseClient';
 import { apiUrl } from '@/lib/apiBaseUrl';
 import { signInWithPopup, signInWithCredential } from 'firebase/auth';
+=======
+>>>>>>> 2a2d123e02e38c15847705d20e0fdd4b963e9328
 
 export default function Login() {
   const [mode, setMode] = useState<'signin' | 'signup'>('signin');
@@ -19,6 +22,7 @@ export default function Login() {
   const [banInfo, setBanInfo] = useState<any>(null);
   const [showTerms, setShowTerms] = useState(false);
   const [showPrivacy, setShowPrivacy] = useState(false);
+<<<<<<< HEAD
   const [isLoading, setIsLoading] = useState(false);
   const [loadingText, setLoadingText] = useState('');
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
@@ -48,12 +52,16 @@ export default function Login() {
       clearRecaptchaVerifier();
     };
   }, []);
+=======
+  const { login, createAccount } = useUser();
+>>>>>>> 2a2d123e02e38c15847705d20e0fdd4b963e9328
 
   const handleSignIn = async () => {
     if (!username || !password) {
       setMessage('Enter both username and password.');
       return;
     }
+<<<<<<< HEAD
     
     setIsLoading(true);
     setLoadingText('Signing in...');
@@ -96,6 +104,18 @@ export default function Login() {
       setIsLoading(false);
       setLoadingText('');
       setMessage('An error occurred. You may be offline.');
+=======
+    if (password.length < 6) {
+      setMessage('Password must be at least 6 characters.');
+      return;
+    }
+    const result = await login(username, password);
+    if (result.ban) {
+      setBanInfo(result.ban);
+    } else {
+      setMessage(result.message);
+      setBanInfo(null);
+>>>>>>> 2a2d123e02e38c15847705d20e0fdd4b963e9328
     }
   };
 
@@ -115,6 +135,7 @@ export default function Login() {
       setMessage('Username and password are required.');
       return;
     }
+<<<<<<< HEAD
     if (password.length < 6) {
       setMessage('Password must be at least 6 characters.');
       return;
@@ -161,6 +182,18 @@ export default function Login() {
       setIsLoading(false);
       setLoadingText('');
       setMessage('An error occurred. You may be offline.');
+=======
+    if (password.length < 8) {
+      setMessage('Password must be at least 8 characters.');
+      return;
+    }
+    const result = await createAccount(username, password, gender);
+    setMessage(result.message);
+    setBanInfo(null);
+    if (result.success) {
+      // Auto sign in after successful sign up
+      await handleSignIn();
+>>>>>>> 2a2d123e02e38c15847705d20e0fdd4b963e9328
     }
   };
 
@@ -260,6 +293,10 @@ export default function Login() {
                 onChange={handlePasswordChange}
                 onKeyPress={(e) => e.key === 'Enter' && handleSignIn()}
               />
+<<<<<<< HEAD
+=======
+              <div className="input-hint">At least 6 characters</div>
+>>>>>>> 2a2d123e02e38c15847705d20e0fdd4b963e9328
               <button 
                 className="btn auth-btn signin-btn" 
                 onClick={(e) => {
@@ -268,9 +305,14 @@ export default function Login() {
                   handleSignIn();
                 }}
                 type="button"
+<<<<<<< HEAD
                 disabled={isLoading}
               >
                 {isLoading && loadingText === 'Signing in...' ? 'Signing in...' : 'Sign In'}
+=======
+              >
+                Sign In
+>>>>>>> 2a2d123e02e38c15847705d20e0fdd4b963e9328
               </button>
               <button 
                 className="btn auth-btn" 
@@ -296,6 +338,7 @@ export default function Login() {
               >
                 Create
               </button>
+<<<<<<< HEAD
               
               <div style={{ marginTop: '16px', textAlign: 'center', color: '#888' }}>
                 <div style={{ marginBottom: '12px' }}>or</div>
@@ -330,6 +373,8 @@ export default function Login() {
                   )}
                 </button>
               </div>
+=======
+>>>>>>> 2a2d123e02e38c15847705d20e0fdd4b963e9328
             </>
           ) : (
             <>
@@ -378,7 +423,11 @@ export default function Login() {
                 value={username}
                 onChange={handleUsernameChange}
               />
+<<<<<<< HEAD
               <div className="input-hint">Please do not use your real name</div>
+=======
+              <div className="input-hint">not you name!</div>
+>>>>>>> 2a2d123e02e38c15847705d20e0fdd4b963e9328
 
               <input
                 id="pass"
@@ -387,7 +436,11 @@ export default function Login() {
                 value={password}
                 onChange={handlePasswordChange}
               />
+<<<<<<< HEAD
               <div className="input-hint">At least 6 characters</div>
+=======
+              <div className="input-hint">At least 8 characters</div>
+>>>>>>> 2a2d123e02e38c15847705d20e0fdd4b963e9328
 
               <div className="gender-section">
                 <label>Gender (Optional)</label>
@@ -520,6 +573,7 @@ export default function Login() {
                   handleSignUp();
                 }}
                 type="button"
+<<<<<<< HEAD
                 disabled={isLoading}
               >
                 {isLoading && loadingText === 'Signing up...' ? 'Signing up...' : 'Sign Up'}
@@ -558,6 +612,11 @@ export default function Login() {
                   )}
                 </button>
               </div>
+=======
+              >
+                Sign Up
+              </button>
+>>>>>>> 2a2d123e02e38c15847705d20e0fdd4b963e9328
             </>
           )}
 

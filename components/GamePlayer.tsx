@@ -3,9 +3,13 @@
 import { useEffect, useRef, useState } from 'react';
 import { PublishedGame, GameServer } from '@/types';
 import { getServers, getUsers, saveUsers } from '@/lib/storage';
+<<<<<<< HEAD
 import { getFirestore, doc, onSnapshot, setDoc, serverTimestamp, Firestore } from 'firebase/firestore';
 import { getApps, initializeApp } from 'firebase/app';
 import { firebaseConfig } from '@/lib/firebaseConfig';
+=======
+import { io, Socket } from 'socket.io-client';
+>>>>>>> 2a2d123e02e38c15847705d20e0fdd4b963e9328
 import { useUser } from '@/contexts/UserContext';
 
 interface GamePlayerProps {
@@ -36,6 +40,7 @@ export default function GamePlayer({ game, onClose }: GamePlayerProps) {
   const [server, setServer] = useState<GameServer | null>(null);
 
   // Set user as playing when game starts and track play
+<<<<<<< HEAD
   useEffect(() => {
     if (!user) return;
 
@@ -101,11 +106,79 @@ export default function GamePlayer({ game, onClose }: GamePlayerProps) {
   // Initialize Firebase Firestore for online multiplayer mode
   useEffect(() => {
     if (isOnline && serverId && game.multiplayer && user) {
+=======
+  useEffect(() => {
+    if (!user) return;
+
+    const setPlayingStatus = async () => {
+      const users = await getUsers();
+      const userIndex = users.findIndex(u => u.username === user.username);
+      if (userIndex !== -1) {
+        users[userIndex].currentGameId = game.ts.toString();
+        users[userIndex].currentServerId = serverId || undefined;
+        
+        // Track recently played
+        const gameId = game.id || game.ts.toString();
+        if (!users[userIndex].recentlyPlayed) {
+          users[userIndex].recentlyPlayed = [];
+        }
+        // Remove if already exists, then add to end (most recent)
+        users[userIndex].recentlyPlayed = users[userIndex].recentlyPlayed.filter(id => id !== gameId);
+        users[userIndex].recentlyPlayed.push(gameId);
+        // Keep only last 20
+        if (users[userIndex].recentlyPlayed.length > 20) {
+          users[userIndex].recentlyPlayed = users[userIndex].recentlyPlayed.slice(-20);
+        }
+        
+        await saveUsers(users);
+        updateUser({
+          currentGameId: game.ts.toString(),
+          currentServerId: serverId || undefined,
+          recentlyPlayed: users[userIndex].recentlyPlayed
+        });
+      }
+      
+      // Increment play count for published games
+      const { getPublished, savePublished } = await import('@/lib/storage');
+      const published = await getPublished();
+      const gameIndex = published.findIndex(g => g.ts === game.ts);
+      if (gameIndex !== -1) {
+        published[gameIndex].playCount = (published[gameIndex].playCount || 0) + 1;
+        await savePublished(published);
+      }
+    };
+
+    setPlayingStatus();
+
+    // Clear playing status when component unmounts
+    return () => {
+      const clearPlayingStatus = async () => {
+        const users = await getUsers();
+        const userIndex = users.findIndex(u => u.username === user.username);
+        if (userIndex !== -1) {
+          users[userIndex].currentGameId = undefined;
+          users[userIndex].currentServerId = undefined;
+          await saveUsers(users);
+          updateUser({
+            currentGameId: undefined,
+            currentServerId: undefined
+          });
+        }
+      };
+      clearPlayingStatus();
+    };
+  }, [user, game.ts, serverId]);
+
+  // Initialize server and socket for online mode
+  useEffect(() => {
+    if (isOnline && serverId && game.multiplayer) {
+>>>>>>> 2a2d123e02e38c15847705d20e0fdd4b963e9328
       const servers = getServers();
       const foundServer = servers.find(s => s.id === serverId);
       if (foundServer) {
         setServer(foundServer);
 
+<<<<<<< HEAD
         // Initialize Firebase Firestore connection
         try {
           let app;
@@ -169,6 +242,79 @@ export default function GamePlayer({ game, onClose }: GamePlayerProps) {
           }
         } catch (err) {
           console.warn('Firebase connection failed, running in offline mode:', err);
+=======
+        // Initialize Socket.io connection
+        // Note: For full multiplayer, you need a Socket.io server running
+        // For now, it will gracefully fall back to offline mode if server is unavailable
+        try {
+          const socketUrl = process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:3001';
+          const socket = io(socketUrl, {
+            transports: ['websocket', 'polling'],
+            reconnection: true,
+            reconnectionAttempts: 3,
+            reconnectionDelay: 1000,
+            timeout: 5000
+          });
+
+          socket.on('connect', () => {
+            console.log('Connected to game server');
+            socket.emit('join-game', {
+              serverId: serverId,
+              gameId: game.ts.toString(),
+              username: 'Player'
+            });
+
+            // Update server player count
+            const servers = getServers();
+            const serverIndex = servers.findIndex(s => s.id === serverId);
+            if (serverIndex !== -1) {
+              servers[serverIndex].currentPlayers = Math.min(
+                servers[serverIndex].currentPlayers + 1,
+                servers[serverIndex].maxPlayers
+              );
+              require('@/lib/storage').saveServers(servers);
+            }
+          });
+
+          socket.on('connect_error', () => {
+            console.warn('Socket.io server not available, running in offline mode');
+            setIsOnline(false);
+          });
+
+          socket.on('player-joined', (player: Player) => {
+            setPlayers(prev => {
+              if (!prev.find(p => p.id === player.id)) {
+                return [...prev, player];
+              }
+              return prev;
+            });
+          });
+
+          socket.on('player-left', (playerId: string) => {
+            setPlayers(prev => prev.filter(p => p.id !== playerId));
+
+            // Update server player count
+            const servers = getServers();
+            const serverIndex = servers.findIndex(s => s.id === serverId);
+            if (serverIndex !== -1) {
+              servers[serverIndex].currentPlayers = Math.max(0, servers[serverIndex].currentPlayers - 1);
+              require('@/lib/storage').saveServers(servers);
+            }
+          });
+
+          socket.on('player-update', (player: Player) => {
+            setPlayers(prev => prev.map(p => p.id === player.id ? player : p));
+          });
+
+          socket.on('disconnect', () => {
+            console.log('Disconnected from game server');
+            setIsOnline(false);
+          });
+
+          socketRef.current = socket;
+        } catch (err) {
+          console.warn('Socket.io connection failed, running in offline mode:', err);
+>>>>>>> 2a2d123e02e38c15847705d20e0fdd4b963e9328
           setIsOnline(false);
         }
       } else {
@@ -192,6 +338,7 @@ export default function GamePlayer({ game, onClose }: GamePlayerProps) {
         }
       }
     };
+<<<<<<< HEAD
   }, [isOnline, serverId, game.ts, game.multiplayer, user]);
 
   useEffect(() => {
@@ -200,6 +347,105 @@ export default function GamePlayer({ game, onClose }: GamePlayerProps) {
     // Built-in games should not go through GamePlayer
     if (game.gameCode === 'builtin_schoolAdventure') {
       setError('This game should open directly, not through GamePlayer');
+=======
+  }, [isOnline, serverId, game.ts, game.multiplayer]);
+
+  useEffect(() => {
+    if (!containerRef.current) return;
+    
+    // Handle built-in games that use React components
+    if (game.gameCode && game.gameCode.startsWith('builtin_')) {
+      setIsLoading(false);
+      
+      const loadBuiltinGame = async () => {
+        try {
+          const gameId = game.gameCode!.replace('builtin_', '');
+          let GameComponent: React.ComponentType<any> | null = null;
+          
+          // Map game IDs to components
+          switch (gameId) {
+            case 'hypnosia':
+              GameComponent = (await import('@/components/Games/Hypnosia')).default;
+              break;
+            case 'underwaterOdyssey':
+              GameComponent = (await import('@/components/Games/UnderwaterOddyseySeries')).default;
+              break;
+            case 'superShowdown2':
+              GameComponent = (await import('@/components/Games/SuperShowdown2')).default;
+              break;
+            case 'superShowdown':
+              GameComponent = (await import('@/components/Games/SuperShowdown')).default;
+              break;
+            case 'redRover':
+              GameComponent = (await import('@/components/Games/RedRover')).default;
+              break;
+            case 'jungleJourney':
+              GameComponent = (await import('@/components/Games/JungleJourneySeries')).default;
+              break;
+            case 'chess':
+              GameComponent = (await import('@/components/Games/Chess')).default;
+              break;
+            case 'floorIsLava':
+              GameComponent = (await import('@/components/Games/FloorIsLava')).default;
+              break;
+            case 'insaneShowdown':
+              GameComponent = (await import('@/components/Games/InsaneShowdown')).default;
+              break;
+            case 'hideAndSeek':
+              GameComponent = (await import('@/components/Games/HideAndSeek')).default;
+              break;
+            case 'ghostInTheDark':
+              GameComponent = (await import('@/components/Games/GhostInTheDark')).default;
+              break;
+            case 'cityLife':
+              GameComponent = (await import('@/components/Games/CityLife')).default;
+              break;
+            case 'celestialSeries':
+              GameComponent = (await import('@/components/Games/CelestialSeriesExploration')).default;
+              break;
+            case 'superShowdown2D':
+              GameComponent = (await import('@/components/Games/SuperShowdown2D')).default;
+              break;
+            default:
+              setError(`Built-in game "${gameId}" not found`);
+              return;
+          }
+          
+          if (GameComponent && containerRef.current) {
+            // Use React to render the component
+            const React = await import('react');
+            const ReactDOM = await import('react-dom/client');
+            
+            // Clear container
+            containerRef.current.innerHTML = '';
+            
+            // Create root and render component
+            const root = ReactDOM.createRoot(containerRef.current);
+            root.render(React.createElement(GameComponent, { 
+              onClose: onClose,
+              user: user 
+            }));
+            
+            // Store cleanup function
+            cleanupRef.current = () => {
+              root.unmount();
+            };
+            
+            setError(null);
+          }
+        } catch (err: any) {
+          console.error('Error loading built-in game:', err);
+          setError(`Failed to load game: ${err.message || 'Unknown error'}`);
+        }
+      };
+      
+      loadBuiltinGame();
+      return;
+    }
+    
+    if (!game.gameCode) {
+      setError('Game code is missing');
+>>>>>>> 2a2d123e02e38c15847705d20e0fdd4b963e9328
       setIsLoading(false);
       return;
     }
@@ -217,13 +463,18 @@ export default function GamePlayer({ game, onClose }: GamePlayerProps) {
         const moduleExports: any = {};
         const moduleObj = { exports: moduleExports };
 
+<<<<<<< HEAD
         // Add multiplayer support if online (using Firebase)
+=======
+        // Add multiplayer support if online
+>>>>>>> 2a2d123e02e38c15847705d20e0fdd4b963e9328
         let multiplayerCode = '';
         if (isOnline && dbRef.current && user) {
           const gameSessionId = `game_${serverId}_${game.ts.toString()}`;
           const playerRef = doc(dbRef.current, 'game_sessions', gameSessionId, 'players', user.username);
           
           multiplayerCode = `
+<<<<<<< HEAD
           // Multiplayer support via Firebase
           window.gamePlayers = ${JSON.stringify(players)};
           window.updatePlayerPosition = function(pos, rot) {
@@ -240,6 +491,29 @@ export default function GamePlayer({ game, onClose }: GamePlayerProps) {
           };
           window.__firebaseDb = ${JSON.stringify({ connected: true })};
           window.__currentPlayerRef = ${JSON.stringify({ path: `game_sessions/${gameSessionId}/players/${user.username}` })};
+=======
+          // Multiplayer support
+          window.gameSocket = {
+            emit: function(event, data) {
+              const socket = window.__gameSocket;
+              if (socket && socket.emit) {
+                socket.emit(event, data);
+              }
+            },
+            on: function(event, callback) {
+              const socket = window.__gameSocket;
+              if (socket && socket.on) {
+                socket.on(event, callback);
+              }
+            }
+          };
+          window.gamePlayers = ${JSON.stringify(players)};
+          window.updatePlayerPosition = function(pos, rot) {
+            if (window.gameSocket && window.gameSocket.emit) {
+              window.gameSocket.emit('player-update', { position: pos, rotation: rot });
+            }
+          };
+>>>>>>> 2a2d123e02e38c15847705d20e0fdd4b963e9328
         `;
         }
 

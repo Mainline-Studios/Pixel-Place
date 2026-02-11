@@ -3,7 +3,10 @@
 import { useState, useRef, useEffect } from 'react';
 import { User, PublishedGame, SceneData, SceneObject } from '@/types';
 import { getPublished, savePublished, getSceneData, saveSceneData } from '@/lib/storage';
+<<<<<<< HEAD
 import { apiUrl } from '@/lib/apiBaseUrl';
+=======
+>>>>>>> 2a2d123e02e38c15847705d20e0fdd4b963e9328
 
 interface PixStudioProps {
   user: User;
@@ -373,7 +376,11 @@ function createGame(container) {
     setAiResponse('');
 
     try {
+<<<<<<< HEAD
       const response = await fetch(apiUrl('/api/generate-game'), {
+=======
+      const response = await fetch('/api/generate-game', {
+>>>>>>> 2a2d123e02e38c15847705d20e0fdd4b963e9328
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -1202,7 +1209,11 @@ function createGame(container) {
                             </div>
                           )}
                           <div style={{ color: '#888', fontSize: '10px', marginTop: '8px', fontStyle: 'italic' }}>
+<<<<<<< HEAD
                             💡 Tip: Ask for specific features like &quot;add physics&quot; or &quot;create a camera system&quot;
+=======
+                            💡 Tip: Ask for specific features like "add physics" or "create a camera system"
+>>>>>>> 2a2d123e02e38c15847705d20e0fdd4b963e9328
                           </div>
                         </div>
                       )}
