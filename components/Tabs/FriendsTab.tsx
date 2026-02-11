@@ -1,9 +1,15 @@
 'use client';
 
+<<<<<<< HEAD
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { User, FriendRequest, Message } from '@/types';
 import { getUsers } from '@/lib/storage';
 import { apiUrl } from '@/lib/apiBaseUrl';
+=======
+import { useState, useEffect, useRef } from 'react';
+import { User, FriendRequest, Message } from '@/types';
+import { getUsers } from '@/lib/storage';
+>>>>>>> 2a2d123e02e38c15847705d20e0fdd4b963e9328
 import { useUser } from '@/contexts/UserContext';
 import { useFriendsOnlineStatus, useOnlineStatus, updateCurrentGame, OnlineStatus } from '@/lib/onlineStatus';
 
@@ -31,6 +37,7 @@ export default function FriendsTab({ user, editMode }: FriendsTabProps) {
   const messageInputRef = useRef<HTMLInputElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
 
+<<<<<<< HEAD
   // Track online status for current user
   useOnlineStatus(user.username);
 
@@ -324,9 +331,23 @@ export default function FriendsTab({ user, editMode }: FriendsTabProps) {
             });
             window.location.href = `/play?session=${result.session.sessionId}`;
           }
+=======
+  // Load friends data - non-blocking
+  const loadFriendsData = async () => {
+    try {
+      const response = await fetch(`/api/friends?username=${encodeURIComponent(user.username)}`, {
+        cache: 'no-store',
+        headers: {
+          'Cache-Control': 'no-cache'
+>>>>>>> 2a2d123e02e38c15847705d20e0fdd4b963e9328
         }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setFriendsData(data);
       }
     } catch (error) {
+<<<<<<< HEAD
       console.error('Error joining friend:', error);
       alert('Could not join friend. They may not be in a game.');
     }
@@ -357,6 +378,245 @@ export default function FriendsTab({ user, editMode }: FriendsTabProps) {
     return date.toLocaleDateString();
   };
 
+=======
+      // Silent error - don't block UI
+    }
+  };
+
+  // Load all users for search - non-blocking
+  const loadAllUsers = async () => {
+    try {
+      const users = await getUsers();
+      setAllUsers(users.filter(u => u.username.toLowerCase() !== user.username.toLowerCase()));
+    } catch (error) {
+      // Silent error - don't block UI
+    }
+  };
+
+  // Load messages for selected friend
+  const loadMessages = async (friendUsername: string) => {
+    try {
+      const response = await fetch(`/api/messages?username=${encodeURIComponent(user.username)}&with=${encodeURIComponent(friendUsername)}`);
+      if (response.ok) {
+        const msgs = await response.json();
+        setMessages(msgs);
+        // Mark messages as read
+        msgs.forEach((msg: Message) => {
+          if (msg.to.toLowerCase() === user.username.toLowerCase() && !msg.read) {
+            fetch('/api/messages', {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ id: msg.id, read: true })
+            }).catch(() => {});
+          }
+        });
+      }
+    } catch (error) {
+      console.error('Error loading messages:', error);
+    }
+  };
+
+  useEffect(() => {
+    // Load immediately without blocking - start both in parallel
+    loadFriendsData();
+    loadAllUsers();
+    // Refresh every 5 seconds (less frequent to reduce load)
+    const interval = setInterval(() => {
+      loadFriendsData();
+      if (selectedFriend) {
+        loadMessages(selectedFriend.username);
+      }
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [user.username]);
+
+  useEffect(() => {
+    if (selectedFriend) {
+      loadMessages(selectedFriend.username);
+    }
+  }, [selectedFriend]);
+
+  useEffect(() => {
+    // Scroll to bottom when new messages arrive, but only scroll the container, not the page
+    if (messages.length > 0 && messagesContainerRef.current) {
+      const container = messagesContainerRef.current;
+      const shouldScroll = container.scrollHeight - container.scrollTop - container.clientHeight < 200;
+      if (shouldScroll) {
+        setTimeout(() => {
+          if (messagesContainerRef.current) {
+            messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
+          }
+        }, 50);
+      }
+    }
+  }, [messages]);
+
+  // Send friend request
+  const sendFriendRequest = async (toUsername: string) => {
+    try {
+      const response = await fetch('/api/friends', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'send',
+          fromUsername: user.username,
+          toUsername
+        })
+      });
+      
+      const result = await response.json();
+      
+      if (response.ok) {
+        await loadFriendsData();
+        await loadAllUsers();
+        // Show success message
+        // Don't show alert on success to avoid annoying user
+      } else {
+        // Silent error - no alert
+        console.error('Friend request error:', result.error);
+      }
+    } catch (error: any) {
+      console.error('Error sending friend request:', error);
+      // Silent error - no alert
+    }
+  };
+
+  // Accept friend request
+  const acceptFriendRequest = async (fromUsername: string) => {
+    try {
+      const response = await fetch('/api/friends', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'accept',
+          fromUsername,
+          toUsername: user.username
+        })
+      });
+      if (response.ok) {
+        await loadFriendsData();
+        await loadAllUsers(); // Refresh user list too
+        // Update user context
+        const updatedFriendsData = await fetch(`/api/friends?username=${encodeURIComponent(user.username)}`, {
+          cache: 'no-store'
+        }).then(r => r.json());
+        updateUser({ friends: updatedFriendsData.friends.map((f: User) => f.username) });
+      }
+    } catch (error) {
+      console.error('Error accepting friend request:', error);
+    }
+  };
+
+  // Decline friend request
+  const declineFriendRequest = async (fromUsername: string) => {
+    try {
+      const response = await fetch('/api/friends', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'decline',
+          fromUsername,
+          toUsername: user.username
+        })
+      });
+      if (response.ok) {
+        await loadFriendsData();
+      }
+    } catch (error) {
+      console.error('Error declining friend request:', error);
+    }
+  };
+
+  // Remove friend
+  const removeFriend = async (friendUsername: string) => {
+    if (!confirm(`Remove ${friendUsername} from your friends?`)) return;
+    try {
+      const response = await fetch('/api/friends', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'remove',
+          fromUsername: user.username,
+          toUsername: friendUsername
+        })
+      });
+      if (response.ok) {
+        await loadFriendsData();
+        await loadAllUsers(); // Refresh user list too
+        if (selectedFriend?.username === friendUsername) {
+          setSelectedFriend(null);
+          setMessages([]);
+        }
+        // Update user context
+        const updatedFriendsData = await fetch(`/api/friends?username=${encodeURIComponent(user.username)}`, {
+          cache: 'no-store'
+        }).then(r => r.json());
+        updateUser({ friends: updatedFriendsData.friends.map((f: User) => f.username) });
+      }
+    } catch (error) {
+      console.error('Error removing friend:', error);
+    }
+  };
+
+  // Send message
+  const sendMessage = async () => {
+    if (!selectedFriend || !newMessage.trim()) return;
+
+    try {
+      const response = await fetch('/api/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          fromUsername: user.username,
+          toUsername: selectedFriend.username,
+          message: newMessage.trim()
+        })
+      });
+      if (response.ok) {
+        setNewMessage('');
+        await loadMessages(selectedFriend.username);
+        messageInputRef.current?.focus();
+      }
+    } catch (error) {
+      console.error('Error sending message:', error);
+    }
+  };
+
+  // Filter users for search
+  const filteredUsers = allUsers.filter(u => {
+    if (!u || !u.username) return false;
+    const query = searchQuery.toLowerCase().trim();
+    const username = u.username.toLowerCase();
+    const isFriend = friendsData.friends.some(f => f && f.username && f.username.toLowerCase() === username);
+    const isPending = friendsData.sentRequests.some(r => r && r.toLowerCase() === username);
+    
+    // If search query is empty, show all users (except self, friends, and pending)
+    if (!query) {
+      return !isFriend && !isPending && username !== user.username.toLowerCase();
+    }
+    
+    // If search query exists, filter by it
+    return username.includes(query) && !isFriend && !isPending && username !== user.username.toLowerCase();
+  });
+
+  // Format timestamp
+  const formatTime = (timestamp: number) => {
+    const date = new Date(timestamp);
+    const now = new Date();
+    const diff = now.getTime() - date.getTime();
+    const seconds = Math.floor(diff / 1000);
+    const minutes = Math.floor(seconds / 60);
+    const hours = Math.floor(minutes / 60);
+    const days = Math.floor(hours / 24);
+
+    if (seconds < 60) return 'Just now';
+    if (minutes < 60) return `${minutes}m ago`;
+    if (hours < 24) return `${hours}h ago`;
+    if (days < 7) return `${days}d ago`;
+    return date.toLocaleDateString();
+  };
+
+>>>>>>> 2a2d123e02e38c15847705d20e0fdd4b963e9328
   return (
     <>
       <h2 className="section-title">Friends</h2>
@@ -480,6 +740,7 @@ export default function FriendsTab({ user, editMode }: FriendsTabProps) {
                         }
                       }}
                     >
+<<<<<<< HEAD
                       <div style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
                         <div style={{ position: 'relative' }}>
                           {/* Online status indicator */}
@@ -575,6 +836,43 @@ export default function FriendsTab({ user, editMode }: FriendsTabProps) {
                           Remove
                         </button>
                       </div>
+=======
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: '14px', fontWeight: '600', color: 'var(--text-main)' }}>
+                          {friend.username}
+                        </div>
+                        <div style={{ fontSize: '11px', color: 'var(--text-dim)' }}>
+                          Click to message
+                        </div>
+                      </div>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          removeFriend(friend.username);
+                        }}
+                        style={{
+                          padding: '4px 8px',
+                          background: 'transparent',
+                          border: '1px solid var(--border)',
+                          borderRadius: '4px',
+                          color: 'var(--text-dim)',
+                          cursor: 'pointer',
+                          fontSize: '11px'
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.background = '#3a1a1a';
+                          e.currentTarget.style.borderColor = '#5a2a2a';
+                          e.currentTarget.style.color = '#ff4d4d';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.background = 'transparent';
+                          e.currentTarget.style.borderColor = 'var(--border)';
+                          e.currentTarget.style.color = 'var(--text-dim)';
+                        }}
+                      >
+                        Remove
+                      </button>
+>>>>>>> 2a2d123e02e38c15847705d20e0fdd4b963e9328
                     </div>
                   ))}
                 </div>
@@ -693,6 +991,7 @@ export default function FriendsTab({ user, editMode }: FriendsTabProps) {
                 }}
               />
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '400px', overflowY: 'auto' }}>
+<<<<<<< HEAD
                 {filteredUsers.slice(0, 20).map((u) => {
                   const userStatus = friendsOnlineStatus[u.username] || { isOnline: false, username: u.username };
                   return (
@@ -781,6 +1080,36 @@ export default function FriendsTab({ user, editMode }: FriendsTabProps) {
                 {filteredUsers.length === 0 && searchQuery && (
                   <div style={{ color: 'var(--text-dim)', textAlign: 'center', padding: '20px' }}>
                     No users found matching &quot;{searchQuery}&quot;
+=======
+                {filteredUsers.slice(0, 20).map((u) => (
+                  <div
+                    key={u.username}
+                    style={{
+                      padding: '12px',
+                      background: 'var(--panel-soft)',
+                      borderRadius: '8px',
+                      border: '1px solid var(--border)',
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center'
+                    }}
+                  >
+                    <div style={{ fontSize: '14px', fontWeight: '600', color: 'var(--text-main)' }}>
+                      {u.username}
+                    </div>
+                    <button
+                      onClick={() => sendFriendRequest(u.username)}
+                      className="btn"
+                      style={{ fontSize: '12px', padding: '6px 12px' }}
+                    >
+                      Add Friend
+                    </button>
+                  </div>
+                ))}
+                {filteredUsers.length === 0 && searchQuery && (
+                  <div style={{ color: 'var(--text-dim)', textAlign: 'center', padding: '20px' }}>
+                    No users found matching "{searchQuery}"
+>>>>>>> 2a2d123e02e38c15847705d20e0fdd4b963e9328
                   </div>
                 )}
                 {filteredUsers.length === 0 && !searchQuery && allUsers.length === 0 && (

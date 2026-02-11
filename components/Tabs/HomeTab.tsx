@@ -6,8 +6,20 @@ import { getSkins, getPublished, getUsers } from '@/lib/storage';
 import { escapeHTML } from '@/lib/utils';
 import GamePlayer from '@/components/GamePlayer';
 import Avatar3DViewer from '@/components/Avatar3DViewer';
+<<<<<<< HEAD
 import { GYM_PUMP_PRELOADED_GAME } from '@/lib/preloadedGames';
 import GymPumpEngine from '@/components/Games/GymPumpEngine';
+=======
+import Hypnosia from '../Games/Hypnosia';
+import UnderwaterOddyseySeries from '../Games/UnderwaterOddyseySeries';
+import SuperShowdown2 from '../Games/SuperShowdown2';
+import SuperShowdown from '../Games/SuperShowdown';
+import RedRover from '../Games/RedRover';
+import JungleJourneySeries from '../Games/JungleJourneySeries';
+import Chess from '../Games/Chess';
+import FloorIsLava from '../Games/FloorIsLava';
+import SuperShowdownCombined from '../Games/InsaneShowdown';
+>>>>>>> 2a2d123e02e38c15847705d20e0fdd4b963e9328
 
 interface HomeTabProps {
   user: User;
@@ -15,12 +27,102 @@ interface HomeTabProps {
   onResetPublished?: () => void;
 }
 
+interface GameInfo {
+  id: string;
+  name: string;
+  description: string;
+  icon: string;
+  category: string;
+  component: React.ComponentType<any>;
+}
+
+const builtInGames: GameInfo[] = [
+  {
+    id: 'hypnosia',
+    name: 'Hypnosia',
+    description: 'Test your deduction skills in this mysterious game!',
+    icon: '🔮',
+    category: 'Puzzle',
+    component: Hypnosia,
+  },
+  {
+    id: 'underwaterOdyssey',
+    name: 'Underwater Odyssey',
+    description: 'Explore the depths of the ocean in this adventure series!',
+    icon: '🌊',
+    category: 'Adventure',
+    component: UnderwaterOddyseySeries,
+  },
+  {
+    id: 'superShowdown2',
+    name: 'Super Showdown 2',
+    description: 'Epic arena battles with powerful abilities!',
+    icon: '⚔️',
+    category: 'Action',
+    component: SuperShowdown2,
+  },
+  {
+    id: 'superShowdown',
+    name: 'Super Showdown',
+    description: 'Original arena combat experience!',
+    icon: '🎯',
+    category: 'Action',
+    component: SuperShowdown,
+  },
+  {
+    id: 'redRover',
+    name: 'Red Rover',
+    description: 'Classic team-based multiplayer game!',
+    icon: '🏃',
+    category: 'Multiplayer',
+    component: RedRover,
+  },
+  {
+    id: 'jungleJourney',
+    name: 'Jungle Journey',
+    description: 'Navigate through the jungle and collect fruits!',
+    icon: '🌴',
+    category: 'Adventure',
+    component: JungleJourneySeries,
+  },
+  {
+    id: 'chess',
+    name: 'Chess',
+    description: 'Classic chess game - challenge yourself or play online!',
+    icon: '♟️',
+    category: 'Strategy',
+    component: Chess,
+  },
+  {
+    id: 'floorIsLava',
+    name: 'Floor Is Lava',
+    description: 'Jump from platform to platform - don\'t touch the lava!',
+    icon: '🌋',
+    category: 'Platformer',
+    component: FloorIsLava,
+  },
+  {
+    id: 'insaneShowdown',
+    name: 'Insane Showdown',
+    description: 'Ultimate combined arena battle experience!',
+    icon: '🔥',
+    category: 'Action',
+    component: SuperShowdownCombined,
+  },
+];
+
 export default function HomeTab({ user, editMode, onResetPublished }: HomeTabProps) {
   const [selectedGame, setSelectedGame] = useState<PublishedGame | null>(null);
+<<<<<<< HEAD
   const [showGymPump, setShowGymPump] = useState(false);
+=======
+  const [selectedBuiltInGame, setSelectedBuiltInGame] = useState<string | null>(null);
+>>>>>>> 2a2d123e02e38c15847705d20e0fdd4b963e9328
   const [published, setPublished] = useState<PublishedGame[]>([]);
   const [users, setUsers] = useState<User[]>([]);
-  const [skins, setSkins] = useState<Skin[]>([]);
+  const [skins, setSkins] = useState(getSkins());
+  const [isLoading, setIsLoading] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   // Refresh data - non-blocking, load immediately
   useEffect(() => {
@@ -31,7 +133,11 @@ export default function HomeTab({ user, editMode, onResetPublished }: HomeTabPro
           getPublished().catch(() => []),
           getUsers().catch(() => [])
         ]);
+<<<<<<< HEAD
         const skinsData = await getSkins();
+=======
+        const skinsData = getSkins();
+>>>>>>> 2a2d123e02e38c15847705d20e0fdd4b963e9328
 
         setPublished(Array.isArray(publishedData) ? publishedData : []);
         setUsers(Array.isArray(usersData) ? usersData : []);
@@ -50,10 +156,47 @@ export default function HomeTab({ user, editMode, onResetPublished }: HomeTabPro
     return () => clearInterval(interval);
   }, [user]);
 
+<<<<<<< HEAD
   // Include preloaded games
   const publishedArray = Array.isArray(published) ? published : [];
   const allGames = [...publishedArray];
   const sortedGames = allGames.slice().sort((a, b) => b.ts - a.ts);
+=======
+  // Handle built-in game loading
+  useEffect(() => {
+    if (selectedBuiltInGame) {
+      setIsLoading(true);
+      setLoadError(null);
+      const timeout = setTimeout(() => {
+        setIsLoading((currentLoading) => {
+          if (currentLoading) {
+            setLoadError('Game is taking longer than expected to load. Please try again.');
+            return false;
+          }
+          return currentLoading;
+        });
+      }, 10000);
+      return () => clearTimeout(timeout);
+    } else {
+      setIsLoading(false);
+      setLoadError(null);
+    }
+  }, [selectedBuiltInGame]);
+
+  // Handle game component mount
+  useEffect(() => {
+    if (selectedBuiltInGame) {
+      const timer = setTimeout(() => {
+        setIsLoading(false);
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [selectedBuiltInGame]);
+
+  // Include published games only
+  const publishedArray = Array.isArray(published) ? published : [];
+  const sortedGames = publishedArray.slice().sort((a, b) => b.ts - a.ts);
+>>>>>>> 2a2d123e02e38c15847705d20e0fdd4b963e9328
 
   // Get friends - show first 8
   const friends = (user.friends || []).slice(0, 8);
@@ -62,10 +205,126 @@ export default function HomeTab({ user, editMode, onResetPublished }: HomeTabPro
     .filter(u => u && u.username && friends.includes(u.username))
     .slice(0, 8);
 
+<<<<<<< HEAD
   if (showGymPump) {
     return <GymPumpEngine user={user} onClose={() => setShowGymPump(false)} />;
   }
 
+=======
+  // Handle built-in game selection
+  const selectedGameInfo = builtInGames.find(g => g.id === selectedBuiltInGame);
+  const GameComponent = selectedGameInfo?.component;
+
+  // If a built-in game is selected, render it
+  if (selectedBuiltInGame && GameComponent) {
+    const handleClose = () => {
+      setSelectedBuiltInGame(null);
+      setIsLoading(false);
+      setLoadError(null);
+    };
+    
+    const supportsOnClose = ['hypnosia'].includes(selectedBuiltInGame);
+    
+    return (
+      <div style={{ position: 'relative', width: '100%', minHeight: '100%', background: 'var(--bg-main)' }}>
+        {isLoading && (
+          <div style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'rgba(0, 0, 0, 0.8)',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000,
+            gap: '16px'
+          }}>
+            <div style={{
+              width: '50px',
+              height: '50px',
+              border: '4px solid rgba(255, 255, 255, 0.3)',
+              borderTop: '4px solid #00aaff',
+              borderRadius: '50%',
+              animation: 'spin 1s linear infinite'
+            }} />
+            <div style={{ color: '#ffffff', fontSize: '16px' }}>Loading game...</div>
+            <style>{`
+              @keyframes spin {
+                0% { transform: rotate(0deg); }
+                100% { transform: rotate(360deg); }
+              }
+            `}</style>
+          </div>
+        )}
+        {loadError && (
+          <div style={{
+            position: 'absolute',
+            top: '20px',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            background: '#ff4d4d',
+            color: '#ffffff',
+            padding: '12px 24px',
+            borderRadius: '8px',
+            zIndex: 1001,
+            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.3)'
+          }}>
+            {loadError}
+            <button
+              onClick={() => {
+                setLoadError(null);
+                setIsLoading(false);
+              }}
+              style={{
+                marginLeft: '12px',
+                background: 'rgba(255, 255, 255, 0.2)',
+                border: 'none',
+                color: '#ffffff',
+                padding: '4px 8px',
+                borderRadius: '4px',
+                cursor: 'pointer'
+              }}
+            >
+              Dismiss
+            </button>
+          </div>
+        )}
+        {!supportsOnClose && (
+          <button
+            onClick={handleClose}
+            style={{
+              position: 'absolute',
+              top: '16px',
+              right: '16px',
+              zIndex: 999,
+              padding: '8px 16px',
+              background: '#00aaff',
+              color: '#ffffff',
+              border: 'none',
+              borderRadius: '6px',
+              cursor: 'pointer',
+              fontSize: '14px',
+              fontWeight: '600',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.3)'
+            }}
+          >
+            ← Back
+          </button>
+        )}
+        {selectedBuiltInGame === 'hypnosia' ? (
+          <GameComponent onClose={handleClose} />
+        ) : (
+          <GameComponent />
+        )}
+      </div>
+    );
+  }
+
+  // If a published game is selected, render it
+>>>>>>> 2a2d123e02e38c15847705d20e0fdd4b963e9328
   if (selectedGame) {
     return <GamePlayer game={selectedGame} onClose={() => setSelectedGame(null)} />;
   }
@@ -98,6 +357,86 @@ export default function HomeTab({ user, editMode, onResetPublished }: HomeTabPro
       }}>
         Home
       </h1>
+
+      {/* Built-in Games Section */}
+      <div style={{ marginBottom: '48px' }}>
+        <h2 style={{
+          fontSize: '20px',
+          fontWeight: '600',
+          color: '#ffffff',
+          margin: '0 0 16px 0'
+        }}>
+          🎮 Play Games
+        </h2>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '20px' }}>
+          {builtInGames.map((game) => (
+            <div
+              key={game.id}
+              className="game-card-enhanced"
+              onClick={() => {
+                setSelectedBuiltInGame(game.id);
+                setIsLoading(true);
+                setLoadError(null);
+              }}
+              style={{
+                background: 'linear-gradient(135deg, var(--panel) 0%, var(--panel-soft) 100%)',
+                borderRadius: '16px',
+                padding: '24px',
+                border: '1px solid var(--border)',
+                cursor: 'pointer',
+                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                position: 'relative',
+                overflow: 'hidden',
+                boxShadow: 'var(--shadow-card)'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = 'translateY(-4px)';
+                e.currentTarget.style.boxShadow = '0 20px 40px rgba(0, 0, 0, 0.95), 0 0 60px rgba(255, 255, 255, 0.12)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = 'translateY(0)';
+                e.currentTarget.style.boxShadow = 'var(--shadow-card)';
+              }}
+            >
+              <div style={{
+                fontSize: '48px',
+                textAlign: 'center',
+                marginBottom: '16px'
+              }}>
+                {game.icon}
+              </div>
+              <div style={{
+                fontSize: '20px',
+                fontWeight: 700,
+                marginBottom: '8px',
+                textAlign: 'center'
+              }}>
+                {game.name}
+              </div>
+              <div style={{
+                fontSize: '12px',
+                color: '#8b90a8',
+                textAlign: 'center',
+                marginBottom: '12px'
+              }}>
+                {game.category}
+              </div>
+              <div style={{
+                fontSize: '13px',
+                color: 'var(--text-dim)',
+                textAlign: 'center',
+                lineHeight: '1.6',
+                marginBottom: '16px'
+              }}>
+                {game.description}
+              </div>
+              <button className="btn" style={{ width: '100%' }}>
+                Play Now
+              </button>
+            </div>
+          ))}
+        </div>
+      </div>
 
       {/* Friends Section - Roblox Style */}
       {friendUsers.length > 0 && (

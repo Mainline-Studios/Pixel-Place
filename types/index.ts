@@ -19,6 +19,7 @@ export interface User {
   friends?: string[]; // Array of friend usernames
   friendRequests?: FriendRequest[]; // Incoming friend requests
   sentFriendRequests?: string[]; // Outgoing friend requests
+<<<<<<< HEAD
   currentGameId?: string;
   firebaseUid?: string; // Firebase Auth UID for Google Sign-In users
   email?: string; // Email for Google Sign-In users
@@ -29,6 +30,11 @@ export interface User {
   lastSeen?: number; // Last seen timestamp
   currentSessionId?: string; // Current multiplayer session ID
   safetyPoints?: number; // Safety Points currency (earned from breaks)
+=======
+  currentGameId?: string; // Game ID user is currently playing
+  currentServerId?: string; // Server ID user is currently on
+  recentlyPlayed?: string[]; // Array of game IDs (ts as string) the user has played
+>>>>>>> 2a2d123e02e38c15847705d20e0fdd4b963e9328
 }
 
 export interface FriendRequest {
@@ -95,11 +101,15 @@ export interface SkinAccessory {
 export interface Skin {
   id: string;
   name: string;
+<<<<<<< HEAD
   price: number; // Price in Pixel Coins
   safetyPointsPrice?: number; // Price in Safety Points (for special skins)
   dualPrice?: { coins: number; safetyPoints: number }; // Cost both coins AND safety points
   isSpecial?: boolean; // Special skin that costs Safety Points
   isFace?: boolean; // Is this a face (for faces section)
+=======
+  price: number;
+>>>>>>> 2a2d123e02e38c15847705d20e0fdd4b963e9328
   img: string;
   colors: {
     head: string;
@@ -141,7 +151,11 @@ export interface Skin {
 export interface Accessory {
   id: string;
   name: string;
+<<<<<<< HEAD
   type: 'hat' | 'glasses' | 'mask' | 'backpack' | 'weapon' | 'chain' | 'shoes' | 'pet' | 'drone';
+=======
+  type: 'hat' | 'glasses' | 'mask' | 'backpack' | 'weapon' | 'chain' | 'shoes';
+>>>>>>> 2a2d123e02e38c15847705d20e0fdd4b963e9328
   price: number;
   img: string;
   color?: string;

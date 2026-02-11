@@ -2,14 +2,25 @@
 
 import { useState, useEffect } from 'react';
 import { User } from '@/types';
+<<<<<<< HEAD
 import GymPumpEngine from '../Games/GymPumpEngine';
 import Hypnosia from '../Games/Hypnosia';
 import UnderwaterOddyseySeries from '../Games/UnderwaterOddyseySeries';
 import Showdown from '../Games/Showdown';
+=======
+import Hypnosia from '../Games/Hypnosia';
+import UnderwaterOddyseySeries from '../Games/UnderwaterOddyseySeries';
+import SuperShowdown2 from '../Games/SuperShowdown2';
+import SuperShowdown from '../Games/SuperShowdown';
+>>>>>>> 2a2d123e02e38c15847705d20e0fdd4b963e9328
 import RedRover from '../Games/RedRover';
 import JungleJourneySeries from '../Games/JungleJourneySeries';
 import Chess from '../Games/Chess';
 import FloorIsLava from '../Games/FloorIsLava';
+<<<<<<< HEAD
+=======
+import SuperShowdownCombined from '../Games/InsaneShowdown';
+>>>>>>> 2a2d123e02e38c15847705d20e0fdd4b963e9328
 
 interface PlayTabProps {
   user: User;
@@ -27,6 +38,7 @@ interface GameInfo {
 
 const games: GameInfo[] = [
   {
+<<<<<<< HEAD
     id: 'gymPump',
     name: 'Gym Pump',
     description: 'Lift weights, build power, and climb the leaderboard!',
@@ -35,6 +47,8 @@ const games: GameInfo[] = [
     component: GymPumpEngine,
   },
   {
+=======
+>>>>>>> 2a2d123e02e38c15847705d20e0fdd4b963e9328
     id: 'hypnosia',
     name: 'Hypnosia',
     description: 'Test your deduction skills in this mysterious game!',
@@ -51,12 +65,29 @@ const games: GameInfo[] = [
     component: UnderwaterOddyseySeries,
   },
   {
+<<<<<<< HEAD
     id: 'showdown',
     name: 'Showdown',
     description: 'Neon arena combat — 8 powers, pixelcoins, pickups!',
     icon: '⚔️',
     category: 'Action',
     component: Showdown,
+=======
+    id: 'superShowdown2',
+    name: 'Super Showdown 2',
+    description: 'Epic arena battles with powerful abilities!',
+    icon: '⚔️',
+    category: 'Action',
+    component: SuperShowdown2,
+  },
+  {
+    id: 'superShowdown',
+    name: 'Super Showdown',
+    description: 'Original arena combat experience!',
+    icon: '🎯',
+    category: 'Action',
+    component: SuperShowdown,
+>>>>>>> 2a2d123e02e38c15847705d20e0fdd4b963e9328
   },
   {
     id: 'redRover',
@@ -90,6 +121,7 @@ const games: GameInfo[] = [
     category: 'Platformer',
     component: FloorIsLava,
   },
+<<<<<<< HEAD
 ];
 
 export default function PlayTab({ user, editMode }: PlayTabProps) {
@@ -114,6 +146,25 @@ export default function PlayTab({ user, editMode }: PlayTabProps) {
   // #region agent log
   fetch('http://127.0.0.1:7242/ingest/002741fb-cb98-444e-83cd-7086902151aa',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'PlayTab.tsx:119',message:'Before early return check',data:{selectedGame,hasGameComponent:!!GameComponent},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
   // #endregion
+=======
+  {
+    id: 'insaneShowdown',
+    name: 'Insane Showdown',
+    description: 'Ultimate combined arena battle experience!',
+    icon: '🔥',
+    category: 'Action',
+    component: SuperShowdownCombined,
+  },
+];
+
+export default function PlayTab({ user, editMode }: PlayTabProps) {
+  const [selectedGame, setSelectedGame] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
+
+  const selectedGameInfo = games.find(g => g.id === selectedGame);
+  const GameComponent = selectedGameInfo?.component;
+>>>>>>> 2a2d123e02e38c15847705d20e0fdd4b963e9328
 
   // #region agent log
   useEffect(() => {
@@ -173,6 +224,7 @@ export default function PlayTab({ user, editMode }: PlayTabProps) {
     }
   }, [GameComponent, selectedGame]);
 
+<<<<<<< HEAD
   // #region agent log
   useEffect(() => {
     if (selectedGame && GameComponent) {
@@ -185,12 +237,16 @@ export default function PlayTab({ user, editMode }: PlayTabProps) {
     // #region agent log
     fetch('http://127.0.0.1:7242/ingest/002741fb-cb98-444e-83cd-7086902151aa',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'PlayTab.tsx:187',message:'Early return selectedGame',data:{selectedGame},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
     // #endregion
+=======
+  if (selectedGame && GameComponent) {
+>>>>>>> 2a2d123e02e38c15847705d20e0fdd4b963e9328
     const handleClose = () => {
       setSelectedGame(null);
       setIsLoading(false);
       setLoadError(null);
     };
     
+<<<<<<< HEAD
     const supportsOnClose = ['gymPump', 'hypnosia'].includes(selectedGame);
     
     // Prepare props based on game type
@@ -202,6 +258,17 @@ export default function PlayTab({ user, editMode }: PlayTabProps) {
     
     return (
       <div key={selectedGame} style={{ position: 'relative', width: '100%', minHeight: '100%', background: 'var(--bg-main)' }}>
+=======
+    const supportsOnClose = ['hypnosia'].includes(selectedGame);
+    
+    // #region agent log
+    useEffect(() => {
+      fetch('http://127.0.0.1:7242/ingest/002741fb-cb98-444e-83cd-7086902151aa',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'PlayTab.tsx:170',message:'Rendering game container',data:{selectedGame,isLoading,hasGameComponent:!!GameComponent},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
+    }, [selectedGame, isLoading, GameComponent]);
+    // #endregion
+    return (
+      <div style={{ position: 'relative', width: '100%', minHeight: '100%', background: 'var(--bg-main)' }}>
+>>>>>>> 2a2d123e02e38c15847705d20e0fdd4b963e9328
         {isLoading && (
           <div style={{
             position: 'absolute',
@@ -289,7 +356,15 @@ export default function PlayTab({ user, editMode }: PlayTabProps) {
             ← Back
           </button>
         )}
+<<<<<<< HEAD
         <GameComponent key={selectedGame} {...gameProps} />
+=======
+        {selectedGame === 'hypnosia' ? (
+          <GameComponent onClose={handleClose} />
+        ) : (
+          <GameComponent />
+        )}
+>>>>>>> 2a2d123e02e38c15847705d20e0fdd4b963e9328
       </div>
     );
   }

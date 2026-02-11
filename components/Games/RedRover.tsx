@@ -899,7 +899,11 @@ export default function RedRover(): JSX.Element {
             <div style={{ marginBottom: 8 }}>
               {leftTeam.length === 0 && <div>Right team wins!</div>}
               {rightTeam.length === 0 && <div>Left team wins!</div>}
+<<<<<<< HEAD
               {leftTeam.length === 0 && rightTeam.length === 0 && <div>It&apos;s a tie?</div>}
+=======
+              {leftTeam.length === 0 && rightTeam.length === 0 && <div>It's a tie?</div>}
+>>>>>>> 2a2d123e02e38c15847705d20e0fdd4b963e9328
             </div>
             <div style={{ marginTop: 6 }}>
               <button
@@ -920,7 +924,11 @@ export default function RedRover(): JSX.Element {
       </div>
 
       <div style={{ marginTop: 20, color: "#888", fontSize: 13 }}>
+<<<<<<< HEAD
         Tip: Host is authoritative. If you&apos;re offline, the game works locally (single-browser).
+=======
+        Tip: Host is authoritative. If you're offline, the game works locally (single-browser).
+>>>>>>> 2a2d123e02e38c15847705d20e0fdd4b963e9328
       </div>
     </div>
   );

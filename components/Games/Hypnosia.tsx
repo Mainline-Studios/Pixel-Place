@@ -203,9 +203,12 @@ const RULES: Rule[] = [
 ];
 
 export default function Hypnosia({ onClose }: HypnosiaProps) {
+<<<<<<< HEAD
   // #region agent log
   fetch('http://127.0.0.1:7242/ingest/002741fb-cb98-444e-83cd-7086902151aa',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'Hypnosia.tsx:205',message:'Hypnosia render start',data:{hasOnClose:!!onClose},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
   // #endregion
+=======
+>>>>>>> 2a2d123e02e38c15847705d20e0fdd4b963e9328
   const [secret, setSecret] = useState<Rule | null>(null);
   const [log, setLog] = useState<LogEntry[]>([]);
   const [question, setQuestion] = useState('');
@@ -215,6 +218,7 @@ export default function Hypnosia({ onClose }: HypnosiaProps) {
   const [gameOver, setGameOver] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string>('All Categories');
+<<<<<<< HEAD
   // #region agent log
   fetch('http://127.0.0.1:7242/ingest/002741fb-cb98-444e-83cd-7086902151aa',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'Hypnosia.tsx:214',message:'After all useState hooks',data:{hookCount:8},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
   // #endregion
@@ -223,14 +227,21 @@ export default function Hypnosia({ onClose }: HypnosiaProps) {
     // #region agent log
     fetch('http://127.0.0.1:7242/ingest/002741fb-cb98-444e-83cd-7086902151aa',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'Hypnosia.tsx:216',message:'useMemo categories called',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
     // #endregion
+=======
+
+  const categories = useMemo(() => {
+>>>>>>> 2a2d123e02e38c15847705d20e0fdd4b963e9328
     const cats = Array.from(new Set(RULES.map((r) => r.category)));
     return ['All Categories', ...cats];
   }, []);
 
   useEffect(() => {
+<<<<<<< HEAD
     // #region agent log
     fetch('http://127.0.0.1:7242/ingest/002741fb-cb98-444e-83cd-7086902151aa',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'Hypnosia.tsx:221',message:'useEffect called',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
     // #endregion
+=======
+>>>>>>> 2a2d123e02e38c15847705d20e0fdd4b963e9328
     startNewGame();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

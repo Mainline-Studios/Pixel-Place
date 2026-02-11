@@ -31,8 +31,16 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
   // Real-time users from Firestore (instant updates when admin changes role/etc in Firebase Console)
   useEffect(() => {
     if (typeof window === 'undefined') return;
+<<<<<<< HEAD
     const unsub = subscribeToUsers((firestoreUsers) => {
       processUsersFromFirestore(firestoreUsers);
+=======
+
+    // Try to load data, with error handling
+    loadData().catch((error) => {
+      console.error('Error loading admin panel data:', error);
+      // Silent error - no alert
+>>>>>>> 2a2d123e02e38c15847705d20e0fdd4b963e9328
     });
     return () => unsub();
   }, []);
@@ -119,12 +127,90 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
         getReports(),
         getGameSubmissions()
       ]);
+<<<<<<< HEAD
       setAppeals(appealsData);
       setGameSubmissions(submissionsData);
       setBans(bansData);
       setReports(reportsData);
     } catch (error) {
       console.error('Error in loadOtherData:', error);
+=======
+
+      setAppeals(appealsData);
+      setGameSubmissions(submissionsData);
+
+      // Old admin accounts that should be filtered out (not in current ADMIN_ACCOUNTS_LIST)
+      const oldAdminUsernames = new Set([
+        'number 9',
+        'number5',
+        'the goat',
+        'usernotfound',
+        'yoUr 8',
+        'admin2',
+        '345',
+        '67'
+      ].map(u => u.toLowerCase()));
+
+      // Current admin usernames (case-insensitive)
+      const currentAdminUsernames = new Set(
+        ADMIN_ACCOUNTS_LIST.map(a => a.username.toLowerCase())
+      );
+
+      // Filter out old admin accounts from stored users
+      const filteredStoredUsers = storedUsers.filter(user => {
+        const usernameLower = user.username.toLowerCase();
+        // Remove if it's an old admin account that's not in the current list
+        if (oldAdminUsernames.has(usernameLower) && !currentAdminUsernames.has(usernameLower)) {
+          return false;
+        }
+        return true;
+      });
+
+      // Create a map of existing usernames for quick lookup
+      const existingUsernames = new Set(filteredStoredUsers.map(u => u.username.toLowerCase()));
+
+      // Add admin accounts that haven't logged in yet (so they appear in the list even if never logged in)
+      const adminAccountsNotInStorage = ADMIN_ACCOUNTS_LIST
+        .filter(admin => !existingUsernames.has(admin.username.toLowerCase()))
+        .map(admin => ({
+          username: admin.username,
+          password: admin.password,
+          gender: 'N/A',
+          role: 'admin' as const,
+          coins: 99999,
+          ownedSkins: ['starter_classic'],
+          equippedSkin: 'starter_classic',
+          isDonor: false,
+          ownedAccessories: [],
+          equippedAccessories: {}
+        }));
+
+      // Combine: ALL stored users (regular + admins who logged in) + admin accounts that never logged in
+      // Start with filtered stored users (these are the real accounts, with old admins removed)
+      const uniqueUsers: User[] = [...filteredStoredUsers];
+
+      // Add admin accounts that haven't logged in yet (so they appear in the list)
+      adminAccountsNotInStorage.forEach(admin => {
+        // Only add if not already in the list
+        if (!uniqueUsers.some(u => u.username.toLowerCase() === admin.username.toLowerCase())) {
+          uniqueUsers.push(admin);
+        }
+      });
+
+      // Sort: admins first, then alphabetically
+      uniqueUsers.sort((a, b) => {
+        if (a.role === 'admin' && b.role !== 'admin') return -1;
+        if (a.role !== 'admin' && b.role === 'admin') return 1;
+        return a.username.localeCompare(b.username);
+      });
+
+      setAllUsers(uniqueUsers);
+      setBans(bansData);
+      setReports(reportsData);
+    } catch (error) {
+      console.error('Error in loadData:', error);
+      // Silent error - no alert
+>>>>>>> 2a2d123e02e38c15847705d20e0fdd4b963e9328
     }
   };
 
