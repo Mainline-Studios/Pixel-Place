@@ -125,7 +125,6 @@ export default function Accessory3DViewer({
             accessoryGroup.add(defaultAccessory);
         }
 
-<<<<<<< HEAD
         // Helper function for default accessory creation (used in error fallback)
         const createDefaultAccessory = () => {
           if (!accessoryGroup) return;
@@ -136,8 +135,6 @@ export default function Accessory3DViewer({
           accessoryGroup.add(defaultAccessory);
         };
 
-=======
->>>>>>> 2a2d123e02e38c15847705d20e0fdd4b963e9328
         // Auto-rotate for display
         const animate = () => {
           if (!isMounted || !accessoryGroup) return;

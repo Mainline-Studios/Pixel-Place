@@ -2,10 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import Script from "next/script";
 import { UserProvider } from "@/contexts/UserContext";
-<<<<<<< HEAD
-import StyleProvider from "@/components/StyleProvider";
-=======
->>>>>>> 2a2d123e02e38c15847705d20e0fdd4b963e9328
+import { StyleProvider } from "@/components/StyleProvider";
 
 export const metadata: Metadata = {
   title: "Pixel Place",
@@ -32,17 +29,11 @@ export default function RootLayout({
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
       </head>
       <body>
-<<<<<<< HEAD
         <StyleProvider>
           <UserProvider>
             {children}
           </UserProvider>
         </StyleProvider>
-=======
-        <UserProvider>
-          {children}
-        </UserProvider>
->>>>>>> 2a2d123e02e38c15847705d20e0fdd4b963e9328
       </body>
     </html>
   );

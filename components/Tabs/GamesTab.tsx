@@ -8,13 +8,11 @@ import UserMadeGamePlayer from '../Games/UserMadeGamePlayer';
 import GymPumpEngine from '../Games/GymPumpEngine';
 import Hypnosia from '../Games/Hypnosia';
 import UnderwaterOddyseySeries from '../Games/UnderwaterOddyseySeries';
-import Showdown from '../Games/Showdown';import RedRover from '../Games/RedRover';
+import Showdown from '../Games/Showdown';
+import RedRover from '../Games/RedRover';
 import JungleJourneySeries from '../Games/JungleJourneySeries';
 import Chess from '../Games/Chess';
 import FloorIsLava from '../Games/FloorIsLava';
-=======
-import SuperShowdownCombined from '../Games/InsaneShowdown';
->>>>>>> 2a2d123e02e38c15847705d20e0fdd4b963e9328
 
 interface GamesTabProps {
   user: User;
@@ -36,7 +34,6 @@ interface GameInfo {
 // All available games
 const games: GameInfo[] = [
   {
-<<<<<<< HEAD
     id: 'gymPump',
     name: 'Gym Pump',
     description: 'Lift weights, build power, and climb the leaderboard!',
@@ -188,13 +185,6 @@ export default function GamesTab({ user, editMode }: GamesTabProps) {
           >
             ← Back
           </button>
-=======
-        )}
-        {selectedGame === 'hypnosia' ? (
-          <GameComponent onClose={handleClose} />
-        ) : (
-          <GameComponent />
->>>>>>> 2a2d123e02e38c15847705d20e0fdd4b963e9328
         )}
         <GameComponent key={selectedGame} {...gameProps} />
       </div>
@@ -314,7 +304,6 @@ export default function GamesTab({ user, editMode }: GamesTabProps) {
       <div className="ai-box" style={{ marginTop: '24px' }}>
         <div className="ai-label">Game Instructions</div>
         <div className="ai-output" style={{ fontSize: '13px', lineHeight: '1.8' }}>
-<<<<<<< HEAD
           <strong>Gym Pump:</strong> Lift weights, build power, and climb the leaderboard! Use the game controls to play.        </div>
       </div>
 

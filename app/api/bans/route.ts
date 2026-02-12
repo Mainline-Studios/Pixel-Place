@@ -90,8 +90,6 @@ export async function DELETE(request: NextRequest) {
     return NextResponse.json({ error: 'Failed to delete ban' }, { status: 500 });
   }
 }
-<<<<<<< HEAD
-=======
 
 
 

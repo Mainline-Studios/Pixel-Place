@@ -74,7 +74,6 @@
    
    
    
-<<<<<<< HEAD
 9. **Showdown** ⚔️
    
    - Neon arena combat with 8 powers
@@ -82,9 +81,6 @@
    - WASD move, mouse aim, click to shoot
 
 10. **The Series**
-=======
-9. **The Series**
->>>>>>> 2a2d123e02e38c15847705d20e0fdd4b963e9328
     
     
    - **Celestial Exploration**
@@ -94,17 +90,10 @@
      
    - **Mountain March**
      
-<<<<<<< HEAD
    - Climb the mountain with friends to reach the top, don't fall
      
      
    - **Underwater Odyssey**
-=======
-   - Climb the mounyain with friends to reach the top, don't fall
-     
-     
-   - **Underwater Oddysey**
->>>>>>> 2a2d123e02e38c15847705d20e0fdd4b963e9328
      
    - Find out about the wonders of the ocean, living in a submarine
      
@@ -114,11 +103,7 @@
    -Hike the jungle and avoid some weird things
      
      
-<<<<<<< HEAD
 11. **Ghost in the Dark**
-=======
-10. **Ghost in the Dark**
->>>>>>> 2a2d123e02e38c15847705d20e0fdd4b963e9328
     
     -Fun game where you find out who is NOT one of us
     
@@ -131,11 +116,7 @@
     
 12. **City Life**
     
-<<<<<<< HEAD
     -A roleplay to simulate adulthood and entrepreneurship to kids
-=======
-    -A roleplay to simulate adulthood and entrepeneurship to kids
->>>>>>> 2a2d123e02e38c15847705d20e0fdd4b963e9328
 
     -A game to teach you about the world
     

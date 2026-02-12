@@ -5,83 +5,47 @@ import { User } from '@/types';
 import { useUser } from '@/contexts/UserContext';
 import { getSkins, getAccessories, saveSkins, saveAccessories } from '@/lib/storage';
 import { apiUrl } from '@/lib/apiBaseUrl';
-                    // Get themed colors based on reward
-                    let colors = { head: '#FFDBB3', torso: '#4169E1', arm: '#FFDBB3', legs: '#4169E1' };
-                    let bodyScale = undefined;
-                    let headScale = undefined;
 
-                    if (reward.id.includes('scarecrow')) {
-                        colors = { head: '#FF8C00', torso: '#8B4513', arm: '#8B4513', legs: '#654321' };
-                        bodyScale = { x: 0.7, y: 0.7, z: 0.7 };
-                        headScale = { x: 1.5, y: 1.5, z: 1.5 };
-                    } else if (reward.id.includes('ghost')) {
-                        colors = { head: '#F5F5F5', torso: '#E0E0E0', arm: '#E0E0E0', legs: '#D0D0D0' };
-                        headScale = { x: 1.3, y: 1.3, z: 1.3 };
-                    } else if (reward.id.includes('witch')) {
-                        colors = { head: '#2C1810', torso: '#4B0082', arm: '#2C1810', legs: '#000000' };
-                        bodyScale = { x: 0.8, y: 0.8, z: 0.8 };
-                    } else if (reward.id.includes('santa')) {
-                        colors = { head: '#FFDBB3', torso: '#FF0000', arm: '#FFDBB3', legs: '#000000' };
-                        bodyScale = { x: 1.2, y: 1.2, z: 1.2 }; // Big belly
-                    } else if (reward.id.includes('snowman')) {
-                        colors = { head: '#FFFFFF', torso: '#FFFFFF', arm: '#FFFFFF', legs: '#FFFFFF' };
-                    } else if (reward.id.includes('cupid')) {
-                        colors = { head: '#FFDBB3', torso: '#FFB6C1', arm: '#FFDBB3', legs: '#FFB6C1' };
-                        bodyScale = { x: 0.6, y: 0.6, z: 0.6 }; // Tiny cupid
-                    } else if (reward.id.includes('bunny')) {
-                        colors = { head: '#FFFFFF', torso: '#F0F0F0', arm: '#FFFFFF', legs: '#F0F0F0' };
-                        headScale = { x: 1.4, y: 1.4, z: 1.4 }; // Big bunny head
-                    } else if (reward.id.includes('icecream')) {
-                        colors = { head: '#FFB6C1', torso: '#8B4513', arm: '#8B4513', legs: '#8B4513' };
-                        headScale = { x: 1.6, y: 1.6, z: 1.6 }; // Giant ice cream head
-                    }
+const getCurrentHoliday = () => {
+    const month = new Date().getMonth() + 1;
+    if (month === 10) return { name: 'Halloween', month: 10, color: '#FF6B00', theme: 'spooky' };
+    if (month === 12) return { name: 'Christmas', month: 12, color: '#FF0000', theme: 'festive' };
+    if (month === 2) return { name: 'Valentine', month: 2, color: '#FF1493', theme: 'romantic' };
+    if (month === 3 || month === 4) return { name: 'Easter', month, color: '#FFD700', theme: 'spring' };
+    if (month === 7 || month === 8) return { name: 'Summer', month, color: '#FFA500', theme: 'summer' };
+    return null;
+};
 
-                    const newSkin = {
-                        id: reward.id,
-                        name: reward.name,
-                        price: 0,
-                        colors: colors,
-                        holiday: holiday!.name,
-                        img: '',
-                        special: true,
-                        bodyScale: bodyScale,
-                        headScale: headScale
-                    };
-                    skins.push(newSkin);
-                    saveSkins(skins);
-                } else {
-                    const accessories = getAccessories();
-                    let accessoryColor = '#FF0000';
-                    let accessoryType: 'hat' | 'glasses' | 'wings' | 'backpack' = 'hat';
+interface HolidayReward {
+    type: 'skin' | 'accessory';
+    id: string;
+    name: string;
+    chance: number;
+}
 
-                    if (reward.id.includes('pumpkin')) {
-                        accessoryColor = '#FF8C00'; // Orange
-                        accessoryType = 'hat';
-                    } else if (reward.id.includes('batwings') || reward.id.includes('wings')) {
-                        accessoryColor = '#2C1810'; // Dark brown/black
-                        accessoryType = 'wings';
-                    } else if (reward.id.includes('antlers')) {
-                        accessoryColor = '#8B4513'; // Brown
-                        accessoryType = 'hat';
-                    }
+interface HolidayBundleProps {
+    user: User;
+    onClose: () => void;
+}
 
-                    const newAccessory = {
-                        id: reward.id,
-                        name: reward.name,
-                        type: accessoryType,
-                        price: 0,
-                        color: accessoryColor,
-                        holiday: holiday!.name,
-                        img: '',
-                        special: true
-                    };
-                        accessories.push(newAccessory);
-                        await saveAccessories(accessories);
-                    }
-                })();            }
-        };
+export default function HolidayBundle({ user, onClose }: HolidayBundleProps) {
+    const { updateUser } = useUser();
+    const holiday = getCurrentHoliday();
+    const wheelRef = useRef<HTMLCanvasElement>(null);
+    const [hasPurchased, setHasPurchased] = useState(false);
+    const [hasSpun, setHasSpun] = useState(false);
+    const [reward, setReward] = useState<HolidayReward | null>(null);
+    const [isSpinning, setIsSpinning] = useState(false);
 
-        animate();
+    const savePurchaseState = (purchased: boolean, spun: boolean, r: HolidayReward | null) => {
+        setHasPurchased(purchased);
+        setHasSpun(spun);
+        setReward(r);
+        if (typeof window !== 'undefined') {
+            try {
+                sessionStorage.setItem('holidayBundle', JSON.stringify({ purchased, spun, reward: r }));
+            } catch (_) {}
+        }
     };
 
     const handlePurchase = async () => {
@@ -112,7 +76,8 @@ import { apiUrl } from '@/lib/apiBaseUrl';
         }
 
         try {
-            const response = await fetch(apiUrl('/api/checkout'), {                method: 'POST',
+            const response = await fetch(apiUrl('/api/checkout'), {
+                method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     priceId: 'holiday_bundle',

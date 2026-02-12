@@ -85,10 +85,3 @@ export async function PUT(request: NextRequest) {
     return NextResponse.json({ error: 'Failed to update appeal' }, { status: 500 });
   }
 }
-<<<<<<< HEAD
-=======
-
-
-
-
->>>>>>> 2a2d123e02e38c15847705d20e0fdd4b963e9328

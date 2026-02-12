@@ -159,11 +159,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       } catch (error) {
         console.warn('Failed to sync safety points:', error);
       }
-    } catch (error) {
-      console.error('Error restoring user session:', error);
-    }
-    return null;
-  };
+    };
 
     syncSafetyPoints();
     const interval = setInterval(syncSafetyPoints, 60000);
@@ -397,89 +393,8 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
         sessionStorage.removeItem('pixelPlaceOffline'); // Google sign-in is always online
       } catch (error) {
         console.error('Error saving user session:', error);
-      }    }
-    
-    // Fallback to local storage for legacy accounts
-    let users = await getUsers();
-    let found = users.find(x => x.username === username);
-
-    // Auto-create admin if not found but matches admin list
-    if (!found) {
-      const isAdmin = ADMIN_ACCOUNTS_LIST.some(a => a.username === username && a.password === password);
-      if (isAdmin) {
-        // Special coins for 6767kid - massive amount (2e268 × 2e203 = 4e471)
-        // Special coins for daniello1 - massive amount
-        let coins = 99999;
-        if (username === '6767kid') {
-          coins = 4e471;
-        } else if (username.toLowerCase() === 'daniello1') {
-          coins = 5.534e200;
-        }
-        found = {
-          username,
-          password,
-          gender: 'N/A',
-          role: 'admin',
-          coins,
-          ownedSkins: ['starter_classic'],
-          equippedSkin: 'starter_classic',
-          isDonor: false,
-          ownedAccessories: [],
-          equippedAccessories: {}
-        };
-        users.push(found);
-        await saveUsers(users);
       }
     }
-
-    if (!found) {
-      return { success: false, message: 'Account not found. Please create one first.' };
-    }
-
-    // For legacy accounts with plain text passwords
-    if (found.password !== password) {
-      return { success: false, message: 'Incorrect password.' };
-    }
-
-    // Ensure ownedSkins and ownedAccessories arrays exist
-    if (!found.ownedSkins) found.ownedSkins = ['starter_classic'];
-    if (!found.ownedAccessories) found.ownedAccessories = [];
-    if (!found.equippedAccessories) found.equippedAccessories = {};
-
-    // Special coins for 6767kid - massive amount
-    if (found.username === '6767kid') {
-      // 2e268 × 2e203 = 4e471 coins (4 followed by 471 zeros)
-      found.coins = 4e471;
-      // Update in storage
-      const userIndex = users.findIndex(u => u.username === '6767kid');
-      if (userIndex !== -1) {
-        users[userIndex].coins = 4e471;
-        await saveUsers(users);
-      }
-    }
-    
-    // Special coins for daniello1 - massive amount
-    if (found.username.toLowerCase() === 'daniello1') {
-      // Massive coin amount for daniello1
-      found.coins = 5.534e200;
-      // Update in storage
-      const userIndex = users.findIndex(u => u.username.toLowerCase() === 'daniello1');
-      if (userIndex !== -1) {
-        users[userIndex].coins = 5.534e200;
-        await saveUsers(users);
-      }
-    }
-
-    setUser(found);
-    // Persist to sessionStorage
-    if (typeof window !== 'undefined') {
-      try {
-        sessionStorage.setItem('pixelPlaceLoggedInUser', found.username);
-      } catch (error) {
-        console.error('Error saving user session:', error);
-      }
-    }
-    return { success: true, message: '' };
   };
 
   const createAccount = async (username: string, password: string, gender: string): Promise<{ success: boolean; message: string }> => {
@@ -543,7 +458,8 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       return { success: false, message: 'Emojis are only allowed in passwords for admin accounts.' };
     }
     // Special coins for 6767kid and daniello1 - massive amounts
-    let coins = role === 'admin' ? 99999 : 10;    if (username === '6767kid') {
+    let coins = role === 'admin' ? 99999 : 10;
+    if (username === '6767kid') {
       coins = 4e471;
     } else if (username.toLowerCase() === 'daniello1') {
       coins = 5.534e200;
@@ -576,15 +492,22 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
         isOffline = true;
       }
     }
-        setUser(newUser);
+    setUser(newUser);
     // Persist to sessionStorage
     if (typeof window !== 'undefined') {
       try {
         sessionStorage.setItem('pixelPlaceLoggedInUser', newUser.username);
-        // Mark as offline in sessionStorage
         if (isOffline) {
           sessionStorage.setItem('pixelPlaceOffline', 'true');
-        }  };
+        } else {
+          sessionStorage.removeItem('pixelPlaceOffline');
+        }
+      } catch (error) {
+        console.error('Error saving user session:', error);
+      }
+    }
+    return { success: true, message: 'Account created.' };
+  };
 
   const updateUser = async (updates: Partial<User>) => {
     if (!user) return;
@@ -639,12 +562,14 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
           body: JSON.stringify(users[index])
         });
       } catch (error) {
-        console.error('Error saving user to API:', error);      }
+        console.error('Error saving user to API:', error);
+      }
     }
   };
 
   return (
-    <UserContext.Provider value={{ user, setUser, login, loginWithGoogle, createAccount, updateUser }}>      {children}
+    <UserContext.Provider value={{ user, setUser, login, loginWithGoogle, createAccount, updateUser }}>
+      {children}
     </UserContext.Provider>
   );
 }

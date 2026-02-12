@@ -8,21 +8,8 @@ import Dashboard from '@/components/Dashboard/Dashboard';
 import SplashScreen from '@/components/SplashScreen';
 import BreakReminder from '@/components/BreakReminder';
 import { getPlaytimeTracker } from '@/lib/playtimeTracker';
-import { User } from '@/types';  }
-
-  render() {
-    if (this.state.hasError) {
-      return (
-        <div style={{padding: '20px', color: '#fff', background: '#1a1d29', minHeight: '100vh'}}>
-          <h1>Something went wrong</h1>
-          <p>{this.state.error?.message}</p>
-          <pre style={{fontSize: '12px', overflow: 'auto', maxHeight: '400px'}}>{this.state.error?.stack}</pre>
-          <button onClick={() => this.setState({hasError: false, error: null})} style={{padding: '10px 20px', marginTop: '10px', cursor: 'pointer'}}>Try again</button>        </div>
-      );
-    }
-    return this.props.children;
-  }
-}
+import { User } from '@/types';
+import ErrorBoundary from '@/components/ErrorBoundary';
 
 function AppContent() {
   const { user } = useUser();

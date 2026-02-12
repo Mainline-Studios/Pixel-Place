@@ -4,6 +4,19 @@
  */
 
 import { apiUrl } from './apiBaseUrl';
+
+export class PixelPlaceAPI {
+  private gameId: string;
+  private username: string;
+
+  constructor(gameId: string, username: string) {
+    this.gameId = gameId;
+    this.username = username;
+  }
+
+  async connectGame(gameId: string): Promise<{ sessionId: string }> {
+    try {
+      const response = await fetch(apiUrl('/api/games/gym-pump/connect'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ gameId, username: this.username })
@@ -28,7 +41,8 @@ import { apiUrl } from './apiBaseUrl';
    */
   async sendGameScore(gameId: string, data: { power: number; coins: number; level: number; timestamp?: number }): Promise<boolean> {
     try {
-      const response = await fetch(apiUrl('/api/games/gym-pump/score'), {        method: 'POST',
+      const response = await fetch(apiUrl('/api/games/gym-pump/score'), {
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           gameId,

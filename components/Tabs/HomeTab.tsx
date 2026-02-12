@@ -8,6 +8,16 @@ import GamePlayer from '@/components/GamePlayer';
 import Avatar3DViewer from '@/components/Avatar3DViewer';
 import { GYM_PUMP_PRELOADED_GAME } from '@/lib/preloadedGames';
 import GymPumpEngine from '@/components/Games/GymPumpEngine';
+import Hypnosia from '@/components/Games/Hypnosia';
+import UnderwaterOddyseySeries from '@/components/Games/UnderwaterOddyseySeries';
+import SuperShowdown2 from '@/components/Games/SuperShowdown2';
+import SuperShowdown from '@/components/Games/SuperShowdown';
+import RedRover from '@/components/Games/RedRover';
+import JungleJourneySeries from '@/components/Games/JungleJourneySeries';
+import Chess from '@/components/Games/Chess';
+import FloorIsLava from '@/components/Games/FloorIsLava';
+import InsaneShowdown from '@/components/Games/InsaneShowdown';
+
 interface HomeTabProps {
   user: User;
   editMode: boolean;
@@ -94,7 +104,7 @@ const builtInGames: GameInfo[] = [
     description: 'Ultimate combined arena battle experience!',
     icon: '🔥',
     category: 'Action',
-    component: SuperShowdownCombined,
+    component: InsaneShowdown,
   },
 ];
 
