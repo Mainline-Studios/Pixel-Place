@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useUser } from '@/contexts/UserContext';
 import BanScreen from './BanScreen';
-import { auth, googleProvider, getRecaptchaVerifier, clearRecaptchaVerifier } from '@/lib/firebaseClient';
+import { auth, googleProvider } from '@/lib/firebaseClient';
 import { apiUrl } from '@/lib/apiBaseUrl';
 import { signInWithPopup } from 'firebase/auth';
 
@@ -150,10 +150,7 @@ export default function Login() {
     setMessage('');
     
     try {
-      // Get reCAPTCHA token first
-      const recaptchaVerifier = getRecaptchaVerifier('recaptcha-container');
-      
-      // Sign in with Google popup
+      // signInWithPopup doesn't need RecaptchaVerifier (that's for phone/SMS auth)
       const result = await signInWithPopup(auth, googleProvider);
       const idToken = await result.user.getIdToken();
       

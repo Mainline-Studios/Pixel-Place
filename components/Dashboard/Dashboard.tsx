@@ -7,10 +7,11 @@ import { getPublished, savePublished } from '@/lib/storage';
 import TopBar from './TopBar';
 import Sidebar from './Sidebar';
 import HomeTab from '../Tabs/HomeTab';
-// DiscoverTab removed - merged into HomeTab
 import PlayTab from '../Tabs/PlayTab';
+import GamesTab from '../Tabs/GamesTab';
 import AvatarShopTab from '../Tabs/AvatarShopTab';
-import CreateTab from '../Tabs/CreateTab';import StudioTab from '../Tabs/StudioTab';
+import CreateTab from '../Tabs/CreateTab';
+import StudioTab from '../Tabs/StudioTab';
 import CoinsTab from '../Tabs/CoinsTab';
 import ServersTab from '../Tabs/ServersTab';
 import FriendsTab from '../Tabs/FriendsTab';
@@ -41,6 +42,8 @@ export default function Dashboard({ user }: DashboardProps) {
       // Discover tab was merged into Home tab - removed
       case 'play':
         return <PlayTab user={user} editMode={editMode} />;
+      case 'games':
+        return <GamesTab user={user} editMode={editMode} />;
       case 'avatarShop':
         return <AvatarShopTab user={user} editMode={editMode} />;
       case 'createGame':
@@ -75,11 +78,11 @@ export default function Dashboard({ user }: DashboardProps) {
       />
       <div className="body-row">
         <div className="body-inner">
-          <Sidebar user={user} />
+          <Sidebar user={user} onNavigate={(tab) => setCurrentTab(tab as TabType)} />
           <section className="main-card">{renderTabContent()}</section>
         </div>
       </div>
-      <footer>© 2025 Pixel Place | All Rights Reserved</footer>
+      <footer>© 2025 Pixel Place | All Rights Reserved | Support: <a href="mailto:support@pixelplaceofficial.com">support@pixelplaceofficial.com</a></footer>
     </div>
   );
 }

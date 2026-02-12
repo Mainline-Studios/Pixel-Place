@@ -98,7 +98,7 @@ export default function SplashScreen({ onComplete }: SplashScreenProps) {
         }
       `}</style>
 
-      {/* Mainline Studios phase */}
+      {/* Mainline Studios phase - uses Mainline brand, not Pixel Place logo */}
       {phase === 'mainline' && (
         <div
           style={{
@@ -111,15 +111,8 @@ export default function SplashScreen({ onComplete }: SplashScreenProps) {
             transition: 'opacity 0.8s ease-in-out',
           }}
         >
-          <div className="splash-logo-mainline" style={{ marginBottom: '24px', position: 'relative', width: 120, height: 120, borderRadius: '20px', overflow: 'hidden' }}>
-            <Image
-              src="/logo.png"
-              alt="Logo"
-              width={120}
-              height={120}
-              style={{ objectFit: 'contain', borderRadius: '20px' }}
-              priority
-            />
+          <div className="splash-logo-mainline" style={{ marginBottom: '24px', width: 120, height: 120, borderRadius: '20px', background: 'linear-gradient(135deg, #2b6cb0 0%, #1a365d 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 0 40px rgba(43, 108, 176, 0.6)' }}>
+            <span style={{ fontSize: '56px', fontWeight: 800, color: '#fff', letterSpacing: '-2px', textShadow: '0 2px 4px rgba(0,0,0,0.3)' }}>M</span>
           </div>
           <h1
             className="splash-text"

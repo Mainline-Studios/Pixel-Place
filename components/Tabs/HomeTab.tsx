@@ -51,6 +51,14 @@ const builtInGames: GameInfo[] = [
     component: UnderwaterOddyseySeries,
   },
   {
+    id: 'oceanlifePro',
+    name: 'OceanLife Pro',
+    description: 'Premium ocean explorer with expanded fauna, fishing, and deep-sea adventures!',
+    icon: '🐠',
+    category: 'Adventure',
+    component: UnderwaterOddyseySeries,
+  },
+  {
     id: 'superShowdown2',
     name: 'Super Showdown 2',
     description: 'Epic arena battles with powerful abilities!',

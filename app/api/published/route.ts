@@ -26,7 +26,6 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
-    const db = getDb();
     const games: PublishedGame[] = await request.json();
     
     // Get all existing games and delete them

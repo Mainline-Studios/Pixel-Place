@@ -9,6 +9,15 @@ interface UserMadeGamePlayerProps {
   onClose?: () => void;
 }
 
+/** Check if game is an imported file (HTML/JS/etc) rather than 3D scene */
+function isImportedFileGame(game: UserMadeGame): boolean {
+  return !!(game.fileContent && (game.gameType === 'file' || game.gameType === 'html' || game.fileType));
+}
+
+function escapeHtml(s: string): string {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
 export default function UserMadeGamePlayer({ game, user, onClose }: UserMadeGamePlayerProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const rendererRef = useRef<any>(null);
@@ -170,6 +179,31 @@ export default function UserMadeGamePlayer({ game, user, onClose }: UserMadeGame
       }
     };
   }, [game]);
+
+  // Render imported HTML/JS files in iframe
+  if (isImportedFileGame(game) && game.fileContent) {
+    const fileType = (game.fileType || 'html').toLowerCase();
+    let htmlToRender: string;
+    if (fileType === 'html' || fileType === 'htm') {
+      htmlToRender = game.fileContent;
+    } else if (fileType === 'js') {
+      htmlToRender = `<!DOCTYPE html><html><head><meta charset="utf-8"><style>body{margin:0;background:#0d1019}</style></head><body><script>${game.fileContent}<\/script></body></html>`;
+    } else {
+      htmlToRender = `<!DOCTYPE html><html><head><meta charset="utf-8"><style>body{margin:0;background:#0d1019;color:#fff;font-family:monospace;padding:16px}</style></head><body><pre>${escapeHtml(game.fileContent.slice(0, 10000))}${game.fileContent.length > 10000 ? '\n...(truncated)' : ''}</pre></body></html>`;
+    }
+    return (
+      <div style={{ position: 'relative', width: '100%', height: '100vh' }}>
+        {onClose && (
+          <button onClick={onClose} style={{ position: 'absolute', top: 20, right: 20, zIndex: 1000, padding: '10px 20px', background: 'var(--panel)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--text)', cursor: 'pointer', fontSize: 14 }}>Close</button>
+        )}
+        <div style={{ position: 'absolute', top: 20, left: 20, zIndex: 1000, background: 'rgba(0,0,0,0.7)', padding: 15, borderRadius: 8, color: 'var(--text)' }}>
+          <h3 style={{ margin: '0 0 10px 0' }}>{game.title}</h3>
+          <p style={{ margin: 0, fontSize: 12, opacity: 0.8 }}>By: {game.owner}</p>
+        </div>
+        <iframe srcDoc={htmlToRender} title={game.title} style={{ width: '100%', height: '100%', border: 'none', display: 'block' }} sandbox="allow-scripts allow-same-origin" />
+      </div>
+    );
+  }
 
   return (
     <div style={{ position: 'relative', width: '100%', height: '100vh' }}>

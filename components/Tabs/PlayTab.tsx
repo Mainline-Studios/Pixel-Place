@@ -43,6 +43,14 @@ const games: GameInfo[] = [
     component: Hypnosia,
   },
   {
+    id: 'oceanlifePro',
+    name: 'OceanLife Pro',
+    description: 'Premium ocean explorer with expanded fauna, fishing, and deep-sea adventures!',
+    icon: '🐠',
+    category: 'Adventure',
+    component: UnderwaterOddyseySeries,
+  },
+  {
     id: 'redRover',
     name: 'Red Rover',
     description: 'Classic team-based multiplayer game!',
