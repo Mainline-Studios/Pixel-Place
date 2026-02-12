@@ -102,11 +102,6 @@ export async function POST(request: NextRequest) {
     }
   } catch (error: any) {
     console.error('Error creating/updating user:', error);
-=======
-    if (error.code === 'SQLITE_CONSTRAINT_UNIQUE') {
-      return NextResponse.json({ error: 'Username already exists' }, { status: 409 });
-    }
->>>>>>> 2a2d123e02e38c15847705d20e0fdd4b963e9328
     return NextResponse.json({ error: 'Failed to create/update user' }, { status: 500 });
   }
 }
@@ -116,7 +111,6 @@ export async function PUT(request: NextRequest) {
     const db = getDb();
     const updatedUser: User = await request.json();
     
-<<<<<<< HEAD
     const existingUsers = await queryDocuments(COLLECTIONS.USERS, 'username_lower', '==', updatedUser.username.toLowerCase());
     if (existingUsers.length === 0) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });

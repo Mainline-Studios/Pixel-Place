@@ -5,13 +5,11 @@ import { User } from '@/types';
 import GymPumpEngine from '../Games/GymPumpEngine';
 import Hypnosia from '../Games/Hypnosia';
 import UnderwaterOddyseySeries from '../Games/UnderwaterOddyseySeries';
-import Showdown from '../Games/Showdown';import RedRover from '../Games/RedRover';
+import Showdown from '../Games/Showdown';
+import RedRover from '../Games/RedRover';
 import JungleJourneySeries from '../Games/JungleJourneySeries';
 import Chess from '../Games/Chess';
 import FloorIsLava from '../Games/FloorIsLava';
-=======
-import SuperShowdownCombined from '../Games/InsaneShowdown';
->>>>>>> 2a2d123e02e38c15847705d20e0fdd4b963e9328
 
 interface PlayTabProps {
   user: User;
@@ -29,7 +27,6 @@ interface GameInfo {
 
 const games: GameInfo[] = [
   {
-<<<<<<< HEAD
     id: 'gymPump',
     name: 'Gym Pump',
     description: 'Lift weights, build power, and climb the leaderboard!',
@@ -37,7 +34,14 @@ const games: GameInfo[] = [
     category: 'Action',
     component: GymPumpEngine,
   },
-  {  },
+  {
+    id: 'hypnosia',
+    name: 'Hypnosia',
+    description: 'Test your deduction skills in this mysterious game!',
+    icon: '🔍',
+    category: 'Puzzle',
+    component: Hypnosia,
+  },
   {
     id: 'redRover',
     name: 'Red Rover',
@@ -163,7 +167,8 @@ export default function PlayTab({ user, editMode }: PlayTabProps) {
   if (selectedGame && GameComponent) {
     // #region agent log
     fetch('http://127.0.0.1:7242/ingest/002741fb-cb98-444e-83cd-7086902151aa',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'PlayTab.tsx:187',message:'Early return selectedGame',data:{selectedGame},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-    // #endregion    const handleClose = () => {
+    // #endregion
+    const handleClose = () => {
       setSelectedGame(null);
       setIsLoading(false);
       setLoadError(null);
@@ -179,7 +184,8 @@ export default function PlayTab({ user, editMode }: PlayTabProps) {
       : {};
     
     return (
-      <div key={selectedGame} style={{ position: 'relative', width: '100%', minHeight: '100%', background: 'var(--bg-main)' }}>        {isLoading && (
+      <div key={selectedGame} style={{ position: 'relative', width: '100%', minHeight: '100%', background: 'var(--bg-main)' }}>
+        {isLoading && (
           <div style={{
             position: 'absolute',
             top: 0,
@@ -266,7 +272,8 @@ export default function PlayTab({ user, editMode }: PlayTabProps) {
             ← Back
           </button>
         )}
-        <GameComponent key={selectedGame} {...gameProps} />      </div>
+        <GameComponent key={selectedGame} {...gameProps} />
+      </div>
     );
   }
 

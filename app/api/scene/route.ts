@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getDocument, setDocument, getDocuments, COLLECTIONS } from '@/lib/firestore';import { SceneData } from '@/types';
+import { getDocument, setDocument, getDocuments, COLLECTIONS } from '@/lib/firestore';
+import { SceneData } from '@/types';
 
 export async function GET(request: NextRequest) {
   try {
@@ -18,14 +19,10 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-=======
-    const db = getDb();
->>>>>>> 2a2d123e02e38c15847705d20e0fdd4b963e9328
     const scene: SceneData = await request.json();
     const { searchParams } = new URL(request.url);
     const userId = searchParams.get('userId') || 'default';
-    
-<<<<<<< HEAD
+
     await setDocument(COLLECTIONS.SCENES, userId, {
       user_id: userId,
       scene_data: scene,

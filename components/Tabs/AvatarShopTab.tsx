@@ -5,6 +5,9 @@ import React from 'react';
 import { User, Skin, Accessory } from '@/types';
 import { getSkins, saveSkins, getAccessories, saveAccessories } from '@/lib/storage';
 import { apiUrl } from '@/lib/apiBaseUrl';
+import Avatar3DViewer from '@/components/Avatar3DViewer';
+import Skin2DPreview from '@/components/Skin2DPreview';
+
 interface AvatarShopTabProps {
   user: User;
   editMode: boolean;
@@ -104,7 +107,8 @@ function normalizeSkin(skin: Skin): Skin {
 function SkinThumb({ skin, previewMode, width = 80, height = 80 }: { skin: Skin; previewMode: '2d' | '3d'; width?: number; height?: number }) {
   const [isVisible, setIsVisible] = useState(false);
   const [is3DReady, setIs3DReady] = useState(false);
-  const [has3DError, setHas3DError] = useState(false);  const containerRef = useRef<HTMLDivElement>(null);
+  const [has3DError, setHas3DError] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
   
   useEffect(() => {
     // Lazy load - only render when visible
@@ -133,13 +137,15 @@ function SkinThumb({ skin, previewMode, width = 80, height = 80 }: { skin: Skin;
   }, [previewMode, skin?.id]);
 
   // Validate skin has required properties
-  if (!skin) {    return (
+  if (!skin) {
+    return (
       <div
         ref={containerRef}
         className="skin-thumb"
         style={{
           width,
-          height,          background: '#333',
+          height,
+          background: '#333',
           borderRadius: '8px',
           display: 'flex',
           alignItems: 'center',
@@ -148,14 +154,20 @@ function SkinThumb({ skin, previewMode, width = 80, height = 80 }: { skin: Skin;
           fontSize: '10px'
         }}
       >
-        Invalid      </div>
+        Invalid
+      </div>
     );
   }
 
   const show3D = previewMode === '3d' && isVisible && !has3DError;
   const showSpinner = previewMode === '3d' && isVisible && !is3DReady && !has3DError;
   const show2D = previewMode === '2d' || !is3DReady || has3DError;
-      )}
+
+  return (
+    <div ref={containerRef} className="skin-thumb" style={{ width, height, minWidth: width, minHeight: height }}>
+      {showSpinner && <div style={{ width, height, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>...</div>}
+      {show3D && <Avatar3DViewer skin={skin} width={width} height={height} onReady={() => setIs3DReady(true)} onError={() => setHas3DError(true)} />}
+      {show2D && !showSpinner && <Skin2DPreview skin={skin} />}
     </div>
   );
 }
@@ -423,8 +435,6 @@ export default function AvatarShopTab({ user, editMode }: AvatarShopTabProps) {
       current.add(accessory.id);
     }
     await updateUser({ equippedAccessories: Array.from(current) });
-  };
-    }
   };
 
   // Render Grocery Store tab

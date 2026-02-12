@@ -5,7 +5,25 @@ import { useUser } from '@/contexts/UserContext';
 import BanScreen from './BanScreen';
 import { auth, googleProvider, getRecaptchaVerifier, clearRecaptchaVerifier } from '@/lib/firebaseClient';
 import { apiUrl } from '@/lib/apiBaseUrl';
-import { signInWithPopup, signInWithCredential } from 'firebase/auth';
+import { signInWithPopup } from 'firebase/auth';
+
+export default function Login() {
+  const { login, createAccount, loginWithGoogle } = useUser();
+  const [mode, setMode] = useState<'signin' | 'signup'>('signin');
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [gender, setGender] = useState<'Male' | 'Female' | 'Other' | ''>('');
+  const [birthMonth, setBirthMonth] = useState('');
+  const [birthDay, setBirthDay] = useState('');
+  const [birthYear, setBirthYear] = useState('');
+  const [message, setMessage] = useState('');
+  const [banInfo, setBanInfo] = useState<any>(null);
+  const [showTerms, setShowTerms] = useState(false);
+  const [showPrivacy, setShowPrivacy] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [loadingText, setLoadingText] = useState('');
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
+
   const handleSignIn = async () => {
     if (!username || !password) {
       setMessage('Enter both username and password.');
@@ -52,7 +70,8 @@ import { signInWithPopup, signInWithCredential } from 'firebase/auth';
     } catch (error) {
       setIsLoading(false);
       setLoadingText('');
-      setMessage('An error occurred. You may be offline.');    }
+      setMessage('An error occurred. You may be offline.');
+    }
   };
 
   // Note: We can't reliably filter emojis during typing for login/signup
@@ -116,7 +135,8 @@ import { signInWithPopup, signInWithCredential } from 'firebase/auth';
     } catch (error) {
       setIsLoading(false);
       setLoadingText('');
-      setMessage('An error occurred. You may be offline.');    }
+      setMessage('An error occurred. You may be offline.');
+    }
   };
 
   const handleAppealSubmitted = () => {
@@ -215,9 +235,6 @@ import { signInWithPopup, signInWithCredential } from 'firebase/auth';
                 onChange={handlePasswordChange}
                 onKeyPress={(e) => e.key === 'Enter' && handleSignIn()}
               />
-=======
-              <div className="input-hint">At least 6 characters</div>
->>>>>>> 2a2d123e02e38c15847705d20e0fdd4b963e9328
               <button 
                 className="btn auth-btn signin-btn" 
                 onClick={(e) => {
@@ -226,10 +243,10 @@ import { signInWithPopup, signInWithCredential } from 'firebase/auth';
                   handleSignIn();
                 }}
                 type="button"
-<<<<<<< HEAD
                 disabled={isLoading}
               >
-                {isLoading && loadingText === 'Signing in...' ? 'Signing in...' : 'Sign In'}              </button>
+                {isLoading && loadingText === 'Signing in...' ? 'Signing in...' : 'Sign In'}
+              </button>
               <button 
                 className="btn auth-btn" 
                 onClick={(e) => {
@@ -288,6 +305,15 @@ import { signInWithPopup, signInWithCredential } from 'firebase/auth';
                   )}
                 </button>
               </div>
+            </>
+          ) : (
+            <>
+              <input
+                id="user"
+                placeholder="Username"
+                value={username}
+                onChange={handleUsernameChange}
+              />
               <input
                 id="pass"
                 type="password"
@@ -464,7 +490,8 @@ import { signInWithPopup, signInWithCredential } from 'firebase/auth';
                     </>
                   )}
                 </button>
-              </div>            </>
+              </div>
+            </>
           )}
 
           <div id="msg" className={message ? 'show' : ''}>{message}</div>

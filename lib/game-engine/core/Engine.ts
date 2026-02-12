@@ -6,10 +6,6 @@ import { Renderer } from './Renderer';
 import { Scene } from './Scene';
 import { Camera } from '../camera/Camera';
 import { Entity } from '../entities/Entity';
-=======
-import { Input } from '../input/Input';
-import { Physics } from '../physics/Physics';
->>>>>>> 2a2d123e02e38c15847705d20e0fdd4b963e9328
 
 export class Engine {
   private renderer: Renderer;
@@ -19,7 +15,6 @@ export class Engine {
   private animationFrameId: number | null = null;
   private lastTime: number = 0;
   private isRunning: boolean = false;
-<<<<<<< HEAD
   constructor(container: HTMLElement) {
     this.container = container;
     
@@ -32,14 +27,6 @@ export class Engine {
     // Create camera
     this.camera = new Camera();
     this.camera.setAspect(this.renderer.getSize().width / this.renderer.getSize().height);
-=======
-    
-    // Initialize input system
-    this.input = Input.getInstance();
-    
-    // Initialize physics system
-    this.physics = new Physics();
->>>>>>> 2a2d123e02e38c15847705d20e0fdd4b963e9328
   }
 
   /**
@@ -57,7 +44,6 @@ export class Engine {
   }
 
   /**
-<<<<<<< HEAD   * Start the engine
    */
   start(): void {
     if (this.isRunning) return;

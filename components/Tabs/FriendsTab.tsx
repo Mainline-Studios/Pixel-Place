@@ -322,11 +322,8 @@ export default function FriendsTab({ user, editMode }: FriendsTabProps) {
               })
             });
             window.location.href = `/play?session=${result.session.sessionId}`;
-          }        }
-      });
-      if (response.ok) {
-        const data = await response.json();
-        setFriendsData(data);
+          }
+        }
       }
     } catch (error) {
       console.error('Error joining friend:', error);

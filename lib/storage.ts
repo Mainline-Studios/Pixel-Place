@@ -1,6 +1,16 @@
 import { User, Skin, PublishedGame, DraftGame, SceneData, TabContent, GameServer, ServerPlan, FriendRequest, Message, Accessory, PrebuiltGame, Ban, BanAppeal, UserMadeGame, GameSubmission, Report } from '@/types';
 import { NEW_SKINS, NEW_ACCESSORIES } from './newCatalog';
-import { apiUrl } from './apiBaseUrl';  { username: "BelloBoy1", password: "Zac" },
+import { apiUrl } from './apiBaseUrl';
+
+const ADMIN_ACCOUNTS = [
+  { username: "admin", password: "extra" },
+  { username: "TicTAK", password: "Thomas" },
+  { username: "IDon'tKnow", password: "Titan" },
+  { username: "6767kid", password: "67676767" },
+  { username: "Billibob", password: "Luca" },
+  { username: "Daniello1", password: "Daniel" },
+  { username: "FunBoy", password: "Simon" },
+  { username: "BelloBoy1", password: "Zac" },
   { username: "Bob", password: "Henry" },
   { username: "Mr.Noob", password: "Tyson" },
   { username: "BDawgsAwesome1", password: "20Minecraft15" }
@@ -15,13 +25,15 @@ export function initializeStorage() {
   
   // All data is now stored in Firebase Firestore (cloud)
   // No local storage initialization needed
-  console.log('Storage initialized - all data stored in Firebase cloud');}
+  console.log('Storage initialized - all data stored in Firebase cloud');
+}
 
 // User functions - Now using API
 export async function getUsers(): Promise<User[]> {
   if (typeof window === 'undefined') return [];
   try {
-    const response = await fetch(apiUrl('/api/users'), {      cache: 'no-store', // Always fetch fresh data
+    const response = await fetch(apiUrl('/api/users'), {
+      cache: 'no-store',
       headers: {
         'Cache-Control': 'no-cache'
       }
@@ -63,7 +75,8 @@ export async function getUsers(): Promise<User[]> {
             // Remove from localStorage after successful migration
             localStorage.removeItem("pixelPlaceUsers");
             // Fetch updated list
-            const updatedResponse = await fetch(apiUrl('/api/users'), { cache: 'no-store' });            if (updatedResponse.ok) {
+            const updatedResponse = await fetch(apiUrl('/api/users'), { cache: 'no-store' });
+            if (updatedResponse.ok) {
               const updatedUsers = await updatedResponse.json();
               console.log(`getUsers: After migration, fetched ${updatedUsers.length} users`);
               return Array.isArray(updatedUsers) ? updatedUsers : [];
@@ -128,7 +141,7 @@ export async function getSkins(): Promise<Skin[]> {
     return [];
   }}
 
-export function saveSkins(skins: Skin[]): void {
+export async function saveSkins(skins: Skin[]): Promise<void> {
   if (typeof window === 'undefined') return;
   try {
     await fetch(apiUrl('/api/skins'), {
@@ -141,14 +154,16 @@ export function saveSkins(skins: Skin[]): void {
   }
 }
 
-// Tab content functions - Using API (Firebase)export async function getTabContent(): Promise<TabContent> {
+// Tab content functions - Using API (Firebase)
+export async function getTabContent(): Promise<TabContent> {
   if (typeof window === 'undefined') return {} as TabContent;
   try {
     const response = await fetch(apiUrl('/api/tabcontent'), { cache: 'no-store' });
     if (!response.ok) throw new Error('Failed to fetch tab content');
     return await response.json();
   } catch (e) {
-    console.error('Error reading tab content from API:', e);    return {} as TabContent;
+    console.error('Error reading tab content from API:', e);
+    return {} as TabContent;
   }
 }
 
@@ -174,7 +189,8 @@ export async function getDraft(username?: string): Promise<DraftGame> {
     if (!response.ok) throw new Error('Failed to fetch draft');
     return await response.json();
   } catch (e) {
-    console.error('Error reading draft from API:', e);    return { title: "", desc: "", owner: "" };
+    console.error('Error reading draft from API:', e);
+    return { title: "", desc: "", owner: "" };
   }
 }
 
@@ -249,7 +265,8 @@ export async function getSceneData(userId?: string): Promise<SceneData> {
     if (!response.ok) throw new Error('Failed to fetch scene');
     return await response.json();
   } catch (e) {
-    console.error('Error reading scene from API:', e);    return { objects: [] };
+    console.error('Error reading scene from API:', e);
+    return { objects: [] };
   }
 }
 
@@ -325,7 +342,8 @@ export async function savePrebuiltGames(games: PrebuiltGame[]): Promise<void> {
 export async function getBannedUsers(): Promise<Ban[]> {
   if (typeof window === 'undefined') return [];
   try {
-    const response = await fetch(apiUrl('/api/bans'));    if (!response.ok) throw new Error('Failed to fetch bans');
+    const response = await fetch(apiUrl('/api/bans'));
+    if (!response.ok) throw new Error('Failed to fetch bans');
     const bans = await response.json();
     // Filter out expired bans
     const now = Date.now();
@@ -378,7 +396,8 @@ export async function isUserBanned(username: string): Promise<boolean> {
     if (b.permanent) return true;
     if (b.expiresAt && b.expiresAt > now) return true;
     return false;
-  });  return !!ban;
+  });
+  return !!ban;
 }
 
 export async function getBanForUser(username: string): Promise<Ban | null> {
@@ -460,7 +479,8 @@ export async function unbanUser(username: string): Promise<void> {
 export async function getReports(): Promise<Report[]> {
   if (typeof window === 'undefined') return [];
   try {
-    const response = await fetch(apiUrl('/api/reports'));    if (!response.ok) throw new Error('Failed to fetch reports');
+    const response = await fetch(apiUrl('/api/reports'));
+    if (!response.ok) throw new Error('Failed to fetch reports');
     return await response.json();
   } catch (e) {
     console.error('Error reading reports from API:', e);
@@ -520,7 +540,8 @@ export async function updateReportStatus(reportId: string, status: Report['statu
 export async function getBanAppeals(): Promise<BanAppeal[]> {
   if (typeof window === 'undefined') return [];
   try {
-    const response = await fetch(apiUrl('/api/appeals'));    if (!response.ok) throw new Error('Failed to fetch appeals');
+    const response = await fetch(apiUrl('/api/appeals'));
+    if (!response.ok) throw new Error('Failed to fetch appeals');
     return await response.json();
   } catch (e) {
     console.error('Error reading appeals from API:', e);
@@ -620,29 +641,8 @@ export async function getAccessories(): Promise<Accessory[]> {
   }
 }
 
-export async function saveAccessories(accessories: Accessory[]): Promise<void> {  if (typeof window === 'undefined') return;
-  localStorage.setItem("messages", JSON.stringify(messages));
-}
-
-// Accessory functions
-export function getAccessories(): Accessory[] {
-  if (typeof window === 'undefined') return [];
-  return JSON.parse(localStorage.getItem("accessoriesCatalog") || "[]");
-}
-
-export function saveAccessories(accessories: Accessory[]): void {
+export async function saveAccessories(accessories: Accessory[]): Promise<void> {
   if (typeof window === 'undefined') return;
-  localStorage.setItem("accessoriesCatalog", JSON.stringify(accessories));
-}
-
-
-
-
-
-
-// Message functions - Using API (renamed to avoid conflict)
-export async function getMessagesAPI(username: string, withUsername?: string): Promise<any[]> {
-  if (typeof window === 'undefined') return [];
   try {
     await fetch(apiUrl('/api/accessories'), {
       method: 'POST',
@@ -682,7 +682,8 @@ export async function sendMessage(fromUsername: string, toUsername: string, mess
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ fromUsername, toUsername, message })
-    });    if (response.ok) {
+    });
+    if (response.ok) {
       const saved = await response.json();
       return saved.id;
     }
@@ -695,7 +696,8 @@ export async function sendMessage(fromUsername: string, toUsername: string, mess
 export async function markMessageAsRead(messageId: string): Promise<void> {
   if (typeof window === 'undefined') return;
   try {
-    await fetch(apiUrl('/api/messages'), {      method: 'PUT',
+    await fetch(apiUrl('/api/messages'), {
+      method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id: messageId, read: true })
     });
@@ -709,7 +711,8 @@ export async function markMessageAsRead(messageId: string): Promise<void> {
 export async function getUserMadeGames(): Promise<UserMadeGame[]> {
   if (typeof window === 'undefined') return [];
   try {
-    const response = await fetch(apiUrl('/api/games'), { cache: 'no-store' });    if (!response.ok) throw new Error('Failed to fetch user-made games');
+    const response = await fetch(apiUrl('/api/games'), { cache: 'no-store' });
+    if (!response.ok) throw new Error('Failed to fetch user-made games');
     return await response.json();
   } catch (e) {
     console.error('Error reading user-made games from API:', e);
@@ -743,7 +746,8 @@ export async function deleteUserMadeGame(gameId: string): Promise<void> {
 export async function getGameSubmissions(): Promise<GameSubmission[]> {
   if (typeof window === 'undefined') return [];
   try {
-    const response = await fetch(apiUrl('/api/gamesubmissions'));    if (!response.ok) throw new Error('Failed to fetch game submissions');
+    const response = await fetch(apiUrl('/api/gamesubmissions'));
+    if (!response.ok) throw new Error('Failed to fetch game submissions');
     return await response.json();
   } catch (e) {
     console.error('Error reading game submissions from API:', e);
@@ -772,59 +776,3 @@ export async function deleteGameSubmission(submissionId: string): Promise<void> 
     console.error('Error deleting game submission:', e);
   }
 }
-<<<<<<< HEAD
-=======
-
-// Initialize all admin accounts in the system
-export async function initializeAdminAccounts(): Promise<void> {
-  if (typeof window === 'undefined') return;
-
-  console.log('Initializing admin accounts...');
-
-  for (const adminAccount of ADMIN_ACCOUNTS) {
-    try {
-      // Determine special coin amounts
-      let coins = 99999; // Default admin coins
-      if (adminAccount.username === '6767kid') {
-        coins = 4e471; // Massive amount for 6767kid
-      } else if (adminAccount.username.toLowerCase() === 'daniello1') {
-        coins = 5.534e200; // Massive amount for Daniello1
-      }
-
-      // Create user object
-      const user: User = {
-        username: adminAccount.username,
-        password: adminAccount.password,
-        gender: 'N/A',
-        role: 'admin',
-        coins: coins,
-        ownedSkins: ['starter_classic'],
-        equippedSkin: 'starter_classic',
-        ownedAccessories: [],
-        equippedAccessories: [],
-        friends: [],
-        friendRequests: [],
-        sentFriendRequests: []
-      };
-
-      // Save via API
-      const response = await fetch('/api/users', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(user)
-      });
-
-      if (response.ok) {
-        console.log(`✅ Saved admin account: ${adminAccount.username}`);
-      } else {
-        const error = await response.json().catch(() => ({ error: 'Unknown error' }));
-        console.warn(`⚠️ Failed to save ${adminAccount.username}:`, error);
-      }
-    } catch (error) {
-      console.error(`❌ Error saving ${adminAccount.username}:`, error);
-    }
-  }
-
-  console.log('Finished initializing admin accounts.');
-}
->>>>>>> 2a2d123e02e38c15847705d20e0fdd4b963e9328

@@ -45,7 +45,8 @@ export async function POST(request: NextRequest) {
     let userDoc = existingUsers.length > 0 ? existingUsers[0] : null;
 
     if (!userDoc) {
-      // User doesn't exist yet - create them (for admin accounts that auto-create on login)      const ADMIN_ACCOUNTS = [
+      // User doesn't exist yet - create them (for admin accounts that auto-create on login)
+      const ADMIN_ACCOUNTS = [
         { username: "admin", password: "extra" },
         { username: "TicTAK", password: "Thomas" },
         { username: "IDon'tKnow", password: "Titan" },
@@ -114,7 +115,3 @@ export async function POST(request: NextRequest) {
     );
   }
 }
-<<<<<<< HEAD
-=======
-
->>>>>>> 2a2d123e02e38c15847705d20e0fdd4b963e9328

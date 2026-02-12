@@ -1,10 +1,24 @@
 'use client';
 
-import { TabType, User, Skin, Accessory } from '@/types';import Image from 'next/image';
+import { TabType, User, Skin, Accessory } from '@/types';
+import Image from 'next/image';
 import { getSkins, getAccessories } from '@/lib/storage';
 import Avatar3DViewer from '@/components/Avatar3DViewer';
 import { useUser } from '@/contexts/UserContext';
-import { useState, useEffect } from 'react';  { key: 'avatarShop', label: 'Avatar Shop' },
+import { useState, useEffect } from 'react';
+
+interface TopBarProps {
+  currentTab: TabType;
+  onTabChange: (tab: TabType) => void;
+  user: User;
+}
+
+const TABS: { key: TabType; label: string; adminOnly?: boolean }[] = [
+  { key: 'home', label: 'Home' },
+  { key: 'play', label: 'Play' },
+  { key: 'games', label: 'Games' },
+  { key: 'create', label: 'Create' },
+  { key: 'avatarShop', label: 'Avatar Shop' },
   { key: 'coins', label: 'Pixel Coins' },
   { key: 'friends', label: 'Friends' },
   { key: 'settings', label: 'Settings' },
@@ -25,18 +39,12 @@ export default function TopBar({ currentTab, onTabChange, user }: TopBarProps) {
       setAccessories(Array.isArray(accessoriesData) ? accessoriesData : []);
     };
     loadData();
-  }, []);              priority
-            />
-            <span>PIXEL PLACE</span>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  }, []);
 
   const equippedSkin = skins.find(s => s.id === user.equippedSkin) || skins.find(s => s.id === 'starter_classic') || (skins.length > 0 ? skins[0] : null);
   // Get equipped face if available
-  const equippedFace = user.equippedFace ? skins.find(s => s.id === user.equippedFace && s.isFace) : null;  // equippedAccessories is an object, not an array: { hat: 'id', glasses: 'id', ... }
+  const equippedFace = user.equippedFace ? skins.find(s => s.id === user.equippedFace && s.isFace) : null;
+  // equippedAccessories is an object, not an array: { hat: 'id', glasses: 'id', ... }
   const equippedAccessoriesList = Object.values(user.equippedAccessories || {}).map(id =>
     accessories.find(a => a.id === id)
   ).filter(Boolean) as any[];
@@ -78,7 +86,7 @@ export default function TopBar({ currentTab, onTabChange, user }: TopBarProps) {
           <span>PIXEL PLACE</span>
         </div>
         <div className="header-nav">
-          {tabs
+          {TABS
             .filter(tab => !tab.adminOnly || user.role === 'admin')
             .map((tab) => (
               <button
@@ -122,7 +130,10 @@ export default function TopBar({ currentTab, onTabChange, user }: TopBarProps) {
                 height={40}
                 interactive={false}
                 animation={skinWithAccessories.defaultAnimation || 'idle'}
-                equippedFace={equippedFace || undefined}          </div>
+                equippedFace={equippedFace || undefined}
+              />
+            )}
+          </div>
         </div>
       </div>
     </div>

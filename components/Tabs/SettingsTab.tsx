@@ -6,17 +6,33 @@ import { getSkins, getTabContent } from '@/lib/storage';
 import { escapeHTML } from '@/lib/utils';
 import { useUser } from '@/contexts/UserContext';
 import { useStyle } from '@/components/StyleProvider';
-import { STYLE_OPTIONS } from '@/lib/styleTheme';        const tabData = await getTabContent();
+import { STYLE_OPTIONS } from '@/lib/styleTheme';
+
+interface SettingsTabProps {
+  user: User;
+  editMode: boolean;
+  onToggleEditMode: () => void;
+}
+
+export default function SettingsTab({ user, editMode, onToggleEditMode }: SettingsTabProps) {
+  const { updateUser } = useUser();
+  const { style, setStyle } = useStyle();
+  const [skins, setSkins] = useState<Skin[]>([]);
+  const [tabContent, setTabContent] = useState<TabContent | null>(null);
+  const coins = user.coins || 0;
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const [skinsData, tabData] = await Promise.all([getSkins(), getTabContent()]);
         setSkins(Array.isArray(skinsData) ? skinsData : []);
         setTabContent(tabData || ({} as TabContent));
       } catch (error) {
-        // Silent error - don't block UI
         setSkins([]);
         setTabContent({} as TabContent);
       }
     };
-    // Load in background
-    loadData();
+    load();
   }, []);
 
   const equippedSkin = skins.find((s) => s.id === user.equippedSkin);
