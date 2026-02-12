@@ -22,6 +22,15 @@ export const BUILTIN_GAMES: PublishedGame[] = [
     thumbnail: undefined,
   },
   {
+    title: 'OceanLife Pro',
+    desc: 'Premium ocean explorer with expanded fauna, fishing, and deep-sea adventures!',
+    owner: 'System',
+    ts: Date.now() - 86400000 * 5.5,
+    playable: true,
+    gameCode: 'builtin_oceanlifePro',
+    thumbnail: undefined,
+  },
+  {
     title: 'Super Showdown 2',
     desc: 'Epic arena battles with powerful abilities!',
     owner: 'System',

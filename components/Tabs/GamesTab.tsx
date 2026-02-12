@@ -61,6 +61,15 @@ const games: GameInfo[] = [
     component: UnderwaterOddyseySeries,
   },
   {
+    id: 'oceanlifePro',
+    name: 'OceanLife Pro',
+    description: 'Premium ocean explorer with expanded fauna, fishing, and deep-sea adventures!',
+    icon: '🐠',
+    thumbnail: '/images/games/underwater-odyssey.svg',
+    category: 'Adventure',
+    component: UnderwaterOddyseySeries,
+  },
+  {
     id: 'showdown',
     name: 'Showdown',
     description: 'Neon arena combat — 8 powers, pixelcoins, pickups!',
@@ -70,19 +79,24 @@ const games: GameInfo[] = [
     is3D: false,
     component: Showdown,
   },
-  {    id: 'redRover',
+  {
+    id: 'redRover',
     name: 'Red Rover',
     description: 'Classic team-based multiplayer game!',
     icon: '🏃',
-    thumbnail: '/images/games/red-rover.svg',    category: 'Adventure',
-    component: JungleJourneySeries,
+    thumbnail: '/images/games/red-rover.svg',
+    category: 'Adventure',
+    component: RedRover,
   },
   {
     id: 'chess',
     name: 'Chess',
     description: 'Classic chess game - challenge yourself or play online!',
     icon: '♟️',
-    thumbnail: '/images/games/chess.svg',  },
+    thumbnail: '/images/games/chess.svg',
+    category: 'Strategy',
+    component: Chess,
+  },
 ];
 
 export default function GamesTab({ user, editMode }: GamesTabProps) {

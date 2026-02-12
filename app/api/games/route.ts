@@ -11,9 +11,10 @@ function gameFromDoc(doc: any): UserMadeGame {
     owner: doc.owner,
     ts: doc.ts,
     sceneData: typeof doc.scene_data === 'string' ? JSON.parse(doc.scene_data) : doc.scene_data,
-    presetMessages: typeof doc.preset_messages === 'string' ? JSON.parse(doc.preset_messages) : doc.preset_messages,
-    controls: typeof doc.controls === 'string' ? JSON.parse(doc.controls) : doc.controls,
-    publishedBy: doc.published_by
+    publishedBy: doc.published_by,
+    gameType: doc.game_type,
+    fileContent: doc.file_content,
+    fileType: doc.file_type
   };
 }
 
@@ -53,9 +54,12 @@ export async function POST(request: NextRequest) {
       owner: game.owner || authResult.user.username,
       ts: game.ts || Date.now(),
       scene_data: game.sceneData || null,
-      preset_messages: game.presetMessages || null,
-      controls: game.controls || null,
+      preset_messages: (game as any).presetMessages || null,
+      controls: (game as any).controls || null,
       published_by: game.publishedBy || null,
+      game_type: game.gameType || null,
+      file_content: game.fileContent || null,
+      file_type: game.fileType || null,
       created_at: Date.now(),
       updated_at: Date.now()
     });

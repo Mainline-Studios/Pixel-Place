@@ -197,6 +197,10 @@ export interface DraftGame {
   thumbnail?: string;
   gameCode?: string;
   sceneData?: SceneData;
+  /** For imported games */
+  gameType?: GameSourceType;
+  fileContent?: string;
+  fileType?: string;
 }
 
 export interface SceneObject {
@@ -225,6 +229,8 @@ export interface SceneData {
   objects: SceneObject[];
 }
 
+export type GameSourceType = 'scene' | 'html' | 'code' | 'file';
+
 export interface CoinPack {
   coins: number;
   priceLabel: string;
@@ -252,8 +258,14 @@ export interface UserMadeGame {
   desc: string;
   owner: string;
   ts: number;
-  sceneData: SceneData;
+  sceneData?: SceneData;
   publishedBy?: string; // Admin who published it
+  /** For imported games: 'html' | 'code' | 'file' */
+  gameType?: GameSourceType;
+  /** Raw file content for HTML/JS/other imported games */
+  fileContent?: string;
+  /** Original file extension, e.g. 'html', 'js' */
+  fileType?: string;
 }
 
 export interface GameSubmission {
@@ -262,10 +274,16 @@ export interface GameSubmission {
   desc: string;
   owner: string;
   ts: number;
-  sceneData: SceneData;
+  sceneData?: SceneData;
   status: 'pending' | 'approved' | 'rejected';
   reviewedBy?: string;
   adminNotes?: string;
+  /** For imported games: 'html' | 'code' | 'file' */
+  gameType?: GameSourceType;
+  /** Raw file content for HTML/JS/other imported games */
+  fileContent?: string;
+  /** Original file extension, e.g. 'html', 'js' */
+  fileType?: string;
 }
 
 export interface Ban {

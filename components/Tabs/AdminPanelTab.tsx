@@ -141,7 +141,10 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
       owner: submission.owner,
       ts: Date.now(),
       sceneData: submission.sceneData,
-      publishedBy: user.username
+      publishedBy: user.username,
+      gameType: submission.gameType,
+      fileContent: submission.fileContent,
+      fileType: submission.fileType
     };
 
     await saveUserMadeGame(game);

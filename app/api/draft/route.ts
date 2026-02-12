@@ -8,7 +8,11 @@ function draftFromDoc(doc: any): DraftGame {
     desc: doc.desc || '',
     owner: doc.owner || '',
     gameCode: doc.game_code || '',
-    thumbnail: doc.thumbnail
+    thumbnail: doc.thumbnail,
+    sceneData: doc.scene_data || undefined,
+    gameType: doc.game_type || undefined,
+    fileContent: doc.file_content || undefined,
+    fileType: doc.file_type || undefined
   };
 }
 
@@ -40,6 +44,10 @@ export async function POST(request: NextRequest) {
       owner: draft.owner || '',
       game_code: draft.gameCode || '',
       thumbnail: draft.thumbnail,
+      scene_data: draft.sceneData || null,
+      game_type: draft.gameType || null,
+      file_content: draft.fileContent || null,
+      file_type: draft.fileType || null,
       updated_at: Date.now()
     });
 

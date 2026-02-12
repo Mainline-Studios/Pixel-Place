@@ -1,8 +1,8 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { User, SceneObject, DraftGame, UserMadeGame } from '@/types';
-import { getDraft, saveDraft } from '@/lib/storage';
+import { User, SceneObject, DraftGame, UserMadeGame, GameSubmission } from '@/types';
+import { getDraft, saveDraft, saveGameSubmission } from '@/lib/storage';
 import { apiUrl } from '@/lib/apiBaseUrl';
 import { useUser } from '@/contexts/UserContext';
 import { toast } from '@/lib/toast';
@@ -47,6 +47,7 @@ export default function StudioTab({ user, editMode }: StudioTabProps) {
   const [selectedObjectId, setSelectedObjectId] = useState<string | null>(null);
   const [sceneObjects, setSceneObjects] = useState<SceneObjectRef[]>([]);
   const [draft, setDraft] = useState<DraftGame>({ title: '', desc: '', owner: '' });
+  const [draftLoaded, setDraftLoaded] = useState(false);
   const [color, setColor] = useState('#4a90e2');
   const [objectScript, setObjectScript] = useState('');
   const [showScriptEditor, setShowScriptEditor] = useState(false);
@@ -279,8 +280,11 @@ export default function StudioTab({ user, editMode }: StudioTabProps) {
 
   const loadSceneObjects = async (scene: any, THREE: any) => {
     try {
-      const response = await fetch(apiUrl('/api/scene'));
-      const saved = await response.json();
+      // Prefer draft scene if available
+      const draftData = await getDraft(user.username);
+      const saved = draftData?.sceneData?.objects?.length
+        ? { objects: draftData.sceneData!.objects }
+        : await fetch(apiUrl('/api/scene')).then(r => r.json());
       if (!saved || !saved.objects) return;
 
       const objects: SceneObjectRef[] = [];
@@ -320,8 +324,13 @@ export default function StudioTab({ user, editMode }: StudioTabProps) {
         }
       });
       setSceneObjects(objects);
+      if (draftData?.title || draftData?.desc || draftData?.owner) {
+        setDraft({ title: draftData.title || '', desc: draftData.desc || '', owner: draftData.owner || user.username });
+      }
+      setDraftLoaded(true);
     } catch (err) {
       console.error('Error loading scene:', err);
+      setDraftLoaded(true);
     }
   };
 
@@ -404,62 +413,69 @@ export default function StudioTab({ user, editMode }: StudioTabProps) {
     }
   };
 
-  const saveGame = async () => {
-    if (!draft.title) {
-      toast.error('Please enter a game title');
-      return;
-    }
-
+  const buildSceneData = async () => {
     const THREE = await import('three');
-    const sceneData = {
+    return {
       objects: sceneObjects.map((o) => ({
         id: o.id,
         type: o.type,
-        position: {
-          x: o.mesh.position.x,
-          y: o.mesh.position.y,
-          z: o.mesh.position.z,
-        },
+        position: { x: o.mesh.position.x, y: o.mesh.position.y, z: o.mesh.position.z },
         rotation: {
           x: THREE.MathUtils.radToDeg(o.mesh.rotation.x),
           y: THREE.MathUtils.radToDeg(o.mesh.rotation.y),
           z: THREE.MathUtils.radToDeg(o.mesh.rotation.z),
         },
-        scale: {
-          x: o.mesh.scale.x,
-          y: o.mesh.scale.y,
-          z: o.mesh.scale.z,
-        },
+        scale: { x: o.mesh.scale.x, y: o.mesh.scale.y, z: o.mesh.scale.z },
         color: o.mesh.material?.color ? '#' + o.mesh.material.color.getHexString() : undefined,
         script: o.script,
       })),
     };
+  };
 
-    const game: UserMadeGame = {
-      id: 'game_' + Date.now(),
-      title: draft.title,
-      desc: draft.desc || '(no description)',
-      owner: draft.owner || user.username,
-      ts: Date.now(),
-      sceneData: sceneData,
-      presetMessages: selectedPresetMessages,
-      controls: controlScheme.id === 'custom' ? customControls : controlScheme.keys,
-    };
-
+  const saveDraftToApi = async () => {
+    if (!draft.title) {
+      toast.error('Enter a game title first');
+      return;
+    }
     try {
-      const response = await fetch(apiUrl('/api/games'), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(game),
-      });
-      
-      if (response.ok) {
-        toast.success(`Game "${game.title}" saved!`);
-      } else {
-        toast.error('Failed to save game');
-      }
+      const sceneData = await buildSceneData();
+      const draftToSave: DraftGame = {
+        title: draft.title,
+        desc: draft.desc || '',
+        owner: draft.owner || user.username,
+        sceneData: { objects: sceneData.objects },
+      };
+      await saveDraft(draftToSave);
+      toast.success('Draft saved!');
     } catch (err) {
-      toast.error('Error saving game');
+      toast.error('Failed to save draft');
+    }
+  };
+
+  const publishForEvaluation = async () => {
+    if (!draft.title) {
+      toast.error('Save draft first with a title');
+      return;
+    }
+    if (sceneObjects.length === 0) {
+      toast.error('Add at least one object to your scene');
+      return;
+    }
+    try {
+      const sceneData = await buildSceneData();
+      const submission: GameSubmission = {
+        id: 'submission_' + Date.now(),
+        title: draft.title,
+        desc: draft.desc || '(no description)',
+        owner: draft.owner || user.username,
+        ts: Date.now(),
+        sceneData: { objects: sceneData.objects },
+        status: 'pending',
+      };
+      await saveGameSubmission(submission);
+      toast.success(`"${draft.title}" submitted for evaluation! Admins will review it.`);
+    } catch (err) {
+      toast.error('Failed to submit for evaluation');
     }
   };
 
@@ -520,8 +536,11 @@ export default function StudioTab({ user, editMode }: StudioTabProps) {
         <button className="btn" onClick={saveScene}>
           💾 Save Scene
         </button>
-        <button className="btn" onClick={saveGame}>
-          🎮 Save Game
+        <button className="btn" onClick={saveDraftToApi}>
+          📝 Save Draft
+        </button>
+        <button className="btn" onClick={publishForEvaluation}>
+          🚀 Publish for Evaluation
         </button>
         <div style={{ width: '1px', background: 'var(--border)', margin: '0 4px' }} />
         <button 

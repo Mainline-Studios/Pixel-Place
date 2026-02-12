@@ -259,23 +259,280 @@ app.post('/safety', async (req, res) => {
   }
 });
 
-// Generic handlers for other routes - return empty or proxy to Firestore
-const genericRoutes: Record<string, { get?: () => Promise<any>; post?: (body: any) => Promise<any> }> = {
-  '/tabcontent': { get: async () => (await db.collection(COLLECTIONS.TAB_CONTENT).doc('content').get()).data() || {} },
-  '/published': { get: async () => db.collection(COLLECTIONS.PUBLISHED_GAMES).get().then(s => s.docs.map(d => ({ id: d.id, ...d.data() }))) },
-  '/accessories': { get: async () => (await db.collection(COLLECTIONS.ACCESSORIES_CATALOG).doc('catalog').get()).data()?.accessories || [] },
-  '/bans': { get: async () => db.collection(COLLECTIONS.BANS).get().then(s => s.docs.map(d => ({ id: d.id, ...d.data() }))) },
-  '/reports': { get: async () => db.collection(COLLECTIONS.REPORTS).get().then(s => s.docs.map(d => ({ id: d.id, ...d.data() }))) },
-  '/appeals': { get: async () => db.collection(COLLECTIONS.APPEALS).get().then(s => s.docs.map(d => ({ id: d.id, ...d.data() }))) },
-  '/draft': { get: async () => (await db.collection(COLLECTIONS.DRAFTS).limit(1).get()).docs[0]?.data() || {} },
-  '/scene': { get: async () => (await db.collection(COLLECTIONS.SCENES).doc('default').get()).data() || {} },
-  '/prebuilt': { get: async () => db.collection(COLLECTIONS.PREBUILT_GAMES).get().then(s => s.docs.map(d => ({ id: d.id, ...d.data() }))) },
-  '/games': { get: async () => db.collection(COLLECTIONS.GAMES).get().then(s => s.docs.map(d => ({ id: d.id, ...d.data() }))) },
-};
+// Draft: GET by username, POST to save
+app.get('/draft', async (req, res) => {
+  try {
+    const username = (req.query.username as string) || 'default';
+    const doc = await db.collection(COLLECTIONS.DRAFTS).doc(username).get();
+    const d = doc.data();
+    if (!d) return res.json({ title: '', desc: '', owner: '' });
+    res.json({
+      title: d.title || '',
+      desc: d.desc || '',
+      owner: d.owner || '',
+      gameCode: d.game_code || '',
+      thumbnail: d.thumbnail,
+      sceneData: d.scene_data,
+      gameType: d.game_type,
+      fileContent: d.file_content,
+      fileType: d.file_type
+    });
+  } catch (e) {
+    res.status(500).json({ error: 'Failed to read draft' });
+  }
+});
+app.post('/draft', async (req, res) => {
+  try {
+    const draft = req.body;
+    const username = draft.owner || 'default';
+    await db.collection(COLLECTIONS.DRAFTS).doc(username).set({
+      username,
+      title: draft.title || '',
+      desc: draft.desc || '',
+      owner: draft.owner || '',
+      game_code: draft.gameCode || '',
+      thumbnail: draft.thumbnail,
+      scene_data: draft.sceneData || null,
+      game_type: draft.gameType || null,
+      file_content: draft.fileContent || null,
+      file_type: draft.fileType || null,
+      updated_at: Date.now()
+    }, { merge: true });
+    res.json(draft);
+  } catch (e) {
+    res.status(500).json({ error: 'Failed to save draft' });
+  }
+});
 
-for (const [path, handlers] of Object.entries(genericRoutes)) {
-  if (handlers.get) app.get(path, async (_req, res) => { try { res.json(await handlers.get!()); } catch (e) { res.status(500).json({ error: 'Failed' }); } });
-}
+// Scene: GET/POST by userId
+app.get('/scene', async (req, res) => {
+  try {
+    const userId = (req.query.userId as string) || 'default';
+    const doc = await db.collection(COLLECTIONS.SCENES).doc(userId).get();
+    const d = doc.data();
+    if (!d || !d.scene_data) return res.json({ objects: [] });
+    const sceneData = typeof d.scene_data === 'string' ? JSON.parse(d.scene_data) : d.scene_data;
+    res.json(sceneData);
+  } catch (e) {
+    res.status(500).json({ error: 'Failed to read scene' });
+  }
+});
+app.post('/scene', async (req, res) => {
+  try {
+    const scene = req.body;
+    const userId = (req.query.userId as string) || 'default';
+    await db.collection(COLLECTIONS.SCENES).doc(userId).set({
+      user_id: userId,
+      scene_data: scene,
+      updated_at: Date.now()
+    }, { merge: true });
+    res.json(scene);
+  } catch (e) {
+    res.status(500).json({ error: 'Failed to save scene' });
+  }
+});
+
+// Games: GET all or by owner, POST to create
+app.get('/games', async (req, res) => {
+  try {
+    const owner = req.query.owner as string;
+    let snap;
+    if (owner) {
+      snap = await db.collection(COLLECTIONS.GAMES).where('owner', '==', owner).orderBy('ts', 'desc').get();
+    } else {
+      snap = await db.collection(COLLECTIONS.GAMES).orderBy('ts', 'desc').get();
+    }
+    const games = snap.docs.map(d => {
+      const data = d.data();
+      return {
+        id: d.id,
+        title: data.title,
+        desc: data.description || '',
+        owner: data.owner,
+        ts: data.ts,
+        sceneData: typeof data.scene_data === 'string' ? JSON.parse(data.scene_data) : data.scene_data,
+        presetMessages: typeof data.preset_messages === 'string' ? JSON.parse(data.preset_messages) : data.preset_messages,
+        controls: typeof data.controls === 'string' ? JSON.parse(data.controls) : data.controls,
+        publishedBy: data.published_by,
+        gameType: data.game_type,
+        fileContent: data.file_content,
+        fileType: data.file_type
+      };
+    });
+    res.json(games);
+  } catch (e) {
+    res.status(500).json({ error: 'Failed to read games' });
+  }
+});
+app.post('/games', async (req, res) => {
+  try {
+    const game = req.body;
+    const gameId = game.id || `game_${Date.now()}`;
+    await db.collection(COLLECTIONS.GAMES).doc(gameId).set({
+      id: gameId,
+      title: game.title,
+      description: game.desc || '',
+      owner: game.owner,
+      ts: game.ts || Date.now(),
+      scene_data: game.sceneData || null,
+      preset_messages: game.presetMessages || null,
+      controls: game.controls || null,
+      published_by: game.publishedBy || null,
+      game_type: game.gameType || null,
+      file_content: game.fileContent || null,
+      file_type: game.fileType || null,
+      created_at: Date.now(),
+      updated_at: Date.now()
+    }, { merge: true });
+    res.json({ success: true, game: { ...game, id: gameId, ts: game.ts || Date.now() } });
+  } catch (e) {
+    res.status(500).json({ error: 'Failed to save game' });
+  }
+});
+
+// Published: GET all, POST to replace all (admin)
+app.get('/published', async (req, res) => {
+  try {
+    const snap = await db.collection(COLLECTIONS.PUBLISHED_GAMES).orderBy('ts', 'desc').get();
+    const games = snap.docs.map(d => {
+      const data = d.data();
+      return {
+        title: data.title,
+        desc: data.description || '',
+        owner: data.owner,
+        ts: data.ts,
+        thumbnail: data.thumbnail,
+        gameCode: data.game_code || '',
+        playable: data.playable !== false,
+        multiplayer: data.multiplayer === true,
+        maxPlayers: data.max_players
+      };
+    });
+    res.json(games);
+  } catch (e) {
+    res.status(500).json({ error: 'Failed to read published games' });
+  }
+});
+app.post('/published', async (req, res) => {
+  try {
+    const games = req.body as any[];
+    const batch = db.batch();
+    const existing = await db.collection(COLLECTIONS.PUBLISHED_GAMES).get();
+    existing.docs.forEach(d => batch.delete(d.ref));
+    for (const g of games) {
+      const id = `${g.owner}_${g.ts}`;
+      const ref = db.collection(COLLECTIONS.PUBLISHED_GAMES).doc(id);
+      batch.set(ref, {
+        title: g.title,
+        description: g.desc || '',
+        owner: g.owner,
+        ts: g.ts,
+        thumbnail: g.thumbnail,
+        game_code: g.gameCode || '',
+        playable: g.playable !== false,
+        multiplayer: g.multiplayer === true,
+        max_players: g.maxPlayers,
+        created_at: Date.now()
+      });
+    }
+    await batch.commit();
+    res.json(games);
+  } catch (e) {
+    res.status(500).json({ error: 'Failed to save published games' });
+  }
+});
+
+// Prebuilt: GET all, POST to replace (admin)
+app.get('/prebuilt', async (req, res) => {
+  try {
+    const snap = await db.collection(COLLECTIONS.PREBUILT_GAMES).orderBy('ts', 'desc').get();
+    res.json(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+  } catch (e) {
+    res.status(500).json({ error: 'Failed to read prebuilt games' });
+  }
+});
+app.post('/prebuilt', async (req, res) => {
+  try {
+    const games = req.body as any[];
+    const batch = db.batch();
+    const existing = await db.collection(COLLECTIONS.PREBUILT_GAMES).get();
+    existing.docs.forEach(d => batch.delete(d.ref));
+    for (const g of games) {
+      const ref = db.collection(COLLECTIONS.PREBUILT_GAMES).doc(g.id || `prebuilt_${Date.now()}`);
+      batch.set(ref, { ...g, updated_at: Date.now() });
+    }
+    await batch.commit();
+    res.json(games);
+  } catch (e) {
+    res.status(500).json({ error: 'Failed to save prebuilt games' });
+  }
+});
+
+// Tab content, accessories, bans, reports, appeals (GET only)
+app.get('/tabcontent', async (_req, res) => { try { res.json((await db.collection(COLLECTIONS.TAB_CONTENT).doc('content').get()).data() || {}); } catch (e) { res.status(500).json({ error: 'Failed' }); } });
+app.get('/accessories', async (_req, res) => { try { res.json((await db.collection(COLLECTIONS.ACCESSORIES_CATALOG).doc('catalog').get()).data()?.accessories || []); } catch (e) { res.status(500).json({ error: 'Failed' }); } });
+app.get('/bans', async (_req, res) => { try { res.json((await db.collection(COLLECTIONS.BANS).get()).docs.map(d => ({ id: d.id, ...d.data() }))); } catch (e) { res.status(500).json({ error: 'Failed' }); } });
+app.get('/reports', async (_req, res) => { try { res.json((await db.collection(COLLECTIONS.REPORTS).get()).docs.map(d => ({ id: d.id, ...d.data() }))); } catch (e) { res.status(500).json({ error: 'Failed' }); } });
+app.get('/appeals', async (_req, res) => { try { res.json((await db.collection(COLLECTIONS.APPEALS).get()).docs.map(d => ({ id: d.id, ...d.data() }))); } catch (e) { res.status(500).json({ error: 'Failed' }); } });
+
+// Game submissions: GET all, POST to submit for evaluation, DELETE
+app.get('/gamesubmissions', async (req, res) => {
+  try {
+    const snap = await db.collection(COLLECTIONS.GAME_SUBMISSIONS).orderBy('ts', 'desc').get();
+    const submissions = snap.docs.map(d => {
+      const data = d.data();
+      return {
+        id: d.id,
+        title: data.title,
+        desc: data.description || '',
+        owner: data.owner,
+        ts: data.ts,
+        sceneData: typeof data.scene_data === 'string' ? JSON.parse(data.scene_data) : data.scene_data,
+        status: data.status || 'pending',
+        reviewedBy: data.reviewed_by,
+        adminNotes: data.admin_notes,
+        gameType: data.game_type,
+        fileContent: data.file_content,
+        fileType: data.file_type
+      };
+    });
+    res.json(submissions);
+  } catch (e) {
+    res.status(500).json({ error: 'Failed to read game submissions' });
+  }
+});
+app.post('/gamesubmissions', async (req, res) => {
+  try {
+    const s = req.body;
+    const id = s.id || `submission_${Date.now()}`;
+    await db.collection(COLLECTIONS.GAME_SUBMISSIONS).doc(id).set({
+      id,
+      title: s.title,
+      description: s.desc || '',
+      owner: s.owner || '',
+      ts: s.ts || Date.now(),
+      scene_data: s.sceneData || null,
+      status: s.status || 'pending',
+      game_type: s.gameType || null,
+      file_content: s.fileContent || null,
+      file_type: s.fileType || null,
+      created_at: Date.now()
+    }, { merge: true });
+    res.json({ success: true, submission: { ...s, id } });
+  } catch (e) {
+    res.status(500).json({ error: 'Failed to save game submission' });
+  }
+});
+app.delete('/gamesubmissions', async (req, res) => {
+  try {
+    const id = req.query.id as string;
+    if (!id) return res.status(400).json({ error: 'ID required' });
+    await db.collection(COLLECTIONS.GAME_SUBMISSIONS).doc(id).delete();
+    res.json({ success: true });
+  } catch (e) {
+    res.status(500).json({ error: 'Failed to delete game submission' });
+  }
+});
 
 // 404 for unknown routes
 app.use((_req, res) => res.status(404).json({ error: 'Not found' }));
