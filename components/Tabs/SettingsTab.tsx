@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { User, Skin, TabContent } from '@/types';
 import { getSkins, getTabContent } from '@/lib/storage';
+import AdminPanelTab from './AdminPanelTab';
 import { escapeHTML } from '@/lib/utils';
 import { useUser } from '@/contexts/UserContext';
 import { useStyle } from '@/components/StyleProvider';
@@ -95,7 +96,7 @@ export default function SettingsTab({ user, editMode, onToggleEditMode }: Settin
 
       <div className="ai-box">
         <div className="ai-label">Settings Info</div>
-        <div className="ai-output">{tabContent.settings || ''}</div>
+        <div className="ai-output">{tabContent?.settings ?? ''}</div>
       </div>
       {/* Admin Panel - Only visible to admins */}
       {user.role === 'admin' && (

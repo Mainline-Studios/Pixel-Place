@@ -5,7 +5,7 @@
  */
 import * as functions from 'firebase-functions';
 import * as admin from 'firebase-admin';
-import express, { Request, Response } from 'express';
+import express from 'express';
 import cors from 'cors';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
@@ -387,6 +387,60 @@ app.post('/games', async (req, res) => {
     res.json({ success: true, game: { ...game, id: gameId, ts: game.ts || Date.now() } });
   } catch (e) {
     res.status(500).json({ error: 'Failed to save game' });
+  }
+});
+
+// Gym Pump game API (for production - Next.js API routes not available with static export)
+app.post('/games/gym-pump/connect', async (req, res) => {
+  try {
+    const { gameId, username } = req.body;
+    if (!gameId || !username) return res.status(400).json({ error: 'gameId and username required' });
+    const sessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    await db.collection('gym_pump_sessions').doc(sessionId).set({ sessionId, gameId, username, timestamp: Date.now() });
+    return res.json({ sessionId });
+  } catch (e) {
+    return res.status(500).json({ error: 'Failed to connect' });
+  }
+});
+app.post('/games/gym-pump/score', async (req, res) => {
+  try {
+    const { gameId, power, coins, level, username } = req.body;
+    if (!gameId || power === undefined || coins === undefined || level === undefined) return res.status(400).json({ error: 'Invalid request' });
+    await db.collection('gym_pump_scores').add({ gameId, username: username || 'Anonymous', power, coins, level: level || 1, timestamp: Date.now() });
+    return res.json({ success: true });
+  } catch (e) {
+    return res.status(500).json({ error: 'Failed to save score' });
+  }
+});
+app.post('/games/gym-pump/sync', async (req, res) => {
+  try {
+    const { gameId, power, coins, level, username } = req.body;
+    if (!gameId || !username || power === undefined || coins === undefined || level === undefined) return res.status(400).json({ error: 'Invalid request' });
+    const progressId = `${username}_${gameId}`;
+    const ref = db.collection('gym_pump_progress').doc(progressId);
+    const existing = (await ref.get()).data();
+    const merged = {
+      power: Math.max(existing?.power ?? 0, power),
+      coins: Math.max(existing?.coins ?? 0, coins),
+      level: Math.max(existing?.level ?? 1, level ?? 1),
+      lastSynced: Date.now()
+    };
+    await ref.set(merged, { merge: true });
+    return res.json({ success: true });
+  } catch (e) {
+    return res.status(500).json({ error: 'Failed to sync' });
+  }
+});
+app.get('/games/gym-pump/leaderboard', async (req, res) => {
+  try {
+    const snap = await db.collection('gym_pump_scores').orderBy('power', 'desc').limit(parseInt(String(req.query.limit)) || 50).get();
+    const leaderboard = snap.docs.map((d, i) => {
+      const data = d.data();
+      return { rank: i + 1, username: data.username || 'Anonymous', power: data.power ?? 0, coins: data.coins ?? 0, level: data.level ?? 1 };
+    });
+    return res.json(leaderboard);
+  } catch (e) {
+    return res.json([]);
   }
 });
 

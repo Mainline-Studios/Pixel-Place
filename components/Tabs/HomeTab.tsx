@@ -5,6 +5,7 @@ import { User, PublishedGame, Skin } from '@/types';
 import { getSkins, getPublished, getUsers } from '@/lib/storage';
 import { escapeHTML } from '@/lib/utils';
 import GamePlayer from '@/components/GamePlayer';
+import GameErrorBoundary from '@/components/GameErrorBoundary';
 import Avatar3DViewer from '@/components/Avatar3DViewer';
 import { GYM_PUMP_PRELOADED_GAME } from '@/lib/preloadedGames';
 import GymPumpEngine from '@/components/Games/GymPumpEngine';
@@ -176,28 +177,35 @@ export default function HomeTab({ user, editMode, onResetPublished }: HomeTabPro
     : null;
   if (selectedBuiltIn) {
     const GameComponent = selectedBuiltIn.component;
+    const handleBack = () => { setSelectedBuiltInGameId(null); setLoadError(null); };
+    const needsUser = ['superShowdown2', 'superShowdown', 'insaneShowdown'].includes(selectedBuiltIn.id);
+    const gameProps = needsUser
+      ? { user, onClose: handleBack }
+      : { onClose: handleBack };
     return (
-      <div style={{ width: '100%', height: '100%', position: 'relative' }}>
-        <button
-          onClick={() => { setSelectedBuiltInGameId(null); setLoadError(null); }}
-          style={{
-            position: 'absolute',
-            top: 16,
-            right: 16,
-            zIndex: 1000,
-            padding: '10px 20px',
-            background: 'var(--panel)',
-            border: '1px solid var(--border)',
-            borderRadius: 8,
-            color: 'var(--text)',
-            cursor: 'pointer',
-            fontSize: 14
-          }}
-        >
-          ← Back
-        </button>
-        <GameComponent onClose={() => { setSelectedBuiltInGameId(null); setLoadError(null); }} />
-      </div>
+      <GameErrorBoundary onBack={handleBack} gameName={selectedBuiltIn.name}>
+        <div style={{ width: '100%', height: '100%', position: 'relative' }}>
+          <button
+            onClick={handleBack}
+            style={{
+              position: 'absolute',
+              top: 16,
+              right: 16,
+              zIndex: 1000,
+              padding: '10px 20px',
+              background: 'var(--panel)',
+              border: '1px solid var(--border)',
+              borderRadius: 8,
+              color: 'var(--text)',
+              cursor: 'pointer',
+              fontSize: 14
+            }}
+          >
+            ← Back
+          </button>
+          <GameComponent {...gameProps} />
+        </div>
+      </GameErrorBoundary>
     );
   }
 

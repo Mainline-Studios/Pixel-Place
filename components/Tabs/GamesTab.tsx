@@ -5,6 +5,7 @@ import { User, UserMadeGame } from '@/types';
 import { getUserMadeGames, deleteUserMadeGame } from '@/lib/storage';
 import { subscribeToUserMadeGames } from '@/lib/firestoreClient';
 import UserMadeGamePlayer from '../Games/UserMadeGamePlayer';
+import GameErrorBoundary from '../GameErrorBoundary';
 import GymPumpEngine from '../Games/GymPumpEngine';
 import Hypnosia from '../Games/Hypnosia';
 import UnderwaterOddyseySeries from '../Games/UnderwaterOddyseySeries';
@@ -146,13 +147,10 @@ export default function GamesTab({ user, editMode }: GamesTabProps) {
   // #endregion
 
   if (selectedUserGame) {
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/002741fb-cb98-444e-83cd-7086902151aa',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'GamesTab.tsx:142',message:'Early return selectedUserGame',data:{selectedUserGame:selectedUserGame.id},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-    // #endregion
     return (
-      <div>
+      <GameErrorBoundary onBack={() => setSelectedUserGame(null)} gameName={selectedUserGame.title}>
         <UserMadeGamePlayer game={selectedUserGame} user={user} onClose={() => setSelectedUserGame(null)} />
-      </div>
+      </GameErrorBoundary>
     );
   }
 
@@ -178,6 +176,7 @@ export default function GamesTab({ user, editMode }: GamesTabProps) {
       : {};
     
     return (
+      <GameErrorBoundary onBack={handleClose} gameName={selectedGameInfo?.name}>
       <div key={selectedGame} style={{ position: 'relative', width: '100%', minHeight: '100%' }}>        {!supportsOnClose && (
           <button
             onClick={handleClose}
@@ -202,6 +201,7 @@ export default function GamesTab({ user, editMode }: GamesTabProps) {
         )}
         <GameComponent key={selectedGame} {...gameProps} />
       </div>
+      </GameErrorBoundary>
     );
   }
 

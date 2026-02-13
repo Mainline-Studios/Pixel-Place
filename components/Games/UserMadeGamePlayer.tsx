@@ -85,22 +85,23 @@ export default function UserMadeGamePlayer({ game, user, onClose }: UserMadeGame
 
       if (game.sceneData && game.sceneData.objects) {
         game.sceneData.objects.forEach((obj) => {
+          const pos = obj.position || { x: 0, y: 0, z: 0 };
           let mesh;
           if (obj.type === 'cube') {
             const geom = new THREE.BoxGeometry(1, 1, 1);
-            const colorHex = obj.color ? parseInt(obj.color.replace('#', '0x')) : 0x4a90e2;
+            const colorHex = obj.color ? parseInt(String(obj.color).replace('#', '0x')) : 0x4a90e2;
             const mat = new THREE.MeshStandardMaterial({ color: colorHex });
             mesh = new THREE.Mesh(geom, mat);
-            mesh.position.set(obj.position.x, obj.position.y, obj.position.z);
+            mesh.position.set(pos.x ?? 0, pos.y ?? 0, pos.z ?? 0);
           } else if (obj.type === 'sphere') {
             const geom = new THREE.SphereGeometry(0.5, 32, 32);
-            const colorHex = obj.color ? parseInt(obj.color.replace('#', '0x')) : 0xff4d4d;
+            const colorHex = obj.color ? parseInt(String(obj.color).replace('#', '0x')) : 0xff4d4d;
             const mat = new THREE.MeshStandardMaterial({ color: colorHex });
             mesh = new THREE.Mesh(geom, mat);
-            mesh.position.set(obj.position.x, obj.position.y, obj.position.z);
+            mesh.position.set(pos.x ?? 0, pos.y ?? 0, pos.z ?? 0);
           } else if (obj.type === 'light') {
             mesh = new THREE.PointLight(0xffffff, 1, 20);
-            mesh.position.set(obj.position.x, obj.position.y, obj.position.z);
+            mesh.position.set(pos.x ?? 0, pos.y ?? 0, pos.z ?? 0);
           }
           if (mesh) {
             if (obj.rotation) {
