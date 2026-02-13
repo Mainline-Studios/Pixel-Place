@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { User, PublishedGame } from '@/types';
+import { User, PublishedGame, Skin } from '@/types';
 import { getSkins, getPublished, getUsers } from '@/lib/storage';
 import { escapeHTML } from '@/lib/utils';
 import GamePlayer from '@/components/GamePlayer';
@@ -118,9 +118,11 @@ const builtInGames: GameInfo[] = [
 
 export default function HomeTab({ user, editMode, onResetPublished }: HomeTabProps) {
   const [selectedGame, setSelectedGame] = useState<PublishedGame | null>(null);
-  const [showGymPump, setShowGymPump] = useState(false);  const [published, setPublished] = useState<PublishedGame[]>([]);
+  const [selectedBuiltInGameId, setSelectedBuiltInGameId] = useState<string | null>(null);
+  const [showGymPump, setShowGymPump] = useState(false);
+  const [published, setPublished] = useState<PublishedGame[]>([]);
   const [users, setUsers] = useState<User[]>([]);
-  const [skins, setSkins] = useState(getSkins());
+  const [skins, setSkins] = useState<Skin[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
 
@@ -168,6 +170,36 @@ export default function HomeTab({ user, editMode, onResetPublished }: HomeTabPro
   if (selectedGame) {
     return <GamePlayer game={selectedGame} onClose={() => setSelectedGame(null)} />;
   }
+  // Built-in game selected – render its component
+  const selectedBuiltIn = selectedBuiltInGameId
+    ? builtInGames.find(g => g.id === selectedBuiltInGameId)
+    : null;
+  if (selectedBuiltIn) {
+    const GameComponent = selectedBuiltIn.component;
+    return (
+      <div style={{ width: '100%', height: '100%', position: 'relative' }}>
+        <button
+          onClick={() => { setSelectedBuiltInGameId(null); setLoadError(null); }}
+          style={{
+            position: 'absolute',
+            top: 16,
+            right: 16,
+            zIndex: 1000,
+            padding: '10px 20px',
+            background: 'var(--panel)',
+            border: '1px solid var(--border)',
+            borderRadius: 8,
+            color: 'var(--text)',
+            cursor: 'pointer',
+            fontSize: 14
+          }}
+        >
+          ← Back
+        </button>
+        <GameComponent onClose={() => { setSelectedBuiltInGameId(null); setLoadError(null); }} />
+      </div>
+    );
+  }
 
   return (
     <div style={{
@@ -214,8 +246,8 @@ export default function HomeTab({ user, editMode, onResetPublished }: HomeTabPro
               key={game.id}
               className="game-card-enhanced"
               onClick={() => {
-                setSelectedBuiltInGame(game.id);
-                setIsLoading(true);
+                setSelectedBuiltInGameId(game.id);
+                setIsLoading(false);
                 setLoadError(null);
               }}
               style={{

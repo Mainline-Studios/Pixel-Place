@@ -111,8 +111,11 @@ export default function SplashScreen({ onComplete }: SplashScreenProps) {
             transition: 'opacity 0.8s ease-in-out',
           }}
         >
-          <div className="splash-logo-mainline" style={{ marginBottom: '24px', width: 120, height: 120, borderRadius: '20px', background: 'linear-gradient(135deg, #2b6cb0 0%, #1a365d 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 0 40px rgba(43, 108, 176, 0.6)' }}>
-            <span style={{ fontSize: '56px', fontWeight: 800, color: '#fff', letterSpacing: '-2px', textShadow: '0 2px 4px rgba(0,0,0,0.3)' }}>M</span>
+          <div className="splash-logo-mainline" style={{ marginBottom: '30px' }}>
+            <svg width="120" height="120" viewBox="0 0 100 100">
+              <rect x="10" y="10" width="80" height="80" rx="10" fill="none" stroke="#2b6cb0" strokeWidth="3"/>
+              <rect x="25" y="25" width="50" height="50" rx="5" fill="#2b6cb0"/>
+            </svg>
           </div>
           <h1
             className="splash-text"
