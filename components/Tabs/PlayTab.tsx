@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { User } from '@/types';
+import GameErrorBoundary from '../GameErrorBoundary';
 import GymPumpEngine from '../Games/GymPumpEngine';
 import Hypnosia from '../Games/Hypnosia';
 import UnderwaterOddyseySeries from '../Games/UnderwaterOddyseySeries';
@@ -192,6 +193,7 @@ export default function PlayTab({ user, editMode }: PlayTabProps) {
       : {};
     
     return (
+      <GameErrorBoundary onBack={handleClose} gameName={selectedGameInfo?.name}>
       <div key={selectedGame} style={{ position: 'relative', width: '100%', minHeight: '100%', background: 'var(--bg-main)' }}>
         {isLoading && (
           <div style={{
@@ -282,6 +284,7 @@ export default function PlayTab({ user, editMode }: PlayTabProps) {
         )}
         <GameComponent key={selectedGame} {...gameProps} />
       </div>
+      </GameErrorBoundary>
     );
   }
 

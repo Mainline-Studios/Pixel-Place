@@ -41,7 +41,6 @@ const formatNumber = (num: number): string => {
 export default function CoinsTab({ user, editMode }: CoinsTabProps) {
   const { updateUser } = useUser();
   const bal = typeof user.coins === 'number' ? user.coins : 0;
-  const tabContent = getTabContent();
   const [loading, setLoading] = useState<string | null>(null);
   const [showHolidayBundle, setShowHolidayBundle] = useState(false);
 

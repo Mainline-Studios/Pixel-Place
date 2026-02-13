@@ -43,37 +43,49 @@ On success you’ll see something like:
 Function URL (api(us-central1)): https://us-central1-pixel-place-823b1.cloudfunctions.net/api
 ```
 
-### Step 3: Build with API URL
+### Step 3: Build the app
 
-Before building the static app, set `NEXT_PUBLIC_API_URL` to your Cloud Functions base:
-
-```bash
-NEXT_PUBLIC_API_URL=https://us-central1-pixel-place-823b1.cloudfunctions.net npm run build
-```
-
-Or create `.env.production`:
-
-```
-NEXT_PUBLIC_API_URL=https://us-central1-pixel-place-823b1.cloudfunctions.net
-NEXT_PUBLIC_BASE_URL=https://pixelplaceofficial.com
-```
-
-Then:
+With Firebase Hosting rewrites (configured in `firebase.json`), `/api/**` requests are proxied to Cloud Functions. You can leave `NEXT_PUBLIC_API_URL` unset — the app uses relative URLs.
 
 ```bash
 npm run build
 ```
 
-### Step 4: Deploy Hosting
+For a custom domain or Stripe, optionally set in `.env.production`:
+
+```
+NEXT_PUBLIC_BASE_URL=https://pixelplaceofficial.com
+```
+
+### Step 4: Deploy Hosting + Functions
+
+Firebase Hosting is configured to proxy `/api/**` to the Cloud Function, so the app can use relative URLs (no `NEXT_PUBLIC_API_URL` needed).
 
 ```bash
-firebase deploy --only hosting
+firebase deploy
+```
+
+Or from the project root:
+
+```bash
+npm run deploy
 ```
 
 ### Step 5: Verify
 
 - Open your hosted URL.
-- In DevTools → Network, confirm API calls go to `us-central1-pixel-place-823b1.cloudfunctions.net`.
+- In DevTools → Network, API calls go to your site domain (e.g. `yoursite.web.app/api/users`) and are proxied to Cloud Functions.
+
+---
+
+### Step 6 (optional): Auto-deploy on push
+
+A GitHub Actions workflow (`.github/workflows/deploy-firebase.yml`) deploys to Firebase when you push to `main`.
+
+1. Get a CI token: `firebase login:ci` (run locally, follow prompts).
+2. In GitHub → Repo → Settings → Secrets and variables → Actions, add secret:
+   - Name: `FIREBASE_TOKEN`
+   - Value: the token from step 1.
 
 ---
 

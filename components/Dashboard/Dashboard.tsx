@@ -6,6 +6,7 @@ import { getInitials } from '@/lib/utils';
 import { getPublished, savePublished } from '@/lib/storage';
 import TopBar from './TopBar';
 import Sidebar from './Sidebar';
+import GameErrorBoundary from '../GameErrorBoundary';
 import HomeTab from '../Tabs/HomeTab';
 import PlayTab from '../Tabs/PlayTab';
 import GamesTab from '../Tabs/GamesTab';
@@ -79,7 +80,11 @@ export default function Dashboard({ user }: DashboardProps) {
       <div className="body-row">
         <div className="body-inner">
           <Sidebar user={user} onNavigate={(tab) => setCurrentTab(tab as TabType)} />
-          <section className="main-card">{renderTabContent()}</section>
+          <section className="main-card">
+            <GameErrorBoundary onBack={() => setCurrentTab('home')}>
+              {renderTabContent()}
+            </GameErrorBoundary>
+          </section>
         </div>
       </div>
       <footer>© 2025 Pixel Place | All Rights Reserved | Support: <a href="mailto:support@pixelplaceofficial.com">support@pixelplaceofficial.com</a></footer>

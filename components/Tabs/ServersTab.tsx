@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { User, ServerPlan, GameServer, PublishedGame } from '@/types';
 import { getServerPlans, getServers, saveServers, getPublished, getUsers, saveUsers } from '@/lib/storage';
 import { useUser } from '@/contexts/UserContext';
@@ -14,14 +14,31 @@ interface ServersTabProps {
 export default function ServersTab({ user, editMode }: ServersTabProps) {
   const { updateUser } = useUser();
   const [serverPlans] = useState(getServerPlans());
-  const [servers, setServers] = useState(getServers());
-  const [publishedGames] = useState(getPublished());
+  const [servers, setServers] = useState<GameServer[]>([]);
+  const [publishedGames, setPublishedGames] = useState<PublishedGame[]>([]);
   const [selectedGame, setSelectedGame] = useState<string>('');
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const [games, srv] = await Promise.all([getPublished(), Promise.resolve(getServers())]);
+        setPublishedGames(Array.isArray(games) ? games : []);
+        setServers(Array.isArray(srv) ? srv : getServers());
+      } catch {
+        setPublishedGames([]);
+        setServers(getServers());
+      } finally {
+        setLoading(false);
+      }
+    };
+    load();
+  }, []);
 
   const userServers = servers.filter(s => s.purchasedBy === user.username);
   const availableServers = servers.filter(s => !s.purchased);
 
-  const handlePurchaseServer = (plan: ServerPlan, gameId?: string) => {
+  const handlePurchaseServer = async (plan: ServerPlan, gameId?: string) => {
     if (!gameId) {
       alert('Please select a game first');
       return;
@@ -39,47 +56,54 @@ export default function ServersTab({ user, editMode }: ServersTabProps) {
     }
 
     if (confirm(`Purchase ${plan.name} for ${plan.price} coins?\nThis will host "${game.title}" online.`)) {
-      const newServer: GameServer = {
-        id: 'server_' + Date.now(),
-        name: `${game.title} Server`,
-        owner: user.username,
-        gameId: gameId,
-        status: 'active',
-        maxPlayers: plan.maxPlayers,
-        currentPlayers: 0,
-        price: plan.price,
-        purchased: true,
-        purchasedBy: user.username,
-        purchasedAt: Date.now(),
-        region: 'US-East',
-        createdAt: Date.now()
-      };
+      try {
+        const newServer: GameServer = {
+          id: 'server_' + Date.now(),
+          name: `${game.title} Server`,
+          owner: user.username,
+          gameId: gameId,
+          status: 'active',
+          maxPlayers: plan.maxPlayers,
+          currentPlayers: 0,
+          price: plan.price,
+          purchased: true,
+          purchasedBy: user.username,
+          purchasedAt: Date.now(),
+          region: 'US-East',
+          createdAt: Date.now()
+        };
 
-      const updatedServers = [...servers, newServer];
-      saveServers(updatedServers);
-      setServers(updatedServers);
+        const updatedServers = [...servers, newServer];
+        saveServers(updatedServers);
+        setServers(updatedServers);
 
-      // Deduct coins
-      const users = getUsers();
-      const userIndex = users.findIndex(u => u.username === user.username);
-      if (userIndex !== -1) {
-        users[userIndex].coins = (users[userIndex].coins || 0) - plan.price;
-        users[userIndex].ownedServers = [...(users[userIndex].ownedServers || []), newServer.id];
-        saveUsers(users);
-        updateUser({ coins: users[userIndex].coins, ownedServers: users[userIndex].ownedServers });
+        // Deduct coins
+        const users = await getUsers();
+        const userIndex = users.findIndex(u => u.username === user.username);
+        if (userIndex !== -1) {
+          users[userIndex].coins = (users[userIndex].coins || 0) - plan.price;
+          users[userIndex].ownedServers = [...(users[userIndex].ownedServers || []), newServer.id];
+          await saveUsers(users);
+          updateUser({ coins: users[userIndex].coins, ownedServers: users[userIndex].ownedServers });
+        }
+
+        // Update game to enable multiplayer
+        const games = await getPublished();
+        const gameIndex = games.findIndex(g => g.ts.toString() === gameId);
+        if (gameIndex !== -1) {
+          games[gameIndex].multiplayer = true;
+          games[gameIndex].maxPlayers = plan.maxPlayers;
+          games[gameIndex].serverId = newServer.id;
+          const { savePublished } = await import('@/lib/storage');
+          await savePublished(games);
+          setPublishedGames([...games]);
+        }
+
+        alert(`Server purchased! Your game "${game.title}" is now online.`);
+      } catch (e) {
+        console.error('Failed to purchase server:', e);
+        alert('Failed to complete purchase. Please try again.');
       }
-
-      // Update game to enable multiplayer
-      const games = getPublished();
-      const gameIndex = games.findIndex(g => g.ts.toString() === gameId);
-      if (gameIndex !== -1) {
-        games[gameIndex].multiplayer = true;
-        games[gameIndex].maxPlayers = plan.maxPlayers;
-        games[gameIndex].serverId = newServer.id;
-        require('@/lib/storage').savePublished(games);
-      }
-
-      alert(`Server purchased! Your game "${game.title}" is now online.`);
     }
   };
 
@@ -97,7 +121,15 @@ export default function ServersTab({ user, editMode }: ServersTabProps) {
     }
   };
 
-  const multiplayerGames = publishedGames.filter(g => g.multiplayer);
+  const multiplayerGames = publishedGames.filter(g => g && g.multiplayer);
+
+  if (loading) {
+    return (
+      <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted)' }}>
+        Loading servers...
+      </div>
+    );
+  }
 
   return (
     <>
