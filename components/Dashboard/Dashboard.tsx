@@ -1,8 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { TabType, User } from '@/types';
-import { getInitials } from '@/lib/utils';
+import { tabToPath, navigateToTab } from '@/lib/routing';
 import { getPublished, savePublished } from '@/lib/storage';
 import TopBar from './TopBar';
 import Sidebar from './Sidebar';
@@ -17,21 +17,57 @@ import CoinsTab from '../Tabs/CoinsTab';
 import ServersTab from '../Tabs/ServersTab';
 import FriendsTab from '../Tabs/FriendsTab';
 import SettingsTab from '../Tabs/SettingsTab';
+import DonationTab from '../Tabs/DonationTab';
 
 interface DashboardProps {
   user: User;
+  initialTab?: string;
+  isPreview?: boolean;
 }
 
-export default function Dashboard({ user }: DashboardProps) {
-  const [currentTab, setCurrentTab] = useState<TabType>('home');
+export default function Dashboard({ user, initialTab = 'home', isPreview }: DashboardProps) {
+  const [currentTab, setCurrentTab] = useState<TabType>(
+    (initialTab as TabType) || 'home'
+  );
+
+  // Sync when parent passes new initialTab (e.g. browser back/forward)
+  useEffect(() => {
+    if (initialTab && initialTab !== currentTab) {
+      setCurrentTab(initialTab as TabType);
+    }
+  }, [initialTab]);
+
+  // Listen for programmatic navigation (e.g. from AICoderTab, GameStudioTab)
+  useEffect(() => {
+    const handler = (e: CustomEvent<{ tab: string }>) => {
+      const tab = e.detail?.tab as TabType | undefined;
+      if (tab) {
+        setCurrentTab(tab);
+        const path = tabToPath(tab);
+        if (typeof window !== 'undefined' && window.history) {
+          window.history.pushState({}, '', path);
+        }
+      }
+    };
+    window.addEventListener('pixelplace-navigate', handler as EventListener);
+    return () => window.removeEventListener('pixelplace-navigate', handler as EventListener);
+  }, []);
+
+  const handleTabChange = (tab: TabType) => {
+    setCurrentTab(tab);
+    const path = tabToPath(tab);
+    if (typeof window !== 'undefined' && window.history) {
+      window.history.pushState({}, '', path);
+    }
+  };
   const [editMode, setEditMode] = useState(false);
 
   const handleResetPublished = () => {
     if (user.role !== 'admin') return;
     savePublished([]);
-    // Silent success - no alert
-    // Force re-render if on home tab
+    // Silent success - no alert. Force re-render if on home tab
     if (currentTab === 'home') {
+      setCurrentTab('games');
       setCurrentTab('home');
     }
   };
@@ -62,9 +98,10 @@ export default function Dashboard({ user }: DashboardProps) {
             user={user}
             editMode={editMode}
             onToggleEditMode={() => setEditMode(!editMode)}
-            onResetPublished={handleResetPublished}
           />
         );
+      case 'donation':
+        return <DonationTab user={user} editMode={editMode} />;
       default:
         return <div>Unknown tab</div>;
     }
@@ -74,14 +111,14 @@ export default function Dashboard({ user }: DashboardProps) {
     <div id="dashboard">
       <TopBar
         currentTab={currentTab}
-        onTabChange={setCurrentTab}
+        onTabChange={handleTabChange}
         user={user}
       />
       <div className="body-row">
         <div className="body-inner">
-          <Sidebar user={user} onNavigate={(tab) => setCurrentTab(tab as TabType)} />
+          <Sidebar user={user} onNavigate={(tab) => handleTabChange(tab as TabType)} />
           <section className="main-card">
-            <GameErrorBoundary onBack={() => setCurrentTab('home')}>
+            <GameErrorBoundary onBack={() => handleTabChange('home')}>
               {renderTabContent()}
             </GameErrorBoundary>
           </section>

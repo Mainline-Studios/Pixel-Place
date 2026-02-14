@@ -7,7 +7,11 @@ import { auth, googleProvider } from '@/lib/firebaseClient';
 import { apiUrl } from '@/lib/apiBaseUrl';
 import { signInWithPopup } from 'firebase/auth';
 
-export default function Login() {
+interface LoginProps {
+  onBack?: () => void;
+}
+
+export default function Login({ onBack }: LoginProps) {
   const { login, createAccount, loginWithGoogle } = useUser();
   const [mode, setMode] = useState<'signin' | 'signup'>('signin');
   const [username, setUsername] = useState('');
@@ -191,10 +195,14 @@ export default function Login() {
     <>
       <div id="login-screen">
         <div className="login-box">
-          {mode === 'signup' && (
+          {(mode === 'signup' || onBack) && (
             <button
               className="back-arrow-btn"
               onClick={() => {
+                if (onBack && mode === 'signin') {
+                  onBack();
+                  return;
+                }
                 setMode('signin');
                 setMessage('');
                 setUsername('');
