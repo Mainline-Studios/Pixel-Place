@@ -17,24 +17,24 @@ export default function SplashScreen({ onComplete }: SplashScreenProps) {
     // Phase 1: Mainline Studios — fade in
     const fadeInMainline = setTimeout(() => setMainlineOpacity(1), 100);
     // Hold
-    const holdMainline = setTimeout(() => {}, 2200);
+    const holdMainline = setTimeout(() => {}, 1000);
     // Fade out
-    const fadeOutMainline = setTimeout(() => setMainlineOpacity(0), 2500);
+    const fadeOutMainline = setTimeout(() => setMainlineOpacity(0), 1200);
 
     // Switch to Pixel Place (show immediately so animations are visible)
     const switchPhase = setTimeout(() => {
       setPhase('pixelplace');
       setPixelPlaceOpacity(1);
-    }, 3200);
+    }, 1700);
     // Hold
-    const holdPixelPlace = setTimeout(() => {}, 5200);
+    const holdPixelPlace = setTimeout(() => {}, 2800);
     // Fade out
-    const fadeOutPixelPlace = setTimeout(() => setPixelPlaceOpacity(0), 5700);
+    const fadeOutPixelPlace = setTimeout(() => setPixelPlaceOpacity(0), 3000);
     // Hide and complete
     const hide = setTimeout(() => {
       setShow(false);
       onComplete();
-    }, 6400);
+    }, 3500);
 
     return () => {
       clearTimeout(fadeInMainline);

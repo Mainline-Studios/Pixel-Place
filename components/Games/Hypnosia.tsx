@@ -203,18 +203,12 @@ const RULES: Rule[] = [
 ];
 
 export default function Hypnosia({ onClose }: HypnosiaProps) {
-  // #region agent log
-  fetch('http://127.0.0.1:7242/ingest/002741fb-cb98-444e-83cd-7086902151aa',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'Hypnosia.tsx:205',message:'Hypnosia render start',data:{hasOnClose:!!onClose},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
-  // #endregion
   const categories = useMemo(() => {
     const cats = Array.from(new Set(RULES.map((r) => r.category)));
     return ['All Categories', ...cats];
   }, []);
 
   useEffect(() => {
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/002741fb-cb98-444e-83cd-7086902151aa',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'Hypnosia.tsx:221',message:'useEffect called',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
-    // #endregion
     startNewGame();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

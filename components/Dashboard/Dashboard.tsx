@@ -1,23 +1,25 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import { TabType, User } from '@/types';
 import { tabToPath, navigateToTab } from '@/lib/routing';
 import { getPublished, savePublished } from '@/lib/storage';
 import TopBar from './TopBar';
 import Sidebar from './Sidebar';
 import GameErrorBoundary from '../GameErrorBoundary';
-import HomeTab from '../Tabs/HomeTab';
-import PlayTab from '../Tabs/PlayTab';
-import GamesTab from '../Tabs/GamesTab';
-import AvatarShopTab from '../Tabs/AvatarShopTab';
-import CreateTab from '../Tabs/CreateTab';
-import StudioTab from '../Tabs/StudioTab';
-import CoinsTab from '../Tabs/CoinsTab';
-import ServersTab from '../Tabs/ServersTab';
-import FriendsTab from '../Tabs/FriendsTab';
-import SettingsTab from '../Tabs/SettingsTab';
-import DonationTab from '../Tabs/DonationTab';
+
+// Lazy-load all tab components for code splitting
+const HomeTab = React.lazy(() => import('../Tabs/HomeTab'));
+const PlayTab = React.lazy(() => import('../Tabs/PlayTab'));
+const GamesTab = React.lazy(() => import('../Tabs/GamesTab'));
+const AvatarShopTab = React.lazy(() => import('../Tabs/AvatarShopTab'));
+const CreateTab = React.lazy(() => import('../Tabs/CreateTab'));
+const StudioTab = React.lazy(() => import('../Tabs/StudioTab'));
+const CoinsTab = React.lazy(() => import('../Tabs/CoinsTab'));
+const ServersTab = React.lazy(() => import('../Tabs/ServersTab'));
+const FriendsTab = React.lazy(() => import('../Tabs/FriendsTab'));
+const SettingsTab = React.lazy(() => import('../Tabs/SettingsTab'));
+const DonationTab = React.lazy(() => import('../Tabs/DonationTab'));
 
 interface DashboardProps {
   user: User;
@@ -119,7 +121,17 @@ export default function Dashboard({ user, initialTab = 'home', isPreview }: Dash
           <Sidebar user={user} onNavigate={(tab) => handleTabChange(tab as TabType)} />
           <section className="main-card">
             <GameErrorBoundary onBack={() => handleTabChange('home')}>
-              {renderTabContent()}
+              <Suspense fallback={
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '200px', color: 'var(--text-dim)' }}>
+                  <div style={{ textAlign: 'center' }}>
+                    <div style={{ width: '36px', height: '36px', border: '3px solid rgba(255,255,255,0.1)', borderTop: '3px solid #00aaff', borderRadius: '50%', animation: 'spin 0.8s linear infinite', margin: '0 auto 12px' }} />
+                    Loading...
+                    <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+                  </div>
+                </div>
+              }>
+                {renderTabContent()}
+              </Suspense>
             </GameErrorBoundary>
           </section>
         </div>

@@ -101,20 +101,9 @@ const games: GameInfo[] = [
 ];
 
 export default function GamesTab({ user, editMode }: GamesTabProps) {
-  // #region agent log
-  fetch('http://127.0.0.1:7242/ingest/002741fb-cb98-444e-83cd-7086902151aa',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'GamesTab.tsx:118',message:'GamesTab render start',data:{selectedGame:null,selectedUserGame:null},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-  // #endregion
   const [selectedGame, setSelectedGame] = useState<string | null>(null);
-  // #region agent log
-  fetch('http://127.0.0.1:7242/ingest/002741fb-cb98-444e-83cd-7086902151aa',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'GamesTab.tsx:120',message:'After useState selectedGame',data:{selectedGame},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-  // #endregion
   const [selectedUserGame, setSelectedUserGame] = useState<UserMadeGame | null>(null);
-  // #region agent log
-  fetch('http://127.0.0.1:7242/ingest/002741fb-cb98-444e-83cd-7086902151aa',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'GamesTab.tsx:121',message:'After useState selectedUserGame',data:{selectedUserGame},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-  // #endregion
   const [userMadeGames, setUserMadeGames] = useState<UserMadeGame[]>([]);
-  // #region agent log
-  fetch('http://127.0.0.1:7242/ingest/002741fb-cb98-444e-83cd-7086902151aa',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'GamesTab.tsx:122',message:'After useState userMadeGames',data:{userMadeGamesCount:userMadeGames.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
   // #endregion
 
   // Real-time games from Firestore (instant updates when games are added/edited in Firebase Console)
@@ -142,9 +131,6 @@ export default function GamesTab({ user, editMode }: GamesTabProps) {
 
   const selectedGameInfo = games.find(g => g.id === selectedGame);
   const GameComponent = selectedGameInfo?.component;
-  // #region agent log
-  fetch('http://127.0.0.1:7242/ingest/002741fb-cb98-444e-83cd-7086902151aa',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'GamesTab.tsx:139',message:'Before early returns check',data:{selectedGame,selectedUserGame,hasGameComponent:!!GameComponent},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-  // #endregion
 
   if (selectedUserGame) {
     return (
@@ -155,9 +141,6 @@ export default function GamesTab({ user, editMode }: GamesTabProps) {
   }
 
   if (selectedGame && GameComponent) {
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/002741fb-cb98-444e-83cd-7086902151aa',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'GamesTab.tsx:150',message:'Early return selectedGame',data:{selectedGame},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-    // #endregion
     const handleClose = () => {
       setSelectedGame(null);
       setSelectedUserGame(null);
