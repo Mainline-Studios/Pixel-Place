@@ -29,9 +29,6 @@ import { pathToTab } from '@/lib/routing';
 
 function AppContent() {
   const { user } = useUser();
-  const [showPopup, setShowPopup] = useState(false);
-  const [popupMessage, setPopupMessage] = useState('');
-  const [isOffline, setIsOffline] = useState(false);
   const [showSplash, setShowSplash] = useState(true);
   const [showLoginForm, setShowLoginForm] = useState(false);
   const [initialTab, setInitialTab] = useState<string>('home');
@@ -49,21 +46,10 @@ function AppContent() {
     return () => window.removeEventListener('popstate', sync);
   }, []);
 
-  // Show popup when user signs in and start playtime tracking
+  // Start playtime tracking when user signs in (no popup)
   useEffect(() => {
     if (user && !prevUserRef.current) {
-      // User just signed in
-      const offlineStatus = typeof window !== 'undefined' && sessionStorage.getItem('pixelPlaceOffline') === 'true';
-      setIsOffline(offlineStatus);
-      setPopupMessage(offlineStatus 
-        ? 'Not connected. You can still play offline games! Your data will sync when you reconnect.' 
-        : 'Logged in Successfully');
-      setShowPopup(true);
-      // Auto-hide popup after 4 seconds for offline mode (longer to read message)
-      setTimeout(() => {
-        setShowPopup(false);
-      }, offlineStatus ? 5000 : 3000);
-
+      // User just signed in - start tracking but don't show popup
       // Start playtime tracking
       if (typeof window !== 'undefined') {
         const tracker = getPlaytimeTracker();
@@ -99,126 +85,12 @@ function AppContent() {
         </>
       ) : (
         <>
-          <div style={{ paddingTop: isPreview ? '72px' : 0 }}>
-            <Dashboard user={displayUser} initialTab={initialTab} isPreview={isPreview} />
-          </div>
-          {isPreview && (
-            <div
-              style={{
-                position: 'fixed',
-                top: 0,
-                left: 0,
-                right: 0,
-                zIndex: 9999,
-                background: 'linear-gradient(135deg, rgba(0, 170, 255, 0.95) 0%, rgba(0, 120, 200, 0.95) 100%)',
-                color: '#fff',
-                padding: '12px 24px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                flexWrap: 'wrap',
-                gap: '12px',
-                boxShadow: '0 4px 20px rgba(0,0,0,0.3)',
-              }}
-            >
-              <span style={{ fontWeight: 600, fontSize: '15px' }}>
-                Explore Pixel Place — Log in or sign up to play games and save your progress!
-              </span>
-              <div style={{ display: 'flex', gap: '12px' }}>
-                <button
-                  onClick={() => setShowLoginForm(true)}
-                  style={{
-                    padding: '10px 20px',
-                    background: '#fff',
-                    color: '#0066aa',
-                    border: 'none',
-                    borderRadius: '8px',
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                    fontSize: '14px',
-                  }}
-                >
-                  Log in
-                </button>
-                <button
-                  onClick={() => setShowLoginForm(true)}
-                  style={{
-                    padding: '10px 20px',
-                    background: 'rgba(255,255,255,0.25)',
-                    color: '#fff',
-                    border: '2px solid #fff',
-                    borderRadius: '8px',
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                    fontSize: '14px',
-                  }}
-                >
-                  Sign up
-                </button>
-              </div>
-            </div>
-          )}
+          <Dashboard user={displayUser} />
           <InstallPrompt />
           {user && <BreakReminder />}
         </>
       )}
       
-      {/* Status Popup */}
-      {showPopup && (
-        <div 
-          style={{
-            position: 'fixed',
-            top: '20px',
-            right: '20px',
-            background: isOffline ? '#ff9800' : '#4caf50',
-            color: '#ffffff',
-            padding: '16px 24px',
-            borderRadius: '12px',
-            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.3)',
-            zIndex: 10000,
-            maxWidth: '400px',
-            animation: 'slideIn 0.3s ease-out'
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontWeight: 600, marginBottom: '4px' }}>
-                {isOffline ? '⚠️ Not Connected' : '✅ Logged in Successfully'}
-              </div>
-              <div style={{ fontSize: '14px', opacity: 0.9 }}>
-                {popupMessage}
-              </div>
-            </div>
-            <button
-              onClick={() => setShowPopup(false)}
-              style={{
-                background: 'rgba(255, 255, 255, 0.2)',
-                border: 'none',
-                color: '#ffffff',
-                padding: '4px 8px',
-                borderRadius: '8px',
-                cursor: 'pointer',
-                fontSize: '18px',
-                lineHeight: 1
-              }}
-            >
-              ×
-            </button>
-          </div>
-          <style>{`
-            @keyframes slideIn {
-              from {
-                transform: translateX(100%);
-                opacity: 0;
-              }
-              to {
-                transform: translateX(0);
-                opacity: 1;
-              }
-            }
-          `}</style>
-        </div>
-      )}
       
       {/* Ensure background is visible - avoid pure black */}
       <style jsx global>{`
