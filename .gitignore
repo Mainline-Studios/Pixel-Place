@@ -47,6 +47,9 @@ next-env.d.ts
 .vscode/extensions/
 AppData/
 
+# Unity project files (too large for GitHub)
+Gym_Pump/
+
 
 
 
