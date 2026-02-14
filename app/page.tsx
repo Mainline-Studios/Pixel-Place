@@ -46,13 +46,6 @@ function AppContent() {
     return () => window.removeEventListener('popstate', sync);
   }, []);
 
-  // Close login form when user successfully signs in
-  useEffect(() => {
-    if (user && showLoginForm) {
-      setShowLoginForm(false);
-    }
-  }, [user, showLoginForm]);
-
   // Start playtime tracking when user signs in (no popup)
   useEffect(() => {
     if (user && !prevUserRef.current) {
