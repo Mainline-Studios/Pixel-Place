@@ -55,6 +55,18 @@ const POWER_COSTS: Record<Power, number> = {
   shadow: 45,
 };
 
+// Fire rate (ms between shots) — high damage powers shoot slower
+const POWER_COOLDOWN: Record<Power, number> = {
+  fire: 140,
+  ice: 120,
+  lightning: 180,
+  poison: 110,
+  earth: 220,
+  wind: 80,
+  solar: 150,
+  shadow: 130,
+};
+
 const ARENA_W = 900;
 const ARENA_H = 580;
 
@@ -81,6 +93,7 @@ type Player = {
   score: number;
   lastShot: number;
   isBot?: boolean;
+  lastDeadAt?: number;
 };
 
 type Bullet = {
@@ -251,7 +264,11 @@ export default function Showdown({ user }: ShowdownProps): JSX.Element {
         const newHp = Math.max(0, Math.round(p.hp - amount));
         spawnParticles(hitX, hitY, p.color, 12);
         addScreenShake(amount * 0.15);
-        return { ...p, hp: newHp };
+        return {
+          ...p,
+          hp: newHp,
+          ...(newHp <= 0 && { lastDeadAt: Date.now() }),
+        };
       })
     );
   }
@@ -400,7 +417,8 @@ export default function Showdown({ user }: ShowdownProps): JSX.Element {
           b.pos.x = clamp(b.radius, b.pos.x, ARENA_W - b.radius);
           b.pos.y = clamp(b.radius, b.pos.y, ARENA_H - b.radius);
 
-          if (Math.random() < 0.012 && Date.now() - b.lastShot > 350) {
+          const cooldown = POWER_COOLDOWN[b.power] ?? 150;
+          if (Math.random() < 0.015 && Date.now() - b.lastShot > cooldown) {
             spawnBullet(b, target.pos.x, target.pos.y);
             b.lastShot = Date.now();
           }
@@ -427,17 +445,18 @@ export default function Showdown({ user }: ShowdownProps): JSX.Element {
         for (const p of playersRef.current) {
           if (p.id === b.ownerId || p.hp <= 0) continue;
           if (dist(b.pos, p.pos) <= p.radius + b.radius) {
-            const baseDmg: Record<Power, number> = {
-              fire: 16,
-              ice: 12,
-              lightning: 18,
-              poison: 10,
-              earth: 14,
-              wind: 11,
-              solar: 20,
-              shadow: 15,
+            // Each power has distinct damage — high-risk high-reward vs utility
+            const POWER_DAMAGE: Record<Power, number> = {
+              fire: 22,      // heavy hitter, slow-ish
+              ice: 14,       // low dmg but could add slow later
+              lightning: 26, // highest burst, glass cannon
+              poison: 12,    // low initial, DoT potential
+              earth: 28,     // hardest hit, slow projectile
+              wind: 10,      // fastest fire rate, lowest dmg
+              solar: 24,     // strong and steady
+              shadow: 20,    // balanced, sneaky
             };
-            applyDamage(p.id, baseDmg[b.power] ?? 12, b.pos.x, b.pos.y);
+            applyDamage(p.id, POWER_DAMAGE[b.power] ?? 15, b.pos.x, b.pos.y);
             b.life = 0;
             break;
           }
@@ -481,7 +500,25 @@ export default function Showdown({ user }: ShowdownProps): JSX.Element {
 
       screenShakeRef.current = Math.max(0, screenShakeRef.current - dt * 25);
 
-      setPlayers((prev) => playersRef.current.map((p) => ({ ...p })));
+      // Respawn dead players after delay (removed overwrite that was reverting damage!)
+      const RESPAWN_DELAY = 3;
+      const now = Date.now();
+      setPlayers((prev) =>
+        prev.map((p) => {
+          if (p.hp > 0) return { ...p, lastDeadAt: undefined };
+          const lastDead = p.lastDeadAt ?? now;
+          if (now - lastDead >= RESPAWN_DELAY * 1000) {
+            return {
+              ...p,
+              hp: p.maxHp,
+              pos: { x: rand(80, ARENA_W - 80), y: rand(80, ARENA_H - 80) },
+              vel: { x: 0, y: 0 },
+              lastDeadAt: undefined,
+            };
+          }
+          return { ...p, lastDeadAt: lastDead };
+        })
+      );
     }
 
     function draw() {
@@ -694,7 +731,8 @@ export default function Showdown({ user }: ShowdownProps): JSX.Element {
     const me = localPlayer();
     if (!me || me.hp <= 0) return;
     const now = Date.now();
-    if (now - me.lastShot < 130) return;
+    const cooldown = POWER_COOLDOWN[me.power] ?? 130;
+    if (now - me.lastShot < cooldown) return;
     spawnBullet(me, mouseRef.current.x, mouseRef.current.y);
     setPlayers((prev) =>
       prev.map((p) => (p.id === me.id ? { ...p, lastShot: now } : p))

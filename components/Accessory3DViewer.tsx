@@ -116,24 +116,8 @@ export default function Accessory3DViewer({
             (texture as any).colorSpace = THREE.SRGBColorSpace;
           } else if ('encoding' in texture && THREE.sRGBEncoding) {
             (texture as any).encoding = THREE.sRGBEncoding;
-          }          default:
-            // Default accessory display
-            const defaultAccessory = new THREE.Mesh(
-              createRoundedBox(0.6, 0.6, 0.6, 0.05),
-              accessoryMat
-            );
-            accessoryGroup.add(defaultAccessory);
+          }
         }
-
-        // Helper function for default accessory creation (used in error fallback)
-        const createDefaultAccessory = () => {
-          if (!accessoryGroup) return;
-          const defaultAccessory = new THREE.Mesh(
-            createRoundedBox(0.6, 0.6, 0.6, 0.05),
-            accessoryMat
-          );
-          accessoryGroup.add(defaultAccessory);
-        };
 
         // Auto-rotate for display
         const animate = () => {

@@ -23,24 +23,20 @@ export default function Login() {
   const [showPrivacy, setShowPrivacy] = useState(false);
   const { login, createAccount } = useUser();
 
+  const MIN_LOADING_MS = 2000; // Show loading state at least 2 seconds for better UX feedback
+
   const handleSignIn = async () => {
     if (!username || !password) {
       setMessage('Enter both username and password.');
-      return;
-    }
-    if (password.length < 6) {
-      setMessage('Password must be at least 6 characters.');
       return;
     }
     const result = await login(username, password);
     if (result.ban) {
       setBanInfo(result.ban);
     } else {
-      // Only show error messages, not success messages
       if (!result.success) {
         setMessage(result.message);
       } else {
-        // Clear message immediately on successful login - no popup
         setMessage('');
         setUsername('');
         setPassword('');
@@ -70,17 +66,13 @@ export default function Login() {
       return;
     }
     const result = await createAccount(username, password, gender);
-    // Only show error messages, not success messages
     if (!result.success) {
       setMessage(result.message);
     } else {
-      setMessage(''); // Clear message on successful sign up
-    }
-    setBanInfo(null);
-    if (result.success) {
-      // Auto sign in after successful sign up
+      setMessage('');
       await handleSignIn();
     }
+    setBanInfo(null);
   };
 
   const handleAppealSubmitted = () => {
