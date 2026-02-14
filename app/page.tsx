@@ -99,7 +99,9 @@ function AppContent() {
         </>
       ) : (
         <>
-          <Dashboard user={displayUser} initialTab={initialTab} isPreview={isPreview} />
+          <div style={{ paddingTop: isPreview ? '72px' : 0 }}>
+            <Dashboard user={displayUser} initialTab={initialTab} isPreview={isPreview} />
+          </div>
           {isPreview && (
             <div
               style={{
