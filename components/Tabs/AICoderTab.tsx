@@ -3,6 +3,7 @@
 import { useState, useRef } from 'react';
 import { User } from '@/types';
 import { useUser } from '@/contexts/UserContext';
+import { navigateToTab } from '@/lib/routing';
 
 interface AICoderTabProps {
   user: User;
@@ -136,7 +137,7 @@ ${prompt.toLowerCase().replace(/\s+/g, '_')}();`;
           {!isDonor && usageCount >= maxUsage && (
             <button 
               className="btn" 
-              onClick={() => window.location.hash = 'donation'}
+              onClick={() => navigateToTab('donation')}
               style={{ background: '#4a6a2a' }}
             >
               Unlock Unlimited
@@ -205,10 +206,10 @@ ${prompt.toLowerCase().replace(/\s+/g, '_')}();`;
             <br />
             <div style={{ marginTop: '12px' }}>
               <a 
-                href="#donation" 
+                href="/donation" 
                 onClick={(e) => {
                   e.preventDefault();
-                  window.location.hash = 'donation';
+                  navigateToTab('donation');
                 }}
                 style={{ 
                   display: 'inline-block',

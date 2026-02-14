@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from 'react';
 import { User, DraftGame } from '@/types';
 import { getDraft, saveDraft } from '@/lib/storage';
 import { toast } from '@/lib/toast';
+import { navigateToTab } from '@/lib/routing';
 
 interface GameStudioTabProps {
   user: User;
@@ -340,11 +341,7 @@ scene.add(${asset.id});`;
         <h2 className="section-title">🎮 Game Studio</h2>
         <button
           className="btn"
-          onClick={() => {
-            // Navigate to Classic Studio (StudioTab)
-            window.location.hash = 'studio';
-            window.dispatchEvent(new HashChangeEvent('hashchange'));
-          }}
+          onClick={() => navigateToTab('studio')}
           style={{ padding: '10px 20px', fontSize: '14px' }}
         >
           🎨 Classic Studio
