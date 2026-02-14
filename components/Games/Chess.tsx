@@ -1,4 +1,15 @@
+'use client';
+
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import {
+  subscribeChessMatchmaking,
+  cancelChessMatchmaking,
+  createChessGame,
+  joinChessGame,
+  subscribeChessGame,
+  chessApplyMove,
+  leaveChessGame as leaveChessGameFirestore,
+} from "@/lib/chessFirestore";
 
 type Color = "white" | "black";
 type PieceType = "K" | "Q" | "R" | "B" | "N" | "P";
@@ -519,9 +530,28 @@ function allLegalMovesForColor(
   return moves;
 }
 
+function checkGameEndResult(
+  board: Square[][],
+  turn: Color,
+  enPassant: [number, number] | null,
+  castling: CastlingRights
+): string | null {
+  const opponentMoves = allLegalMovesForColor(board, turn, enPassant, castling);
+  const inCheck = isKingInCheck(board, turn);
+  if (opponentMoves.length === 0) {
+    return inCheck ? `${turn === "white" ? "black" : "white"} wins by checkmate` : "Draw by stalemate";
+  }
+  return null;
+}
+
 // --- Component
 
-export default function Chess(): JSX.Element {
+interface ChessProps {
+  user?: { username: string };
+  onClose?: () => void;
+}
+
+export default function Chess({ user, onClose }: ChessProps): JSX.Element {
   const [board, setBoard] = useState<Square[][]>(() => initBoard());
   const [turn, setTurn] = useState<Color>("white");
   const [selected, setSelected] = useState<[number, number] | null>(null);
@@ -539,134 +569,124 @@ export default function Chess(): JSX.Element {
     color: Color;
   } | null>(null);
 
-  // Multiplayer state (kept from previous implementation)
-  const [wsUrl, setWsUrl] = useState<string>("ws://localhost:4000");
-  const wsRef = useRef<WebSocket | null>(null);
-  const clientIdRef = useRef<string>(() => Math.random().toString(36).slice(2));
-  const [connected, setConnected] = useState(false);
-  const [room, setRoom] = useState<string>("");
+  // Multiplayer state (Firestore - works on Firebase Hosting / pixelplaceofficial.com)
+  const unsubRef = useRef<() => void>(() => {});
+  const [gameMode, setGameMode] = useState<'local' | 'menu' | 'finding' | 'creating' | 'joining' | 'playing'>('menu');
   const [joinedRoom, setJoinedRoom] = useState<string | null>(null);
-  const [isHost, setIsHost] = useState<boolean | null>(null);
   const [playerColor, setPlayerColor] = useState<Color | null>(null);
-
-  useEffect(() => {
-    clientIdRef.current = Math.random().toString(36).slice(2);
-  }, []);
+  const [roomCode, setRoomCode] = useState('');
+  const [joinCode, setJoinCode] = useState('');
+  const [opponentName, setOpponentName] = useState<string | null>(null);
+  const [socketError, setSocketError] = useState<string | null>(null);
+  const username = user?.username || 'Player';
 
   useEffect(() => {
     return () => {
-      if (wsRef.current) {
-        wsRef.current.close();
-        wsRef.current = null;
-      }
+      unsubRef.current();
+      if (joinedRoom) leaveChessGameFirestore(joinedRoom, username);
     };
-  }, []);
+  }, [joinedRoom, username]);
 
-  const connect = (url: string) => {
-    if (wsRef.current) wsRef.current.close();
-    try {
-      const ws = new WebSocket(url);
-      wsRef.current = ws;
-
-      ws.onopen = () => {
-        setConnected(true);
-        console.log("ws open");
-      };
-
-      ws.onmessage = (e) => {
-        try {
-          const msg = JSON.parse(e.data);
-          handleMessage(msg);
-        } catch (err) {
-          console.warn("invalid ws msg", e.data);
-        }
-      };
-
-      ws.onclose = () => {
-        setConnected(false);
-        setJoinedRoom(null);
-        setIsHost(null);
-        setPlayerColor(null);
-        console.log("ws closed");
-      };
-
-      ws.onerror = () => {
-        console.warn("ws error");
-      };
-    } catch (err) {
-      console.warn("ws failed", err);
-    }
-  };
-
-  const send = (obj: any) => {
-    const ws = wsRef.current;
-    if (!ws || ws.readyState !== WebSocket.OPEN) return;
-    ws.send(JSON.stringify(obj));
-  };
-
-  const createRoom = () => {
-    const roomId = Math.random().toString(36).slice(2, 8).toUpperCase();
-    setRoom(roomId);
-    connect(wsUrl);
-    setTimeout(() => {
-      send({ type: "join", room: roomId, clientId: clientIdRef.current, role: "host" });
-      setJoinedRoom(roomId);
-      setIsHost(true);
-      setPlayerColor("white");
-    }, 500);
-  };
-
-  const joinRoom = (roomId?: string) => {
-    const toJoin = roomId || room;
-    if (!toJoin) return;
-    connect(wsUrl);
-    setTimeout(() => {
-      send({ type: "join", room: toJoin, clientId: clientIdRef.current });
-      setJoinedRoom(toJoin);
-      setIsHost(false);
-      setPlayerColor("black");
-    }, 500);
-  };
-
-  const leaveRoom = () => {
-    if (wsRef.current && joinedRoom) {
-      send({ type: "leave", room: joinedRoom, clientId: clientIdRef.current });
-      wsRef.current.close();
-    }
-    setJoinedRoom(null);
-    setIsHost(null);
-    setPlayerColor(null);
-  };
-
-  const handleMessage = (msg: any) => {
-    if (!msg || typeof msg.type !== "string") return;
-    if (msg.type === "joined") {
-      console.log("joined room", msg.room);
-    }
-    if (msg.type === "move") {
-      if (msg.clientId === clientIdRef.current) return;
-      const { from, to, meta, promotion: prom, turn: newTurn, notation } = msg;
-      // apply remote move (must use full validation on sender; here we apply)
-      setBoard((prev) => {
-        const res = applyMoveFull(prev, from, to, meta || null, castling, enPassant, prom);
-        // update castling and enPassant after applying
-        setCastling(res.castling);
-        setEnPassant(res.enPassant);
-        return res.board;
+  const findOpponent = () => {
+    setGameMode('finding');
+    setSocketError(null);
+    unsubRef.current = subscribeChessMatchmaking(username, (game) => {
+      setJoinedRoom(game.roomId);
+      setPlayerColor(username === game.whiteUsername ? 'white' : 'black');
+      setOpponentName(username === game.whiteUsername ? game.blackUsername! : game.whiteUsername);
+      setBoard(game.board);
+      setTurn(game.turn);
+      setCastling(game.castling);
+      setEnPassant(game.enPassant);
+      setGameOver(game.gameOver);
+      setHistory([]);
+      setGameMode('playing');
+      unsubRef.current = subscribeChessGame(game.roomId, (g) => {
+        setBoard(g.board);
+        setTurn(g.turn);
+        setCastling(g.castling);
+        setEnPassant(g.enPassant);
+        setGameOver(g.gameOver);
       });
-      setTurn((_) => (newTurn === "white" ? "white" : "black"));
-      setHistory((h) => [...h, `opponent: ${notation || `${squareName(from)}->${squareName(to)}`}`]);
-      // after remote move, check for game end
-      setTimeout(() => checkGameEnd(), 0);
-    }
-    if (msg.type === "reset") {
+    });
+  };
+
+  const cancelFind = () => {
+    unsubRef.current();
+    cancelChessMatchmaking(username);
+    setGameMode('menu');
+  };
+
+  const createPrivateGame = async () => {
+    setGameMode('creating');
+    setSocketError(null);
+    try {
+      const rid = await createChessGame(username);
+      setJoinedRoom(rid);
+      setRoomCode(rid);
+      setPlayerColor('white');
       setBoard(initBoard());
-      setTurn("white");
+      setTurn('white');
       setCastling(defaultCastling());
       setEnPassant(null);
-      setHistory((h) => [...h, "Game reset by remote"]);
       setGameOver(null);
+      setHistory([]);
+      setGameMode('playing');
+      unsubRef.current = subscribeChessGame(rid, (g) => {
+        setBoard(g.board);
+        setTurn(g.turn);
+        setCastling(g.castling);
+        setEnPassant(g.enPassant);
+        setGameOver(g.gameOver);
+        if (g.blackUsername) setOpponentName(g.blackUsername);
+      });
+    } catch (e) {
+      setSocketError('Failed to create game');
+      setGameMode('menu');
     }
+  };
+
+  const joinWithCode = async (code?: string) => {
+    const toJoin = (code || joinCode).trim();
+    if (!toJoin) return;
+    setGameMode('joining');
+    setSocketError(null);
+    const res = await joinChessGame(toJoin, username);
+    if (!res.ok) {
+      setSocketError(res.error || 'Failed to join');
+      setGameMode('menu');
+      return;
+    }
+    setJoinedRoom(toJoin);
+    setPlayerColor('black');
+    setGameMode('playing');
+    unsubRef.current = subscribeChessGame(toJoin, (g) => {
+      setBoard(g.board);
+      setTurn(g.turn);
+      setCastling(g.castling);
+      setEnPassant(g.enPassant);
+      setGameOver(g.gameOver);
+      setOpponentName(g.whiteUsername);
+    });
+  };
+
+  const leaveGame = () => {
+    unsubRef.current();
+    if (joinedRoom) leaveChessGameFirestore(joinedRoom, username);
+    setJoinedRoom(null);
+    setPlayerColor(null);
+    setOpponentName(null);
+    setGameMode('menu');
+  };
+
+  const startLocalGame = () => {
+    setGameMode('local');
+    setBoard(initBoard());
+    setTurn('white');
+    setCastling(defaultCastling());
+    setEnPassant(null);
+    setGameOver(null);
+    setHistory([]);
   };
 
   // Prepare legal moves for clicked piece and selection
@@ -724,26 +744,15 @@ export default function Chess(): JSX.Element {
 
       setHistory((h) => [...h, `${turn}: ${moveNotation}`]);
 
-      // send multiplayer move
-      if (joinedRoom && connected) {
-        send({
-          type: "move",
-          room: joinedRoom,
-          clientId: clientIdRef.current,
-          from: [sr, sc],
-          to: [r, c],
-          meta,
-          promotion: undefined,
-          notation: moveNotation,
-          turn: turn === "white" ? "black" : "white",
-        });
+      const newTurn = turn === "white" ? "black" : "white";
+      setTurn(newTurn);
+      const gOver = checkGameEndResult(res.board, newTurn, res.enPassant, res.castling);
+      if (joinedRoom) {
+        chessApplyMove(joinedRoom, [sr, sc], [r, c], meta, undefined, res.board, newTurn, res.castling, res.enPassant, gOver);
       }
-
-      setTurn((t) => (t === "white" ? "black" : "white"));
+      if (gOver) setGameOver(gOver);
       setSelected(null);
       setLegal({});
-      // check for checkmate/stalemate
-      setTimeout(() => checkGameEnd(), 0);
     }
   };
 
@@ -768,26 +777,16 @@ export default function Chess(): JSX.Element {
 
     setHistory((h) => [...h, `${turn}: ${moveNotation}`]);
 
-    // send promotion move to server
-    if (joinedRoom && connected) {
-      send({
-        type: "move",
-        room: joinedRoom,
-        clientId: clientIdRef.current,
-        from,
-        to,
-        meta,
-        promotion: pieceType,
-        notation: moveNotation,
-        turn: turn === "white" ? "black" : "white",
-      });
+    const newTurn = turn === "white" ? "black" : "white";
+    setTurn(newTurn);
+    const gOver = checkGameEndResult(res.board, newTurn, res.enPassant, res.castling);
+    if (joinedRoom) {
+      chessApplyMove(joinedRoom, from, to, meta, pieceType, res.board, newTurn, res.castling, res.enPassant, gOver);
     }
-
-    setTurn((t) => (t === "white" ? "black" : "white"));
+    if (gOver) setGameOver(gOver);
     setPromotionPending(null);
     setSelected(null);
     setLegal({});
-    setTimeout(() => checkGameEnd(), 0);
   };
 
   const reset = () => {
@@ -799,34 +798,19 @@ export default function Chess(): JSX.Element {
     setCastling(defaultCastling());
     setEnPassant(null);
     setGameOver(null);
-    if (joinedRoom && connected) send({ type: "reset", room: joinedRoom, clientId: clientIdRef.current });
-  };
-
-  // Check for check, mate, stalemate and set gameOver accordingly
-  const checkGameEnd = () => {
-    const opponent: Color = turn === "white" ? "black" : "white";
-    const opponentMoves = allLegalMovesForColor(board, opponent, enPassant, castling);
-    const inCheck = isKingInCheck(board, opponent);
-    if (opponentMoves.length === 0) {
-      if (inCheck) {
-        setGameOver(`${turn} wins by checkmate`);
-        setHistory((h) => [...h, `Checkmate: ${turn} wins`]);
-      } else {
-        setGameOver("Draw by stalemate");
-        setHistory((h) => [...h, `Stalemate`]);
-      }
-    } else {
-      // if opponent in check, add a history entry (optional)
-      if (inCheck) {
-        setHistory((h) => [...h, `${opponent} is in check`]);
-      }
+    if (joinedRoom) {
+      leaveChessGameFirestore(joinedRoom, username);
+      setJoinedRoom(null);
+      setPlayerColor(null);
+      setGameMode('menu');
     }
   };
 
   const boardView = useMemo(() => board, [board]);
 
   return (
-    <div style={{ fontFamily: "Inter, system-ui, sans-serif", display: "flex", gap: 16 }}>
+    <div style={{ fontFamily: "Inter, system-ui, sans-serif", display: "flex", gap: 16, flexWrap: "wrap" }}>
+      <style>{`@keyframes spin{0%{transform:rotate(0deg)}100%{transform:rotate(360deg)}}`}</style>
       <div>
         <div style={{ position: "relative", display: "grid", gridTemplateColumns: "repeat(8, 56px)", border: "2px solid #333" }}>
           {boardView.map((row, r) =>
@@ -876,42 +860,74 @@ export default function Chess(): JSX.Element {
       </div>
 
       <div style={{ minWidth: 320 }}>
-        <h3 style={{ marginTop: 0 }}>Multiplayer</h3>
-        <div style={{ background: "#fff", border: "1px solid #ddd", borderRadius: 6, padding: 8 }}>
-          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-            <input value={wsUrl} onChange={(e) => setWsUrl(e.target.value)} style={{ flex: 1 }} />
-            <button onClick={() => connect(wsUrl)} disabled={connected} style={{ padding: "6px 8px" }}>
-              Connect
-            </button>
-            <button onClick={() => wsRef.current && wsRef.current.close()} disabled={!connected} style={{ padding: "6px 8px" }}>
-              Disconnect
-            </button>
+        {gameMode === 'menu' && (
+          <div style={{ background: "var(--panel-soft)", border: "1px solid var(--border)", borderRadius: 12, padding: 16, marginBottom: 16 }}>
+            <h3 style={{ margin: "0 0 12px 0", fontSize: 18 }}>♟️ Play Chess</h3>
+            <p style={{ margin: "0 0 16px 0", fontSize: 13, color: "var(--text-dim)" }}>
+              Play online with random opponents or invite a friend.
+            </p>
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              <button onClick={findOpponent} className="btn" style={{ padding: "12px 16px", background: "linear-gradient(135deg, #00d4ff, #0099cc)", color: "#fff", fontWeight: 600 }}>
+                🎲 Find opponent
+              </button>
+              <button onClick={createPrivateGame} className="btn" style={{ padding: "12px 16px" }}>
+                🔗 Create private game
+              </button>
+              <div style={{ display: "flex", gap: 8 }}>
+                <input
+                  placeholder="Room code"
+                  value={joinCode}
+                  onChange={(e) => setJoinCode(e.target.value)}
+                  style={{ flex: 1, padding: "10px", borderRadius: 8, border: "1px solid var(--border)" }}
+                />
+                <button onClick={() => joinWithCode()} className="btn" style={{ padding: "10px 16px" }} disabled={!joinCode.trim()}>
+                  Join
+                </button>
+              </div>
+              <button onClick={startLocalGame} className="btn" style={{ padding: "10px 16px", background: "transparent", border: "1px solid var(--border)" }}>
+                🖥️ Play locally (solo)
+              </button>
+            </div>
           </div>
+        )}
 
-          <div style={{ marginTop: 8, display: "flex", gap: 8 }}>
-            <input placeholder="ROOM" value={room} onChange={(e) => setRoom(e.target.value.toUpperCase())} />
-            <button onClick={createRoom} style={{ padding: "6px 8px" }}>
-              Create
-            </button>
-            <button onClick={() => joinRoom()} style={{ padding: "6px 8px" }}>
-              Join
-            </button>
-            <button onClick={leaveRoom} style={{ padding: "6px 8px" }} disabled={!joinedRoom}>
-              Leave
-            </button>
+        {gameMode === 'finding' && (
+          <div style={{ background: "var(--panel-soft)", borderRadius: 12, padding: 24, marginBottom: 16, textAlign: "center" }}>
+            <div style={{ width: 40, height: 40, border: "3px solid var(--border)", borderTopColor: "#00d4ff", borderRadius: "50%", animation: "spin 0.8s linear infinite", margin: "0 auto 12px" }} />
+            <p style={{ margin: "0 0 12px 0" }}>Finding opponent...</p>
+            <button onClick={cancelFind} className="btn" style={{ padding: "8px 16px" }}>Cancel</button>
           </div>
+        )}
 
-          <div style={{ marginTop: 8 }}>
-            <div>WS: {connected ? "connected" : "disconnected"}</div>
-            <div>Room: {joinedRoom || "—"}</div>
-            <div>Role: {isHost === null ? "—" : isHost ? "Host" : "Guest"}</div>
-            <div>Color: {playerColor || "spectator/local"}</div>
+        {(gameMode === 'creating' || (gameMode === 'playing' && joinedRoom && roomCode)) && (
+          <div style={{ background: "var(--panel-soft)", borderRadius: 12, padding: 12, marginBottom: 16 }}>
+            <p style={{ margin: "0 0 8px 0", fontSize: 13 }}>Share this code:</p>
+            <div style={{ fontSize: 20, fontWeight: 700, letterSpacing: 2, fontFamily: "monospace", color: "#00d4ff" }}>{roomCode || joinedRoom}</div>
+            {!opponentName && (
+              <p style={{ margin: "8px 0 0 0", fontSize: 12, color: "var(--text-dim)" }}>Waiting for opponent...</p>
+            )}
           </div>
+        )}
 
-          <div style={{ marginTop: 8, fontSize: 12, color: "#666" }}>
-            Note: This component validates full chess rules client-side (castling, en-passant, promotions, checks). In multiplayer the server is still a relay — for authoritative validation run a server-side validator.
+        {gameMode === 'playing' && joinedRoom && (
+          <div style={{ marginBottom: 12 }}>
+            <button onClick={leaveGame} className="btn" style={{ padding: "6px 12px", fontSize: 12 }}>Leave game</button>
+            {opponentName && <span style={{ marginLeft: 8, fontSize: 13 }}>vs {opponentName}</span>}
           </div>
-        </div>
+        )}
+
+        {gameMode === 'local' && (
+          <div style={{ marginBottom: 12 }}>
+            <button onClick={() => setGameMode('menu')} className="btn" style={{ padding: "6px 12px", fontSize: 12 }}>← Back to menu</button>
+          </div>
+        )}
+
+        {socketError && (
+          <div style={{ background: "rgba(255,77,77,0.15)", border: "1px solid #ff4d4d", borderRadius: 8, padding: 10, marginBottom: 16, fontSize: 13, color: "#ff6b6b" }}>
+            {socketError}
+            <button onClick={() => setSocketError(null)} style={{ marginLeft: 8, background: "none", border: "none", cursor: "pointer", color: "inherit" }}>✕</button>
+          </div>
+        )}
 
         <h3 style={{ marginTop: 12 }}>Move History</h3>
         <div

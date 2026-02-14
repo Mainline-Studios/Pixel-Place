@@ -206,6 +206,16 @@ export default function Hypnosia({ onClose }: HypnosiaProps) {
   // #region agent log
   fetch('http://127.0.0.1:7242/ingest/002741fb-cb98-444e-83cd-7086902151aa',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'Hypnosia.tsx:205',message:'Hypnosia render start',data:{hasOnClose:!!onClose},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
   // #endregion
+  const [selectedCategory, setSelectedCategory] = useState('All Categories');
+  const [message, setMessage] = useState<string | null>(null);
+  const [secret, setSecret] = useState<Rule | null>(null);
+  const [log, setLog] = useState<LogEntry[]>([]);
+  const [question, setQuestion] = useState('');
+  const [guess, setGuess] = useState('');
+  const [questionsLeft, setQuestionsLeft] = useState(20);
+  const [hintUsed, setHintUsed] = useState(false);
+  const [gameOver, setGameOver] = useState(false);
+
   const categories = useMemo(() => {
     const cats = Array.from(new Set(RULES.map((r) => r.category)));
     return ['All Categories', ...cats];

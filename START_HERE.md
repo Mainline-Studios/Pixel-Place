@@ -48,11 +48,7 @@ http://localhost:3000
 http://localhost:3000
 ```
 
-**Socket.io Server (for multiplayer):**
-```
-http://localhost:3001
-```
-(Run `node server.js` in a separate terminal)
+**Game servers (Chess, multiplayer):** Run automatically with `npm run dev` — no separate terminal needed.
 
 ## 📝 First Time Setup
 

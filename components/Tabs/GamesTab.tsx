@@ -14,6 +14,7 @@ import RedRover from '../Games/RedRover';
 import JungleJourneySeries from '../Games/JungleJourneySeries';
 import Chess from '../Games/Chess';
 import FloorIsLava from '../Games/FloorIsLava';
+import GodotGamePlayer from '../Games/GodotGamePlayer';
 
 interface GamesTabProps {
   user: User;
@@ -98,6 +99,16 @@ const games: GameInfo[] = [
     category: 'Strategy',
     component: Chess,
   },
+  {
+    id: 'godot',
+    name: 'Godot Games',
+    description: 'Play games built with Godot engine! Export your Godot project to HTML5.',
+    icon: '🎮',
+    thumbnail: '/images/games/jungle-journey.svg',
+    category: 'Engine',
+    component: GodotGamePlayer,
+    props: { htmlPath: '/games/godot/demo/index.html' },
+  },
 ];
 
 export default function GamesTab({ user, editMode }: GamesTabProps) {
@@ -167,13 +178,16 @@ export default function GamesTab({ user, editMode }: GamesTabProps) {
     const supportsOnClose = ['gymPump', 'hypnosia'].includes(selectedGame);
     
     // Prepare props based on game type - pass user to games that need it
-    const gameProps = selectedGame === 'gymPump' 
+    const baseProps = selectedGame === 'gymPump' 
       ? { user, onClose: handleClose }
       : selectedGame === 'hypnosia'
       ? { onClose: handleClose }
       : selectedGame === 'showdown'
       ? { user }
+      : selectedGame === 'chess'
+      ? { user, onClose: handleClose }
       : {};
+    const gameProps = { ...selectedGameInfo?.props, ...baseProps };
     
     return (
       <GameErrorBoundary onBack={handleClose} gameName={selectedGameInfo?.name}>
