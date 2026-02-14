@@ -83,7 +83,7 @@ export default function Error({
           Try again
         </button>
         <Link
-          href="/home"
+          href="/games"
           style={{
             display: 'inline-block',
             background: 'linear-gradient(135deg, #00aa88 0%, #008866 100%)',
@@ -97,7 +97,7 @@ export default function Error({
             boxShadow: '0 4px 16px rgba(0, 170, 136, 0.4)',
           }}
         >
-          Back to Home
+          Back to Games
         </Link>
       </div>
     </div>

@@ -237,7 +237,7 @@ export interface CoinPack {
   stripePriceId: string;
 }
 
-export type TabType = 'home' | 'avatarShop' | 'coins' | 'friends' | 'settings' | 'donation' | 'aiCoder' | 'adminPanel' | 'report';
+export type TabType = 'games' | 'avatarShop' | 'coins' | 'friends' | 'settings' | 'donation' | 'aiCoder' | 'adminPanel' | 'report';
 
 export interface TabContent {
   home?: string;

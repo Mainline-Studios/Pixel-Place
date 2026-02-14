@@ -1,39 +1,31 @@
 const PATH_TO_TAB: Record<string, string> = {
-  '/': 'home',
-  '/home': 'home',
-  '/play': 'play',
-  '/create': 'createGame',
+  '/': 'games',
+  '/home': 'games',
+  '/play': 'games',
   '/games': 'games',
   '/avatarshop': 'avatarShop',
   '/coins': 'coins',
   '/friends': 'friends',
-  '/servers': 'servers',
   '/settings': 'settings',
-  '/studio': 'studio',
   '/donation': 'donation',
 };
 
 const TAB_TO_PATH: Record<string, string> = {
-  home: '/home',
-  play: '/play',
-  createGame: '/create',
   games: '/games',
   avatarShop: '/avatarshop',
   coins: '/coins',
   friends: '/friends',
-  servers: '/servers',
   settings: '/settings',
-  studio: '/studio',
   donation: '/donation',
 };
 
 export function pathToTab(pathname: string): string {
   const p = pathname.replace(/\/$/, '') || '/';
-  return PATH_TO_TAB[p] ?? 'home';
+  return PATH_TO_TAB[p] ?? 'games';
 }
 
 export function tabToPath(tab: string): string {
-  return TAB_TO_PATH[tab] ?? '/home';
+  return TAB_TO_PATH[tab] ?? '/games';
 }
 
 /** Navigate to a tab from anywhere in the app. Dispatches a custom event that Dashboard listens to. */

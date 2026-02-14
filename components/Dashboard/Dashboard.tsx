@@ -1,13 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { TabType, User } from '@/types';
-import { getInitials } from '@/lib/utils';
-import { getPublished, savePublished } from '@/lib/storage';
+import { pathToTab, tabToPath } from '@/lib/routing';
 import TopBar from './TopBar';
 import Sidebar from './Sidebar';
-import HomeTab from '../Tabs/HomeTab';
-// DiscoverTab, PlayTab, GamesTab, CreateTab, StudioTab, and ServersTab removed
+import GamesTab from '../Tabs/GamesTab';
 import AvatarShopTab from '../Tabs/AvatarShopTab';
 import CoinsTab from '../Tabs/CoinsTab';
 import FriendsTab from '../Tabs/FriendsTab';
@@ -18,25 +16,37 @@ interface DashboardProps {
 }
 
 export default function Dashboard({ user }: DashboardProps) {
-  const [currentTab, setCurrentTab] = useState<TabType>('home');
+  const [currentTab, setCurrentTab] = useState<TabType>('games');
   const [editMode, setEditMode] = useState(false);
 
-  const handleResetPublished = () => {
-    if (user.role !== 'admin') return;
-    savePublished([]);
-    // Silent success - no alert
-    // Force re-render if on home tab
-    if (currentTab === 'home') {
-      setCurrentTab('home');
+  // Sync tab with URL (path) on load and popstate
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const sync = () => {
+      const tab = pathToTab(window.location.pathname) as TabType;
+      if (['games', 'avatarShop', 'coins', 'friends', 'settings', 'donation'].includes(tab)) {
+        setCurrentTab(tab);
+      }
+    };
+    sync();
+    window.addEventListener('popstate', sync);
+    return () => window.removeEventListener('popstate', sync);
+  }, []);
+
+  const handleTabChange = (tab: TabType) => {
+    setCurrentTab(tab);
+    if (typeof window !== 'undefined') {
+      const path = tabToPath(tab);
+      if (window.location.pathname !== path) {
+        window.history.replaceState({}, '', path);
+      }
     }
   };
 
   const renderTabContent = () => {
     switch (currentTab) {
-      case 'home':
-        return <HomeTab user={user} editMode={editMode} />;
-      // Discover tab and Play tab were merged into Home tab - removed
-      // Create tab removed
+      case 'games':
+        return <GamesTab user={user} editMode={editMode} />;
       case 'avatarShop':
         return <AvatarShopTab user={user} editMode={editMode} />;
       case 'coins':
@@ -44,12 +54,11 @@ export default function Dashboard({ user }: DashboardProps) {
       case 'friends':
         return <FriendsTab user={user} editMode={editMode} />;
       case 'settings':
-        return (
+        return         (
           <SettingsTab
             user={user}
             editMode={editMode}
             onToggleEditMode={() => setEditMode(!editMode)}
-            onResetPublished={handleResetPublished}
           />
         );
       default:
@@ -61,7 +70,7 @@ export default function Dashboard({ user }: DashboardProps) {
     <div id="dashboard">
       <TopBar
         currentTab={currentTab}
-        onTabChange={setCurrentTab}
+        onTabChange={handleTabChange}
         user={user}
       />
       <div className="body-row">

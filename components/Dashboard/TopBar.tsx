@@ -14,7 +14,7 @@ interface TopBarProps {
 }
 
 const TABS: { key: TabType; label: string; adminOnly?: boolean }[] = [
-  { key: 'home', label: 'Home' },
+  { key: 'games', label: 'Games' },
   { key: 'avatarShop', label: 'Avatar Shop' },
   { key: 'coins', label: 'Pixel Coins' },
   { key: 'friends', label: 'Friends' },

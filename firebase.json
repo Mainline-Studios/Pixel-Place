@@ -2,18 +2,22 @@
   "hosting": {
     "public": "out",
     "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
+    "redirects": [
+      {"source": "/home", "destination": "/games", "type": 301},
+      {"source": "/home/**", "destination": "/games", "type": 301},
+      {"source": "/play", "destination": "/games", "type": 301},
+      {"source": "/play/**", "destination": "/games", "type": 301}
+    ],
     "rewrites": [
       {"source": "/api/**", "function": "api"},
-      {"source": "/home", "destination": "/index.html"},
-      {"source": "/play", "destination": "/index.html"},
-      {"source": "/create", "destination": "/index.html"},
+      {"source": "/", "destination": "/index.html"},
       {"source": "/games", "destination": "/index.html"},
+      {"source": "/games/**", "destination": "/index.html"},
       {"source": "/avatarshop", "destination": "/index.html"},
+      {"source": "/avatarshop/**", "destination": "/index.html"},
       {"source": "/coins", "destination": "/index.html"},
       {"source": "/friends", "destination": "/index.html"},
-      {"source": "/servers", "destination": "/index.html"},
       {"source": "/settings", "destination": "/index.html"},
-      {"source": "/studio", "destination": "/index.html"},
       {"source": "/donation", "destination": "/index.html"}
     ],
     "headers": [

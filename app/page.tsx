@@ -11,40 +11,11 @@ import { getPlaytimeTracker } from '@/lib/playtimeTracker';
 import { User } from '@/types';
 import ErrorBoundary from '@/components/ErrorBoundary';
 
-const GUEST_USER: User = {
-  username: 'Guest',
-  password: '',
-  gender: '',
-  role: 'user',
-  coins: 0,
-  ownedSkins: ['starter_classic'],
-  equippedSkin: 'starter_classic',
-  ownedAccessories: [],
-  equippedAccessories: {} as Record<string, string>,
-  ownedServers: [],
-  friends: [],
-};
-
-import { pathToTab } from '@/lib/routing';
 
 function AppContent() {
   const { user } = useUser();
   const [showSplash, setShowSplash] = useState(true);
-  const [showLoginForm, setShowLoginForm] = useState(false);
-  const [initialTab, setInitialTab] = useState<string>('home');
   const prevUserRef = React.useRef<User | null>(null);
-
-  // Read pathname for initial tab (preview)
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const sync = () => {
-      const tab = pathToTab(window.location.pathname);
-      setInitialTab(tab);
-    };
-    sync();
-    window.addEventListener('popstate', sync);
-    return () => window.removeEventListener('popstate', sync);
-  }, []);
 
   // Start playtime tracking when user signs in (no popup)
   useEffect(() => {
@@ -71,23 +42,20 @@ function AppContent() {
     };
   }, [user]);
 
-  const displayUser = user || GUEST_USER;
-  const isPreview = !user;
-
   return (
     <>
       {showSplash ? (
         <SplashScreen onComplete={() => setShowSplash(false)} />
-      ) : showLoginForm ? (
+      ) : !user ? (
         <>
-          <Login onBack={() => setShowLoginForm(false)} />
+          <Login />
           <InstallPrompt />
         </>
       ) : (
         <>
-          <Dashboard user={displayUser} />
+          <Dashboard user={user} />
           <InstallPrompt />
-          {user && <BreakReminder />}
+          <BreakReminder />
         </>
       )}
       

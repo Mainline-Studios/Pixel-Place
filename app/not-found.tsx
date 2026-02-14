@@ -44,7 +44,7 @@ export default function NotFound() {
         Oops! The page you&apos;re looking for doesn&apos;t exist or has been moved.
       </p>
       <Link
-        href="/home"
+        href="/games"
         style={{
           display: 'inline-block',
           background: 'linear-gradient(135deg, #00aa88 0%, #008866 100%)',
@@ -60,7 +60,7 @@ export default function NotFound() {
           transition: 'all 0.2s',
         }}
       >
-        Back to Home
+        Back to Games
       </Link>
     </div>
   );
