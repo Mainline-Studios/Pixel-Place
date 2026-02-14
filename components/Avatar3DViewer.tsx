@@ -9,6 +9,9 @@ interface Avatar3DViewerProps {
   height?: number;
   interactive?: boolean; // Enable mouse interaction
   animation?: string; // Animation to play
+  equippedFace?: Skin; // Optional equipped face to apply to head
+  onReady?: () => void;
+  onError?: (error?: Error) => void;
 }
 
 export default function Avatar3DViewer({
@@ -16,7 +19,10 @@ export default function Avatar3DViewer({
   width = 200,
   height = 200,
   interactive = true,
-  animation = 'idle'
+  animation = 'idle',
+  equippedFace,
+  onReady,
+  onError
 }: Avatar3DViewerProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const mountRef = useRef<HTMLDivElement>(null);
@@ -28,6 +34,17 @@ export default function Avatar3DViewer({
   const animationFrameRef = useRef<number | null>(null);
   const mousePositionRef = useRef({ x: 0, y: 0 });
   const rotationRef = useRef({ x: 0, y: 0 });
+  const readySignalRef = useRef(false);
+  const onReadyRef = useRef(onReady);
+  const onErrorRef = useRef(onError);
+
+  useEffect(() => {
+    onReadyRef.current = onReady;
+  }, [onReady]);
+
+  useEffect(() => {
+    onErrorRef.current = onError;
+  }, [onError]);
 
   // Convert hex color to Three.js color
   const hexToColor = (hex: string) => {
@@ -56,6 +73,7 @@ export default function Avatar3DViewer({
     let characterGroup: any;
     let animationTime = 0;
     let isMounted = true;
+    readySignalRef.current = false;
 
     // Dynamic import for Three.js with error handling
     import('three').then((module) => {
@@ -64,11 +82,28 @@ export default function Avatar3DViewer({
       try {
         THREE = module;
         
-        // Validate skin again inside useEffect
-        if (!skin || !skin.colors || !skin.colors.head || !skin.colors.torso || !skin.colors.arm || !skin.colors.legs) {
+        // Validate skin again inside useEffect - ensure colors exist with defaults
+        if (!skin) {
+          const error = new Error('Invalid skin data');
           console.warn('Invalid skin data:', skin);
+          onErrorRef.current?.(error);
           return;
         }
+        
+        // Ensure all color properties exist with defaults
+        const defaultColors = {
+          head: '#f4c2a1',
+          torso: '#4d536f',
+          arm: '#3a3f56',
+          legs: '#3a3f56'
+        };
+
+        const resolvedColors = {
+          head: skin.colors?.head || defaultColors.head,
+          torso: skin.colors?.torso || defaultColors.torso,
+          arm: skin.colors?.arm || defaultColors.arm,
+          legs: skin.colors?.legs || defaultColors.legs
+        };
 
         const canvas = canvasRef.current!;
         const renderer = new THREE.WebGLRenderer({
@@ -76,16 +111,24 @@ export default function Avatar3DViewer({
           antialias: true,
           alpha: true
         });
+        rendererRef.current = renderer;
         renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
         renderer.setSize(width, height);
         renderer.setClearColor(0x000000, 0);
+        if ('outputColorSpace' in renderer && THREE.SRGBColorSpace) {
+          renderer.outputColorSpace = THREE.SRGBColorSpace;
+        } else if ('outputEncoding' in renderer && THREE.sRGBEncoding) {
+          renderer.outputEncoding = THREE.sRGBEncoding;
+        }
 
         const scene = new THREE.Scene();
+        sceneRef.current = scene;
 
         // Camera setup - adjusted to see top of hat and bottom of legs
         const camera = new THREE.PerspectiveCamera(55, width / height, 0.1, 1000);
         camera.position.set(0, 3.2, 7);
         camera.lookAt(0, 1.5, 0);
+        cameraRef.current = camera;
 
         // Lighting - soft ambient + directional
         const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
@@ -103,6 +146,7 @@ export default function Avatar3DViewer({
         // Create character group
         characterGroup = new THREE.Group();
         scene.add(characterGroup);
+        characterGroupRef.current = characterGroup;
 
         // Texture creation functions - Realistic textures like Roblox
         const createSkinTexture = (color: { r: number, g: number, b: number }) => {
@@ -138,6 +182,11 @@ export default function Avatar3DViewer({
           }
 
           const texture = new THREE.CanvasTexture(canvas);
+          if ('colorSpace' in texture && THREE.SRGBColorSpace) {
+            (texture as any).colorSpace = THREE.SRGBColorSpace;
+          } else if ('encoding' in texture && THREE.sRGBEncoding) {
+            (texture as any).encoding = THREE.sRGBEncoding;
+          }
           texture.wrapS = THREE.RepeatWrapping;
           texture.wrapT = THREE.RepeatWrapping;
           return texture;
@@ -169,6 +218,11 @@ export default function Avatar3DViewer({
           }
 
           const texture = new THREE.CanvasTexture(canvas);
+          if ('colorSpace' in texture && THREE.SRGBColorSpace) {
+            (texture as any).colorSpace = THREE.SRGBColorSpace;
+          } else if ('encoding' in texture && THREE.sRGBEncoding) {
+            (texture as any).encoding = THREE.sRGBEncoding;
+          }
           texture.magFilter = THREE.NearestFilter;
           texture.minFilter = THREE.NearestFilter;
           texture.wrapS = THREE.RepeatWrapping;
@@ -176,37 +230,55 @@ export default function Avatar3DViewer({
           return texture;
         };
 
-        // Colors
-        const headColor = hexToColor(skin.colors?.head || '#f4c2a1');
-        const torsoColor = hexToColor(skin.colors?.torso || '#4d536f');
-        const armColor = hexToColor(skin.colors?.arm || '#3a3f56');
-        const legColor = hexToColor(skin.colors?.legs || '#3a3f56');
+        // Colors - apply equipped face to head if available
+        const headColor = hexToColor(equippedFace?.colors?.head || resolvedColors.head);
+        const torsoColor = hexToColor(resolvedColors.torso);
+        const armColor = hexToColor(resolvedColors.arm);
+        const legColor = hexToColor(resolvedColors.legs);
+        
+        // Use face materials if equipped face has glow
+        const faceHasGlow = equippedFace?.isSpecial || equippedFace?.materials?.head?.emissive !== undefined;
+        const faceGlowColor = equippedFace?.materials?.head?.emissive || equippedFace?.materials?.torso?.emissive;
+        const faceGlowIntensity = equippedFace?.materials?.head?.emissiveIntensity || equippedFace?.materials?.torso?.emissiveIntensity || 0.6;
 
-        // Create materials with pixelated textures
-        const headMaterial = new THREE.MeshStandardMaterial({
-          map: createPixelatedTexture(headColor, 8),
-          color: new THREE.Color(headColor.r, headColor.g, headColor.b),
-          roughness: 0.8,
-          metalness: 0.0
-        });
-        const torsoMaterial = new THREE.MeshStandardMaterial({
-          map: createPixelatedTexture(torsoColor, 8),
-          color: new THREE.Color(torsoColor.r, torsoColor.g, torsoColor.b),
-          roughness: 0.7,
-          metalness: 0.1
-        });
-        const armMaterial = new THREE.MeshStandardMaterial({
-          map: createPixelatedTexture(armColor, 8),
-          color: new THREE.Color(armColor.r, armColor.g, armColor.b),
-          roughness: 0.7,
-          metalness: 0.1
-        });
-        const legMaterial = new THREE.MeshStandardMaterial({
-          map: createPixelatedTexture(legColor, 8),
-          color: new THREE.Color(legColor.r, legColor.g, legColor.b),
-          roughness: 0.7,
-          metalness: 0.1
-        });
+        // Check for glow properties (skin or equipped face)
+        const hasGlow = skin.isSpecial || (skin.materials?.torso?.emissive !== undefined) || faceHasGlow;
+        const glowColor = faceGlowColor || skin.materials?.torso?.emissive || skin.materials?.head?.emissive || '#4a90e2';
+        const glowIntensity = faceGlowIntensity || skin.materials?.torso?.emissiveIntensity || skin.materials?.head?.emissiveIntensity || 0.6;
+
+        // Create materials with pixelated textures (or glow for special skins/faces)
+        const headMaterial = (hasGlow && (faceHasGlow || skin.isSpecial))
+          ? createGlowMaterial(headColor, true, glowColor, glowIntensity)
+          : new THREE.MeshStandardMaterial({
+              map: createPixelatedTexture(headColor, 8),
+              color: new THREE.Color(headColor.r, headColor.g, headColor.b),
+              roughness: 0.8,
+              metalness: 0.0
+            });
+        const torsoMaterial = hasGlow
+          ? createGlowMaterial(torsoColor, true, glowColor, glowIntensity)
+          : new THREE.MeshStandardMaterial({
+              map: createPixelatedTexture(torsoColor, 8),
+              color: new THREE.Color(torsoColor.r, torsoColor.g, torsoColor.b),
+              roughness: 0.7,
+              metalness: 0.1
+            });
+        const armMaterial = hasGlow
+          ? createGlowMaterial(armColor, true, glowColor, glowIntensity)
+          : new THREE.MeshStandardMaterial({
+              map: createPixelatedTexture(armColor, 8),
+              color: new THREE.Color(armColor.r, armColor.g, armColor.b),
+              roughness: 0.7,
+              metalness: 0.1
+            });
+        const legMaterial = hasGlow
+          ? createGlowMaterial(legColor, true, glowColor, glowIntensity)
+          : new THREE.MeshStandardMaterial({
+              map: createPixelatedTexture(legColor, 8),
+              color: new THREE.Color(legColor.r, legColor.g, legColor.b),
+              roughness: 0.7,
+              metalness: 0.1
+            });
 
         // Helper function to create Roblox-style rounded boxes
         const createRoundedBox = (width: number, height: number, depth: number, radius: number = 0.1) => {
@@ -280,68 +352,101 @@ export default function Avatar3DViewer({
         const bodyScale = (skin as any).bodyScale || { x: 1, y: 1, z: 1 };
         const headScale = (skin as any).headScale || { x: 1, y: 1, z: 1 };
         const isSpecial = (skin as any).special || false;
+        const isHighPoly = true; // All skins render 500+ polygons
+
+        // Helper to create high-poly geometry (500+ polygons MINIMUM)
+        const createHighPolyGeometry = (type: 'head' | 'torso' | 'arm' | 'leg', width: number, height: number, depth: number) => {
+          if (!isHighPoly) {
+            return createRoundedBox(width, height, depth, 0.1);
+          }
+          
+          // Use IcosahedronGeometry for head (high poly sphere) - 4 subdivisions = ~5120 faces
+          if (type === 'head') {
+            const radius = Math.max(width, height, depth) / 2;
+            const geometry = new THREE.IcosahedronGeometry(radius, 4); // 4 subdivisions = ~5120 faces (WAY over 500!)
+            return geometry;
+          }
+          
+          // For body parts, use highly subdivided box geometry - 20x20x20 = 2400 faces per box (WAY over 500!)
+          const segments = 20; // 20x20x20 = 2400 faces per box (ensures 500+ polygons)
+          const geometry = new THREE.BoxGeometry(width, height, depth, segments, segments, segments);
+          geometry.computeVertexNormals();
+          return geometry;
+        };
+
+        // Helper to create glowing material with emissive properties
+        const createGlowMaterial = (baseColor: { r: number, g: number, b: number }, hasGlow: boolean, glowColor?: string, glowIntensity: number = 0.5) => {
+          const material = new THREE.MeshStandardMaterial({
+            color: new THREE.Color(baseColor.r, baseColor.g, baseColor.b),
+            roughness: hasGlow ? 0.3 : 0.7,
+            metalness: hasGlow ? 0.5 : 0.1,
+            emissive: hasGlow && glowColor ? new THREE.Color(glowColor) : new THREE.Color(0, 0, 0),
+            emissiveIntensity: hasGlow ? glowIntensity : 0
+          });
+          return material;
+        };
 
         // Add accessories if available
-        // Head - square block like Roblox (with special scaling for themed skins)
+        // Head - high-poly sphere for special skins, box for regular
         const headSize = isSpecial ? 1.2 : 1.2;
-        const headGeometry = createRoundedBox(headSize * headScale.x, headSize * headScale.y, headSize * headScale.z, 0.08);
+        const headGeometry = createHighPolyGeometry('head', headSize * headScale.x, headSize * headScale.y, headSize * headScale.z);
         const head = new THREE.Mesh(headGeometry, headMaterial);
         head.position.set(0, 2.1, 0);
         characterGroup.add(head);
 
-        // Torso - wider and taller like Roblox (with special scaling)
+        // Torso - high-poly for special skins
         const torsoSize = { w: 1.6, h: 1.8, d: 0.8 };
-        const torsoGeometry = createRoundedBox(
+        const torsoGeometry = createHighPolyGeometry(
+          'torso',
           torsoSize.w * bodyScale.x, 
           torsoSize.h * bodyScale.y, 
-          torsoSize.d * bodyScale.z, 
-          0.1
+          torsoSize.d * bodyScale.z
         );
         const torso = new THREE.Mesh(torsoGeometry, torsoMaterial);
         torso.position.set(0, 0.9, 0);
         characterGroup.add(torso);
 
-        // Left Arm (with scaling)
+        // Left Arm - high-poly for special skins
         const armSize = { w: 0.5, h: 1.8, d: 0.5 };
-        const leftArmGeometry = createRoundedBox(
+        const leftArmGeometry = createHighPolyGeometry(
+          'arm',
           armSize.w * bodyScale.x, 
           armSize.h * bodyScale.y, 
-          armSize.d * bodyScale.z, 
-          0.06
+          armSize.d * bodyScale.z
         );
         const leftArm = new THREE.Mesh(leftArmGeometry, armMaterial);
         leftArm.position.set(-1.15 * bodyScale.x, 0.9, 0);
         characterGroup.add(leftArm);
 
-        // Right Arm (with scaling)
-        const rightArmGeometry = createRoundedBox(
+        // Right Arm - high-poly for special skins
+        const rightArmGeometry = createHighPolyGeometry(
+          'arm',
           armSize.w * bodyScale.x, 
           armSize.h * bodyScale.y, 
-          armSize.d * bodyScale.z, 
-          0.06
+          armSize.d * bodyScale.z
         );
         const rightArm = new THREE.Mesh(rightArmGeometry, armMaterial);
         rightArm.position.set(1.15 * bodyScale.x, 0.9, 0);
         characterGroup.add(rightArm);
 
-        // Left Leg (with scaling)
+        // Left Leg - high-poly for special skins
         const legSize = { w: 0.6, h: 1.6, d: 0.6 };
-        const leftLegGeometry = createRoundedBox(
+        const leftLegGeometry = createHighPolyGeometry(
+          'leg',
           legSize.w * bodyScale.x, 
           legSize.h * bodyScale.y, 
-          legSize.d * bodyScale.z, 
-          0.06
+          legSize.d * bodyScale.z
         );
         const leftLeg = new THREE.Mesh(leftLegGeometry, legMaterial);
         leftLeg.position.set(-0.4 * bodyScale.x, -1.0, 0);
         characterGroup.add(leftLeg);
 
-        // Right Leg (with scaling)
-        const rightLegGeometry = createRoundedBox(
+        // Right Leg - high-poly for special skins
+        const rightLegGeometry = createHighPolyGeometry(
+          'leg',
           legSize.w * bodyScale.x, 
           legSize.h * bodyScale.y, 
-          legSize.d * bodyScale.z, 
-          0.06
+          legSize.d * bodyScale.z
         );
         const rightLeg = new THREE.Mesh(rightLegGeometry, legMaterial);
         rightLeg.position.set(0.4 * bodyScale.x, -1.0, 0);
@@ -1128,7 +1233,7 @@ export default function Avatar3DViewer({
                   const antennaMesh = new THREE.Mesh(antenna, robotMat);
                   antennaMesh.position.set(0, 0.9, 0);
                   petGroup.add(antennaMesh);
-                  const antennaBall = new THREE.SphereGeometry(0.06, 8, 8);
+                  const antennaBall = new THREE.SphereGeometry(0.06, isHighPoly ? 16 : 8, isHighPoly ? 16 : 8);
                   const antennaBallMesh = new THREE.Mesh(antennaBall, eyeMat);
                   antennaBallMesh.position.set(0, 0.98, 0);
                   petGroup.add(antennaBallMesh);
@@ -1140,12 +1245,12 @@ export default function Avatar3DViewer({
                     roughness: 0.1,
                     metalness: 0.9
                   });
-                  const leftShoulder = new THREE.SphereGeometry(0.12, 8, 8);
+                  const leftShoulder = new THREE.SphereGeometry(0.12, isHighPoly ? 16 : 8, isHighPoly ? 16 : 8);
                   const leftShoulderMesh = new THREE.Mesh(leftShoulder, jointMat);
                   leftShoulderMesh.position.set(-0.35, 0.5, 0);
                   petGroup.add(leftShoulderMesh);
 
-                  const rightShoulder = new THREE.SphereGeometry(0.12, 8, 8);
+                  const rightShoulder = new THREE.SphereGeometry(0.12, isHighPoly ? 16 : 8, isHighPoly ? 16 : 8);
                   const rightShoulderMesh = new THREE.Mesh(rightShoulder, jointMat);
                   rightShoulderMesh.position.set(0.35, 0.5, 0);
                   petGroup.add(rightShoulderMesh);
@@ -1161,12 +1266,12 @@ export default function Avatar3DViewer({
                   petGroup.add(rightArm);
 
                   // Robot elbows (joints)
-                  const leftElbow = new THREE.SphereGeometry(0.1, 8, 8);
+                  const leftElbow = new THREE.SphereGeometry(0.1, isHighPoly ? 16 : 8, isHighPoly ? 16 : 8);
                   const leftElbowMesh = new THREE.Mesh(leftElbow, jointMat);
                   leftElbowMesh.position.set(-0.35, 0, 0);
                   petGroup.add(leftElbowMesh);
 
-                  const rightElbow = new THREE.SphereGeometry(0.1, 8, 8);
+                  const rightElbow = new THREE.SphereGeometry(0.1, isHighPoly ? 16 : 8, isHighPoly ? 16 : 8);
                   const rightElbowMesh = new THREE.Mesh(rightElbow, jointMat);
                   rightElbowMesh.position.set(0.35, 0, 0);
                   petGroup.add(rightElbowMesh);
@@ -1182,12 +1287,12 @@ export default function Avatar3DViewer({
                   petGroup.add(rightLeg);
 
                   // Robot hips (joints)
-                  const leftHip = new THREE.SphereGeometry(0.1, 8, 8);
+                  const leftHip = new THREE.SphereGeometry(0.1, isHighPoly ? 16 : 8, isHighPoly ? 16 : 8);
                   const leftHipMesh = new THREE.Mesh(leftHip, jointMat);
                   leftHipMesh.position.set(-0.2, 0.15, 0);
                   petGroup.add(leftHipMesh);
 
-                  const rightHip = new THREE.SphereGeometry(0.1, 8, 8);
+                  const rightHip = new THREE.SphereGeometry(0.1, isHighPoly ? 16 : 8, isHighPoly ? 16 : 8);
                   const rightHipMesh = new THREE.Mesh(rightHip, jointMat);
                   rightHipMesh.position.set(0.2, 0.15, 0);
                   petGroup.add(rightHipMesh);
@@ -1296,6 +1401,111 @@ export default function Avatar3DViewer({
                   accessoryMesh = petGroup as any;
                 }
                 break;
+              case 'drone':
+                // Floating drone accessory above player - supports GLTF models
+                const droneGroup = new THREE.Group();
+                const floatHeight = accessory.floatHeight || 3.0; // Default 3 units above player
+                const rotationSpeed = accessory.rotationSpeed || 0.5;
+                
+                // Helper function for fallback drone (defined first)
+                const createDroneFallback = (group: any, acc: any) => {
+                  const droneColor = hexToColor(acc.color || '#1a1a2e');
+                  const droneMat = new THREE.MeshStandardMaterial({
+                    color: new THREE.Color(droneColor.r, droneColor.g, droneColor.b),
+                    metalness: 0.9,
+                    roughness: 0.2,
+                    emissive: new THREE.Color(0, 0.3, 0.6),
+                    emissiveIntensity: 0.5
+                  });
+                  
+                  // Main body
+                  const body = new THREE.Mesh(
+                    new THREE.BoxGeometry(0.8, 0.3, 0.8),
+                    droneMat
+                  );
+                  group.add(body);
+                  
+                  // 4 rotors
+                  for (let i = 0; i < 4; i++) {
+                    const angle = (i * Math.PI * 2) / 4;
+                    const rotor = new THREE.Mesh(
+                      new THREE.CylinderGeometry(0.15, 0.15, 0.05, 8),
+                      new THREE.MeshStandardMaterial({
+                        color: new THREE.Color(0.8, 0.8, 0.9),
+                        metalness: 0.7,
+                        roughness: 0.3
+                      })
+                    );
+                    rotor.position.set(
+                      Math.cos(angle) * 0.5,
+                      0.2,
+                      Math.sin(angle) * 0.5
+                    );
+                    group.add(rotor);
+                  }
+                };
+                
+                // Load GLTF model if modelUrl is provided
+                if (accessory.modelUrl) {
+                  import('three/examples/jsm/loaders/GLTFLoader.js').then(({ GLTFLoader }) => {
+                    const loader = new GLTFLoader();
+                    loader.load(
+                      accessory.modelUrl!,
+                      (gltf) => {
+                        if (!isMounted || !droneGroup) return;
+                        
+                        const model = gltf.scene;
+                        
+                        // Scale model appropriately
+                        const scale = accessory.scale || 1.0;
+                        model.scale.set(scale, scale, scale);
+                        
+                        // Center the model
+                        const box = new THREE.Box3().setFromObject(model);
+                        const center = box.getCenter(new THREE.Vector3());
+                        model.position.sub(center);
+                        
+                        droneGroup.add(model);
+                      },
+                      undefined,
+                      (error) => {
+                        console.error('Error loading drone GLTF:', error);
+                        // Fallback to simple representation
+                        createDroneFallback(droneGroup, accessory);
+                      }
+                    );
+                  }).catch(() => {
+                    // Fallback if GLTFLoader fails to import
+                    createDroneFallback(droneGroup, accessory);
+                  });
+                } else {
+                  // Create simple drone representation
+                  createDroneFallback(droneGroup, accessory);
+                }
+                
+                // Position drone floating above player
+                droneGroup.position.set(0, floatHeight, 0);
+                droneGroup.userData.isDrone = true;
+                droneGroup.userData.rotationSpeed = rotationSpeed;
+                droneGroup.userData.floatHeight = floatHeight;
+                
+                // Add floating animation
+                const floatTime = { value: 0 };
+                const animateFloat = () => {
+                  if (!isMounted || !droneGroup) return;
+                  floatTime.value += 0.02;
+                  // Gentle floating motion
+                  droneGroup.position.y = floatHeight + Math.sin(floatTime.value) * 0.2;
+                  // Slow rotation
+                  droneGroup.rotation.y += rotationSpeed * 0.01;
+                };
+                
+                // Store animation function
+                droneGroup.userData.animateFloat = animateFloat;
+                
+                characterGroup.add(droneGroup);
+                accessoryMesh = droneGroup as any;
+                break;
               default:
                 const defaultGeometry = new THREE.BoxGeometry(0.3, 0.3, 0.3);
                 accessoryMesh = new THREE.Mesh(defaultGeometry, accessoryMaterial);
@@ -1317,9 +1527,23 @@ export default function Avatar3DViewer({
         characterGroupRef.current = characterGroup;
 
         // Animation function
+        const signalReady = () => {
+          if (!readySignalRef.current) {
+            readySignalRef.current = true;
+            onReadyRef.current?.();
+          }
+        };
+
         const animate = () => {
           animationFrameRef.current = requestAnimationFrame(animate);
           animationTime += 0.016; // ~60fps
+
+          // Animate floating drones
+          characterGroup.children.forEach((child: any) => {
+            if (child.userData?.isDrone && child.userData?.animateFloat) {
+              child.userData.animateFloat();
+            }
+          });
 
           // Apply rotation based on mouse position
           if (interactive && isHovered) {
@@ -1401,17 +1625,20 @@ export default function Avatar3DViewer({
           }
 
           renderer.render(scene, camera);
+          signalReady();
         };
 
         animate();
       } catch (error) {
         console.error('Error in Avatar3DViewer:', error);
+        onErrorRef.current?.(error as Error);
         if (canvasRef.current) {
           canvasRef.current.style.display = 'none';
         }
       }
     }).catch((error) => {
       console.error('Failed to load Three.js:', error);
+      onErrorRef.current?.(error as Error);
       if (canvasRef.current) {
         canvasRef.current.style.display = 'none';
       }

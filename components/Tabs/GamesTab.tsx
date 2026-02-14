@@ -3,16 +3,17 @@
 import { useState, useEffect } from 'react';
 import { User, UserMadeGame } from '@/types';
 import { getUserMadeGames, deleteUserMadeGame } from '@/lib/storage';
+import { subscribeToUserMadeGames } from '@/lib/firestoreClient';
 import UserMadeGamePlayer from '../Games/UserMadeGamePlayer';
+import GameErrorBoundary from '../GameErrorBoundary';
+import GymPumpEngine from '../Games/GymPumpEngine';
 import Hypnosia from '../Games/Hypnosia';
 import UnderwaterOddyseySeries from '../Games/UnderwaterOddyseySeries';
-import SuperShowdown2 from '../Games/SuperShowdown2';
-import SuperShowdown from '../Games/SuperShowdown';
+import Showdown from '../Games/Showdown';
 import RedRover from '../Games/RedRover';
 import JungleJourneySeries from '../Games/JungleJourneySeries';
 import Chess from '../Games/Chess';
 import FloorIsLava from '../Games/FloorIsLava';
-import SuperShowdownCombined from '../Games/InsaneShowdown';
 
 interface GamesTabProps {
   user: User;
@@ -24,6 +25,7 @@ interface GameInfo {
   name: string;
   description: string;
   icon: string;
+  thumbnail?: string; // gameplay image path, e.g. /images/games/gym-pump.png
   category: string;
   is3D?: boolean;
   component: React.ComponentType<any>;
@@ -33,10 +35,20 @@ interface GameInfo {
 // All available games
 const games: GameInfo[] = [
   {
+    id: 'gymPump',
+    name: 'Gym Pump',
+    description: 'Lift weights, build power, and climb the leaderboard!',
+    icon: '💪',
+    thumbnail: '/images/games/gym-pump.svg',
+    category: 'Action',
+    component: GymPumpEngine,
+  },
+  {
     id: 'hypnosia',
     name: 'Hypnosia',
     description: 'Test your deduction skills in this mysterious game!',
     icon: '🔮',
+    thumbnail: '/images/games/hypnosia.svg',
     category: 'Puzzle',
     component: Hypnosia,
   },
@@ -45,78 +57,79 @@ const games: GameInfo[] = [
     name: 'Underwater Odyssey',
     description: 'Explore the depths of the ocean in this adventure series!',
     icon: '🌊',
+    thumbnail: '/images/games/underwater-odyssey.svg',
     category: 'Adventure',
     component: UnderwaterOddyseySeries,
   },
   {
-    id: 'superShowdown2',
-    name: 'Super Showdown 2',
-    description: 'Epic arena battles with powerful abilities!',
-    icon: '⚔️',
-    category: 'Action',
-    component: SuperShowdown2,
+    id: 'oceanlifePro',
+    name: 'OceanLife Pro',
+    description: 'Premium ocean explorer with expanded fauna, fishing, and deep-sea adventures!',
+    icon: '🐠',
+    thumbnail: '/images/games/underwater-odyssey.svg',
+    category: 'Adventure',
+    component: UnderwaterOddyseySeries,
   },
   {
-    id: 'superShowdown',
-    name: 'Super Showdown',
-    description: 'Original arena combat experience!',
-    icon: '🎯',
+    id: 'showdown',
+    name: 'Showdown',
+    description: 'Neon arena combat — 8 powers, pixelcoins, pickups!',
+    icon: '⚔️',
+    thumbnail: '/images/games/showdown.svg',
     category: 'Action',
-    component: SuperShowdown,
+    is3D: false,
+    component: Showdown,
   },
   {
     id: 'redRover',
     name: 'Red Rover',
     description: 'Classic team-based multiplayer game!',
     icon: '🏃',
-    category: 'Multiplayer',
-    component: RedRover,
-  },
-  {
-    id: 'jungleJourney',
-    name: 'Jungle Journey',
-    description: 'Navigate through the jungle and collect fruits!',
-    icon: '🌴',
+    thumbnail: '/images/games/red-rover.svg',
     category: 'Adventure',
-    component: JungleJourneySeries,
+    component: RedRover,
   },
   {
     id: 'chess',
     name: 'Chess',
     description: 'Classic chess game - challenge yourself or play online!',
     icon: '♟️',
+    thumbnail: '/images/games/chess.svg',
     category: 'Strategy',
     component: Chess,
-  },
-  {
-    id: 'floorIsLava',
-    name: 'Floor Is Lava',
-    description: 'Jump from platform to platform - don\'t touch the lava!',
-    icon: '🌋',
-    category: 'Platformer',
-    component: FloorIsLava,
-  },
-  {
-    id: 'insaneShowdown',
-    name: 'Insane Showdown',
-    description: 'Ultimate combined arena battle experience!',
-    icon: '🔥',
-    category: 'Action',
-    component: SuperShowdownCombined,
   },
 ];
 
 export default function GamesTab({ user, editMode }: GamesTabProps) {
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/002741fb-cb98-444e-83cd-7086902151aa',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'GamesTab.tsx:118',message:'GamesTab render start',data:{selectedGame:null,selectedUserGame:null},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+  // #endregion
   const [selectedGame, setSelectedGame] = useState<string | null>(null);
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/002741fb-cb98-444e-83cd-7086902151aa',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'GamesTab.tsx:120',message:'After useState selectedGame',data:{selectedGame},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+  // #endregion
   const [selectedUserGame, setSelectedUserGame] = useState<UserMadeGame | null>(null);
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/002741fb-cb98-444e-83cd-7086902151aa',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'GamesTab.tsx:121',message:'After useState selectedUserGame',data:{selectedUserGame},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+  // #endregion
   const [userMadeGames, setUserMadeGames] = useState<UserMadeGame[]>([]);
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/002741fb-cb98-444e-83cd-7086902151aa',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'GamesTab.tsx:122',message:'After useState userMadeGames',data:{userMadeGamesCount:userMadeGames.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+  // #endregion
 
+  // Real-time games from Firestore (instant updates when games are added/edited in Firebase Console)
   useEffect(() => {
-    const loadGames = async () => {
-      const games = await getUserMadeGames();
-      setUserMadeGames(games);
-    };
-    loadGames();
+    const unsub = subscribeToUserMadeGames((games) => {
+      setUserMadeGames(games as UserMadeGame[]);
+    });
+    return () => unsub();
+  }, []);
+
+  // Fallback initial load from API (e.g. if Firestore client not ready)
+  useEffect(() => {
+    getUserMadeGames().then((games) => {
+      if (games.length > 0) setUserMadeGames((prev) => prev.length === 0 ? games : prev);
+    });
   }, []);
 
   const handleDeleteGame = async (gameId: string, gameTitle: string) => {
@@ -129,25 +142,42 @@ export default function GamesTab({ user, editMode }: GamesTabProps) {
 
   const selectedGameInfo = games.find(g => g.id === selectedGame);
   const GameComponent = selectedGameInfo?.component;
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/002741fb-cb98-444e-83cd-7086902151aa',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'GamesTab.tsx:139',message:'Before early returns check',data:{selectedGame,selectedUserGame,hasGameComponent:!!GameComponent},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+  // #endregion
 
   if (selectedUserGame) {
     return (
-      <div>
+      <GameErrorBoundary onBack={() => setSelectedUserGame(null)} gameName={selectedUserGame.title}>
         <UserMadeGamePlayer game={selectedUserGame} user={user} onClose={() => setSelectedUserGame(null)} />
-      </div>
+      </GameErrorBoundary>
     );
   }
 
   if (selectedGame && GameComponent) {
-    const handleClose = () => setSelectedGame(null);
-    const gameInfo = games.find(g => g.id === selectedGame);
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/002741fb-cb98-444e-83cd-7086902151aa',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'GamesTab.tsx:150',message:'Early return selectedGame',data:{selectedGame},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+    // #endregion
+    const handleClose = () => {
+      setSelectedGame(null);
+      setSelectedUserGame(null);
+    };
     
     // Components that support onClose prop
-    const supportsOnClose = ['hypnosia'].includes(selectedGame);
+    const supportsOnClose = ['gymPump', 'hypnosia'].includes(selectedGame);
+    
+    // Prepare props based on game type - pass user to games that need it
+    const gameProps = selectedGame === 'gymPump' 
+      ? { user, onClose: handleClose }
+      : selectedGame === 'hypnosia'
+      ? { onClose: handleClose }
+      : selectedGame === 'showdown'
+      ? { user }
+      : {};
     
     return (
-      <div style={{ position: 'relative', width: '100%', minHeight: '100%' }}>
-        {!supportsOnClose && (
+      <GameErrorBoundary onBack={handleClose} gameName={selectedGameInfo?.name}>
+      <div key={selectedGame} style={{ position: 'relative', width: '100%', minHeight: '100%' }}>        {!supportsOnClose && (
           <button
             onClick={handleClose}
             style={{
@@ -169,12 +199,9 @@ export default function GamesTab({ user, editMode }: GamesTabProps) {
             ← Back
           </button>
         )}
-        {selectedGame === 'hypnosia' ? (
-          <GameComponent onClose={handleClose} />
-        ) : (
-          <GameComponent />
-        )}
+        <GameComponent key={selectedGame} {...gameProps} />
       </div>
+      </GameErrorBoundary>
     );
   }
 
@@ -216,11 +243,45 @@ export default function GamesTab({ user, editMode }: GamesTabProps) {
             }}
           >
             <div style={{
-              fontSize: '48px',
-              textAlign: 'center',
-              marginBottom: '16px'
+              width: '100%',
+              aspectRatio: '16/9',
+              borderRadius: '12px',
+              overflow: 'hidden',
+              marginBottom: '16px',
+              background: 'var(--panel-soft)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
             }}>
-              {game.icon}
+              {game.thumbnail ? (
+                <img
+                  src={game.thumbnail}
+                  alt={game.name}
+                  style={{
+                    width: '100%',
+                    height: '100%',
+                    objectFit: 'cover',
+                    display: 'block'
+                  }}
+                  onError={(e) => {
+                    const el = e.target as HTMLImageElement;
+                    el.style.display = 'none';
+                    (el.nextElementSibling as HTMLElement)?.style.setProperty('display', 'flex');
+                  }}
+                />
+              ) : null}
+              <span
+                style={{
+                  fontSize: '48px',
+                  lineHeight: 1,
+                  display: game.thumbnail ? 'none' : 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}
+                aria-hidden
+              >
+                {game.icon}
+              </span>
             </div>
             <div style={{
               fontSize: '20px',
@@ -257,8 +318,7 @@ export default function GamesTab({ user, editMode }: GamesTabProps) {
       <div className="ai-box" style={{ marginTop: '24px' }}>
         <div className="ai-label">Game Instructions</div>
         <div className="ai-output" style={{ fontSize: '13px', lineHeight: '1.8' }}>
-          Choose a game above and click "Play Now" to start playing!
-        </div>
+          <strong>Gym Pump:</strong> Lift weights, build power, and climb the leaderboard! Use the game controls to play.        </div>
       </div>
 
       {userMadeGames.length > 0 && (

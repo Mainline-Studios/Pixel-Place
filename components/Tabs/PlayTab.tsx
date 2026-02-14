@@ -2,15 +2,15 @@
 
 import { useState, useEffect } from 'react';
 import { User } from '@/types';
+import GameErrorBoundary from '../GameErrorBoundary';
+import GymPumpEngine from '../Games/GymPumpEngine';
 import Hypnosia from '../Games/Hypnosia';
 import UnderwaterOddyseySeries from '../Games/UnderwaterOddyseySeries';
-import SuperShowdown2 from '../Games/SuperShowdown2';
-import SuperShowdown from '../Games/SuperShowdown';
+import Showdown from '../Games/Showdown';
 import RedRover from '../Games/RedRover';
 import JungleJourneySeries from '../Games/JungleJourneySeries';
 import Chess from '../Games/Chess';
 import FloorIsLava from '../Games/FloorIsLava';
-import SuperShowdownCombined from '../Games/InsaneShowdown';
 
 interface PlayTabProps {
   user: User;
@@ -28,36 +28,28 @@ interface GameInfo {
 
 const games: GameInfo[] = [
   {
+    id: 'gymPump',
+    name: 'Gym Pump',
+    description: 'Lift weights, build power, and climb the leaderboard!',
+    icon: '💪',
+    category: 'Action',
+    component: GymPumpEngine,
+  },
+  {
     id: 'hypnosia',
     name: 'Hypnosia',
     description: 'Test your deduction skills in this mysterious game!',
-    icon: '🔮',
+    icon: '🔍',
     category: 'Puzzle',
     component: Hypnosia,
   },
   {
-    id: 'underwaterOdyssey',
-    name: 'Underwater Odyssey',
-    description: 'Explore the depths of the ocean in this adventure series!',
-    icon: '🌊',
+    id: 'oceanlifePro',
+    name: 'OceanLife Pro',
+    description: 'Premium ocean explorer with expanded fauna, fishing, and deep-sea adventures!',
+    icon: '🐠',
     category: 'Adventure',
     component: UnderwaterOddyseySeries,
-  },
-  {
-    id: 'superShowdown2',
-    name: 'Super Showdown 2',
-    description: 'Epic arena battles with powerful abilities!',
-    icon: '⚔️',
-    category: 'Action',
-    component: SuperShowdown2,
-  },
-  {
-    id: 'superShowdown',
-    name: 'Super Showdown',
-    description: 'Original arena combat experience!',
-    icon: '🎯',
-    category: 'Action',
-    component: SuperShowdown,
   },
   {
     id: 'redRover',
@@ -91,24 +83,30 @@ const games: GameInfo[] = [
     category: 'Platformer',
     component: FloorIsLava,
   },
-  {
-    id: 'insaneShowdown',
-    name: 'Insane Showdown',
-    description: 'Ultimate combined arena battle experience!',
-    icon: '🔥',
-    category: 'Action',
-    component: SuperShowdownCombined,
-  },
 ];
 
 export default function PlayTab({ user, editMode }: PlayTabProps) {
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/002741fb-cb98-444e-83cd-7086902151aa',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'PlayTab.tsx:113',message:'PlayTab render start',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+  // #endregion
   const [selectedGame, setSelectedGame] = useState<string | null>(null);
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/002741fb-cb98-444e-83cd-7086902151aa',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'PlayTab.tsx:115',message:'After useState selectedGame',data:{selectedGame},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+  // #endregion
   const [isLoading, setIsLoading] = useState(false);
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/002741fb-cb98-444e-83cd-7086902151aa',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'PlayTab.tsx:116',message:'After useState isLoading',data:{isLoading},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+  // #endregion
   const [loadError, setLoadError] = useState<string | null>(null);
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/002741fb-cb98-444e-83cd-7086902151aa',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'PlayTab.tsx:117',message:'After useState loadError',data:{loadError},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+  // #endregion
 
   const selectedGameInfo = games.find(g => g.id === selectedGame);
   const GameComponent = selectedGameInfo?.component;
-
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/002741fb-cb98-444e-83cd-7086902151aa',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'PlayTab.tsx:119',message:'Before early return check',data:{selectedGame,hasGameComponent:!!GameComponent},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+  // #endregion
   // #region agent log
   useEffect(() => {
     fetch('http://127.0.0.1:7242/ingest/002741fb-cb98-444e-83cd-7086902151aa',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'PlayTab.tsx:120',message:'PlayTab render',data:{selectedGame,hasGameComponent:!!GameComponent,isLoading,loadError},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
@@ -167,22 +165,36 @@ export default function PlayTab({ user, editMode }: PlayTabProps) {
     }
   }, [GameComponent, selectedGame]);
 
+  // #region agent log
+  useEffect(() => {
+    if (selectedGame && GameComponent) {
+      fetch('http://127.0.0.1:7242/ingest/002741fb-cb98-444e-83cd-7086902151aa',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'PlayTab.tsx:170',message:'Rendering game container',data:{selectedGame,isLoading,hasGameComponent:!!GameComponent},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
+    }
+  }, [selectedGame, isLoading, GameComponent]);
+  // #endregion
+
   if (selectedGame && GameComponent) {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/002741fb-cb98-444e-83cd-7086902151aa',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'PlayTab.tsx:187',message:'Early return selectedGame',data:{selectedGame},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+    // #endregion
     const handleClose = () => {
       setSelectedGame(null);
       setIsLoading(false);
       setLoadError(null);
     };
     
-    const supportsOnClose = ['hypnosia'].includes(selectedGame);
+    const supportsOnClose = ['gymPump', 'hypnosia'].includes(selectedGame);
     
-    // #region agent log
-    useEffect(() => {
-      fetch('http://127.0.0.1:7242/ingest/002741fb-cb98-444e-83cd-7086902151aa',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'PlayTab.tsx:170',message:'Rendering game container',data:{selectedGame,isLoading,hasGameComponent:!!GameComponent},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
-    }, [selectedGame, isLoading, GameComponent]);
-    // #endregion
+    // Prepare props based on game type
+    const gameProps = selectedGame === 'gymPump' 
+      ? { user, onClose: handleClose }
+      : selectedGame === 'hypnosia'
+      ? { onClose: handleClose }
+      : {};
+    
     return (
-      <div style={{ position: 'relative', width: '100%', minHeight: '100%', background: 'var(--bg-main)' }}>
+      <GameErrorBoundary onBack={handleClose} gameName={selectedGameInfo?.name}>
+      <div key={selectedGame} style={{ position: 'relative', width: '100%', minHeight: '100%', background: 'var(--bg-main)' }}>
         {isLoading && (
           <div style={{
             position: 'absolute',
@@ -270,12 +282,9 @@ export default function PlayTab({ user, editMode }: PlayTabProps) {
             ← Back
           </button>
         )}
-        {selectedGame === 'hypnosia' ? (
-          <GameComponent onClose={handleClose} />
-        ) : (
-          <GameComponent />
-        )}
+        <GameComponent key={selectedGame} {...gameProps} />
       </div>
+      </GameErrorBoundary>
     );
   }
 

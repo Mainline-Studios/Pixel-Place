@@ -1,8 +1,8 @@
 'use client';
 
 import { useRef, useState, useEffect } from 'react';
-import { User, DraftGame, PublishedGame } from '@/types';
-import { getDraft, saveDraft, getPublished, savePublished } from '@/lib/storage';
+import { User, DraftGame, PublishedGame, GameSubmission } from '@/types';
+import { getDraft, saveDraft, getPublished, savePublished, saveGameSubmission } from '@/lib/storage';
 import { useUser } from '@/contexts/UserContext';
 import AIGameGenerator from '@/components/AIGameGenerator';
 import FullScreenStudio from '@/components/FullScreenStudio';
@@ -12,7 +12,7 @@ interface CreateTabProps {
   editMode: boolean;
 }
 
-type StudioMode = 'code' | 'ai' | 'pixelPlacer';
+type StudioMode = 'code' | 'ai' | 'pixelPlacer' | 'import';
 type PixelPlacerMode = 'realism' | '3d' | '2d';
 
 export default function CreateTab({ user, editMode }: CreateTabProps) {
@@ -33,11 +33,16 @@ export default function CreateTab({ user, editMode }: CreateTabProps) {
     getDraft().then((loadedDraft) => {
       setDraft(loadedDraft);
       setGameCode(loadedDraft.gameCode || getDefaultGameCode());
+      if (loadedDraft.fileContent && loadedDraft.fileType) {
+        setImportedFile({ content: loadedDraft.fileContent, type: loadedDraft.fileType, name: '' });
+      }
     }).catch(() => {});
   }, []);
   const [thumbnail, setThumbnail] = useState<string | undefined>(draft.thumbnail);
   const [multiplayerEnabled, setMultiplayerEnabled] = useState(false);
   const [maxPlayers, setMaxPlayers] = useState(10);
+  const [importedFile, setImportedFile] = useState<{ content: string; type: string; name: string } | null>(null);
+  const importInputRef = useRef<HTMLInputElement>(null);
 
   function getDefaultGameCode(): string {
     return `// 3D Game Template
@@ -123,6 +128,50 @@ export function createGame(container: HTMLElement) {
     setDraft({ ...draft, gameCode: code });
   };
 
+  const ALLOWED_IMPORT_TYPES = ['.html', '.htm', '.js', '.json', '.txt'];
+  const handleImportFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const ext = file.name.toLowerCase().slice(file.name.lastIndexOf('.'));
+    if (!ALLOWED_IMPORT_TYPES.includes(ext)) {
+      alert(`Allowed file types: ${ALLOWED_IMPORT_TYPES.join(', ')}`);
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const content = ev.target?.result as string;
+      const fileType = ext.replace('.', '');
+      setImportedFile({ content, type: fileType, name: file.name });
+      setDraft({ ...draft, fileContent: content, fileType, gameType: 'file' });
+    };
+    reader.readAsText(file);
+    e.target.value = '';
+  };
+
+  const submitImportedGameForApproval = async () => {
+    if (!draft.title) {
+      alert('Enter a game title first.');
+      return;
+    }
+    if (!importedFile?.content) {
+      alert('Import a game file first (.html, .js, etc.).');
+      return;
+    }
+    const submission: GameSubmission = {
+      id: 'submission_' + Date.now(),
+      title: draft.title,
+      desc: draft.desc || '(imported game)',
+      owner: draft.owner || user.username,
+      ts: Date.now(),
+      gameType: 'file',
+      fileContent: importedFile.content,
+      fileType: importedFile.type,
+      status: 'pending'
+    };
+    await saveGameSubmission(submission);
+    alert(`"${draft.title}" submitted for admin approval!`);
+  };
+
   const handleSwitchToCodeEditor = () => {
     setStudioMode('code');
   };
@@ -134,7 +183,12 @@ export function createGame(container: HTMLElement) {
       desc: draft.desc || '',
       owner: draft.owner || user.username,
       gameCode: gameCode,
-      thumbnail: thumbnail
+      thumbnail: thumbnail,
+      ...(importedFile && {
+        fileContent: importedFile.content,
+        fileType: importedFile.type,
+        gameType: 'file' as const
+      })
     };
     saveDraft(updatedDraft);
     setDraft(updatedDraft);
@@ -178,10 +232,10 @@ export function createGame(container: HTMLElement) {
       
       <h2 className="section-title">Game Studio</h2>
 
-      {/* Mode Selector - Three Options */}
+      {/* Mode Selector - Four Options */}
       <div className="ai-box" style={{ marginBottom: '24px' }}>
         <div className="ai-label">Choose Your Creation Method</div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px', marginTop: '12px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '16px', marginTop: '12px' }}>
           <button
             className="btn"
             onClick={() => setStudioMode('pixelPlacer')}
@@ -243,6 +297,27 @@ export function createGame(container: HTMLElement) {
             <div>AI Generator</div>
             <div className="smalltext" style={{ textAlign: 'center', marginTop: '4px' }}>
               Let AI create a complete, working game for you
+            </div>
+          </button>
+          <button
+            className="btn"
+            onClick={() => setStudioMode('import')}
+            style={{
+              padding: '20px',
+              fontSize: '16px',
+              fontWeight: 'bold',
+              background: studioMode === 'import' ? 'var(--accent-bg-hover)' : 'var(--panel-alt)',
+              border: studioMode === 'import' ? '2px solid var(--accent)' : '2px solid var(--border)',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              gap: '8px'
+            }}
+          >
+            <span style={{ fontSize: '32px' }}>📁</span>
+            <div>Import Game</div>
+            <div className="smalltext" style={{ textAlign: 'center', marginTop: '4px' }}>
+              Upload .html, .js, or other game files for admin approval
             </div>
           </button>
         </div>
@@ -431,6 +506,34 @@ export function createGame(container: HTMLElement) {
         />
       )}
 
+      {/* Import Game Mode - Upload HTML/JS/other files */}
+      {studioMode === 'import' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <div className="ai-box">
+            <div className="ai-label">Import Game File</div>
+            <div className="smalltext" style={{ marginBottom: '12px' }}>
+              Upload an HTML5 game (.html), JavaScript (.js), or other supported file. Your game will be submitted for admin approval.
+            </div>
+            <input
+              ref={importInputRef}
+              type="file"
+              accept=".html,.htm,.js,.json,.txt"
+              onChange={handleImportFile}
+              style={{ display: 'none' }}
+            />
+            <button className="btn" onClick={() => importInputRef.current?.click()}>
+              📂 Choose File (.html, .js, .json, .txt)
+            </button>
+            {importedFile && (
+              <div style={{ marginTop: '12px', padding: '12px', background: 'var(--panel-soft)', borderRadius: '8px', border: '1px solid var(--border)' }}>
+                <div style={{ fontWeight: 600, marginBottom: '4px' }}>✓ Loaded: {importedFile.name || `file.${importedFile.type}`}</div>
+                <div className="smalltext">Type: {importedFile.type} • {importedFile.content.length} characters</div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Game Properties Panel */}
       <div className="ai-box" style={{ marginTop: '24px' }}>
         <div className="ai-label">Game Properties</div>
@@ -524,18 +627,25 @@ export function createGame(container: HTMLElement) {
               </div>
             )}
           </div>
-          <div style={{ display: 'flex', gap: '12px', marginTop: '8px' }}>
+          <div style={{ display: 'flex', gap: '12px', marginTop: '8px', flexWrap: 'wrap' }}>
             <button className="btn" onClick={saveDraftFromProps}>
               Save Draft
             </button>
+            {studioMode === 'import' && (
+              <button className="btn" onClick={submitImportedGameForApproval}>
+                Submit for Admin Approval
+              </button>
+            )}
             {user.role === 'admin' ? (
               <button className="btn" onClick={publishDraftNow}>
                 Publish Game Now
               </button>
             ) : (
-              <button className="btn" disabled title="Admin only">
-                Publish Game Now
-              </button>
+              studioMode !== 'import' && (
+                <button className="btn" disabled title="Admin only">
+                  Publish Game Now
+                </button>
+              )
             )}
           </div>
         </div>

@@ -15,24 +15,6 @@ export { Part } from './entities/Part';
 // Camera
 export { Camera } from './camera/Camera';
 
-// Input
-export { Input } from './input/Input';
-
-// Physics
-export { Physics } from './physics/Physics';
-
-// Assets
-export { AssetLoader } from './assets/AssetLoader';
-
-// Graphics
-export { createPBRMaterial, createSkinMaterial, createFabricMaterial, createMetalMaterial } from './graphics/PBRShader';
-
-// Animation
-export { IKSystem, applyIKToThreeJS } from './animation/IKSystem';
-
-// Physics
-export { ClothPhysics } from './physics/ClothPhysics';
-
 // Import classes for namespace object
 import { Engine } from './core/Engine';
 import { Scene } from './core/Scene';
@@ -40,10 +22,6 @@ import { Renderer } from './core/Renderer';
 import { Entity } from './entities/Entity';
 import { Part } from './entities/Part';
 import { Camera } from './camera/Camera';
-import { Input } from './input/Input';
-import { Physics } from './physics/Physics';
-import { AssetLoader } from './assets/AssetLoader';
-
 // Create a namespace-like object for easy access
 export const PixelEngine = {
   Engine,
@@ -51,11 +29,7 @@ export const PixelEngine = {
   Renderer,
   Entity,
   Part,
-  Camera,
-  Input,
-  Physics,
-  AssetLoader
-};
+  Camera};
 
 // Default export
 export default PixelEngine;

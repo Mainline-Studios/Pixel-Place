@@ -3,6 +3,8 @@
  * Provides methods for games to interact with PixelPlace backend
  */
 
+import { apiUrl } from './apiBaseUrl';
+
 export class PixelPlaceAPI {
   private gameId: string;
   private username: string;
@@ -12,12 +14,9 @@ export class PixelPlaceAPI {
     this.username = username;
   }
 
-  /**
-   * Connect to a game and return session
-   */
   async connectGame(gameId: string): Promise<{ sessionId: string }> {
     try {
-      const response = await fetch('/api/games/gym-pump/connect', {
+      const response = await fetch(apiUrl('/api/games/gym-pump/connect'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ gameId, username: this.username })
@@ -42,7 +41,7 @@ export class PixelPlaceAPI {
    */
   async sendGameScore(gameId: string, data: { power: number; coins: number; level: number; timestamp?: number }): Promise<boolean> {
     try {
-      const response = await fetch('/api/games/gym-pump/score', {
+      const response = await fetch(apiUrl('/api/games/gym-pump/score'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -64,8 +63,7 @@ export class PixelPlaceAPI {
    */
   async getGameLeaderboard(gameId: string, limit: number = 10): Promise<Array<{ player: string; power: number; coins: number; level: number }>> {
     try {
-      const response = await fetch(`/api/games/gym-pump/leaderboard?gameId=${encodeURIComponent(gameId)}&limit=${limit}`);
-      
+      const response = await fetch(apiUrl(`/api/games/gym-pump/leaderboard?gameId=${encodeURIComponent(gameId)}&limit=${limit}`));      
       if (!response.ok) {
         throw new Error('Failed to fetch leaderboard');
       }
@@ -82,8 +80,7 @@ export class PixelPlaceAPI {
    */
   async syncGameProgress(gameId: string, data: { power: number; coins: number; level: number }): Promise<boolean> {
     try {
-      const response = await fetch('/api/games/gym-pump/sync', {
-        method: 'POST',
+      const response = await fetch(apiUrl('/api/games/gym-pump/sync'), {        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           gameId,
@@ -104,8 +101,7 @@ export class PixelPlaceAPI {
    */
   async getGameProgress(gameId: string): Promise<{ power: number; coins: number; level: number } | null> {
     try {
-      const response = await fetch(`/api/games/gym-pump/sync?gameId=${encodeURIComponent(gameId)}&username=${encodeURIComponent(this.username)}`);
-      
+      const response = await fetch(apiUrl(`/api/games/gym-pump/sync?gameId=${encodeURIComponent(gameId)}&username=${encodeURIComponent(this.username)}`));      
       if (!response.ok) {
         return null;
       }

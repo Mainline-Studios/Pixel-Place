@@ -4,18 +4,31 @@ export interface User {
   gender: string;
   role: 'admin' | 'user';
   coins: number;
+  safetyPoints?: number; // Safety Points currency (separate from coins)
   ownedSkins: string[];
   equippedSkin: string;
+  ownedFaces?: string[]; // Face IDs owned by user
+  equippedFace?: string; // Currently equipped face ID
+  playtimeToday?: number; // Total playtime in milliseconds today
+  breaksTakenToday?: number; // Number of breaks taken today (max 3)
+  lastBreakTime?: number; // Timestamp of last break
+  sessionStartTime?: number; // When current session started
   ownedAccessories?: string[]; // Accessory IDs owned by user
   equippedAccessories?: string[]; // Currently equipped accessory IDs
   ownedServers?: string[]; // Server IDs owned by user
   friends?: string[]; // Array of friend usernames
   friendRequests?: FriendRequest[]; // Incoming friend requests
   sentFriendRequests?: string[]; // Outgoing friend requests
-  currentGameId?: string; // Game ID user is currently playing
+  currentGameId?: string;
+  firebaseUid?: string; // Firebase Auth UID for Google Sign-In users
+  email?: string; // Email for Google Sign-In users
+  photoURL?: string; // Profile photo URL for Google Sign-In users
   currentServerId?: string; // Server ID user is currently on
   recentlyPlayed?: string[]; // Array of game IDs (ts as string) the user has played
-}
+  isOnline?: boolean; // Online status
+  lastSeen?: number; // Last seen timestamp
+  currentSessionId?: string; // Current multiplayer session ID
+  safetyPoints?: number; // Safety Points currency (earned from breaks)}
 
 export interface FriendRequest {
   from: string; // Username who sent the request
@@ -35,7 +48,7 @@ export interface Message {
 
 export interface Accessory {
   id: string;
-  type: 'hat' | 'chain' | 'glasses' | 'shirt' | 'pants' | 'shoes' | 'backpack' | 'wings' | 'pet' | 'other';
+  type: 'hat' | 'chain' | 'glasses' | 'shirt' | 'pants' | 'shoes' | 'backpack' | 'wings' | 'pet' | 'drone' | 'other';
   name: string;
   position?: { x: number; y: number; z: number };
   rotation?: { x: number; y: number; z: number };
@@ -81,8 +94,11 @@ export interface SkinAccessory {
 export interface Skin {
   id: string;
   name: string;
-  price: number;
-  img: string;
+  price: number; // Price in Pixel Coins
+  safetyPointsPrice?: number; // Price in Safety Points (for special skins)
+  dualPrice?: { coins: number; safetyPoints: number }; // Cost both coins AND safety points
+  isSpecial?: boolean; // Special skin that costs Safety Points
+  isFace?: boolean; // Is this a face (for faces section)  img: string;
   colors: {
     head: string;
     torso: string;
@@ -123,12 +139,14 @@ export interface Skin {
 export interface Accessory {
   id: string;
   name: string;
-  type: 'hat' | 'glasses' | 'mask' | 'backpack' | 'weapon' | 'chain' | 'shoes';
-  price: number;
+  type: 'hat' | 'glasses' | 'mask' | 'backpack' | 'weapon' | 'chain' | 'shoes' | 'pet' | 'drone';  price: number;
   img: string;
   color?: string;
   position?: { x: number; y: number; z: number };
   scale?: number;
+  modelUrl?: string; // Path to GLTF/GLB model file (e.g., '/models/drone.glb')
+  floatHeight?: number; // Height above player for floating accessories (default: 3.0)
+  rotationSpeed?: number; // Rotation speed for floating animation (default: 0.5)
 }
 
 export interface PublishedGame {
@@ -179,6 +197,10 @@ export interface DraftGame {
   thumbnail?: string;
   gameCode?: string;
   sceneData?: SceneData;
+  /** For imported games */
+  gameType?: GameSourceType;
+  fileContent?: string;
+  fileType?: string;
 }
 
 export interface SceneObject {
@@ -207,6 +229,8 @@ export interface SceneData {
   objects: SceneObject[];
 }
 
+export type GameSourceType = 'scene' | 'html' | 'code' | 'file';
+
 export interface CoinPack {
   coins: number;
   priceLabel: string;
@@ -232,8 +256,14 @@ export interface UserMadeGame {
   desc: string;
   owner: string;
   ts: number;
-  sceneData: SceneData;
+  sceneData?: SceneData;
   publishedBy?: string; // Admin who published it
+  /** For imported games: 'html' | 'code' | 'file' */
+  gameType?: GameSourceType;
+  /** Raw file content for HTML/JS/other imported games */
+  fileContent?: string;
+  /** Original file extension, e.g. 'html', 'js' */
+  fileType?: string;
 }
 
 export interface GameSubmission {
@@ -242,10 +272,16 @@ export interface GameSubmission {
   desc: string;
   owner: string;
   ts: number;
-  sceneData: SceneData;
+  sceneData?: SceneData;
   status: 'pending' | 'approved' | 'rejected';
   reviewedBy?: string;
   adminNotes?: string;
+  /** For imported games: 'html' | 'code' | 'file' */
+  gameType?: GameSourceType;
+  /** Raw file content for HTML/JS/other imported games */
+  fileContent?: string;
+  /** Original file extension, e.g. 'html', 'js' */
+  fileType?: string;
 }
 
 export interface Ban {

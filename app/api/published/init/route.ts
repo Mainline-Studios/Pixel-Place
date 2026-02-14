@@ -1,13 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAdmin } from '@/lib/middleware';
-// These games are not currently exported - commented out for now
-// import { TIC_TAC_TOE_PRELOADED_GAME, CAPTURE_THE_FLAG_PRELOADED_GAME, HIDE_AND_SEEK_PRELOADED_GAME } from '@/lib/preloadedGames';
-import { PublishedGame } from '@/types';
-import { promises as fs } from 'fs';
-import path from 'path';
-
-const DATA_DIR = path.join(process.cwd(), 'data');
-const PUBLISHED_FILE = path.join(DATA_DIR, 'published.json');
+import { setDocument, deleteDocument, getDocuments, COLLECTIONS } from '@/lib/firestore';import { PublishedGame } from '@/types';
 
 export async function POST(request: NextRequest) {
   const authResult = requireAdmin(request);
@@ -29,34 +22,29 @@ export async function POST(request: NextRequest) {
       // HIDE_AND_SEEK_PRELOADED_GAME,
     ];
     
-    // Write to JSON file
-    await fs.mkdir(DATA_DIR, { recursive: true });
-    await fs.writeFile(PUBLISHED_FILE, JSON.stringify(games, null, 2), 'utf-8');
+    // Clear existing games
+    const existingGames = await getDocuments(COLLECTIONS.PUBLISHED_GAMES);
+    for (const game of existingGames) {
+      await deleteDocument(COLLECTIONS.PUBLISHED_GAMES, game.id);
+    }
     
-    // Sync to database
-    const { getDb } = await import('@/lib/db');
-    const db = getDb();
-    db.prepare('DELETE FROM published_games').run();
-    
-    const stmt = db.prepare(`
-      INSERT INTO published_games (title, description, owner, ts, thumbnail, game_code, scene_data, playable, multiplayer, max_players, server_id)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `);
-    
+    // Add new games to Firestore
     for (const game of games) {
-      stmt.run(
-        game.title,
-        game.desc || '',
-        game.owner,
-        game.ts,
-        game.thumbnail || null,
-        game.gameCode || null,
-        game.sceneData ? JSON.stringify(game.sceneData) : null,
-        game.playable ? 1 : 0,
-        game.multiplayer ? 1 : 0,
-        game.maxPlayers || null,
-        game.serverId || null
-      );
+      const gameId = `${game.owner}_${game.ts}`;
+      await setDocument(COLLECTIONS.PUBLISHED_GAMES, gameId, {
+        title: game.title,
+        description: game.desc || '',
+        owner: game.owner,
+        ts: game.ts,
+        thumbnail: game.thumbnail || null,
+        game_code: game.gameCode || null,
+        scene_data: game.sceneData ? JSON.stringify(game.sceneData) : null,
+        playable: game.playable !== false,
+        multiplayer: game.multiplayer === true,
+        max_players: game.maxPlayers || null,
+        server_id: game.serverId || null,
+        created_at: Date.now()
+      });
     }
     
     return NextResponse.json({ success: true, games, count: games.length });

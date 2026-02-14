@@ -1,4 +1,7 @@
 // Firebase configuration constants
+// For Stripe (Pixel Coins): set STRIPE_SECRET_KEY, NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY,
+// STRIPE_WEBHOOK_SECRET, NEXT_PUBLIC_BASE_URL in your hosting env (Vercel/Firebase/Firehub).
+// See STRIPE_FIREHUB.md and .env.example.
 export const firebaseConfig = {
     apiKey: "AIzaSyCccrF6i4LBBjuFU8KH3WOQeJjXdc0NlfY",
     authDomain: "pixel-place-823b1.firebaseapp.com",

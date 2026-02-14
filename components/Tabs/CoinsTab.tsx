@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { User, CoinPack } from '@/types';
 import { getTabContent } from '@/lib/storage';
+import { apiUrl } from '@/lib/apiBaseUrl';
 import { useUser } from '@/contexts/UserContext';
 import { loadStripe } from '@stripe/stripe-js';
 import HolidayBundle from '@/components/HolidayBundle';
@@ -40,7 +41,6 @@ const formatNumber = (num: number): string => {
 export default function CoinsTab({ user, editMode }: CoinsTabProps) {
   const { updateUser } = useUser();
   const bal = typeof user.coins === 'number' ? user.coins : 0;
-  const tabContent = getTabContent();
   const [loading, setLoading] = useState<string | null>(null);
   const [showHolidayBundle, setShowHolidayBundle] = useState(false);
 
@@ -88,8 +88,7 @@ export default function CoinsTab({ user, editMode }: CoinsTabProps) {
 
       try {
         // Add coins directly without payment
-        const response = await fetch('/api/add-coins', {
-          method: 'POST',
+        const response = await fetch(apiUrl('/api/add-coins'), {          method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
@@ -128,8 +127,7 @@ export default function CoinsTab({ user, editMode }: CoinsTabProps) {
 
       try {
         // Create checkout session for $5
-        const response = await fetch('/api/checkout', {
-          method: 'POST',
+        const response = await fetch(apiUrl('/api/checkout'), {          method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
@@ -161,8 +159,7 @@ export default function CoinsTab({ user, editMode }: CoinsTabProps) {
         }
       } catch (error: any) {
         console.error('Checkout error:', error);
-        alert(`Payment Error: ${error.message || 'Failed to process payment. Please check the browser console for details.'}`);
-        setLoading(null);
+        // Silent error - no alert        setLoading(null);
       }
       return;
     }
@@ -176,7 +173,7 @@ export default function CoinsTab({ user, editMode }: CoinsTabProps) {
 
     try {
       // Create checkout session
-      const response = await fetch('/api/checkout', {
+      const response = await fetch(apiUrl('/api/checkout'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -209,8 +206,7 @@ export default function CoinsTab({ user, editMode }: CoinsTabProps) {
       }
     } catch (error: any) {
       console.error('Checkout error:', error);
-      alert(`Payment Error: ${error.message || 'Failed to process payment. Please check the browser console for details.'}`);
-      setLoading(null);
+      // Silent error - no alert      setLoading(null);
     }
   };
 

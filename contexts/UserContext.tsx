@@ -1,14 +1,16 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { User } from '@/types';
-import { initializeStorage, getUsers, saveUsers, ADMIN_ACCOUNTS_LIST, isUserBanned, getBanForUser } from '@/lib/storage';
-import { containsEmoji } from '@/lib/utils';
+import { User, Ban } from '@/types';
+import { initializeStorage, getUsers, saveUsers, ADMIN_ACCOUNTS_LIST, isUserBanned, getBanForUser, getBannedUsersSync } from '@/lib/storage';
+import { subscribeToUser } from '@/lib/firestoreClient';
+import { apiUrl } from '@/lib/apiBaseUrl';import { containsEmoji } from '@/lib/utils';
 
 interface UserContextType {
   user: User | null;
   setUser: (user: User | null) => void;
   login: (username: string, password: string) => Promise<{ success: boolean; message: string; ban?: any }>;
+  loginWithGoogle: (googleUser: User) => Promise<void>;
   createAccount: (username: string, password: string, gender: string) => Promise<{ success: boolean; message: string }>;
   updateUser: (updates: Partial<User>) => void;
 }
@@ -44,6 +46,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
           if (!found.ownedSkins) found.ownedSkins = ['starter_classic'];
           if (!found.ownedAccessories) found.ownedAccessories = [];
           if (!found.equippedAccessories) found.equippedAccessories = {};
+          if (!found.ownedFaces) found.ownedFaces = [];
           
           // Special coins for 6767kid - massive amount
           if (found.username === '6767kid') {
@@ -103,8 +106,8 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       fetch('http://127.0.0.1:7242/ingest/002741fb-cb98-444e-83cd-7086902151aa',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'UserContext.tsx:84',message:'getInitialUser error',data:{error:error?.message || String(error)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H'})}).catch(()=>{});
       // #endregion
       setIsRestoring(false);
-    });
-  }, []);
+    });  }, []);
+  // #endregion
 
   // Persist user to sessionStorage whenever it changes
   useEffect(() => {
@@ -113,8 +116,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
         try {
           sessionStorage.setItem('pixelPlaceLoggedInUser', user.username);
         } catch (error) {
-          console.error('Error saving user session:', error);
-        }
+          console.error('Error saving user session:', error);        }
       } else {
         try {
           sessionStorage.removeItem('pixelPlaceLoggedInUser');
@@ -125,68 +127,118 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     }
   }, [user]);
 
+  // Real-time Firestore sync: when admin changes role/coins/etc in Firestore, user sees it instantly
+  useEffect(() => {
+    if (!user?.username) return;
+    const unsub = subscribeToUser(user.username, (firestoreUser) => {
+      if (firestoreUser) {
+        setUser((prev) => {
+          if (!prev) return firestoreUser;
+          return { ...firestoreUser, ownedSkins: firestoreUser.ownedSkins || prev.ownedSkins, ownedAccessories: firestoreUser.ownedAccessories || prev.ownedAccessories, equippedAccessories: firestoreUser.equippedAccessories || prev.equippedAccessories };
+        });
+      }
+    });
+    return () => unsub();
+  }, [user?.username]);
+
+  // Sync safety points from backend (Firebase)
+  useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+
+    const syncSafetyPoints = async () => {
+      try {
+        const response = await fetch(apiUrl(`/api/safety?username=${encodeURIComponent(user.username)}`));
+        const data = await response.json();
+        if (cancelled || typeof data?.safetyPoints !== 'number') return;
+        setUser((prev) => {
+          if (!prev) return prev;
+          if (prev.safetyPoints === data.safetyPoints) return prev;
+          return { ...prev, safetyPoints: data.safetyPoints };
+        });
+      } catch (error) {
+        console.warn('Failed to sync safety points:', error);
+      }
+    };
+
+    syncSafetyPoints();
+    const interval = setInterval(syncSafetyPoints, 60000);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, [user?.username]);
+
+  // Helper function to get users from localStorage (offline mode)
+  const getUsersLocal = (): User[] => {
+    if (typeof window === 'undefined') return [];
+    try {
+      const data = localStorage.getItem('pixelPlaceUsers');
+      return data ? JSON.parse(data) : [];
+    } catch {
+      return [];
+    }
+  };
+
+  // Helper function to save users to localStorage (offline mode)
+  const saveUsersLocal = (users: User[]): void => {
+    if (typeof window === 'undefined') return;
+    try {
+      localStorage.setItem('pixelPlaceUsers', JSON.stringify(users));
+    } catch (error) {
+      console.error('Error saving users to localStorage:', error);
+    }
+  };
   const login = async (username: string, password: string): Promise<{ success: boolean; message: string; ban?: any }> => {
     if (!username || !password) {
       return { success: false, message: 'Enter username and password.' };
     }
 
-    // Check if user is banned
-    const isBanned = await isUserBanned(username);
-    if (isBanned) {
-      const ban = await getBanForUser(username);
-      return { success: false, message: 'This account has been banned. Please contact an administrator.', ban: ban || undefined };
+    let isOffline = false;
+    let users: User[] = [];
+    let found: User | undefined;
+
+    try {
+      // Try to get users from API (Firebase)
+      users = await getUsers();
+    } catch (error) {
+      // Fallback to localStorage if API fails
+      isOffline = true;
+      users = getUsersLocal();
+      console.log('Using offline mode - localStorage');
     }
 
-    // Try to login via API first (for hashed passwords)
+    // Check if user is banned (try online first, then offline fallback)
     try {
-      const response = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password })
-      });
-      
-      const data = await response.json();
-      
-      if (response.ok && data.success && data.user) {
-        // Successful login
-        const found = data.user as User;
-        
-        // Ensure arrays exist
-        if (!found.ownedSkins) found.ownedSkins = ['starter_classic'];
-        if (!found.ownedAccessories) found.ownedAccessories = [];
-        if (!found.equippedAccessories) found.equippedAccessories = {};
-        
-        // Special coins for 6767kid - massive amount
-        if (found.username === '6767kid') {
-          found.coins = 4e471;
-        } else if (found.username.toLowerCase() === 'daniello1') {
-          found.coins = 5.534e200;
+      const isBanned = await isUserBanned(username);
+      if (isBanned) {
+        const ban = await getBanForUser(username);
+        if (ban) {
+          return { success: false, message: 'This account has been banned. Please contact an administrator.', ban };
         }
-        
-        setUser(found);
-        if (typeof window !== 'undefined') {
-          try {
-            sessionStorage.setItem('pixelPlaceLoggedInUser', found.username);
-          } catch (error) {
-            console.error('Error saving user session:', error);
-          }
-        }
-        return { success: true, message: '' };
-      } else if (response.status === 401 || response.status === 404) {
-        // Password incorrect or user not found - return the error message
-        return { success: false, message: data.message || 'Incorrect password.' };
-      } else if (response.status >= 400) {
-        // Other API errors - return error message
-        return { success: false, message: data.message || 'Login failed. Please try again.' };
       }
-    } catch (apiError) {
-      console.error('API login error, falling back to local:', apiError);
-      // Continue to fallback only if it's a network error, not an auth error
+    } catch (error) {
+      // If online ban check fails, try offline fallback
+      if (!isOffline) {
+        try {
+          const localBans = getBannedUsersSync();
+          const now = Date.now();
+          const localBan = localBans.find((b: Ban) => {
+            if (b.username.toLowerCase() !== username.toLowerCase()) return false;
+            if (b.permanent) return true;
+            if (b.expiresAt && b.expiresAt > now) return true;
+            return false;
+          });
+          if (localBan) {
+            return { success: false, message: 'This account has been banned. Please contact an administrator.', ban: localBan };
+          }
+        } catch {
+          // If offline check also fails, continue anyway (don't block login)
+        }
+      }
     }
-    
-    // Fallback to local storage for legacy accounts
-    let users = await getUsers();
-    let found = users.find(x => x.username === username);
+
+    found = users.find(x => x.username === username);
 
     // Auto-create admin if not found but matches admin list
     if (!found) {
@@ -213,7 +265,17 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
           equippedAccessories: {}
         };
         users.push(found);
-        await saveUsers(users);
+        if (isOffline) {
+          saveUsersLocal(users);
+        } else {
+          try {
+            await saveUsers(users);
+          } catch {
+            // Fallback to localStorage if save fails
+            saveUsersLocal(users);
+            isOffline = true;
+          }
+        }
       }
     }
 
@@ -221,7 +283,6 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       return { success: false, message: 'Account not found. Please create one first.' };
     }
 
-    // For legacy accounts with plain text passwords
     if (found.password !== password) {
       return { success: false, message: 'Incorrect password.' };
     }
@@ -239,7 +300,16 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       const userIndex = users.findIndex(u => u.username === '6767kid');
       if (userIndex !== -1) {
         users[userIndex].coins = 4e471;
-        await saveUsers(users);
+        if (isOffline) {
+          saveUsersLocal(users);
+        } else {
+          try {
+            await saveUsers(users);
+          } catch {
+            saveUsersLocal(users);
+            isOffline = true;
+          }
+        }
       }
     }
     
@@ -251,7 +321,29 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       const userIndex = users.findIndex(u => u.username.toLowerCase() === 'daniello1');
       if (userIndex !== -1) {
         users[userIndex].coins = 5.534e200;
-        await saveUsers(users);
+        if (isOffline) {
+          saveUsersLocal(users);
+        } else {
+          try {
+            await saveUsers(users);
+          } catch {
+            saveUsersLocal(users);
+            isOffline = true;
+          }
+        }
+      }
+    }
+
+    // Sync safety points from backend
+    if (!isOffline) {
+      try {
+        const safetyResponse = await fetch(apiUrl(`/api/safety?username=${found.username}`));
+        if (safetyResponse.ok) {
+          const safetyData = await safetyResponse.json();
+          found.safetyPoints = safetyData.safetyPoints || 0;
+        }
+      } catch (error) {
+        console.warn('Failed to fetch safety points:', error);
       }
     }
 
@@ -260,11 +352,49 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     if (typeof window !== 'undefined') {
       try {
         sessionStorage.setItem('pixelPlaceLoggedInUser', found.username);
+        // Mark as offline in sessionStorage
+        if (isOffline) {
+          sessionStorage.setItem('pixelPlaceOffline', 'true');
+        } else {
+          sessionStorage.removeItem('pixelPlaceOffline');
+        }
       } catch (error) {
         console.error('Error saving user session:', error);
       }
     }
-    return { success: true, message: '' };
+    return { success: true, message: isOffline ? 'Signed in offline. Data stored locally.' : '', offline: isOffline };
+  };
+
+  const loginWithGoogle = async (googleUser: User): Promise<void> => {
+    // Check if user is banned
+    try {
+      const isBanned = await isUserBanned(googleUser.username);
+      if (isBanned) {
+        const ban = await getBanForUser(googleUser.username);
+        throw { ban };
+      }
+    } catch (error: any) {
+      if (error.ban) {
+        throw error;
+      }
+    }
+
+    // Ensure arrays exist
+    if (!googleUser.ownedSkins) googleUser.ownedSkins = ['starter_classic'];
+    if (!googleUser.ownedAccessories) googleUser.ownedAccessories = [];
+    if (!googleUser.equippedAccessories) googleUser.equippedAccessories = {};
+
+    setUser(googleUser);
+    
+    // Persist to sessionStorage
+    if (typeof window !== 'undefined') {
+      try {
+        sessionStorage.setItem('pixelPlaceLoggedInUser', googleUser.username);
+        sessionStorage.removeItem('pixelPlaceOffline'); // Google sign-in is always online
+      } catch (error) {
+        console.error('Error saving user session:', error);
+      }
+    }
   };
 
   const createAccount = async (username: string, password: string, gender: string): Promise<{ success: boolean; message: string }> => {
@@ -272,13 +402,45 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       return { success: false, message: 'Username and password are required.' };
     }
 
-    // Check if username is banned
-    const isBanned = await isUserBanned(username);
-    if (isBanned) {
-      return { success: false, message: 'This username is banned and cannot be used.' };
+    let isOffline = false;
+    let users: User[] = [];
+
+    try {
+      // Try to get users from API (Firebase)
+      users = await getUsers();
+    } catch (error) {
+      // Fallback to localStorage if API fails
+      isOffline = true;
+      users = getUsersLocal();
+      console.log('Using offline mode - localStorage');
     }
 
-    const users = await getUsers();
+    // Check if username is banned (try online first, then offline fallback)
+    try {
+      const isBanned = await isUserBanned(username);
+      if (isBanned) {
+        return { success: false, message: 'This username is banned and cannot be used.' };
+      }
+    } catch (error) {
+      // If online ban check fails, try offline fallback
+      if (!isOffline) {
+        try {
+          const localBans = getBannedUsersSync();
+          const now = Date.now();
+          const localBan = localBans.find((b: Ban) => {
+            if (b.username.toLowerCase() !== username.toLowerCase()) return false;
+            if (b.permanent) return true;
+            if (b.expiresAt && b.expiresAt > now) return true;
+            return false;
+          });
+          if (localBan) {
+            return { success: false, message: 'This username is banned and cannot be used.' };
+          }
+        } catch {
+          // If offline check also fails, continue anyway (don't block account creation)
+        }
+      }
+    }
     if (users.find(x => x.username === username)) {
       return { success: false, message: 'Username already exists.' };
     }
@@ -296,7 +458,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       return { success: false, message: 'Emojis are only allowed in passwords for admin accounts.' };
     }
     // Special coins for 6767kid and daniello1 - massive amounts
-    let coins = role === 'admin' ? 99999 : 0;
+    let coins = role === 'admin' ? 99999 : 10;
     if (username === '6767kid') {
       coins = 4e471;
     } else if (username.toLowerCase() === 'daniello1') {
@@ -313,22 +475,38 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       equippedSkin: 'starter_classic',
       isDonor: false,
       ownedAccessories: [],
-      equippedAccessories: {}
+      equippedAccessories: {},
+      ownedFaces: []
     };
 
     users.push(newUser);
-    await saveUsers(users);
+    
+    if (isOffline) {
+      saveUsersLocal(users);
+    } else {
+      try {
+        await saveUsers(users);
+      } catch {
+        // Fallback to localStorage if save fails
+        saveUsersLocal(users);
+        isOffline = true;
+      }
+    }
     setUser(newUser);
     // Persist to sessionStorage
     if (typeof window !== 'undefined') {
       try {
         sessionStorage.setItem('pixelPlaceLoggedInUser', newUser.username);
+        if (isOffline) {
+          sessionStorage.setItem('pixelPlaceOffline', 'true');
+        } else {
+          sessionStorage.removeItem('pixelPlaceOffline');
+        }
       } catch (error) {
         console.error('Error saving user session:', error);
       }
     }
-
-    return { success: true, message: 'Account created! You can sign in now.' };
+    return { success: true, message: 'Account created.' };
   };
 
   const updateUser = async (updates: Partial<User>) => {
@@ -338,87 +516,59 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     const updatedUser = { ...user, ...updates };
     setUser(updatedUser);
 
-    // Fetch fresh user data from API to ensure we have the latest
-    try {
-      const response = await fetch('/api/users');
-      if (response.ok) {
-        const allUsers = await response.json();
-        const index = allUsers.findIndex((u: User) => u.username.toLowerCase() === user.username.toLowerCase());
-        
-        if (index !== -1) {
-          // Merge updates with existing data, preserving all fields
-          const existingUser = allUsers[index];
-          const mergedUser: User = {
-            ...existingUser,
-            ...updates,
-            // Always preserve these arrays - merge if updating, keep existing if not
-            friends: updates.friends !== undefined ? updates.friends : (existingUser.friends || []),
-            ownedSkins: updates.ownedSkins !== undefined ? updates.ownedSkins : (existingUser.ownedSkins || []),
-            ownedAccessories: updates.ownedAccessories !== undefined ? updates.ownedAccessories : (existingUser.ownedAccessories || []),
-            equippedAccessories: updates.equippedAccessories !== undefined ? updates.equippedAccessories : (existingUser.equippedAccessories || {}),
-            sentFriendRequests: updates.sentFriendRequests !== undefined ? updates.sentFriendRequests : (existingUser.sentFriendRequests || []),
-            friendRequests: updates.friendRequests !== undefined ? updates.friendRequests : (existingUser.friendRequests || []),
-            ownedServers: updates.ownedServers !== undefined ? updates.ownedServers : (existingUser.ownedServers || []),
-            // Preserve password - don't overwrite it
-            password: existingUser.password || user.password,
-            // Preserve other fields
-            gender: updates.gender !== undefined ? updates.gender : (existingUser.gender || user.gender),
-            role: updates.role !== undefined ? updates.role : (existingUser.role || user.role),
-            equippedSkin: updates.equippedSkin !== undefined ? updates.equippedSkin : (existingUser.equippedSkin || user.equippedSkin),
-            coins: updates.coins !== undefined ? updates.coins : (existingUser.coins !== undefined ? existingUser.coins : user.coins)
-          };
-          
-          // Save to API - this will update the database
-          const saveResponse = await fetch('/api/users', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(mergedUser)
-          });
-          
-          if (saveResponse.ok) {
-            // Update local state with the saved data to ensure consistency
-            const savedUser = await saveResponse.json();
-            setUser({ ...updatedUser, ...savedUser });
-          } else {
-            console.error('Failed to save user:', await saveResponse.text());
-          }
-        } else {
-          // User not found in API, save directly
-          const mergedUser: User = {
-            ...user,
-            ...updates,
-            password: user.password
-          };
-          
-          await fetch('/api/users', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(mergedUser)
-          });
-        }
-      }
-    } catch (error) {
-      console.error('Error updating user:', error);
-      // Fallback: try to save directly
+    // Sync safety points to backend if updated
+    if (updates.safetyPoints !== undefined) {
       try {
-        const mergedUser: User = {
-          ...user,
-          ...updates,
-          password: user.password
-        };
-        await fetch('/api/users', {
+        await fetch(apiUrl('/api/safety'), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(mergedUser)
+          body: JSON.stringify({
+            username: user.username,
+            action: 'updateSafetyPoints',
+            safetyPoints: updates.safetyPoints
+          })
+        }).catch(() => {}); // Silently fail if backend unavailable
+      } catch (error) {
+        console.warn('Failed to sync safety points:', error);
+      }
+    }
+
+    const users = await getUsers();
+    const index = users.findIndex(u => u.username.toLowerCase() === user.username.toLowerCase());
+    if (index !== -1) {
+      // Merge updates to preserve existing data like friends, ownedSkins, ownedAccessories
+      const existingUser = users[index];
+      users[index] = { 
+        ...existingUser, 
+        ...updates,
+        // Preserve friends array if not being updated
+        friends: updates.friends !== undefined ? updates.friends : existingUser.friends || [],
+        // Preserve ownedSkins if not being updated
+        ownedSkins: updates.ownedSkins !== undefined ? updates.ownedSkins : existingUser.ownedSkins || [],
+        // Preserve ownedAccessories if not being updated
+        ownedAccessories: updates.ownedAccessories !== undefined ? updates.ownedAccessories : existingUser.ownedAccessories || [],
+        // Preserve ownedFaces if not being updated
+        ownedFaces: updates.ownedFaces !== undefined ? updates.ownedFaces : existingUser.ownedFaces || [],
+        // Preserve equippedFace if not being updated
+        equippedFace: updates.equippedFace !== undefined ? updates.equippedFace : existingUser.equippedFace
+      };
+      await saveUsers(users);
+      
+      // Also update via API PUT to ensure persistence
+      try {
+        await fetch(apiUrl('/api/users'), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(users[index])
         });
-      } catch (fallbackError) {
-        console.error('Fallback save also failed:', fallbackError);
+      } catch (error) {
+        console.error('Error saving user to API:', error);
       }
     }
   };
 
   return (
-    <UserContext.Provider value={{ user, setUser, login, createAccount, updateUser }}>
+    <UserContext.Provider value={{ user, setUser, login, loginWithGoogle, createAccount, updateUser }}>
       {children}
     </UserContext.Provider>
   );

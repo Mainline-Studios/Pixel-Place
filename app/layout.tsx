@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import Script from "next/script";
 import { UserProvider } from "@/contexts/UserContext";
+import { StyleProvider } from "@/components/StyleProvider";
 
 export const metadata: Metadata = {
   title: "Pixel Place",
@@ -16,6 +17,11 @@ export default function RootLayout({
   return (
     <html lang="en">
       <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){var s=localStorage.getItem('pixelplace_style');if(s&&/^(modern|futuristic|normal|90s|80s|lowcontrast)$/.test(s))document.documentElement.setAttribute('data-style',s);else document.documentElement.setAttribute('data-style','normal');})();`,
+          }}
+        />
         <link rel="icon" href="/logo.png" type="image/png" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes" />
         <meta name="mobile-web-app-capable" content="yes" />
@@ -23,9 +29,11 @@ export default function RootLayout({
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
       </head>
       <body>
-        <UserProvider>
-          {children}
-        </UserProvider>
+        <StyleProvider>
+          <UserProvider>
+            {children}
+          </UserProvider>
+        </StyleProvider>
       </body>
     </html>
   );

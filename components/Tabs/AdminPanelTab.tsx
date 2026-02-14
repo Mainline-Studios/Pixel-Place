@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { User, Report, Ban, GameSubmission, UserMadeGame } from '@/types';
-import { getUsers, getBannedUsers, getReports, banUser, unbanUser, updateReportStatus, saveBannedUsers, ADMIN_ACCOUNTS_LIST, getBanAppeals, updateBanAppealStatus, getMessages, sendMessage, getGameSubmissions, saveUserMadeGame, deleteGameSubmission } from '@/lib/storage';
+import { getBannedUsers, getReports, banUser, unbanUser, updateReportStatus, saveBannedUsers, saveUsers, ADMIN_ACCOUNTS_LIST, getBanAppeals, updateBanAppealStatus, getMessagesAPI, sendMessage, getGameSubmissions, saveUserMadeGame, deleteGameSubmission } from '@/lib/storage';
+import { subscribeToUsers } from '@/lib/firestoreClient';
 
 interface AdminPanelTabProps {
   user: User;
@@ -27,31 +28,21 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
   const [sendingChatMessage, setSendingChatMessage] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
 
+  // Real-time users from Firestore (instant updates when admin changes role/etc in Firebase Console)
   useEffect(() => {
-    // Ensure we're in browser environment
     if (typeof window === 'undefined') return;
-
-    // Try to load data, with error handling
-    loadData().catch((error) => {
-      console.error('Error loading admin panel data:', error);
-      // Silent error - no alert
-    });
+    const unsub = subscribeToUsers((firestoreUsers) => {
+      processUsersFromFirestore(firestoreUsers);    });
+    return () => unsub();
   }, []);
 
-  const loadData = async () => {
-    try {
-      const [appealsData, storedUsers, bansData, reportsData, submissionsData] = await Promise.all([
-        getBanAppeals(),
-        getUsers(),
-        getBannedUsers(),
-        getReports(),
-        getGameSubmissions()
-      ]);
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    loadOtherData().catch((e) => console.error('Error loading admin data:', e));
+  }, []);
 
-      setAppeals(appealsData);
-      setGameSubmissions(submissionsData);
-
-      // Old admin accounts that should be filtered out (not in current ADMIN_ACCOUNTS_LIST)
+  const processUsersFromFirestore = (storedUsers: User[]) => {
+    // Old admin accounts that should be filtered out (not in current ADMIN_ACCOUNTS_LIST)
       const oldAdminUsernames = new Set([
         'number 9',
         'number5',
@@ -116,13 +107,27 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
         return a.username.localeCompare(b.username);
       });
 
-      setAllUsers(uniqueUsers);
+    setAllUsers(uniqueUsers);
+  };
+
+  const loadOtherData = async () => {
+    try {
+      const [appealsData, bansData, reportsData, submissionsData] = await Promise.all([
+        getBanAppeals(),
+        getBannedUsers(),
+        getReports(),
+        getGameSubmissions()
+      ]);
+      setAppeals(appealsData);
+      setGameSubmissions(submissionsData);
       setBans(bansData);
       setReports(reportsData);
     } catch (error) {
-      console.error('Error in loadData:', error);
-      // Silent error - no alert
-    }
+      console.error('Error in loadOtherData:', error);    }
+  };
+
+  const loadData = async () => {
+    await loadOtherData();
   };
 
 
@@ -136,7 +141,10 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
       owner: submission.owner,
       ts: Date.now(),
       sceneData: submission.sceneData,
-      publishedBy: user.username
+      publishedBy: user.username,
+      gameType: submission.gameType,
+      fileContent: submission.fileContent,
+      fileType: submission.fileType
     };
 
     await saveUserMadeGame(game);
@@ -368,20 +376,50 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
                         Role: {u.role} • Coins: {u.coins} • Gender: Boy
                       </div>
                     </div>
-                    {u.role !== 'admin' ? (
-                      <button
-                        className="btn"
-                        onClick={() => {
-                          setBanUsername(u.username);
-                          setActiveTab('bans');
-                        }}
-                        style={{ background: '#ff4d4d' }}
-                      >
-                        Ban User
-                      </button>
-                    ) : (
-                      <span style={{ color: '#999', fontSize: '12px' }}>Protected</span>
-                    )}
+                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                      {u.role !== 'admin' ? (
+                        <>
+                          <button
+                            className="btn"
+                            onClick={async () => {
+                              const updated = { ...u, role: 'admin' as const, coins: Math.max(u.coins, 99999) };
+                              setAllUsers((prev) => prev.map((x) => (x.username.toLowerCase() === u.username.toLowerCase() ? updated : x)));
+                              await saveUsers([updated]);
+                            }}
+                            style={{ background: '#00aaff', padding: '6px 12px', fontSize: '12px' }}
+                          >
+                            Make admin
+                          </button>
+                          <button
+                            className="btn"
+                            onClick={() => {
+                              setBanUsername(u.username);
+                              setActiveTab('bans');
+                            }}
+                            style={{ background: '#ff4d4d', padding: '6px 12px', fontSize: '12px' }}
+                          >
+                            Ban
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          {!ADMIN_ACCOUNTS_LIST.some((a) => a.username.toLowerCase() === u.username.toLowerCase()) ? (
+                            <button
+                              className="btn"
+                              onClick={async () => {
+                                const updated = { ...u, role: 'user' as const };
+                                setAllUsers((prev) => prev.map((x) => (x.username.toLowerCase() === u.username.toLowerCase() ? updated : x)));
+                                await saveUsers([updated]);
+                              }}
+                              style={{ background: '#666', padding: '6px 12px', fontSize: '12px' }}
+                            >
+                              Remove admin
+                            </button>
+                          ) : null}
+                          <span style={{ color: '#999', fontSize: '12px' }}>Protected from ban</span>
+                        </>
+                      )}
+                    </div>
                   </div>
                 ))}
               </div>

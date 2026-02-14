@@ -1,10 +1,11 @@
 'use client';
 
-import { TabType, User } from '@/types';
+import { TabType, User, Skin, Accessory } from '@/types';
 import Image from 'next/image';
 import { getSkins, getAccessories } from '@/lib/storage';
 import Avatar3DViewer from '@/components/Avatar3DViewer';
 import { useUser } from '@/contexts/UserContext';
+import { useState, useEffect } from 'react';
 
 interface TopBarProps {
   currentTab: TabType;
@@ -12,41 +13,39 @@ interface TopBarProps {
   user: User;
 }
 
-const tabs: { key: TabType; label: string; adminOnly?: boolean }[] = [
+const TABS: { key: TabType; label: string; adminOnly?: boolean }[] = [
   { key: 'home', label: 'Home' },
+  { key: 'play', label: 'Play' },
+  { key: 'games', label: 'Games' },
+  { key: 'createGame', label: 'Create' },
+  { key: 'studio', label: 'Studio' },
   { key: 'avatarShop', label: 'Avatar Shop' },
   { key: 'coins', label: 'Pixel Coins' },
   { key: 'friends', label: 'Friends' },
+  { key: 'servers', label: 'Servers' },
   { key: 'settings', label: 'Settings' },
 ];
 
 export default function TopBar({ currentTab, onTabChange, user }: TopBarProps) {
   const { setUser } = useUser();
+  const [skins, setSkins] = useState<Skin[]>([]);
+  const [accessories, setAccessories] = useState<Accessory[]>([]);
 
-  // Guard against undefined user
-  if (!user) {
-    return (
-      <div className="topbar">
-        <div className="topbar-inner">
-          <div className="brand" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <Image
-              src="/logo.png"
-              alt="Pixel Place Logo"
-              width={32}
-              height={32}
-              style={{ objectFit: 'contain' }}
-              priority
-            />
-            <span>PIXEL PLACE</span>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  useEffect(() => {
+    const loadData = async () => {
+      const [skinsData, accessoriesData] = await Promise.all([
+        getSkins(),
+        getAccessories()
+      ]);
+      setSkins(Array.isArray(skinsData) ? skinsData : []);
+      setAccessories(Array.isArray(accessoriesData) ? accessoriesData : []);
+    };
+    loadData();
+  }, []);
 
-  const skins = getSkins();
-  const accessories = getAccessories();
   const equippedSkin = skins.find(s => s.id === user.equippedSkin) || skins.find(s => s.id === 'starter_classic') || (skins.length > 0 ? skins[0] : null);
+  // Get equipped face if available
+  const equippedFace = user.equippedFace ? skins.find(s => s.id === user.equippedFace && s.isFace) : null;
   // equippedAccessories is an object, not an array: { hat: 'id', glasses: 'id', ... }
   const equippedAccessoriesList = Object.values(user.equippedAccessories || {}).map(id =>
     accessories.find(a => a.id === id)
@@ -89,7 +88,7 @@ export default function TopBar({ currentTab, onTabChange, user }: TopBarProps) {
           <span>PIXEL PLACE</span>
         </div>
         <div className="header-nav">
-          {tabs
+          {TABS
             .filter(tab => !tab.adminOnly || user.role === 'admin')
             .map((tab) => (
               <button
@@ -133,12 +132,9 @@ export default function TopBar({ currentTab, onTabChange, user }: TopBarProps) {
                 height={40}
                 interactive={false}
                 animation={skinWithAccessories.defaultAnimation || 'idle'}
+                equippedFace={equippedFace || undefined}
               />
             )}
-          </div>
-          <div className="user-texts">
-            <div className="username-top">{user.username}</div>
-            <div className="role-top">{user.role}</div>
           </div>
         </div>
       </div>

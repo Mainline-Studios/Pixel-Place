@@ -1,15 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getDb } from '@/lib/db';
+import { getDocuments, addDocument, updateDocument, queryDocuments, COLLECTIONS, getFirestoreInstance } from '@/lib/firestore';
 import { Message } from '@/types';
 
-function messageFromRow(row: any): Message {
+function messageFromDoc(doc: any): Message {
   return {
-    id: row.id.toString(),
-    from: row.from_username,
-    to: row.to_username,
-    message: row.message,
-    timestamp: row.created_at * 1000, // Convert to milliseconds
-    read: row.read === 1
+    id: doc.id,
+    from: doc.from_username,
+    to: doc.to_username,
+    message: doc.message,
+    timestamp: doc.created_at || doc.timestamp || Date.now(),
+    read: doc.read === true
   };
 }
 
@@ -24,27 +24,49 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Username is required' }, { status: 400 });
     }
 
-    const db = getDb();
-    let rows: any[];
+    const db = getFirestoreInstance();
+    let query: any;
     
     if (withUsername) {
-      // Get messages between two users
-      rows = db.prepare(`
-        SELECT * FROM messages
-        WHERE (LOWER(from_username) = LOWER(?) AND LOWER(to_username) = LOWER(?))
-           OR (LOWER(to_username) = LOWER(?) AND LOWER(from_username) = LOWER(?))
-        ORDER BY created_at ASC
-      `).all(username, withUsername, username, withUsername);
+      // Get messages between two users - Firestore doesn't support multiple 'in' queries easily
+      // So we'll get messages where user is sender or receiver and filter
+      const sentQuery = db.collection(COLLECTIONS.MESSAGES)
+        .where('from_username_lower', '==', username.toLowerCase())
+        .where('to_username_lower', '==', withUsername.toLowerCase())
+        .orderBy('created_at', 'asc');
+      const receivedQuery = db.collection(COLLECTIONS.MESSAGES)
+        .where('from_username_lower', '==', withUsername.toLowerCase())
+        .where('to_username_lower', '==', username.toLowerCase())
+        .orderBy('created_at', 'asc');
+      
+      const [sentSnapshot, receivedSnapshot] = await Promise.all([sentQuery.get(), receivedQuery.get()]);
+      const messages = [
+        ...sentSnapshot.docs.map(doc => messageFromDoc({ id: doc.id, ...doc.data() })),
+        ...receivedSnapshot.docs.map(doc => messageFromDoc({ id: doc.id, ...doc.data() }))
+      ];
+      messages.sort((a, b) => a.timestamp - b.timestamp);
+      return NextResponse.json(messages);
     } else {
       // Get all messages for the user
-      rows = db.prepare(`
-        SELECT * FROM messages
-        WHERE LOWER(from_username) = LOWER(?) OR LOWER(to_username) = LOWER(?)
-        ORDER BY created_at ASC
-      `).all(username, username);
+      query = db.collection(COLLECTIONS.MESSAGES)
+        .where('from_username_lower', '==', username.toLowerCase())
+        .orderBy('created_at', 'asc');
     }
 
-    const messages = rows.map(messageFromRow);
+    const snapshot = await query.get();
+    const messages = snapshot.docs.map(doc => messageFromDoc({ id: doc.id, ...doc.data() }));
+    
+    // If no withUsername, also get messages where user is recipient
+    if (!withUsername) {
+      const receivedQuery = db.collection(COLLECTIONS.MESSAGES)
+        .where('to_username_lower', '==', username.toLowerCase())
+        .orderBy('created_at', 'asc');
+      const receivedSnapshot = await receivedQuery.get();
+      const receivedMessages = receivedSnapshot.docs.map(doc => messageFromDoc({ id: doc.id, ...doc.data() }));
+      messages.push(...receivedMessages);
+      messages.sort((a, b) => a.timestamp - b.timestamp);
+    }
+
     return NextResponse.json(messages);
   } catch (error) {
     console.error('Error getting messages:', error);
@@ -70,14 +92,18 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Message cannot be empty' }, { status: 400 });
     }
 
-    const db = getDb();
-    const result = db.prepare(`
-      INSERT INTO messages (from_username, to_username, message, read)
-      VALUES (?, ?, ?, 0)
-    `).run(fromUsername, toUsername, message.trim());
+    const messageId = await addDocument(COLLECTIONS.MESSAGES, {
+      from_username: fromUsername,
+      from_username_lower: fromUsername.toLowerCase(),
+      to_username: toUsername,
+      to_username_lower: toUsername.toLowerCase(),
+      message: message.trim(),
+      read: false,
+      created_at: Date.now()
+    });
 
     const newMessage: Message = {
-      id: result.lastInsertRowid.toString(),
+      id: messageId,
       from: fromUsername,
       to: toUsername,
       message: message.trim(),
@@ -102,20 +128,20 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: 'Message ID is required' }, { status: 400 });
     }
 
-    const db = getDb();
-    const row = db.prepare('SELECT * FROM messages WHERE id = ?').get(parseInt(id));
+    await updateDocument(COLLECTIONS.MESSAGES, id, {
+      read: read !== undefined ? read : true
+    });
     
-    if (!row) {
+    const messages = await getDocuments(COLLECTIONS.MESSAGES);
+    const message = messages.find(m => m.id === id);
+    
+    if (!message) {
       return NextResponse.json({ error: 'Message not found' }, { status: 404 });
     }
-
-    db.prepare('UPDATE messages SET read = ? WHERE id = ?').run(read !== undefined ? (read ? 1 : 0) : 1, parseInt(id));
     
-    const updatedMessage = messageFromRow({ ...row, read: read !== undefined ? (read ? 1 : 0) : 1 });
-    return NextResponse.json(updatedMessage);
+    return NextResponse.json(messageFromDoc({ ...message, read: read !== undefined ? read : true }));
   } catch (error) {
     console.error('Error updating message:', error);
     return NextResponse.json({ error: 'Failed to update message' }, { status: 500 });
   }
 }
-

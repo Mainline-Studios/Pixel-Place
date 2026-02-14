@@ -1,8 +1,8 @@
 'use client';
 
-import { User } from '@/types';
-import { getSkins, getAccessories } from '@/lib/storage';
+import { User, Skin, Accessory } from '@/types';import { getSkins, getAccessories } from '@/lib/storage';
 import Avatar3DViewer from '@/components/Avatar3DViewer';
+import { useState, useEffect } from 'react';
 
 interface SidebarProps {
   user: User;
@@ -10,10 +10,24 @@ interface SidebarProps {
 }
 
 export default function Sidebar({ user, onNavigate }: SidebarProps) {
-  const skins = getSkins();
-  const accessories = getAccessories();
+  const [skins, setSkins] = useState<Skin[]>([]);
+  const [accessories, setAccessories] = useState<Accessory[]>([]);
+
+  useEffect(() => {
+    const loadData = async () => {
+      const [skinsData, accessoriesData] = await Promise.all([
+        getSkins(),
+        getAccessories()
+      ]);
+      setSkins(Array.isArray(skinsData) ? skinsData : []);
+      setAccessories(Array.isArray(accessoriesData) ? accessoriesData : []);
+    };
+    loadData();
+  }, []);
+
   const equippedSkin = skins.find(s => s.id === user.equippedSkin) || skins.find(s => s.id === 'starter_classic') || skins[0];
-  // equippedAccessories is an object, not an array: { hat: 'id', glasses: 'id', ... }
+  // Get equipped face if available
+  const equippedFace = user.equippedFace ? skins.find(s => s.id === user.equippedFace && s.isFace) : null;  // equippedAccessories is an object, not an array: { hat: 'id', glasses: 'id', ... }
   const equippedAccessoriesList = Object.values(user.equippedAccessories || {}).map(id => 
     accessories.find(a => a.id === id)
   ).filter(Boolean) as any[];
@@ -43,6 +57,7 @@ export default function Sidebar({ user, onNavigate }: SidebarProps) {
             height={180}
             interactive={true}
             animation={skinWithAccessories.defaultAnimation || 'idle'}
+            equippedFace={equippedFace || undefined}
           />
         )}
       </div>
