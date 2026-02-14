@@ -213,14 +213,12 @@ export interface CoinPack {
   stripePriceId: string;
 }
 
-export type TabType = 'home' | 'games' | 'play' | 'avatarShop' | 'createGame' | 'studio' | 'coins' | 'friends' | 'settings' | 'servers' | 'donation' | 'aiCoder' | 'adminPanel' | 'report';
+export type TabType = 'home' | 'avatarShop' | 'coins' | 'friends' | 'settings' | 'donation' | 'aiCoder' | 'adminPanel' | 'report';
 
 export interface TabContent {
   home?: string;
   discover?: string;
   avatarShop?: string;
-  createGame?: string;
-  studio?: string;
   coins?: string;
   friends?: string;
   settings?: string;

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useUser } from '@/contexts/UserContext';
 import BanScreen from './BanScreen';
 
@@ -13,6 +13,11 @@ export default function Login() {
   const [birthDay, setBirthDay] = useState('');
   const [birthYear, setBirthYear] = useState('');
   const [message, setMessage] = useState('');
+  
+  // Clear any existing messages on component mount
+  useEffect(() => {
+    setMessage('');
+  }, []);
   const [banInfo, setBanInfo] = useState<any>(null);
   const [showTerms, setShowTerms] = useState(false);
   const [showPrivacy, setShowPrivacy] = useState(false);
@@ -31,7 +36,15 @@ export default function Login() {
     if (result.ban) {
       setBanInfo(result.ban);
     } else {
-      setMessage(result.message);
+      // Only show error messages, not success messages
+      if (!result.success) {
+        setMessage(result.message);
+      } else {
+        // Clear message immediately on successful login - no popup
+        setMessage('');
+        setUsername('');
+        setPassword('');
+      }
       setBanInfo(null);
     }
   };
@@ -57,7 +70,12 @@ export default function Login() {
       return;
     }
     const result = await createAccount(username, password, gender);
-    setMessage(result.message);
+    // Only show error messages, not success messages
+    if (!result.success) {
+      setMessage(result.message);
+    } else {
+      setMessage(''); // Clear message on successful sign up
+    }
     setBanInfo(null);
     if (result.success) {
       // Auto sign in after successful sign up
@@ -352,7 +370,7 @@ export default function Login() {
             </>
           )}
 
-          <div id="msg" className={message ? 'show' : ''}>{message}</div>
+          {message && <div id="msg" className="show">{message}</div>}
         </div>
       </div>
 

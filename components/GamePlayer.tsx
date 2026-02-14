@@ -5,6 +5,7 @@ import { PublishedGame, GameServer } from '@/types';
 import { getServers, getUsers, saveUsers } from '@/lib/storage';
 import { io, Socket } from 'socket.io-client';
 import { useUser } from '@/contexts/UserContext';
+import FullScreenGameWrapper from '@/components/FullScreenGameWrapper';
 
 interface GamePlayerProps {
   game: PublishedGame;
@@ -26,8 +27,39 @@ export default function GamePlayer({ game, onClose }: GamePlayerProps) {
   const [error, setError] = useState<string | null>(null);
   const [showSafetyPopup, setShowSafetyPopup] = useState(true);
   const [isLoading, setIsLoading] = useState(true);
-  const serverId = game.serverId;
-  const isOnlineMode = game.multiplayer && !!serverId;
+  const [loadingProgress, setLoadingProgress] = useState(0);
+  
+  // Validate game object before processing - ensure all string properties are safe
+  if (!game || (!game.title && !game.gameCode)) {
+    return (
+      <FullScreenGameWrapper gameTitle="Error" onExit={onClose}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#fff' }}>
+          <div style={{ textAlign: 'center' }}>
+            <h2>Invalid Game Data</h2>
+            <p>The game data is missing required information.</p>
+            <button onClick={onClose} style={{ marginTop: '20px', padding: '10px 20px', background: '#00a2ff', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer' }}>
+              Close
+            </button>
+          </div>
+        </div>
+      </FullScreenGameWrapper>
+    );
+  }
+  
+  // Normalize game object to ensure all string properties are safe for toLowerCase
+  const safeGame = {
+    ...game,
+    title: typeof game.title === 'string' ? game.title : (game.title || 'Untitled Game'),
+    owner: typeof game.owner === 'string' ? game.owner : (game.owner || 'Unknown'),
+    desc: typeof game.desc === 'string' ? game.desc : (game.desc || ''),
+    category: typeof game.category === 'string' ? game.category : undefined,
+    id: typeof game.id === 'string' ? game.id : (game.id || String(game.ts || Date.now())),
+    gameCode: typeof game.gameCode === 'string' ? game.gameCode : (game.gameCode || '')
+  };
+  
+  // Use safeGame instead of game for all operations
+  const serverId = safeGame.serverId;
+  const isOnlineMode = safeGame.multiplayer && !!serverId;
   const [isOnline, setIsOnline] = useState(isOnlineMode);
   const [players, setPlayers] = useState<Player[]>([]);
   const [server, setServer] = useState<GameServer | null>(null);
@@ -199,18 +231,51 @@ export default function GamePlayer({ game, onClose }: GamePlayerProps) {
     };
   }, [isOnline, serverId, game.ts, game.multiplayer]);
 
+  // New loading screen - simple and reliable
+  useEffect(() => {
+    if (!isLoading) {
+      setLoadingProgress(0);
+      return;
+    }
+    
+    const startTime = Date.now();
+    const minLoadTime = 4000; // 4 seconds
+    
+    // Progress animation
+    const progressInterval = setInterval(() => {
+      setLoadingProgress(prev => Math.min(prev + 2, 100));
+    }, 80);
+    
+    // Hide loading after minimum time
+    const hideTimeout = setTimeout(() => {
+      setIsLoading(false);
+      clearInterval(progressInterval);
+    }, minLoadTime);
+    
+    return () => {
+      clearInterval(progressInterval);
+      clearTimeout(hideTimeout);
+    };
+  }, [isLoading]);
+
   useEffect(() => {
     if (!containerRef.current) return;
     
-    // Handle built-in games that use React components
-    if (game.gameCode && game.gameCode.startsWith('builtin_')) {
-      setIsLoading(false);
-      
+    // Start loading
+    setIsLoading(true);
+    setLoadingProgress(0);
+    
+    // Wrap everything in try-catch to handle any errors during game loading
+    try {
+      // Handle built-in games that use React components
+      if (safeGame.gameCode && safeGame.gameCode.startsWith('builtin_')) {
       const loadBuiltinGame = async () => {
         try {
-          const gameId = game.gameCode!.replace('builtin_', '');
+          setLoadingProgress(20);
+          const gameId = safeGame.gameCode!.replace('builtin_', '');
           let GameComponent: React.ComponentType<any> | null = null;
           
+          setLoadingProgress(40);
           // Map game IDs to components
           switch (gameId) {
             case 'hypnosia':
@@ -230,9 +295,6 @@ export default function GamePlayer({ game, onClose }: GamePlayerProps) {
               break;
             case 'jungleJourney':
               GameComponent = (await import('@/components/Games/JungleJourneySeries')).default;
-              break;
-            case 'chess':
-              GameComponent = (await import('@/components/Games/Chess')).default;
               break;
             case 'floorIsLava':
               GameComponent = (await import('@/components/Games/FloorIsLava')).default;
@@ -255,16 +317,24 @@ export default function GamePlayer({ game, onClose }: GamePlayerProps) {
             case 'superShowdown2D':
               GameComponent = (await import('@/components/Games/SuperShowdown2D')).default;
               break;
+            case 'gameStudio':
+              GameComponent = (await import('@/components/Games/GameStudio')).default;
+              break;
+            case 'gymPump':
+              GameComponent = (await import('@/components/Games/GymPump')).default;
+              break;
             default:
               setError(`Built-in game "${gameId}" not found`);
               return;
           }
           
+          setLoadingProgress(60);
           if (GameComponent && containerRef.current) {
             // Use React to render the component
             const React = await import('react');
             const ReactDOM = await import('react-dom/client');
             
+            setLoadingProgress(80);
             // Clear container
             containerRef.current.innerHTML = '';
             
@@ -284,7 +354,13 @@ export default function GamePlayer({ game, onClose }: GamePlayerProps) {
           }
         } catch (err: any) {
           console.error('Error loading built-in game:', err);
-          setError(`Failed to load game: ${err.message || 'Unknown error'}`);
+          // Handle toLowerCase errors specifically
+          const errorMessage = err.message || 'Unknown error';
+          if (errorMessage.includes('toLowerCase') || errorMessage.includes('Cannot read properties of undefined')) {
+            setError('Game failed to load due to a data format issue. Please try again or contact support.');
+          } else {
+            setError(`Failed to load game: ${errorMessage}`);
+          }
         }
       };
       
@@ -292,20 +368,18 @@ export default function GamePlayer({ game, onClose }: GamePlayerProps) {
       return;
     }
     
-    if (!game.gameCode) {
+    if (!safeGame.gameCode) {
       setError('Game code is missing');
-      setIsLoading(false);
       return;
     }
     
-    // Don't show loading screen - load immediately
-    setIsLoading(false);
-
     // Create a safe execution context for the game code
     const executeGame = async () => {
       try {
+        setLoadingProgress(20);
         // Import Three.js dynamically
         const THREE = await import('three');
+        setLoadingProgress(40);
 
         // Create a module-like environment
         const moduleExports: any = {};
@@ -343,7 +417,7 @@ export default function GamePlayer({ game, onClose }: GamePlayerProps) {
 
         // Wrap the game code in a function that has access to THREE
         // Ensure code is treated as plain script, not module
-        const gameCodeStr = String(game.gameCode || '').trim();
+        const gameCodeStr = String(safeGame.gameCode || '').trim();
 
         // Remove any potential import/export statements that might cause issues
         // Also convert escaped template literals back to actual template literals
@@ -598,6 +672,7 @@ export default function GamePlayer({ game, onClose }: GamePlayerProps) {
           createGameFunc = (window as any).createGame;
         }
 
+        setLoadingProgress(80);
         if (createGameFunc && typeof createGameFunc === 'function') {
           try {
             const cleanup = createGameFunc(containerRef.current!);
@@ -605,7 +680,8 @@ export default function GamePlayer({ game, onClose }: GamePlayerProps) {
               cleanupRef.current = cleanup;
             }
             // Game loaded successfully
-            setIsLoading(false);
+            setLoadingProgress(100);
+            setGameLoaded(true);
             setError(null);
           } catch (execError: any) {
             console.error('Game execution runtime error:', execError);
@@ -621,22 +697,38 @@ export default function GamePlayer({ game, onClose }: GamePlayerProps) {
         }
       } catch (err: any) {
         console.error('Game execution error:', err);
+        // Handle toLowerCase errors specifically
         const errorMessage = err.message || err.toString() || 'Failed to load game';
-        setError(errorMessage);
-        setIsLoading(false);
+        if (errorMessage.includes('toLowerCase') || errorMessage.includes('Cannot read properties of undefined')) {
+          setError('Game failed to load due to a data format issue. The game data may be corrupted. Please try again or contact support.');
+        } else {
+          setError(errorMessage);
+        }
 
         // Show error in console for debugging
         console.error('Full error details:', {
           message: errorMessage,
           stack: err.stack,
-          gameTitle: game.title,
-          gameCodeLength: game.gameCode?.length || 0
+          gameTitle: game?.title || 'Unknown',
+          gameCodeLength: game?.gameCode?.length || 0,
+          gameId: game?.id || game?.ts || 'Unknown'
         });
       }
     };
 
-    // Execute immediately without delay
-    executeGame();
+    // Execute immediately without delay - wrap in try-catch for safety
+    try {
+      executeGame();
+    } catch (setupError: any) {
+      console.error('Error setting up game execution:', setupError);
+      const errorMessage = setupError?.message || 'Failed to set up game';
+      if (errorMessage.includes('toLowerCase') || errorMessage.includes('Cannot read properties of undefined')) {
+        setError('Game failed to load due to a data format issue. Please try again or contact support.');
+      } else {
+        setError(`Failed to load game: ${errorMessage}`);
+      }
+      setIsLoading(false);
+    }
 
     return () => {
       if (cleanupRef.current) {
@@ -775,64 +867,48 @@ export default function GamePlayer({ game, onClose }: GamePlayerProps) {
   }
 
   return (
-    <div
-      style={{
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        background: '#000',
-        zIndex: 10000,
-        display: 'flex',
-        flexDirection: 'column'
-      }}
-    >
-      {/* Roblox-style Loading Screen */}
+    <FullScreenGameWrapper gameTitle={safeGame.title} onExit={onClose}>
+      {/* New Loading Screen */}
       {isLoading && (
-        <div
-          style={{
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            background: '#181818',
-            zIndex: 15000,
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-            color: '#fff',
-            fontFamily: '"Gotham SSm A", "Gotham SSm B", Arial, sans-serif'
-          }}
-        >
-          {/* Roblox-style Logo/Title */}
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: '#181818',
+          zIndex: 99999,
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          color: '#fff',
+          fontFamily: 'Arial, sans-serif'
+        }}>
           <div style={{ textAlign: 'center', marginBottom: '60px' }}>
-            <div style={{
+            <h1 style={{
               fontSize: '64px',
               margin: '0 0 20px 0',
               fontWeight: 'bold',
               background: 'linear-gradient(180deg, #fff 0%, #ccc 100%)',
               WebkitBackgroundClip: 'text',
               WebkitTextFillColor: 'transparent',
-              textShadow: '0 2px 4px rgba(0,0,0,0.3)'
+              backgroundClip: 'text'
             }}>
-              {game.title}
-            </div>
-            <div style={{
+              {safeGame.title}
+            </h1>
+            <p style={{
               fontSize: '18px',
               color: '#999',
-              marginTop: '10px',
+              margin: '10px 0 0 0',
               fontWeight: 300
             }}>
-              by {game.owner}
-            </div>
+              by {safeGame.owner}
+            </p>
           </div>
 
-          {/* Roblox-style Progress Bar Container */}
           <div style={{ width: '500px', maxWidth: '90%' }}>
-            <div style={{
+            <p style={{
               fontSize: '14px',
               color: '#999',
               marginBottom: '12px',
@@ -840,35 +916,28 @@ export default function GamePlayer({ game, onClose }: GamePlayerProps) {
               fontWeight: 300
             }}>
               Loading...
-            </div>
+            </p>
 
-            {/* Progress Bar Background */}
-            <div
-              style={{
-                width: '100%',
-                height: '8px',
-                background: '#2a2a2a',
+            <div style={{
+              width: '100%',
+              height: '8px',
+              background: '#2a2a2a',
+              borderRadius: '4px',
+              overflow: 'hidden',
+              border: '1px solid #1a1a1a'
+            }}>
+              <div style={{
+                width: `${loadingProgress}%`,
+                height: '100%',
+                background: 'linear-gradient(90deg, #00A2FF 0%, #00D4FF 50%, #00A2FF 100%)',
+                backgroundSize: '200% 100%',
                 borderRadius: '4px',
-                overflow: 'hidden',
-                border: '1px solid #1a1a1a',
-                boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.5)'
-              }}
-            >
-              {/* Animated Progress Fill */}
-              <div
-                style={{
-                  width: '100%',
-                  height: '100%',
-                  background: 'linear-gradient(90deg, #00A2FF 0%, #00D4FF 50%, #00A2FF 100%)',
-                  backgroundSize: '200% 100%',
-                  borderRadius: '4px',
-                  animation: 'robloxLoading 1.5s linear infinite',
-                  boxShadow: '0 0 10px rgba(0, 162, 255, 0.5)'
-                }}
-              />
+                animation: 'loadingShimmer 1.5s linear infinite',
+                boxShadow: '0 0 10px rgba(0, 162, 255, 0.5)',
+                transition: 'width 0.2s ease'
+              }} />
             </div>
 
-            {/* Loading Steps */}
             <div style={{
               marginTop: '30px',
               fontSize: '12px',
@@ -883,34 +952,29 @@ export default function GamePlayer({ game, onClose }: GamePlayerProps) {
           </div>
 
           <style>{`
-            @keyframes robloxLoading {
-              0% { 
-                background-position: 0% 0%;
-                transform: translateX(-100%);
-              }
-              50% {
-                background-position: 100% 0%;
-                transform: translateX(0%);
-              }
-              100% { 
-                background-position: 200% 0%;
-                transform: translateX(100%);
-              }
+            @keyframes loadingShimmer {
+              0% { background-position: -200% 0; }
+              100% { background-position: 200% 0; }
             }
           `}</style>
         </div>
       )}
 
-      {/* Hidden header - ESC key to exit */}
+      {/* Game Container */}
       <div
         ref={containerRef}
         style={{
-          flex: 1,
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
           width: '100%',
           height: '100%',
           overflow: 'hidden',
           opacity: isLoading ? 0 : 1,
-          transition: 'opacity 0.5s'
+          transition: 'opacity 0.5s',
+          background: '#000'
         }}
       />
       {error && (
@@ -929,7 +993,8 @@ export default function GamePlayer({ game, onClose }: GamePlayerProps) {
             justifyContent: 'center',
             padding: '40px',
             color: '#fff',
-            fontFamily: 'Arial, sans-serif'
+            fontFamily: 'Arial, sans-serif',
+            pointerEvents: 'all'
           }}
         >
           <div style={{
@@ -957,8 +1022,8 @@ export default function GamePlayer({ game, onClose }: GamePlayerProps) {
               {error}
             </div>
             <div style={{ color: '#999', marginBottom: '20px', fontSize: '14px' }}>
-              <strong>Game:</strong> {game.title}<br />
-              <strong>Owner:</strong> {game.owner}
+              <strong>Game:</strong> {safeGame.title}<br />
+              <strong>Owner:</strong> {safeGame.owner}
             </div>
             <button
               onClick={onClose}
@@ -979,6 +1044,6 @@ export default function GamePlayer({ game, onClose }: GamePlayerProps) {
           </div>
         </div>
       )}
-    </div>
+    </FullScreenGameWrapper>
   );
 }

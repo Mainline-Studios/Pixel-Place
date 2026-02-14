@@ -7,12 +7,9 @@ import { getPublished, savePublished } from '@/lib/storage';
 import TopBar from './TopBar';
 import Sidebar from './Sidebar';
 import HomeTab from '../Tabs/HomeTab';
-// DiscoverTab and PlayTab removed - merged into HomeTab
-// CreateTab removed
+// DiscoverTab, PlayTab, GamesTab, CreateTab, StudioTab, and ServersTab removed
 import AvatarShopTab from '../Tabs/AvatarShopTab';
-import StudioTab from '../Tabs/StudioTab';
 import CoinsTab from '../Tabs/CoinsTab';
-import ServersTab from '../Tabs/ServersTab';
 import FriendsTab from '../Tabs/FriendsTab';
 import SettingsTab from '../Tabs/SettingsTab';
 
@@ -42,12 +39,8 @@ export default function Dashboard({ user }: DashboardProps) {
       // Create tab removed
       case 'avatarShop':
         return <AvatarShopTab user={user} editMode={editMode} />;
-      case 'studio':
-        return <StudioTab user={user} editMode={editMode} />;
       case 'coins':
         return <CoinsTab user={user} editMode={editMode} />;
-      case 'servers':
-        return <ServersTab user={user} editMode={editMode} />;
       case 'friends':
         return <FriendsTab user={user} editMode={editMode} />;
       case 'settings':
