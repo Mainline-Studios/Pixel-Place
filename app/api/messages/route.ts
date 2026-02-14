@@ -97,9 +97,10 @@ export async function POST(request: NextRequest) {
     // MODERATION CHECK - Check content before saving
     const moderationResult = await moderateContent(message.trim(), fromUsername, 'private_message');
     
-    // If content violates rules, process the warning/ban
+    // Process moderation result (creates warning if needed)
+    let moderationProcessed = null;
     if (!moderationResult.safe) {
-      const { warning, banned, warningCount } = await processModerationResult(
+      moderationProcessed = await processModerationResult(
         fromUsername,
         message.trim(),
         moderationResult,
@@ -112,12 +113,12 @@ export async function POST(request: NextRequest) {
           error: 'Message blocked due to content violation',
           violations: moderationResult.violations,
           severity: moderationResult.severity,
-          warning: warning,
-          banned: banned,
-          warningCount: warningCount,
-          message: banned 
+          warning: moderationProcessed.warning,
+          banned: moderationProcessed.banned,
+          warningCount: moderationProcessed.warningCount,
+          message: moderationProcessed.banned 
             ? 'You have been automatically banned for multiple violations this month.'
-            : `Warning ${warningCount}/${2}: ${moderationResult.message}. ${2 - warningCount} more warning(s) this month will result in a permanent ban.`
+            : `Warning ${moderationProcessed.warningCount}/${2}: ${moderationResult.message}. ${2 - moderationProcessed.warningCount} more warning(s) this month will result in a permanent ban.`
         }, { status: 403 });
       }
     }
@@ -142,19 +143,12 @@ export async function POST(request: NextRequest) {
     };
 
     // If there was a low-severity warning, include it in the success response
-    if (!moderationResult.safe && !moderationResult.blocked) {
-      const { warning, warningCount } = await processModerationResult(
-        fromUsername,
-        message.trim(),
-        moderationResult,
-        'private_message'
-      );
-      
+    if (moderationProcessed) {
       return NextResponse.json({
         ...newMessage,
-        warning: warning,
-        warningCount: warningCount,
-        warningMessage: `Warning ${warningCount}/${2}: Your message contains inappropriate content. ${2 - warningCount} more warning(s) this month will result in a permanent ban.`
+        warning: moderationProcessed.warning,
+        warningCount: moderationProcessed.warningCount,
+        warningMessage: `Warning ${moderationProcessed.warningCount}/${2}: Your message contains inappropriate content. ${2 - moderationProcessed.warningCount} more warning(s) this month will result in a permanent ban.`
       });
     }
 

@@ -19,11 +19,14 @@ export const MODERATION_CONFIG = {
 const filter = new Filter();
 
 // Additional offensive words to catch more variations
+// Note: These are used for content moderation purposes only
 const additionalBadWords = [
-  'f*ck', 'sh*t', 'b*tch', 'a**hole', 'bastard', 'damn', 'hell',
-  'idiot', 'stupid', 'dumb', 'retard', 'faggot', 'nigger', 'chink',
-  'spic', 'kike', 'rape', 'sex', 'porn', 'nude', 'naked', 'kill yourself',
-  'kys', 'suicide', 'die', 'hate', 'loser', 'ugly', 'fat', 'gay'
+  // Common variations and euphemisms
+  'kys', 'stfu', 'gtfo', 'moron', 'idiot', 'stupid', 'dumb',
+  // Self-harm related
+  'kill yourself', 'suicide',
+  // Generic inappropriate
+  'die', 'hate', 'loser', 'ugly'
 ];
 filter.addWords(...additionalBadWords);
 
@@ -33,9 +36,8 @@ const PII_PATTERNS = {
   phone: /(\+?\d{1,3}[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}\b/g,
   ssn: /\b\d{3}-\d{2}-\d{4}\b/g,
   creditCard: /\b\d{4}[-\s]?\d{4}[-\s]?\d{4}[-\s]?\d{4}\b/g,
-  zipCode: /\b\d{5}(-\d{4})?\b/g,
   ipAddress: /\b(?:\d{1,3}\.){3}\d{1,3}\b/g,
-  // Address patterns (simplified)
+  // Address patterns (simplified) - only with street indicators
   address: /\b\d+\s+[A-Za-z\s]+(?:Street|St|Avenue|Ave|Road|Rd|Boulevard|Blvd|Lane|Ln|Drive|Dr|Court|Ct|Circle|Cir)\b/gi
 };
 

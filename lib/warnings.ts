@@ -69,7 +69,6 @@ export async function getWarningsForUserInMonth(
   month?: string
 ): Promise<Warning[]> {
   const targetMonth = month || getCurrentMonth();
-  const usernameLower = username.toLowerCase();
 
   const db = getFirestoreInstance();
   if (!db) {
@@ -141,11 +140,12 @@ export async function autoBanUser(username: string, warnings: Warning[]): Promis
       return false;
     }
 
-    // Update the warning to mark it as resulting in a ban
+    // Update the most recent warning to mark it as resulting in a ban
     const db = getFirestoreInstance();
     if (db && warnings.length > 0) {
-      const latestWarning = warnings[warnings.length - 1];
-      await db.collection(COLLECTIONS.WARNINGS).doc(latestWarning.id).update({
+      // Warnings are sorted by timestamp desc, so first one is most recent
+      const mostRecentWarning = warnings[0];
+      await db.collection(COLLECTIONS.WARNINGS).doc(mostRecentWarning.id).update({
         action_taken: 'banned'
       });
     }
