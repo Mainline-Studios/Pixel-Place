@@ -1,10 +1,6 @@
 {
   "compilerOptions": {
-    "lib": [
-      "dom",
-      "dom.iterable",
-      "esnext"
-    ],
+    "lib": ["dom", "dom.iterable", "esnext"],
     "allowJs": true,
     "skipLibCheck": true,
     "strict": true,
@@ -16,35 +12,20 @@
     "isolatedModules": true,
     "jsx": "preserve",
     "incremental": true,
-    "plugins": [
-      {
-        "name": "next"
-      }
-    ],
-    "paths": {
-      "@/*": [
-        "./*"
-      ]
-    },
+    "plugins": [{ "name": "next" }],
+    "paths": { "@/*": ["./*"] },
     "target": "ES2017"
   },
-  "include": [
-    "next-env.d.ts",
-    "**/*.ts",
-    "**/*.tsx",
-    ".next/types/**/*.ts",
-    ".next/dev/types/**/*.ts"
-  ],
+  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts", ".next/dev/types/**/*.ts"],
   "exclude": [
-    "node_modules"
+    "node_modules",
+    "components/Games/CityLife.tsx",
+    "components/Games/HideAndSeek.tsx",
+    "components/Games/GhostInTheDark.tsx",
+    "components/Games/MusicalMayhem.tsx",
+    "components/Games/InternationalSportsHQ.tsx",
+    "components/Games/GhostInTheDarkThumbnail.tsx",
+    "components/PixStudio/PixStudio.tsx",
+    "scripts"
   ]
 }
-
-
-
-
-
-
-
-
-
