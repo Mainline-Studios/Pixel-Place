@@ -15,7 +15,7 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
   const [bans, setBans] = useState<Ban[]>([]);
   const [reports, setReports] = useState<Report[]>([]);
   const [appeals, setAppeals] = useState<any[]>([]);
-  const [activeTab, setActiveTab] = useState<'users' | 'bans' | 'reports' | 'appeals' | 'gamesubmissions'>('users');
+  const [activeTab, setActiveTab] = useState<'users' | 'bans' | 'reports' | 'appeals' | 'gamesubmissions' | 'warnings' | 'flagged'>('users');
   const [gameSubmissions, setGameSubmissions] = useState<GameSubmission[]>([]);
   const [banUsername, setBanUsername] = useState('');
   const [banReason, setBanReason] = useState('');
@@ -26,6 +26,8 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
   const [chatMessages, setChatMessages] = useState<any[]>([]);
   const [newChatMessage, setNewChatMessage] = useState('');
   const [sendingChatMessage, setSendingChatMessage] = useState(false);
+  const [warnings, setWarnings] = useState<any[]>([]);
+  const [warningStats, setWarningStats] = useState<any>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
 
   // Real-time users from Firestore (instant updates when admin changes role/etc in Firebase Console)
@@ -112,16 +114,20 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
 
   const loadOtherData = async () => {
     try {
-      const [appealsData, bansData, reportsData, submissionsData] = await Promise.all([
+      const [appealsData, bansData, reportsData, submissionsData, warningsData, statsData] = await Promise.all([
         getBanAppeals(),
         getBannedUsers(),
         getReports(),
-        getGameSubmissions()
+        getGameSubmissions(),
+        fetch('/api/warnings').then(res => res.ok ? res.json() : []).catch(() => []),
+        fetch('/api/warnings?stats=true').then(res => res.ok ? res.json() : null).catch(() => null)
       ]);
       setAppeals(appealsData);
       setGameSubmissions(submissionsData);
       setBans(bansData);
       setReports(reportsData);
+      setWarnings(warningsData);
+      setWarningStats(statsData);
     } catch (error) {
       console.error('Error in loadOtherData:', error);    }
   };
@@ -232,8 +238,25 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
     // Silent success - no alert
   };
 
+  const handleDeleteWarning = async (warningId: string) => {
+    if (confirm('Delete this warning? This action cannot be undone.')) {
+      try {
+        const response = await fetch('/api/warnings', {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: warningId })
+        });
+        if (response.ok) {
+          await loadData();
+        }
+      } catch (error) {
+        console.error('Error deleting warning:', error);
+      }
+    }
+  };
+
   const loadChatMessages = async (bannedUsername: string) => {
-    const messages = await getMessages(user.username, bannedUsername);
+    const messages = await getMessagesAPI(user.username, bannedUsername);
     setChatMessages(messages);
   };
 
@@ -276,6 +299,11 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
     r.reason.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  const filteredWarnings = warnings.filter(w =>
+    w.username?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    w.violation_type?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    w.context?.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   if (user.role !== 'admin') {
     return (
@@ -324,6 +352,18 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
           onClick={() => setActiveTab('gamesubmissions')}
         >
           Game Submissions ({gameSubmissions.filter(s => s.status === 'pending').length} pending)
+        </button>
+        <button
+          className={`btn ${activeTab === 'warnings' ? 'active' : ''}`}
+          onClick={() => setActiveTab('warnings')}
+        >
+          Warnings ({warningStats?.warningsThisMonth || 0} this month)
+        </button>
+        <button
+          className={`btn ${activeTab === 'flagged' ? 'active' : ''}`}
+          onClick={() => setActiveTab('flagged')}
+        >
+          Flagged Messages ({warnings.filter(w => w.action_taken === 'blocked').length})
         </button>
       </div>
 
@@ -960,6 +1000,183 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
                           </button>
                         </div>
                       )}
+                    </div>
+                  ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Warnings Tab */}
+      {activeTab === 'warnings' && (
+        <div className="ai-box" style={{ marginBottom: 0 }}>
+          <div className="ai-label">
+            Warnings ({filteredWarnings.length} of {warnings.length} total)
+            {warningStats && (
+              <span style={{ fontSize: '12px', fontWeight: 'normal', marginLeft: '8px' }}>
+                • {warningStats.warningsThisMonth} this month • {warningStats.uniqueUsersWarned} unique users • {warningStats.autoBansThisMonth} auto-bans
+              </span>
+            )}
+          </div>
+          <div className="ai-output" style={{ maxHeight: '600px', overflowY: 'auto' }}>
+            {filteredWarnings.length === 0 ? (
+              <div className="smalltext">No warnings found.</div>
+            ) : (
+              <div style={{ display: 'grid', gap: '12px' }}>
+                {filteredWarnings.map((warning) => {
+                  const currentMonth = new Date().toISOString().slice(0, 7);
+                  const isCurrentMonth = warning.month === currentMonth;
+                  
+                  return (
+                    <div
+                      key={warning.id}
+                      style={{
+                        padding: '12px',
+                        background: 'var(--panel-soft)',
+                        borderRadius: '8px',
+                        border: `2px solid ${
+                          warning.severity === 'high' ? '#ff4d4d' :
+                          warning.severity === 'medium' ? '#ffa500' : '#ffd76a'
+                        }`,
+                        opacity: isCurrentMonth ? 1 : 0.7
+                      }}
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '8px' }}>
+                        <div style={{ flex: 1 }}>
+                          <div style={{ fontWeight: 600, marginBottom: '4px', color: '#ff4d4d' }}>
+                            {warning.username}
+                            {warning.action_taken === 'banned' && <span style={{ marginLeft: '8px', color: '#ff0000' }}>🚫 BANNED</span>}
+                            {!isCurrentMonth && <span style={{ marginLeft: '8px', fontSize: '12px', color: '#8b90a8' }}>(Past Month)</span>}
+                          </div>
+                          <div className="smalltext">
+                            Severity: <span style={{
+                              color: warning.severity === 'high' ? '#ff4d4d' :
+                                warning.severity === 'medium' ? '#ffa500' : '#ffd76a',
+                              fontWeight: 600,
+                              textTransform: 'uppercase'
+                            }}>
+                              {warning.severity}
+                            </span>
+                            <br />
+                            Type: {warning.violation_type}
+                            <br />
+                            Context: {warning.context}
+                            <br />
+                            Date: {new Date(warning.timestamp).toLocaleString()}
+                            <br />
+                            Month: {warning.month}
+                            <br />
+                            Action: {warning.action_taken}
+                          </div>
+                          {warning.detected_items && warning.detected_items.length > 0 && (
+                            <div className="smalltext" style={{ marginTop: '4px', color: '#8b90a8' }}>
+                              Detected: {warning.detected_items.join(', ')}
+                            </div>
+                          )}
+                        </div>
+                        <button
+                          className="btn"
+                          onClick={() => handleDeleteWarning(warning.id)}
+                          style={{ background: '#ff4d4d', fontSize: '12px', padding: '6px 12px', marginLeft: '8px' }}
+                        >
+                          Delete
+                        </button>
+                      </div>
+                      <div style={{
+                        padding: '8px',
+                        background: 'var(--panel)',
+                        borderRadius: '4px',
+                        marginTop: '8px',
+                        fontSize: '13px',
+                        fontFamily: 'monospace'
+                      }}>
+                        {warning.message}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Flagged Messages Tab */}
+      {activeTab === 'flagged' && (
+        <div className="ai-box" style={{ marginBottom: 0 }}>
+          <div className="ai-label">
+            Flagged Messages ({warnings.filter(w => w.action_taken === 'blocked').length})
+          </div>
+          <div className="ai-output" style={{ maxHeight: '600px', overflowY: 'auto' }}>
+            {warnings.filter(w => w.action_taken === 'blocked').length === 0 ? (
+              <div className="smalltext">No blocked messages found.</div>
+            ) : (
+              <div style={{ display: 'grid', gap: '12px' }}>
+                {warnings
+                  .filter(w => w.action_taken === 'blocked')
+                  .filter(w => 
+                    w.username?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                    w.violation_type?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                    w.context?.toLowerCase().includes(searchTerm.toLowerCase())
+                  )
+                  .map((warning) => (
+                    <div
+                      key={warning.id}
+                      style={{
+                        padding: '12px',
+                        background: 'var(--panel-soft)',
+                        borderRadius: '8px',
+                        border: '2px solid #ff4d4d'
+                      }}
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '8px' }}>
+                        <div style={{ flex: 1 }}>
+                          <div style={{ fontWeight: 600, marginBottom: '4px', color: '#ff4d4d' }}>
+                            🚫 BLOCKED MESSAGE
+                          </div>
+                          <div className="smalltext">
+                            User: {warning.username}
+                            <br />
+                            Severity: <span style={{
+                              color: warning.severity === 'high' ? '#ff4d4d' :
+                                warning.severity === 'medium' ? '#ffa500' : '#ffd76a',
+                              fontWeight: 600,
+                              textTransform: 'uppercase'
+                            }}>
+                              {warning.severity}
+                            </span>
+                            <br />
+                            Violations: {warning.detected_items?.join(', ') || 'N/A'}
+                            <br />
+                            Context: {warning.context}
+                            <br />
+                            Date: {new Date(warning.timestamp).toLocaleString()}
+                          </div>
+                        </div>
+                        <button
+                          className="btn"
+                          onClick={() => handleDeleteWarning(warning.id)}
+                          style={{ background: '#ff4d4d', fontSize: '12px', padding: '6px 12px', marginLeft: '8px' }}
+                        >
+                          Delete
+                        </button>
+                      </div>
+                      <div style={{
+                        padding: '8px',
+                        background: '#1a1a1a',
+                        borderRadius: '4px',
+                        marginTop: '8px',
+                        fontSize: '13px',
+                        fontFamily: 'monospace',
+                        color: '#ff4d4d',
+                        border: '1px solid #ff4d4d'
+                      }}>
+                        {warning.message}
+                      </div>
+                      <div className="smalltext" style={{ marginTop: '8px', fontStyle: 'italic', color: '#8b90a8' }}>
+                        This message was blocked from being sent.
+                      </div>
                     </div>
                   ))}
               </div>
