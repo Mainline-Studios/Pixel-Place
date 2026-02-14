@@ -267,13 +267,13 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
   }, [chatMessages]);
 
   const filteredUsers = allUsers.filter(u =>
-    u.username.toLowerCase().includes(searchTerm.toLowerCase())
+    (u?.username ?? '').toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const filteredReports = reports.filter(r =>
-    r.reportedUsername.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    r.reporterUsername.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    r.reason.toLowerCase().includes(searchTerm.toLowerCase())
+    (r.reportedUsername ?? '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (r.reporterUsername ?? '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (r.reason ?? '').toLowerCase().includes(searchTerm.toLowerCase())
   );
 
 
@@ -687,12 +687,12 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '12px' }}>
                         <div>
                           <div style={{ fontWeight: 600, marginBottom: '4px' }}>
-                            Reported: <span style={{ color: '#ff4d4d' }}>{report.reportedUsername}</span>
+                            Reported: <span style={{ color: '#ff4d4d' }}>{report.reportedUsername ?? 'Unknown'}</span>
                           </div>
                           <div className="smalltext">
-                            Reported by: {report.reporterUsername}
+                            Reported by: {report.reporterUsername ?? 'Unknown'}
                             <br />
-                            Reason: {report.reason}
+                            Reason: {report.reason ?? '—'}
                             <br />
                             Date: {new Date(report.timestamp).toLocaleString()}
                             <br />
@@ -735,18 +735,20 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
                             <button
                               className="btn"
                               onClick={async () => {
-                                const reportedUser = allUsers.find(u => u.username.toLowerCase() === report.reportedUsername.toLowerCase());
-                                const isAdminAccount = ADMIN_ACCOUNTS_LIST.some(a => a.username.toLowerCase() === report.reportedUsername.toLowerCase());
+                                const reportedName = report.reportedUsername ?? '';
+                                if (!reportedName) return;
+                                const reportedUser = allUsers.find(u => u.username.toLowerCase() === reportedName.toLowerCase());
+                                const isAdminAccount = ADMIN_ACCOUNTS_LIST.some(a => a.username.toLowerCase() === reportedName.toLowerCase());
 
                                 if (reportedUser?.role === 'admin' || isAdminAccount) {
                                   // Silent error - no alert
                                   return;
                                 }
 
-                                if (confirm(`Ban user "${report.reportedUsername}" based on this report?`)) {
-                                  const reason = prompt('Ban reason:', `Reported for: ${report.reason}`);
+                                if (confirm(`Ban user "${reportedName}" based on this report?`)) {
+                                  const reason = prompt('Ban reason:', `Reported for: ${report.reason ?? ''}`);
                                   if (reason) {
-                                    const success = await banUser(report.reportedUsername, user.username, reason, true);
+                                    const success = await banUser(reportedName, user.username, reason, true);
                                     if (success) {
                                       await handleReportAction(report.id, 'resolved', `User banned based on report`);
                                       await loadData();

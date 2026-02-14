@@ -1,6 +1,7 @@
 'use client';
 
 import React, { Component, ErrorInfo, ReactNode } from 'react';
+import Image from 'next/image';
 
 interface Props {
   children: ReactNode;
@@ -29,50 +30,80 @@ export default class ErrorBoundary extends Component<Props, State> {
     if (this.state.hasError) {
       return (
         <div style={{
+          minHeight: '100vh',
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
           justifyContent: 'center',
-          height: '100vh',
-          background: '#0d1019',
-          color: '#fff',
           padding: '20px',
-          textAlign: 'center'
+          background: '#0f1117',
+          color: '#f2f2f5',
         }}>
-          <h1 style={{ color: '#ff4d4d', marginBottom: '20px' }}>Something went wrong</h1>
-          <p style={{ color: '#aaa', marginBottom: '20px' }}>
-            {this.state.error?.message || 'An unexpected error occurred'}
+          <Image
+            src="/error-icon.png"
+            alt="Something went wrong"
+            width={120}
+            height={120}
+            style={{ marginBottom: '24px', borderRadius: '16px' }}
+          />
+          <h1 style={{
+            fontSize: '32px',
+            fontWeight: 700,
+            marginBottom: '8px',
+            color: '#f2f2f5',
+          }}>
+            Oops! Something went wrong
+          </h1>
+          <p style={{
+            fontSize: '16px',
+            marginBottom: '32px',
+            color: '#8b90a8',
+            textAlign: 'center',
+            maxWidth: '500px',
+          }}>
+            We experienced an error and are currently in the process of fixing it.
           </p>
-          <button
-            onClick={() => {
-              this.setState({ hasError: false, error: null });
-              window.location.reload();
-            }}
-            style={{
-              padding: '10px 20px',
-              background: '#00aaff',
-              color: '#fff',
-              border: 'none',
-              borderRadius: '8px',
-              cursor: 'pointer',
-              fontSize: '16px'
-            }}
-          >
-            Reload Page
-          </button>
-          <details style={{ marginTop: '20px', textAlign: 'left', maxWidth: '600px' }}>
-            <summary style={{ cursor: 'pointer', color: '#aaa' }}>Error Details</summary>
-            <pre style={{
-              background: '#1a1d29',
-              padding: '10px',
-              borderRadius: '8px',
-              overflow: 'auto',
-              fontSize: '12px',
-              color: '#ff4d4d'
-            }}>
-              {this.state.error?.stack}
-            </pre>
-          </details>
+          <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', justifyContent: 'center' }}>
+            <button
+              onClick={() => {
+                this.setState({ hasError: false, error: null });
+                window.location.reload();
+              }}
+              style={{
+                background: 'linear-gradient(135deg, #2a2f45 0%, #3a415e 100%)',
+                border: '1px solid #3a3f57',
+                color: '#f2f2f5',
+                fontSize: '14px',
+                fontWeight: 600,
+                padding: '12px 24px',
+                borderRadius: '12px',
+                cursor: 'pointer',
+                boxShadow: '0 10px 24px rgba(0, 0, 0, .8), 0 0 20px rgba(255, 255, 255, .07)',
+              }}
+            >
+              Try again
+            </button>
+            <a
+              href="/games"
+              onClick={() => {
+                try { sessionStorage.setItem('pixelPlaceSkipSplash', '1'); } catch {}
+              }}
+              style={{
+                display: 'inline-block',
+                background: 'linear-gradient(135deg, #00aa88 0%, #008866 100%)',
+                border: 'none',
+                color: '#fff',
+                fontSize: '14px',
+                fontWeight: 600,
+                padding: '12px 24px',
+                borderRadius: '12px',
+                textDecoration: 'none',
+                boxShadow: '0 4px 16px rgba(0, 170, 136, 0.4)',
+              }}
+            >
+              Back to home
+            </a>
+          </div>
         </div>
       );
     }
