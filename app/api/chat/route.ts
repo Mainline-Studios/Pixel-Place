@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getFirestoreInstance, COLLECTIONS, setDocument } from '@/lib/firestore';
+import { moderateContent } from '@/lib/moderation';
+import { processModerationResult } from '@/lib/warnings';
 
 export async function GET(request: NextRequest) {
   try {
@@ -43,6 +45,34 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Database not available' }, { status: 503 });
     }
 
+    // MODERATION CHECK - Check content before saving
+    const moderationResult = await moderateContent(message, username, `global_chat:${channel}`);
+    
+    // If content violates rules, process the warning/ban
+    if (!moderationResult.safe) {
+      const { warning, banned, warningCount } = await processModerationResult(
+        username,
+        message,
+        moderationResult,
+        `global_chat:${channel}`
+      );
+
+      // If message should be blocked, don't save it
+      if (moderationResult.blocked) {
+        return NextResponse.json({
+          error: 'Message blocked due to content violation',
+          violations: moderationResult.violations,
+          severity: moderationResult.severity,
+          warning: warning,
+          banned: banned,
+          warningCount: warningCount,
+          message: banned 
+            ? 'You have been automatically banned for multiple violations this month.'
+            : `Warning ${warningCount}/${2}: ${moderationResult.message}. ${2 - warningCount} more warning(s) this month will result in a permanent ban.`
+        }, { status: 403 });
+      }
+    }
+
     const chatMessage = {
       username,
       username_lower: username.toLowerCase(),
@@ -55,6 +85,24 @@ export async function POST(request: NextRequest) {
 
     const docRef = db.collection(COLLECTIONS.CHAT_MESSAGES).doc();
     await setDocument(COLLECTIONS.CHAT_MESSAGES, docRef.id, chatMessage);
+
+    // If there was a low-severity warning, include it in the success response
+    if (!moderationResult.safe && !moderationResult.blocked) {
+      const { warning, warningCount } = await processModerationResult(
+        username,
+        message,
+        moderationResult,
+        `global_chat:${channel}`
+      );
+      
+      return NextResponse.json({
+        success: true,
+        warning: warning,
+        warningCount: warningCount,
+        message: chatMessage,
+        warningMessage: `Warning ${warningCount}/${2}: Your message contains inappropriate content. ${2 - warningCount} more warning(s) this month will result in a permanent ban.`
+      });
+    }
 
     return NextResponse.json({ success: true, message: chatMessage });
   } catch (error: any) {

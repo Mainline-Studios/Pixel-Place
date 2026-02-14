@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDocuments, addDocument, updateDocument, queryDocuments, COLLECTIONS, getFirestoreInstance } from '@/lib/firestore';
 import { Message } from '@/types';
+import { moderateContent } from '@/lib/moderation';
+import { processModerationResult } from '@/lib/warnings';
 
 function messageFromDoc(doc: any): Message {
   return {
@@ -92,6 +94,34 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Message cannot be empty' }, { status: 400 });
     }
 
+    // MODERATION CHECK - Check content before saving
+    const moderationResult = await moderateContent(message.trim(), fromUsername, 'private_message');
+    
+    // If content violates rules, process the warning/ban
+    if (!moderationResult.safe) {
+      const { warning, banned, warningCount } = await processModerationResult(
+        fromUsername,
+        message.trim(),
+        moderationResult,
+        'private_message'
+      );
+
+      // If message should be blocked, don't save it
+      if (moderationResult.blocked) {
+        return NextResponse.json({
+          error: 'Message blocked due to content violation',
+          violations: moderationResult.violations,
+          severity: moderationResult.severity,
+          warning: warning,
+          banned: banned,
+          warningCount: warningCount,
+          message: banned 
+            ? 'You have been automatically banned for multiple violations this month.'
+            : `Warning ${warningCount}/${2}: ${moderationResult.message}. ${2 - warningCount} more warning(s) this month will result in a permanent ban.`
+        }, { status: 403 });
+      }
+    }
+
     const messageId = await addDocument(COLLECTIONS.MESSAGES, {
       from_username: fromUsername,
       from_username_lower: fromUsername.toLowerCase(),
@@ -110,6 +140,23 @@ export async function POST(request: NextRequest) {
       timestamp: Date.now(),
       read: false
     };
+
+    // If there was a low-severity warning, include it in the success response
+    if (!moderationResult.safe && !moderationResult.blocked) {
+      const { warning, warningCount } = await processModerationResult(
+        fromUsername,
+        message.trim(),
+        moderationResult,
+        'private_message'
+      );
+      
+      return NextResponse.json({
+        ...newMessage,
+        warning: warning,
+        warningCount: warningCount,
+        warningMessage: `Warning ${warningCount}/${2}: Your message contains inappropriate content. ${2 - warningCount} more warning(s) this month will result in a permanent ban.`
+      });
+    }
 
     return NextResponse.json(newMessage);
   } catch (error) {

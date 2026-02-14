@@ -330,3 +330,24 @@ export interface PrebuiltGame {
   createdAt: number;
   updatedAt: number;
 }
+
+export interface Warning {
+  id: string;
+  username: string;
+  message: string;
+  violation_type: 'profanity' | 'inappropriate' | 'pii' | 'multiple';
+  severity: 'low' | 'medium' | 'high';
+  timestamp: number;
+  month: string; // Format: "YYYY-MM" for easy querying
+  context: string; // 'global_chat' | 'private_message' | 'waiting_room' | 'appeal_chat'
+  detected_items: string[];
+  action_taken: 'warning' | 'blocked' | 'banned';
+}
+
+export interface ModerationResult {
+  safe: boolean;
+  severity: 'low' | 'medium' | 'high' | null;
+  violations: string[];
+  blocked: boolean;
+  message?: string;
+}
