@@ -22,6 +22,7 @@ const COLLECTIONS = {
   REPORTS: 'reports',
   BAN_APPEALS: 'ban_appeals',
   GAME_SUBMISSIONS: 'game_submissions',
+  WARNINGS: 'warnings',
 };
 
 let db: ReturnType<typeof getFirestore> | null = null;
