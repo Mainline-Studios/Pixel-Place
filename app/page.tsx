@@ -14,7 +14,16 @@ import ErrorBoundary from '@/components/ErrorBoundary';
 
 function AppContent() {
   const { user } = useUser();
-  const [showSplash, setShowSplash] = useState(true);
+  const [showSplash, setShowSplash] = useState(() => {
+    if (typeof window === 'undefined') return true;
+    try {
+      if (sessionStorage.getItem('pixelPlaceSkipSplash')) {
+        sessionStorage.removeItem('pixelPlaceSkipSplash');
+        return false;
+      }
+    } catch {}
+    return true;
+  });
   const prevUserRef = React.useRef<User | null>(null);
 
   // Start playtime tracking when user signs in (no popup)

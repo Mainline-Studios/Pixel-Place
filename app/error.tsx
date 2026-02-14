@@ -40,10 +40,10 @@ export default function Error({
           fontSize: '32px',
           fontWeight: 700,
           marginBottom: '8px',
-          color: '#ff4d4d',
+          color: '#f2f2f5',
         }}
       >
-        Something went wrong!
+        Oops! Something went wrong
       </h1>
       <p
         style={{
@@ -54,7 +54,7 @@ export default function Error({
           maxWidth: '500px',
         }}
       >
-        {error.message || 'An unexpected error occurred'}
+        We experienced an error and are currently in the process of fixing it.
       </p>
       <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', justifyContent: 'center' }}>
         <button
@@ -84,6 +84,9 @@ export default function Error({
         </button>
         <Link
           href="/games"
+          onClick={() => {
+            try { sessionStorage.setItem('pixelPlaceSkipSplash', '1'); } catch {}
+          }}
           style={{
             display: 'inline-block',
             background: 'linear-gradient(135deg, #00aa88 0%, #008866 100%)',
@@ -97,7 +100,7 @@ export default function Error({
             boxShadow: '0 4px 16px rgba(0, 170, 136, 0.4)',
           }}
         >
-          Back to Games
+          Back to home
         </Link>
       </div>
     </div>
