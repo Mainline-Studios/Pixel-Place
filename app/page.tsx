@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import InstallPrompt from '@/components/InstallPrompt';
-import { useUser } from '@/contexts/UserContext';
+import { UserProvider, useUser } from '@/contexts/UserContext';
 import Login from '@/components/Login';
 import Dashboard from '@/components/Dashboard/Dashboard';
 import SplashScreen from '@/components/SplashScreen';
@@ -86,9 +86,8 @@ function AppContent() {
 }
 
 export default function Home() {
-  // Catch any unhandled errors - only on client side
+  // Catch any unhandled errors
   useEffect(() => {
-    if (typeof window === 'undefined') return;
     const handleError = (event: ErrorEvent) => {
       console.error('Unhandled error:', event.error);
     };
@@ -98,7 +97,9 @@ export default function Home() {
 
   return (
     <ErrorBoundary>
-      <AppContent />
+      <UserProvider>
+        <AppContent />
+      </UserProvider>
     </ErrorBoundary>
   );
 }

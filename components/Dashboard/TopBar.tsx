@@ -78,7 +78,9 @@ export default function TopBar({ currentTab, onTabChange, user, onLogout }: TopB
     onLogout();
   };
 
-  const toggleMenu = () => {
+  const toggleMenu = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
     setMenuOpen(!menuOpen);
   };
 
@@ -115,7 +117,7 @@ export default function TopBar({ currentTab, onTabChange, user, onLogout }: TopB
             className="avatar-top"
             onClick={(e) => {
               e.stopPropagation();
-              toggleMenu();
+              toggleMenu(e);
             }}
             style={{
               width: '40px',
@@ -153,7 +155,6 @@ export default function TopBar({ currentTab, onTabChange, user, onLogout }: TopB
           {/* Dropdown Menu */}
           {menuOpen && (
             <div
-              onClick={(e) => e.stopPropagation()}
               style={{
                 position: 'absolute',
                 top: '50px',

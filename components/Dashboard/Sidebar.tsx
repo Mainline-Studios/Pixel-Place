@@ -1,7 +1,6 @@
 'use client';
 
-import { User, Skin, Accessory } from '@/types';
-import { getSkins, getAccessories } from '@/lib/storage';
+import { User, Skin, Accessory } from '@/types';import { getSkins, getAccessories } from '@/lib/storage';
 import Avatar3DViewer from '@/components/Avatar3DViewer';
 import { useState, useEffect } from 'react';
 
