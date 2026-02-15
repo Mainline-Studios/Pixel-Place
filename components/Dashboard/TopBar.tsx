@@ -13,12 +13,12 @@ interface TopBarProps {
   user: User;
 }
 
-const TABS: { key: TabType; label: string; adminOnly?: boolean }[] = [
-  { key: 'games', label: 'Games' },
-  { key: 'avatarShop', label: 'Avatar Shop' },
-  { key: 'coins', label: 'Pixel Coins' },
-  { key: 'friends', label: 'Friends' },
-  { key: 'settings', label: 'Settings' },
+const TABS: { key: TabType; label: string; shortcut?: string; adminOnly?: boolean }[] = [
+  { key: 'games', label: 'Games', shortcut: 'G' },
+  { key: 'avatarShop', label: 'Avatar Shop', shortcut: 'A' },
+  { key: 'coins', label: 'Pixel Coins', shortcut: 'C' },
+  { key: 'friends', label: 'Friends', shortcut: 'F' },
+  { key: 'settings', label: 'Settings', shortcut: 'S' },
 ];
 
 export default function TopBar({ currentTab, onTabChange, user }: TopBarProps) {
@@ -91,12 +91,33 @@ export default function TopBar({ currentTab, onTabChange, user }: TopBarProps) {
                 data-tab={tab.key}
                 className={currentTab === tab.key ? 'active' : ''}
                 onClick={() => onTabChange(tab.key)}
+                title={tab.shortcut ? `${tab.label} (press ${tab.shortcut})` : tab.label}
               >
                 {tab.label}
+                {tab.shortcut && (
+                  <span style={{ opacity: 0.6, fontSize: '11px', marginLeft: '4px', fontWeight: 500 }}>({tab.shortcut})</span>
+                )}
               </button>
             ))}
         </div>
-        <div className="userbox">
+        <div className="userbox" style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '6px 12px',
+              background: 'linear-gradient(135deg, rgba(255, 193, 7, 0.2) 0%, rgba(255, 152, 0, 0.15) 100%)',
+              borderRadius: '20px',
+              border: '1px solid rgba(255, 193, 7, 0.3)',
+              fontSize: '14px',
+              fontWeight: 600,
+              color: '#ffc107',
+            }}
+          >
+            <span style={{ fontSize: '16px' }}>🪙</span>
+            <span>{(user.coins ?? 0).toLocaleString()}</span>
+          </div>
           <div
             className="avatar-top"
             onClick={handleLogout}
@@ -118,7 +139,7 @@ export default function TopBar({ currentTab, onTabChange, user }: TopBarProps) {
             onMouseLeave={(e) => {
               e.currentTarget.style.opacity = '1';
             }}
-            title="Click to log out"
+            title={`${user.username} — Click to log out`}
           >
             {skinWithAccessories && (
               <Avatar3DViewer

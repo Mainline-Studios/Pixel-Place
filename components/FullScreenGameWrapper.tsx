@@ -86,7 +86,6 @@ export default function FullScreenGameWrapper({
         flexDirection: 'column',
         overflow: 'hidden'
       }}
-    >
       {/* Options Button - Small button at top */}
       <button
         onClick={() => setShowOptions(!showOptions)}
@@ -538,6 +537,7 @@ export default function FullScreenGameWrapper({
 
       {/* Game Content - Fullscreen */}
       <div
+        className="game-cursor-zone"
         style={{
           position: 'absolute',
           top: 0,

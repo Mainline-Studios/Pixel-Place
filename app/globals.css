@@ -717,9 +717,13 @@ textarea {
   display: flex;
   min-height: 100vh;
   flex-direction: column;
+  position: relative;
+  z-index: 1;
 }
 
 .topbar {
+  position: relative;
+  z-index: 10;
   background: rgba(20, 22, 32, .8);
   backdrop-filter: blur(12px);
   border-bottom: 1px solid var(--border);
@@ -1037,6 +1041,57 @@ textarea {
 .main-card>* {
   position: relative;
   z-index: 1;
+}
+
+/* Game card shine animation */
+.game-card-enhanced {
+  position: relative;
+  overflow: hidden;
+}
+.game-card-enhanced::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 50%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.08),
+    transparent
+  );
+  transition: left 0.6s ease;
+}
+.game-card-enhanced:hover::after {
+  left: 100%;
+}
+
+/* Custom game cursors - applies when playing any game */
+.game-cursor-zone {
+  cursor: url('/cursors/cursor-default.svg') 2 2, default;
+}
+.game-cursor-zone a,
+.game-cursor-zone button,
+.game-cursor-zone [role="button"],
+.game-cursor-zone input[type="submit"],
+.game-cursor-zone input[type="button"],
+.game-cursor-zone [style*="cursor: pointer"],
+.game-cursor-zone [style*="cursor:pointer"] {
+  cursor: url('/cursors/cursor-pointer.svg') 6 2, pointer !important;
+}
+.game-cursor-zone [draggable="true"]:not(.dragging),
+.game-cursor-zone .grabbable {
+  cursor: url('/cursors/cursor-grab.svg') 12 12, grab !important;
+}
+.game-cursor-zone [draggable="true"].dragging,
+.game-cursor-zone .grabbable:active,
+.game-cursor-zone .grabbing {
+  cursor: url('/cursors/cursor-grabbing.svg') 12 12, grabbing !important;
+}
+.game-cursor-zone input,
+.game-cursor-zone textarea {
+  cursor: url('/cursors/cursor-pointer.svg') 6 2, text;
 }
 
 .section-block {

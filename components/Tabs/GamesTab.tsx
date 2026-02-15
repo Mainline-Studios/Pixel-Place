@@ -160,7 +160,9 @@ export default function GamesTab({ user, editMode }: GamesTabProps) {
   if (selectedUserGame) {
     return (
       <GameErrorBoundary onBack={() => setSelectedUserGame(null)} gameName={selectedUserGame.title}>
-        <UserMadeGamePlayer game={selectedUserGame} user={user} onClose={() => setSelectedUserGame(null)} />
+        <div className="game-cursor-zone" style={{ width: '100%', minHeight: '100%' }}>
+          <UserMadeGamePlayer game={selectedUserGame} user={user} onClose={() => setSelectedUserGame(null)} />
+        </div>
       </GameErrorBoundary>
     );
   }
@@ -191,7 +193,7 @@ export default function GamesTab({ user, editMode }: GamesTabProps) {
     
     return (
       <GameErrorBoundary onBack={handleClose} gameName={selectedGameInfo?.name}>
-      <div key={selectedGame} style={{ position: 'relative', width: '100%', minHeight: '100%' }}>        {!supportsOnClose && (
+      <div key={selectedGame} className="game-cursor-zone" style={{ position: 'relative', width: '100%', minHeight: '100%' }}>        {!supportsOnClose && (
           <button
             onClick={handleClose}
             style={{
