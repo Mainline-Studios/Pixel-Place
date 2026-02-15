@@ -14,7 +14,6 @@ import RedRover from '../Games/RedRover';
 import JungleJourneySeries from '../Games/JungleJourneySeries';
 import Chess from '../Games/Chess';
 import FloorIsLava from '../Games/FloorIsLava';
-import GodotGamePlayer from '../Games/GodotGamePlayer';
 
 interface GamesTabProps {
   user: User;
@@ -98,16 +97,6 @@ const games: GameInfo[] = [
     thumbnail: '/images/games/chess.svg',
     category: 'Strategy',
     component: Chess,
-  },
-  {
-    id: 'godot',
-    name: 'Godot Games',
-    description: 'Play games built with Godot engine! Export your Godot project to HTML5.',
-    icon: '🎮',
-    thumbnail: '/images/games/jungle-journey.svg',
-    category: 'Engine',
-    component: GodotGamePlayer,
-    props: { htmlPath: '/games/godot/demo/index.html' },
   },
 ];
 
