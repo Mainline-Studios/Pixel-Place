@@ -1,6 +1,12 @@
 'use client';
 
 import React, { useEffect, useRef, useState } from 'react';
+import {
+  loadShowdownData,
+  loadShowdownDataWithSync,
+  saveShowdownData,
+  subscribeToStorage,
+} from '@/lib/showdownStorage';
 
 /**
  * Showdown — Premium Arena Brawler
@@ -80,6 +86,8 @@ const WALLS = [
 
 type Vec = { x: number; y: number };
 
+const LIVES_PER_PLAYER = 3;
+
 type Player = {
   id: string;
   name: string;
@@ -92,8 +100,10 @@ type Player = {
   power: Power;
   score: number;
   lastShot: number;
+  lives: number;
   isBot?: boolean;
   lastDeadAt?: number;
+  eliminatedAt?: number;
 };
 
 type Bullet = {
@@ -121,20 +131,6 @@ type Pickup =
   | { id: string; type: 'pc'; amount: number; pos: Vec; createdAt: number }
   | { id: string; type: 'power'; power: Power; pos: Vec; createdAt: number };
 
-function loadJSON<T>(k: string, fallback: T): T {
-  try {
-    const s = localStorage.getItem(k);
-    if (!s) return fallback;
-    return JSON.parse(s) as T;
-  } catch {
-    return fallback;
-  }
-}
-function saveJSON(k: string, v: unknown) {
-  try {
-    localStorage.setItem(k, JSON.stringify(v));
-  } catch {}
-}
 
 function circleRectCollision(
   cx: number,
@@ -161,13 +157,10 @@ export default function Showdown({ user }: ShowdownProps): JSX.Element {
   const keysRef = useRef<Record<string, boolean>>({});
   const screenShakeRef = useRef(0);
 
-  const [pixelcoins, setPixelcoins] = useState(() => loadJSON('showdown_pixelcoins', 150));
-  const [ownedPowers, setOwnedPowers] = useState<Record<Power, boolean>>(() => {
-    const base = loadJSON<Record<string, boolean>>('showdown_ownedPowers', {});
-    const out: Record<Power, boolean> = {} as Record<Power, boolean>;
-    for (const p of POWERS) out[p] = Boolean(base[p]) || POWER_COSTS[p] === 0;
-    return out;
-  });
+  const initial = loadShowdownData(user);
+  const [pixelcoins, setPixelcoins] = useState(initial.pixelcoins);
+  const [wins, setWins] = useState(initial.wins);
+  const [ownedPowers, setOwnedPowers] = useState<Record<Power, boolean>>(initial.ownedPowers);
 
   const [players, setPlayers] = useState<Player[]>(() => {
     const local: Player = {
@@ -182,6 +175,7 @@ export default function Showdown({ user }: ShowdownProps): JSX.Element {
       power: 'fire',
       score: 0,
       lastShot: 0,
+      lives: LIVES_PER_PLAYER,
     };
     const bots: Player[] = [];
     const botColors = ['#ff4757', '#ffa502', '#7bed9f', '#ff6b81', '#a29bfe'];
@@ -198,11 +192,16 @@ export default function Showdown({ user }: ShowdownProps): JSX.Element {
         power: POWERS[randInt(0, POWERS.length - 1)],
         score: 0,
         lastShot: 0,
+        lives: LIVES_PER_PLAYER,
         isBot: true,
       });
     }
     return [local, ...bots];
   });
+
+  const [gameOver, setGameOver] = useState<{ winner: Player | null; ranked: Player[] } | null>(null);
+  const gameOverRef = useRef(false);
+  gameOverRef.current = !!gameOver;
 
   const playersRef = useRef(players);
   playersRef.current = players;
@@ -210,12 +209,43 @@ export default function Showdown({ user }: ShowdownProps): JSX.Element {
   const particlesRef = useRef<Particle[]>([]);
   const pickupsRef = useRef<Pickup[]>([]);
 
+  // Sync from API when user logs in (cross-device)
   useEffect(() => {
-    saveJSON('showdown_pixelcoins', pixelcoins);
-  }, [pixelcoins]);
+    if (!user?.username) return;
+    loadShowdownDataWithSync(user).then((data) => {
+      setPixelcoins(data.pixelcoins);
+      setWins(data.wins);
+      setOwnedPowers(data.ownedPowers);
+    });
+  }, [user?.username]);
+
+  // Listen for updates from other tabs (BroadcastChannel)
   useEffect(() => {
-    saveJSON('showdown_ownedPowers', ownedPowers);
-  }, [ownedPowers]);
+    return subscribeToStorage((key, value) => {
+      if (key === 'showdown_pixelcoins' && typeof value === 'number') setPixelcoins(value);
+      if (key === 'showdown_wins' && typeof value === 'number') setWins(value);
+      if (key === 'showdown_ownedPowers' && value && typeof value === 'object') {
+        setOwnedPowers((prev) => ({ ...prev, ...(value as Record<string, boolean>) }));
+      }
+    });
+  }, []);
+
+  useEffect(() => {
+    saveShowdownData({ pixelcoins }, user);
+  }, [pixelcoins, user]);
+  useEffect(() => {
+    saveShowdownData({ ownedPowers }, user);
+  }, [ownedPowers, user]);
+  useEffect(() => {
+    saveShowdownData({ wins }, user);
+  }, [wins, user]);
+
+  // Increment wins when local player wins
+  useEffect(() => {
+    if (gameOver?.winner?.id === 'you') {
+      setWins((w) => w + 1);
+    }
+  }, [gameOver?.winner?.id]);
 
   function spawnParticles(x: number, y: number, color: string, count = 8) {
     for (let i = 0; i < count; i++) {
@@ -239,6 +269,7 @@ export default function Showdown({ user }: ShowdownProps): JSX.Element {
   }
 
   function spawnBullet(owner: Player, targetX: number, targetY: number) {
+    if (owner.hp <= 0 || (owner.lives ?? LIVES_PER_PLAYER) <= 0) return;
     const from = { x: owner.pos.x, y: owner.pos.y };
     const angle = Math.atan2(targetY - from.y, targetX - from.x);
     const speed = 520;
@@ -260,15 +291,18 @@ export default function Showdown({ user }: ShowdownProps): JSX.Element {
   function applyDamage(id: string, amount: number, hitX: number, hitY: number) {
     setPlayers((prev) =>
       prev.map((p) => {
-        if (p.id !== id || p.hp <= 0) return p;
+        if (p.id !== id || p.hp <= 0 || (p.lives ?? LIVES_PER_PLAYER) <= 0) return p;
         const newHp = Math.max(0, Math.round(p.hp - amount));
         spawnParticles(hitX, hitY, p.color, 12);
         addScreenShake(amount * 0.15);
-        return {
-          ...p,
-          hp: newHp,
-          ...(newHp <= 0 && { lastDeadAt: Date.now() }),
-        };
+        if (newHp <= 0) {
+          const livesLeft = (p.lives ?? LIVES_PER_PLAYER) - 1;
+          if (livesLeft > 0) {
+            return { ...p, hp: 0, lives: livesLeft, lastDeadAt: Date.now() };
+          }
+          return { ...p, hp: 0, lives: 0, eliminatedAt: Date.now() };
+        }
+        return { ...p, hp: newHp };
       })
     );
   }
@@ -366,6 +400,7 @@ export default function Showdown({ user }: ShowdownProps): JSX.Element {
     window.addEventListener('keyup', onKey);
 
     function update(dt: number) {
+      if (gameOverRef.current) return;
       const ps = playersRef.current;
 
       // Local player input
@@ -373,7 +408,7 @@ export default function Showdown({ user }: ShowdownProps): JSX.Element {
         const copy = prev.map((p) => ({ ...p }));
         const local = copy.find((c) => c.id === 'you')!;
         if (!local) return prev;
-        if (local.hp > 0) {
+        if (local.hp > 0 && (local.lives ?? LIVES_PER_PLAYER) > 0) {
           const speed = 240;
           let ax = 0,
             ay = 0;
@@ -397,11 +432,11 @@ export default function Showdown({ user }: ShowdownProps): JSX.Element {
           local.pos.y = clamp(local.radius, local.pos.y, ARENA_H - local.radius);
         }
 
-        // Bot AI
-        for (const b of copy.filter((x) => x.isBot)) {
-          const target = copy.find((p) => p.id === 'you')!;
-          const dx = target.pos.x - b.pos.x;
-          const dy = target.pos.y - b.pos.y;
+        // Bot AI — only move/shoot if alive and not eliminated
+        for (const b of copy.filter((x) => x.isBot && x.hp > 0 && (x.lives ?? LIVES_PER_PLAYER) > 0)) {
+          const target = copy.find((p) => p.id === 'you' && p.hp > 0 && (p.lives ?? LIVES_PER_PLAYER) > 0) ?? copy.find((p) => p.id !== b.id && p.hp > 0 && (p.lives ?? LIVES_PER_PLAYER) > 0);
+          const dx = target ? target.pos.x - b.pos.x : 0;
+          const dy = target ? target.pos.y - b.pos.y : 0;
           const d = Math.hypot(dx, dy) || 1;
           const speed = 130;
           b.vel.x = (dx / d) * speed;
@@ -418,7 +453,7 @@ export default function Showdown({ user }: ShowdownProps): JSX.Element {
           b.pos.y = clamp(b.radius, b.pos.y, ARENA_H - b.radius);
 
           const cooldown = POWER_COOLDOWN[b.power] ?? 150;
-          if (Math.random() < 0.015 && Date.now() - b.lastShot > cooldown) {
+          if (target && Math.random() < 0.015 && Date.now() - b.lastShot > cooldown) {
             spawnBullet(b, target.pos.x, target.pos.y);
             b.lastShot = Date.now();
           }
@@ -443,7 +478,7 @@ export default function Showdown({ user }: ShowdownProps): JSX.Element {
         if (b.life <= 0) continue;
 
         for (const p of playersRef.current) {
-          if (p.id === b.ownerId || p.hp <= 0) continue;
+          if (p.id === b.ownerId || p.hp <= 0 || (p.lives ?? LIVES_PER_PLAYER) <= 0) continue;
           if (dist(b.pos, p.pos) <= p.radius + b.radius) {
             // Each power has distinct damage — high-risk high-reward vs utility
             const POWER_DAMAGE: Record<Power, number> = {
@@ -481,9 +516,10 @@ export default function Showdown({ user }: ShowdownProps): JSX.Element {
         return p.life > 0;
       });
 
-      // Pickups
+      // Pickups — only alive, non-eliminated players can collect
       pickupsRef.current = pickupsRef.current.filter((pu) => {
         for (const p of playersRef.current) {
+          if ((p.lives ?? LIVES_PER_PLAYER) <= 0) continue;
           if (dist(p.pos, pu.pos) <= p.radius + 14) {
             if (pu.type === 'pc') {
               setPixelcoins((pc) => pc + pu.amount);
@@ -500,12 +536,13 @@ export default function Showdown({ user }: ShowdownProps): JSX.Element {
 
       screenShakeRef.current = Math.max(0, screenShakeRef.current - dt * 25);
 
-      // Respawn dead players after delay (removed overwrite that was reverting damage!)
+      // Respawn dead players after delay (only if they have lives left)
       const RESPAWN_DELAY = 3;
       const now = Date.now();
-      setPlayers((prev) =>
-        prev.map((p) => {
+      setPlayers((prev) => {
+        const updated = prev.map((p) => {
           if (p.hp > 0) return { ...p, lastDeadAt: undefined };
+          if ((p.lives ?? LIVES_PER_PLAYER) <= 0) return p; // Eliminated — no respawn
           const lastDead = p.lastDeadAt ?? now;
           if (now - lastDead >= RESPAWN_DELAY * 1000) {
             return {
@@ -517,8 +554,17 @@ export default function Showdown({ user }: ShowdownProps): JSX.Element {
             };
           }
           return { ...p, lastDeadAt: lastDead };
-        })
-      );
+        });
+        // Check for game over — one or fewer players with lives left
+        const alive = updated.filter((p) => (p.lives ?? LIVES_PER_PLAYER) > 0);
+        if (alive.length <= 1 && updated.some((p) => (p.lives ?? LIVES_PER_PLAYER) <= 0) && !gameOverRef.current) {
+          const winner = alive[0] ?? null;
+          const eliminated = updated.filter((p) => (p.lives ?? LIVES_PER_PLAYER) <= 0).sort((a, b) => (b.eliminatedAt ?? 0) - (a.eliminatedAt ?? 0));
+          const ranked = winner ? [winner, ...eliminated] : eliminated;
+          setGameOver({ winner, ranked });
+        }
+        return updated;
+      });
     }
 
     function draw() {
@@ -629,15 +675,16 @@ export default function Showdown({ user }: ShowdownProps): JSX.Element {
 
       // Players
       for (const p of playersRef.current) {
+        const livesLeft = p.lives ?? LIVES_PER_PLAYER;
         if (p.hp <= 0) {
           ctx.fillStyle = 'rgba(255,255,255,0.08)';
           ctx.beginPath();
           ctx.arc(p.pos.x, p.pos.y, p.radius, 0, TAU);
           ctx.fill();
-          ctx.fillStyle = 'rgba(255,255,255,0.6)';
+          ctx.fillStyle = livesLeft > 0 ? 'rgba(255,255,255,0.6)' : 'rgba(255,77,77,0.8)';
           ctx.font = '12px system-ui';
           ctx.textAlign = 'center';
-          ctx.fillText('Respawning...', p.pos.x, p.pos.y - p.radius - 14);
+          ctx.fillText(livesLeft > 0 ? 'Respawning...' : 'Eliminated', p.pos.x, p.pos.y - p.radius - 14);
           continue;
         }
 
@@ -681,7 +728,7 @@ export default function Showdown({ user }: ShowdownProps): JSX.Element {
         ctx.fillStyle = '#fff';
         ctx.font = '11px system-ui';
         ctx.textAlign = 'center';
-        ctx.fillText(p.name, p.pos.x, p.pos.y + p.radius + 16);
+        ctx.fillText(`${p.name} • ${livesLeft} ❤`, p.pos.x, p.pos.y + p.radius + 16);
       }
 
       ctx.restore();
@@ -693,6 +740,11 @@ export default function Showdown({ user }: ShowdownProps): JSX.Element {
       ctx.font = 'bold 14px system-ui';
       ctx.textAlign = 'left';
       ctx.fillText(`💰 ${pixelcoins}`, 12, 22);
+      const you = playersRef.current.find((p) => p.id === 'you');
+      if (you) {
+        ctx.fillStyle = '#ff6b6b';
+        ctx.fillText(`❤ ${you.lives ?? LIVES_PER_PLAYER}`, 100, 22);
+      }
       ctx.fillStyle = 'rgba(255,255,255,0.9)';
       ctx.textAlign = 'right';
       ctx.font = '12px system-ui';
@@ -729,7 +781,7 @@ export default function Showdown({ user }: ShowdownProps): JSX.Element {
 
   function playerShoot() {
     const me = localPlayer();
-    if (!me || me.hp <= 0) return;
+    if (!me || me.hp <= 0 || (me.lives ?? LIVES_PER_PLAYER) <= 0) return;
     const now = Date.now();
     const cooldown = POWER_COOLDOWN[me.power] ?? 130;
     if (now - me.lastShot < cooldown) return;
@@ -740,6 +792,49 @@ export default function Showdown({ user }: ShowdownProps): JSX.Element {
   }
 
   const local = players.find((p) => p.id === 'you')!;
+
+  function resetGame() {
+    setGameOver(null);
+    setPlayers(() => {
+      const localP: Player = {
+        id: 'you',
+        name: 'You',
+        pos: { x: ARENA_W / 2 - 80, y: ARENA_H / 2 },
+        vel: { x: 0, y: 0 },
+        color: '#00d4ff',
+        radius: 20,
+        hp: 100,
+        maxHp: 100,
+        power: 'fire',
+        score: 0,
+        lastShot: 0,
+        lives: LIVES_PER_PLAYER,
+      };
+      const bots: Player[] = [];
+      const botColors = ['#ff4757', '#ffa502', '#7bed9f', '#ff6b81', '#a29bfe'];
+      for (let i = 0; i < 5; i++) {
+        bots.push({
+          id: `bot_${i}`,
+          name: `Rival ${i + 1}`,
+          pos: { x: rand(80, ARENA_W - 80), y: rand(80, ARENA_H - 80) },
+          vel: { x: 0, y: 0 },
+          color: botColors[i],
+          radius: 18,
+          hp: 100,
+          maxHp: 100,
+          power: POWERS[randInt(0, POWERS.length - 1)],
+          score: 0,
+          lastShot: 0,
+          lives: LIVES_PER_PLAYER,
+          isBot: true,
+        });
+      }
+      return [localP, ...bots];
+    });
+    bulletsRef.current = [];
+    particlesRef.current = [];
+    gameOverRef.current = false;
+  }
 
   return (
     <div
@@ -783,9 +878,88 @@ export default function Showdown({ user }: ShowdownProps): JSX.Element {
               position: 'relative',
             }}
           >
+            {gameOver && (
+              <div
+                style={{
+                  position: 'absolute',
+                  inset: 0,
+                  background: 'rgba(0,0,0,0.85)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  zIndex: 100,
+                  borderRadius: 10,
+                }}
+              >
+                <div style={{ fontSize: 28, fontWeight: 800, color: '#ffd700', marginBottom: 8, textShadow: '0 0 20px rgba(255,215,0,0.6)' }}>
+                  {gameOver.winner ? `🏆 ${gameOver.winner.name} Wins!` : '💀 Draw — No Winner'}
+                </div>
+                <div style={{ display: 'flex', alignItems: 'flex-end', gap: 24, marginBottom: 24, height: 140 }}>
+                  {[0, 1, 2].map((idx) => {
+                    const r = gameOver.ranked[idx];
+                    if (!r) return null;
+                    const place = idx + 1;
+                    const heights = [130, 100, 80];
+                    const colors = ['#ffd700', '#c0c0c0', '#cd7f32'];
+                    return (
+                      <div key={r.id} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                        <div
+                          style={{
+                            width: 70,
+                            height: heights[idx],
+                            background: `linear-gradient(180deg, ${colors[idx]}99 0%, ${colors[idx]}44 100%)`,
+                            borderRadius: '8px 8px 0 0',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            marginBottom: 8,
+                            border: `3px solid ${colors[idx]}`,
+                          }}
+                        >
+                          <span style={{ fontSize: 32, fontWeight: 800, color: '#fff', textShadow: '0 1px 2px rgba(0,0,0,0.5)' }}>
+                            {place === 1 ? '1' : place === 2 ? '2' : '3'}
+                          </span>
+                        </div>
+                        <div
+                          style={{
+                            width: 24,
+                            height: 24,
+                            borderRadius: '50%',
+                            background: r.color,
+                            border: '2px solid #fff',
+                            boxShadow: `0 0 12px ${r.color}`,
+                            marginBottom: 6,
+                          }}
+                        />
+                        <div style={{ fontSize: 14, fontWeight: 700, color: '#fff', textAlign: 'center', maxWidth: 80, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {r.name}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+                <button
+                  onClick={resetGame}
+                  style={{
+                    padding: '12px 32px',
+                    fontSize: 16,
+                    fontWeight: 700,
+                    background: 'linear-gradient(135deg, #00d4ff, #0099cc)',
+                    border: 'none',
+                    borderRadius: 12,
+                    color: '#fff',
+                    cursor: 'pointer',
+                    boxShadow: '0 4px 20px rgba(0,212,255,0.4)',
+                  }}
+                >
+                  Play Again
+                </button>
+              </div>
+            )}
             <canvas
               ref={canvasRef}
-              onClick={playerShoot}
+              onClick={() => !gameOver && playerShoot()}
               style={{
                 cursor: 'crosshair',
                 display: 'block',
@@ -808,9 +982,27 @@ export default function Showdown({ user }: ShowdownProps): JSX.Element {
             </div>
             <div style={{ display: 'flex', gap: 16, marginBottom: 12 }}>
               <div>
+                <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)' }}>Lives</div>
+                <div style={{ fontSize: 16, fontWeight: 600, color: '#ff6b6b' }}>
+                  {(local?.lives ?? LIVES_PER_PLAYER)} ❤
+                </div>
+              </div>
+              <div>
                 <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)' }}>HP</div>
                 <div style={{ fontSize: 16, fontWeight: 600, color: '#00f5d4' }}>
                   {local?.hp}/{local?.maxHp}
+                </div>
+              </div>
+              <div>
+                <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)' }}>Wins</div>
+                <div style={{ fontSize: 16, fontWeight: 600, color: '#ffd700' }}>
+                  {wins} 🏆
+                </div>
+              </div>
+              <div>
+                <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)' }}>Coins</div>
+                <div style={{ fontSize: 16, fontWeight: 600, color: '#fee440' }}>
+                  {pixelcoins} 💰
                 </div>
               </div>
               <div>
