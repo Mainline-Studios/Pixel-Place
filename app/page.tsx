@@ -10,6 +10,7 @@ import BreakReminder from '@/components/BreakReminder';
 import { getPlaytimeTracker } from '@/lib/playtimeTracker';
 import { User } from '@/types';
 import ErrorBoundary from '@/components/ErrorBoundary';
+import KonamiCodeEasterEgg from '@/components/KonamiCodeEasterEgg';
 
 
 function AppContent() {
@@ -93,6 +94,7 @@ export default function Home() {
   return (
     <ErrorBoundary>
       <AppContent />
+      <KonamiCodeEasterEgg />
     </ErrorBoundary>
   );
 }
