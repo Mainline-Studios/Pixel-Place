@@ -6,6 +6,7 @@ import { User, Skin, Accessory } from '@/types';
 import { useUser } from '@/contexts/UserContext';
 import { getSkins, saveSkins, getAccessories, saveAccessories } from '@/lib/storage';
 import { apiUrl } from '@/lib/apiBaseUrl';
+import { escapeHTML } from '@/lib/utils';
 import Avatar3DViewer from '@/components/Avatar3DViewer';
 import Skin2DPreview from '@/components/Skin2DPreview';
 
