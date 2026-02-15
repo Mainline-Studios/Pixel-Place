@@ -10,24 +10,28 @@ interface Props {
 interface State {
   hasError: boolean;
   error: Error | null;
+  errorInfo: ErrorInfo | null;
+  showDetails: boolean;
 }
 
 export default class ErrorBoundary extends Component<Props, State> {
   constructor(props: Props) {
     super(props);
-    this.state = { hasError: false, error: null };
+    this.state = { hasError: false, error: null, errorInfo: null, showDetails: false };
   }
 
-  static getDerivedStateFromError(error: Error): State {
+  static getDerivedStateFromError(error: Error): Partial<State> {
     return { hasError: true, error };
   }
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     console.error('ErrorBoundary caught an error:', error, errorInfo);
+    this.setState({ errorInfo });
   }
 
   render() {
     if (this.state.hasError) {
+      const { error, errorInfo, showDetails } = this.state;
       return (
         <div style={{
           minHeight: '100vh',
@@ -56,13 +60,48 @@ export default class ErrorBoundary extends Component<Props, State> {
           </h1>
           <p style={{
             fontSize: '16px',
-            marginBottom: '32px',
+            marginBottom: '24px',
             color: '#8b90a8',
             textAlign: 'center',
             maxWidth: '500px',
           }}>
             We experienced an error and are currently in the process of fixing it.
           </p>
+          <button
+            onClick={() => this.setState({ showDetails: !showDetails })}
+            style={{
+              background: 'transparent',
+              border: '1px solid #3a3f57',
+              color: '#8b90a8',
+              fontSize: '14px',
+              padding: '8px 16px',
+              borderRadius: '8px',
+              cursor: 'pointer',
+              marginBottom: '24px',
+            }}
+          >
+            {showDetails ? 'Hide error' : 'View error'}
+          </button>
+          {showDetails && error && (
+            <pre style={{
+              maxWidth: '90%',
+              maxHeight: '200px',
+              overflow: 'auto',
+              background: '#1a1d24',
+              padding: '16px',
+              borderRadius: '8px',
+              fontSize: '12px',
+              color: '#c9cdd8',
+              textAlign: 'left',
+              whiteSpace: 'pre-wrap',
+              wordBreak: 'break-word',
+              marginBottom: '24px',
+            }}>
+              {error.message}
+              {error.stack && `\n\n${error.stack}`}
+              {errorInfo?.componentStack && `\n\nComponent stack:\n${errorInfo.componentStack}`}
+            </pre>
+          )}
           <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', justifyContent: 'center' }}>
             <button
               onClick={() => {

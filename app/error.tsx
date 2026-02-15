@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 
@@ -11,6 +11,8 @@ export default function Error({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
+  const [showDetails, setShowDetails] = useState(false);
+
   useEffect(() => {
     console.error('Application error:', error);
   }, [error]);
@@ -48,7 +50,7 @@ export default function Error({
       <p
         style={{
           fontSize: '16px',
-          marginBottom: '32px',
+          marginBottom: '24px',
           color: '#8b90a8',
           textAlign: 'center',
           maxWidth: '500px',
@@ -56,6 +58,42 @@ export default function Error({
       >
         We experienced an error and are currently in the process of fixing it.
       </p>
+      <button
+        onClick={() => setShowDetails(!showDetails)}
+        style={{
+          background: 'transparent',
+          border: '1px solid #3a3f57',
+          color: '#8b90a8',
+          fontSize: '14px',
+          padding: '8px 16px',
+          borderRadius: '8px',
+          cursor: 'pointer',
+          marginBottom: '24px',
+        }}
+      >
+        {showDetails ? 'Hide error' : 'View error'}
+      </button>
+      {showDetails && error && (
+        <pre
+          style={{
+            maxWidth: '90%',
+            maxHeight: '200px',
+            overflow: 'auto',
+            background: '#1a1d24',
+            padding: '16px',
+            borderRadius: '8px',
+            fontSize: '12px',
+            color: '#c9cdd8',
+            textAlign: 'left',
+            whiteSpace: 'pre-wrap',
+            wordBreak: 'break-word',
+            marginBottom: '24px',
+          }}
+        >
+          {error.message}
+          {error.stack && `\n\n${error.stack}`}
+        </pre>
+      )}
       <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', justifyContent: 'center' }}>
         <button
           onClick={reset}

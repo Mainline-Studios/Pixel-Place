@@ -11,16 +11,17 @@ interface Props {
 interface State {
   hasError: boolean;
   error: Error | null;
+  showDetails: boolean;
 }
 
 export default class GameErrorBoundary extends Component<Props, State> {
   constructor(props: Props) {
     super(props);
-    this.state = { hasError: false, error: null };
+    this.state = { hasError: false, error: null, showDetails: false };
   }
 
   static getDerivedStateFromError(error: Error): State {
-    return { hasError: true, error };
+    return { hasError: true, error, showDetails: false };
   }
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
@@ -29,6 +30,7 @@ export default class GameErrorBoundary extends Component<Props, State> {
 
   render() {
     if (this.state.hasError) {
+      const { error, showDetails } = this.state;
       return (
         <div style={{
           display: 'flex',
@@ -45,9 +47,43 @@ export default class GameErrorBoundary extends Component<Props, State> {
           <h2 style={{ color: '#ff4d4d', marginBottom: '16px', fontSize: '20px' }}>
             Game failed to load
           </h2>
-          <p style={{ color: 'var(--text-muted)', marginBottom: '24px', maxWidth: '400px' }}>
-            {this.state.error?.message || 'An unexpected error occurred. Try again or choose another game.'}
+          <p style={{ color: 'var(--text-muted)', marginBottom: '16px', maxWidth: '400px' }}>
+            {error?.message || 'An unexpected error occurred. Try again or choose another game.'}
           </p>
+          <button
+            onClick={() => this.setState({ showDetails: !showDetails })}
+            style={{
+              background: 'transparent',
+              border: '1px solid var(--border)',
+              color: 'var(--text-muted)',
+              fontSize: '13px',
+              padding: '6px 12px',
+              borderRadius: '8px',
+              cursor: 'pointer',
+              marginBottom: '16px',
+            }}
+          >
+            {showDetails ? 'Hide error' : 'View error'}
+          </button>
+          {showDetails && error && (
+            <pre style={{
+              width: '100%',
+              maxHeight: '150px',
+              overflow: 'auto',
+              background: 'rgba(0,0,0,0.3)',
+              padding: '12px',
+              borderRadius: '8px',
+              fontSize: '11px',
+              color: 'var(--text-muted)',
+              textAlign: 'left',
+              whiteSpace: 'pre-wrap',
+              wordBreak: 'break-word',
+              marginBottom: '16px',
+            }}>
+              {error.message}
+              {error.stack && `\n\n${error.stack}`}
+            </pre>
+          )}
           {this.props.onBack && (
             <button
               onClick={() => {
