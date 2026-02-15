@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import React from 'react';
 import { User, Skin, Accessory } from '@/types';
+import { useUser } from '@/contexts/UserContext';
 import { getSkins, saveSkins, getAccessories, saveAccessories } from '@/lib/storage';
 import { apiUrl } from '@/lib/apiBaseUrl';
 import Avatar3DViewer from '@/components/Avatar3DViewer';
