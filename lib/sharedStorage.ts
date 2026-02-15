@@ -9,7 +9,7 @@ const CHANNEL_NAME = 'pixelplace-storage-sync';
 let channel: BroadcastChannel | null = null;
 
 function getChannel(): BroadcastChannel | null {
-  if (typeof window === 'undefined') return null;
+  if (typeof window === 'undefined' || typeof BroadcastChannel === 'undefined') return null;
   if (!channel) {
     try {
       channel = new BroadcastChannel(CHANNEL_NAME);

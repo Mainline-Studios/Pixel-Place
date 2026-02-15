@@ -40,17 +40,24 @@ function defaultOwnedPowers(): Record<Power, boolean> {
 }
 
 export function loadShowdownData(
-  user?: { username?: string } | null
+  _user?: { username?: string } | null
 ): ShowdownData {
-  const pixelcoins = loadLocal(KEYS.pixelcoins, 150);
-  const wins = loadLocal(KEYS.wins, 0);
-  const base = loadLocal<Record<string, boolean>>(KEYS.ownedPowers, {});
-  const ownedPowers: Record<Power, boolean> = {} as Record<Power, boolean>;
-  for (const p of POWERS) {
-    ownedPowers[p] = Boolean(base[p]) || POWER_COSTS[p] === 0;
+  try {
+    const pixelcoins = loadLocal(KEYS.pixelcoins, 150);
+    const wins = loadLocal(KEYS.wins, 0);
+    const base = loadLocal<Record<string, boolean>>(KEYS.ownedPowers, {});
+    const ownedPowers: Record<Power, boolean> = {} as Record<Power, boolean>;
+    for (const p of POWERS) {
+      ownedPowers[p] = Boolean(base[p]) || POWER_COSTS[p] === 0;
+    }
+    return { pixelcoins, wins, ownedPowers };
+  } catch {
+    return {
+      pixelcoins: 150,
+      wins: 0,
+      ownedPowers: defaultOwnedPowers(),
+    };
   }
-
-  return { pixelcoins, wins, ownedPowers };
 }
 
 export async function loadShowdownDataWithSync(

@@ -157,10 +157,36 @@ export default function Showdown({ user }: ShowdownProps): JSX.Element {
   const keysRef = useRef<Record<string, boolean>>({});
   const screenShakeRef = useRef(0);
 
-  const initial = loadShowdownData(user);
-  const [pixelcoins, setPixelcoins] = useState(initial.pixelcoins);
-  const [wins, setWins] = useState(initial.wins);
-  const [ownedPowers, setOwnedPowers] = useState<Record<Power, boolean>>(initial.ownedPowers);
+  const [pixelcoins, setPixelcoins] = useState(() => {
+    try {
+      if (typeof window === 'undefined') return 150;
+      return loadShowdownData(user).pixelcoins;
+    } catch {
+      return 150;
+    }
+  });
+  const [wins, setWins] = useState(() => {
+    try {
+      if (typeof window === 'undefined') return 0;
+      return loadShowdownData(user).wins;
+    } catch {
+      return 0;
+    }
+  });
+  const [ownedPowers, setOwnedPowers] = useState<Record<Power, boolean>>(() => {
+    try {
+      if (typeof window === 'undefined') {
+        const def: Record<Power, boolean> = {} as Record<Power, boolean>;
+        for (const p of POWERS) def[p] = POWER_COSTS[p] === 0;
+        return def;
+      }
+      return loadShowdownData(user).ownedPowers;
+    } catch {
+      const def: Record<Power, boolean> = {} as Record<Power, boolean>;
+      for (const p of POWERS) def[p] = POWER_COSTS[p] === 0;
+      return def;
+    }
+  });
 
   const [players, setPlayers] = useState<Player[]>(() => {
     const local: Player = {
@@ -212,22 +238,30 @@ export default function Showdown({ user }: ShowdownProps): JSX.Element {
   // Sync from API when user logs in (cross-device)
   useEffect(() => {
     if (!user?.username) return;
-    loadShowdownDataWithSync(user).then((data) => {
-      setPixelcoins(data.pixelcoins);
-      setWins(data.wins);
-      setOwnedPowers(data.ownedPowers);
-    });
+    loadShowdownDataWithSync(user)
+      .then((data) => {
+        setPixelcoins(data.pixelcoins);
+        setWins(data.wins);
+        setOwnedPowers(data.ownedPowers);
+      })
+      .catch(() => {});
   }, [user?.username]);
 
   // Listen for updates from other tabs (BroadcastChannel)
   useEffect(() => {
-    return subscribeToStorage((key, value) => {
-      if (key === 'showdown_pixelcoins' && typeof value === 'number') setPixelcoins(value);
-      if (key === 'showdown_wins' && typeof value === 'number') setWins(value);
-      if (key === 'showdown_ownedPowers' && value && typeof value === 'object') {
-        setOwnedPowers((prev) => ({ ...prev, ...(value as Record<string, boolean>) }));
-      }
-    });
+    try {
+      return subscribeToStorage((key, value) => {
+        try {
+          if (key === 'showdown_pixelcoins' && typeof value === 'number') setPixelcoins(value);
+          if (key === 'showdown_wins' && typeof value === 'number') setWins(value);
+          if (key === 'showdown_ownedPowers' && value && typeof value === 'object') {
+            setOwnedPowers((prev) => ({ ...prev, ...(value as Record<string, boolean>) }));
+          }
+        } catch {}
+      });
+    } catch {
+      return () => {};
+    }
   }, []);
 
   useEffect(() => {
