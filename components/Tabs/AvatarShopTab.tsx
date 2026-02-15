@@ -10,6 +10,7 @@ import { escapeHTML } from '@/lib/utils';
 import Avatar3DViewer from '@/components/Avatar3DViewer';
 import Skin2DPreview from '@/components/Skin2DPreview';
 import Accessory3DThumbnail from '@/components/Accessory3DThumbnail';
+import FaceThumb from '@/components/FaceThumb';
 
 interface AvatarShopTabProps {
   user: User;
@@ -438,6 +439,97 @@ export default function AvatarShopTab({ user, editMode }: AvatarShopTabProps) {
       current.add(accessory.id);
     }
     await updateUser({ equippedAccessories: Array.from(current) });
+  };
+
+  // Render Locker Room tab (owned items)
+  const renderLockerRoom = () => {
+    const ownedBodySkins = regularSkins.filter((s) => user.ownedSkins?.includes(s.id));
+    if (lockerTab === 'skins') {
+      return (
+        <div className="ai-box" style={{ marginBottom: '24px' }}>
+          <div className="skins-section-title">Your Skins</div>
+          {ownedBodySkins.length === 0 ? (
+            <p className="smalltext" style={{ color: '#8b90a8' }}>No skins yet. Visit the Grocery Store to buy some!</p>
+          ) : (
+            <div className="skins-grid">
+              {ownedBodySkins.map((s) => (
+                <div key={s.id} className="skin-card">
+                  <SkinThumb skin={s} previewMode={previewMode} />
+                  <div className="skin-name">{escapeHTML(s.name)}</div>
+                  <div className="skin-actions">
+                    <button
+                      className="btn"
+                      onClick={() => handleEquip(s.id)}
+                      style={user.equippedSkin === s.id ? { background: '#22c55e', color: '#fff' } : {}}
+                    >
+                      {user.equippedSkin === s.id ? '✓ Equipped' : 'Equip'}
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      );
+    }
+    if (lockerTab === 'faces') {
+      return (
+        <div className="ai-box" style={{ marginBottom: '24px' }}>
+          <div className="skins-section-title">Your Faces</div>
+          {ownedFaces.length === 0 ? (
+            <p className="smalltext" style={{ color: '#8b90a8' }}>No faces yet. Visit the Grocery Store to buy some!</p>
+          ) : (
+            <div className="skins-grid">
+              {ownedFaces.map((f) => (
+                <div key={f.id} className="skin-card">
+                  <FaceThumb face={f} previewMode={previewMode} />
+                  <div className="skin-name">{escapeHTML(f.name)}</div>
+                  <div className="skin-actions">
+                    <button
+                      className="btn"
+                      onClick={() => handleEquipFace(f.id)}
+                      style={user.equippedFace === f.id ? { background: '#22c55e', color: '#fff' } : {}}
+                    >
+                      {user.equippedFace === f.id ? '✓ Equipped' : 'Equip'}
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      );
+    }
+    // accessories
+    return (
+      <div className="ai-box" style={{ marginBottom: '24px' }}>
+        <div className="skins-section-title">Your Accessories</div>
+        {ownedAccessories.length === 0 ? (
+          <p className="smalltext" style={{ color: '#8b90a8' }}>No accessories yet. Visit the Grocery Store to buy some!</p>
+        ) : (
+          <div className="skins-grid">
+            {ownedAccessories.map((a) => {
+              const isEquipped = equippedAccessories.includes(a.id);
+              return (
+                <div key={a.id} className="skin-card">
+                  <Accessory3DThumbnail accessory={a} />
+                  <div className="skin-name">{escapeHTML(a.name)}</div>
+                  <div className="skin-actions">
+                    <button
+                      className="btn"
+                      onClick={() => handleToggleAccessory(a)}
+                      style={isEquipped ? { background: '#22c55e', color: '#fff' } : {}}
+                    >
+                      {isEquipped ? '✓ Equipped' : 'Equip'}
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    );
   };
 
   // Render Grocery Store tab
