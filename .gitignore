@@ -50,6 +50,13 @@ AppData/
 # Unity project files (too large for GitHub)
 /Gym_Pump/
 
+# Firebase local
+.firebase/
+
+# Firebase Functions build output and deps
+/functions/lib/
+/functions/node_modules/
+
 
 
 

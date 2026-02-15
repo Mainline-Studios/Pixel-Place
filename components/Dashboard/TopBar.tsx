@@ -18,7 +18,7 @@ const TABS: { key: TabType; label: string; shortcut?: string; adminOnly?: boolea
   { key: 'avatarShop', label: 'Avatar Shop', shortcut: 'A' },
   { key: 'coins', label: 'Pixel Coins', shortcut: 'C' },
   { key: 'friends', label: 'Friends', shortcut: 'F' },
-  { key: 'settings', label: 'Settings', shortcut: 'S' },
+  { key: 'settings', label: 'Settings', shortcut: 'O' },
 ];
 
 export default function TopBar({ currentTab, onTabChange, user }: TopBarProps) {
