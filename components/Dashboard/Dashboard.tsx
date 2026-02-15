@@ -45,12 +45,12 @@ export default function Dashboard({ user }: DashboardProps) {
     }
   }, []);
 
-  // Keyboard shortcuts: G=Games, A=Avatar, C=Coins, F=Friends, O=Settings (O avoids WASD conflict)
+  // Keyboard shortcuts: G=Games, C=Avatar Shop, P=Coins, F=Friends, O=Settings (avoid WASD)
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (e.ctrlKey || e.metaKey || e.altKey || e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
       const key = e.key.toLowerCase();
-      const map: Record<string, TabType> = { g: 'games', a: 'avatarShop', c: 'coins', f: 'friends', o: 'settings' };
+      const map: Record<string, TabType> = { g: 'games', c: 'avatarShop', p: 'coins', f: 'friends', o: 'settings' };
       if (map[key]) {
         e.preventDefault();
         handleTabChange(map[key]);
@@ -110,7 +110,7 @@ export default function Dashboard({ user }: DashboardProps) {
         <span style={{ margin: '0 12px', opacity: 0.5 }}>•</span>
         <span>Play. Create. Share.</span>
         <span style={{ margin: '0 12px', opacity: 0.5 }}>•</span>
-        <span>Press G, A, C, F, or O to switch tabs</span>
+        <span>Press G, C, P, F, or O to switch tabs</span>
       </footer>
       <ScrollToTop />
     </div>
