@@ -113,7 +113,10 @@ export default function TopBar({ currentTab, onTabChange, user, onLogout }: TopB
         <div className="userbox" style={{ position: 'relative', zIndex: 100001 }} ref={menuRef}>
           <div
             className="avatar-top"
-            onClick={toggleMenu}
+            onClick={(e) => {
+              e.stopPropagation();
+              toggleMenu();
+            }}
             style={{
               width: '40px',
               height: '40px',
@@ -150,6 +153,7 @@ export default function TopBar({ currentTab, onTabChange, user, onLogout }: TopB
           {/* Dropdown Menu */}
           {menuOpen && (
             <div
+              onClick={(e) => e.stopPropagation()}
               style={{
                 position: 'absolute',
                 top: '50px',
@@ -185,7 +189,10 @@ export default function TopBar({ currentTab, onTabChange, user, onLogout }: TopB
               </div>
               <div style={{ padding: '4px 0' }}>
                 <button
-                  onClick={handleLogout}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleLogout();
+                  }}
                   style={{
                     width: '100%',
                     padding: '10px 16px',
