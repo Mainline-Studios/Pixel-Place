@@ -3,7 +3,8 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { User, FriendRequest, Message } from '@/types';
 import { getUsers } from '@/lib/storage';
-import { apiUrl } from '@/lib/apiBaseUrl';import { useUser } from '@/contexts/UserContext';
+import { apiUrl } from '@/lib/apiBaseUrl';
+import { useUser } from '@/contexts/UserContext';
 import { useFriendsOnlineStatus, useOnlineStatus, updateCurrentGame, OnlineStatus } from '@/lib/onlineStatus';
 
 interface FriendsTabProps {
