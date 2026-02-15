@@ -36,19 +36,33 @@ export default function FriendsTab({ user, editMode }: FriendsTabProps) {
   // Filter users for search (using useMemo to ensure proper hook ordering)
   const filteredUsers = useMemo(() => {
     return allUsers.filter(u => {
-      if (!u || !u.username) return false;
-      const query = searchQuery.toLowerCase().trim();
-      const username = u.username.toLowerCase();
-      const isFriend = friendsData.friends.some(f => f && f.username && f.username.toLowerCase() === username);
-      const isPending = friendsData.sentRequests.some(r => r && r.toLowerCase() === username);
-      
-      // If search query is empty, show all users (except self, friends, and pending)
-      if (!query) {
-        return !isFriend && !isPending && username !== user.username.toLowerCase();
+      try {
+        console.log("DEBUG USER:", u);
+        if (!u || !u.username || typeof u.username !== 'string') return false;
+        if (!user || !user.username || typeof user.username !== 'string') return false;
+        const query = (searchQuery || '').toLowerCase().trim();
+        const username = (u.username || '').toLowerCase();
+        const userUsername = (user.username || '').toLowerCase();
+        const isFriend = friendsData.friends.some(f => {
+          if (!f || !f.username || typeof f.username !== 'string') return false;
+          return (f.username || '').toLowerCase() === username;
+        });
+        const isPending = friendsData.sentRequests.some(r => {
+          if (!r || typeof r !== 'string') return false;
+          return (r || '').toLowerCase() === username;
+        });
+        
+        // If search query is empty, show all users (except self, friends, and pending)
+        if (!query) {
+          return !isFriend && !isPending && username !== userUsername;
+        }
+        
+        // If search query exists, filter by it
+        return username.includes(query) && !isFriend && !isPending && username !== userUsername;
+      } catch (error) {
+        console.warn('Error filtering user:', error, u);
+        return false;
       }
-      
-      // If search query exists, filter by it
-      return username.includes(query) && !isFriend && !isPending && username !== user.username.toLowerCase();
     });
   }, [allUsers, searchQuery, friendsData.friends, friendsData.sentRequests, user.username]);
 
@@ -80,7 +94,17 @@ export default function FriendsTab({ user, editMode }: FriendsTabProps) {
   const loadAllUsers = async () => {
     try {
       const users = await getUsers();
-      setAllUsers(users.filter(u => u.username.toLowerCase() !== user.username.toLowerCase()));
+      setAllUsers(users.filter(u => {
+        try {
+          console.log("DEBUG USER IN LOAD:", u);
+          if (!u || !u.username || typeof u.username !== 'string') return false;
+          if (!user || !user.username || typeof user.username !== 'string') return false;
+          return (u.username || '').toLowerCase() !== (user.username || '').toLowerCase();
+        } catch (error) {
+          console.warn('Error filtering user in loadAllUsers:', error, u);
+          return false;
+        }
+      }));
     } catch (error) {
       // Silent error - don't block UI
     }
@@ -95,12 +119,19 @@ export default function FriendsTab({ user, editMode }: FriendsTabProps) {
         setMessages(msgs);
         // Mark messages as read
         msgs.forEach((msg: Message) => {
-          if (msg.to.toLowerCase() === user.username.toLowerCase() && !msg.read) {
-            fetch(apiUrl('/api/messages'), {
-              method: 'PUT',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ id: msg.id, read: true })
-            }).catch(() => {});
+          try {
+            console.log("DEBUG MESSAGE:", msg);
+            if (!msg || !msg.to || typeof msg.to !== 'string') return;
+            if (!user || !user.username || typeof user.username !== 'string') return;
+            if ((msg.to || '').toLowerCase() === (user.username || '').toLowerCase() && !msg.read) {
+              fetch(apiUrl('/api/messages'), {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id: msg.id, read: true })
+              }).catch(() => {});
+            }
+          } catch (error) {
+            console.warn('Error processing message:', error, msg);
           }
         });
       }
@@ -852,8 +883,12 @@ export default function FriendsTab({ user, editMode }: FriendsTabProps) {
                 </div>
               ) : (
                 messages.map((msg) => {
-                  const isOwn = msg.from.toLowerCase() === user.username.toLowerCase();
-                  return (
+                  try {
+                    console.log("DEBUG MESSAGE IN MAP:", msg);
+                    if (!msg || !msg.from || typeof msg.from !== 'string') return null;
+                    if (!user || !user.username || typeof user.username !== 'string') return null;
+                    const isOwn = (msg.from || '').toLowerCase() === (user.username || '').toLowerCase();
+                    return (
                     <div
                       key={msg.id}
                       style={{
@@ -885,7 +920,11 @@ export default function FriendsTab({ user, editMode }: FriendsTabProps) {
                         </div>
                       </div>
                     </div>
-                  );
+                    );
+                  } catch (error) {
+                    console.warn('Error rendering message:', error, msg);
+                    return null;
+                  }
                 })
               )}
               <div ref={messagesEndRef} />

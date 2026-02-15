@@ -211,6 +211,16 @@ export default function Hypnosia({ onClose }: HypnosiaProps) {
     return ['All Categories', ...cats];
   }, []);
 
+  const [selectedCategory, setSelectedCategory] = useState<string>('All Categories');
+  const [secret, setSecret] = useState<Rule | null>(null);
+  const [log, setLog] = useState<LogEntry[]>([]);
+  const [question, setQuestion] = useState<string>('');
+  const [guess, setGuess] = useState<string>('');
+  const [questionsLeft, setQuestionsLeft] = useState<number>(20);
+  const [hintUsed, setHintUsed] = useState<boolean>(false);
+  const [gameOver, setGameOver] = useState<boolean>(false);
+  const [message, setMessage] = useState<string | null>(null);
+
   useEffect(() => {
     // #region agent log
     fetch('http://127.0.0.1:7242/ingest/002741fb-cb98-444e-83cd-7086902151aa',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'Hypnosia.tsx:221',message:'useEffect called',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});

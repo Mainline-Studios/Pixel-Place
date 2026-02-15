@@ -10,27 +10,11 @@ import BreakReminder from '@/components/BreakReminder';
 import { getPlaytimeTracker } from '@/lib/playtimeTracker';
 import { User } from '@/types';
 import ErrorBoundary from '@/components/ErrorBoundary';
-
-const GUEST_USER: User = {
-  username: 'Guest',
-  password: '',
-  gender: '',
-  role: 'user',
-  coins: 0,
-  ownedSkins: ['starter_classic'],
-  equippedSkin: 'starter_classic',
-  ownedAccessories: [],
-  equippedAccessories: {} as Record<string, string>,
-  ownedServers: [],
-  friends: [],
-};
-
 import { pathToTab } from '@/lib/routing';
 
 function AppContent() {
   const { user } = useUser();
   const [showSplash, setShowSplash] = useState(true);
-  const [showLoginForm, setShowLoginForm] = useState(false);
   const [initialTab, setInitialTab] = useState<string>('home');
   const prevUserRef = React.useRef<User | null>(null);
 
@@ -71,27 +55,24 @@ function AppContent() {
     };
   }, [user]);
 
-  const displayUser = user || GUEST_USER;
-  const isPreview = !user;
-
   return (
     <>
       {showSplash ? (
         <SplashScreen onComplete={() => setShowSplash(false)} />
-      ) : showLoginForm ? (
+      ) : !user ? (
         <>
-          <Login onBack={() => setShowLoginForm(false)} />
+          <Login onBack={() => { }} />
           <InstallPrompt />
         </>
       ) : (
         <>
-          <Dashboard user={displayUser} />
+          <Dashboard user={user} />
           <InstallPrompt />
-          {user && <BreakReminder />}
+          <BreakReminder />
         </>
       )}
-      
-      
+
+
       {/* Ensure background is visible - avoid pure black */}
       <style jsx global>{`
         html, body {
@@ -108,14 +89,17 @@ export default function Home() {
   // Catch any unhandled errors
   useEffect(() => {
     const handleError = (event: ErrorEvent) => {
-      console.error('Unhandled error:', event.error);    };
+      console.error('Unhandled error:', event.error);
+    };
     window.addEventListener('error', handleError);
     return () => window.removeEventListener('error', handleError);
   }, []);
 
   return (
     <ErrorBoundary>
-      <AppContent />
+      <UserProvider>
+        <AppContent />
+      </UserProvider>
     </ErrorBoundary>
   );
 }

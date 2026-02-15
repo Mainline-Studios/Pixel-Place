@@ -9,6 +9,7 @@ function userFromDoc(doc: any): User {
     gender: doc.gender || '',
     role: (doc.role || 'user') as 'admin' | 'user',
     coins: doc.coins || 0,
+    safetyPoints: doc.safety_points || doc.safetyPoints || 0,
     ownedSkins: Array.isArray(doc.owned_skins) ? doc.owned_skins : (typeof doc.owned_skins === 'string' ? JSON.parse(doc.owned_skins || '[]') : []),
     equippedSkin: doc.equipped_skin || '',
     ownedAccessories: Array.isArray(doc.owned_accessories) ? doc.owned_accessories : (typeof doc.owned_accessories === 'string' ? JSON.parse(doc.owned_accessories || '[]') : []),
@@ -33,7 +34,10 @@ export async function POST(request: NextRequest) {
     const newUser: User = await request.json();
     
     // Check if user exists (case-insensitive)
-    const existingUsers = await queryDocuments(COLLECTIONS.USERS, 'username_lower', '==', newUser.username.toLowerCase());
+    if (!newUser.username || typeof newUser.username !== 'string') {
+      return NextResponse.json({ error: 'Invalid username' }, { status: 400 });
+    }
+    const existingUsers = await queryDocuments(COLLECTIONS.USERS, 'username_lower', '==', (newUser.username || '').toLowerCase());
     const existing = existingUsers.length > 0 ? existingUsers[0] : null;
     
     if (existing) {
@@ -48,13 +52,26 @@ export async function POST(request: NextRequest) {
         sentFriendRequests: newUser.sentFriendRequests !== undefined ? newUser.sentFriendRequests : existingUser.sentFriendRequests
       };
       
+      // Fetch safety points from safety API if not provided
+      let safetyPoints = updatedUser.safetyPoints;
+      if (safetyPoints === undefined) {
+        try {
+          const { getDocument, COLLECTIONS: SAFETY_COLLECTIONS } = await import('@/lib/firestore');
+          const safetyDoc = await getDocument(SAFETY_COLLECTIONS.USER_SAFETY, updatedUser.username.toLowerCase());
+          safetyPoints = safetyDoc?.safetyPoints || 0;
+        } catch (error) {
+          safetyPoints = 0;
+        }
+      }
+      
       await setDocument(COLLECTIONS.USERS, existing.id, {
         username: updatedUser.username,
-        username_lower: updatedUser.username.toLowerCase(),
+        username_lower: (updatedUser.username || '').toLowerCase(),
         password_hash: updatedUser.password,
         gender: updatedUser.gender,
         role: updatedUser.role,
         coins: updatedUser.coins,
+        safety_points: safetyPoints,
         owned_skins: updatedUser.ownedSkins || [],
         equipped_skin: updatedUser.equippedSkin || '',
         owned_accessories: updatedUser.ownedAccessories || [],
@@ -77,6 +94,7 @@ export async function POST(request: NextRequest) {
         gender: newUser.gender || '',
         role: newUser.role || 'user',
         coins: newUser.coins || 0,
+        safety_points: newUser.safetyPoints || 0,
         owned_skins: newUser.ownedSkins || [],
         equipped_skin: newUser.equippedSkin || '',
         owned_accessories: newUser.ownedAccessories || [],
@@ -90,7 +108,10 @@ export async function POST(request: NextRequest) {
         updated_at: Date.now()
       };
       
-      await setDocument(COLLECTIONS.USERS, newUser.username.toLowerCase(), userData);      
+      if (!newUser.username || typeof newUser.username !== 'string') {
+        return NextResponse.json({ error: 'Invalid username' }, { status: 400 });
+      }
+      await setDocument(COLLECTIONS.USERS, (newUser.username || '').toLowerCase(), userData);      
       const createdUser = {
         ...newUser,
         friends: newUser.friends || [],
@@ -111,7 +132,10 @@ export async function PUT(request: NextRequest) {
     const db = getDb();
     const updatedUser: User = await request.json();
     
-    const existingUsers = await queryDocuments(COLLECTIONS.USERS, 'username_lower', '==', updatedUser.username.toLowerCase());
+    if (!updatedUser.username || typeof updatedUser.username !== 'string') {
+      return NextResponse.json({ error: 'Invalid username' }, { status: 400 });
+    }
+    const existingUsers = await queryDocuments(COLLECTIONS.USERS, 'username_lower', '==', (updatedUser.username || '').toLowerCase());
     if (existingUsers.length === 0) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }

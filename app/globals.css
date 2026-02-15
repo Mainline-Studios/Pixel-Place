@@ -727,6 +727,8 @@ textarea {
   height: var(--nav-height);
   display: flex;
   justify-content: center;
+  position: relative;
+  z-index: 100000;
 }
 
 .topbar-inner {

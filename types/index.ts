@@ -139,7 +139,9 @@ export interface Skin {
 export interface Accessory {
   id: string;
   name: string;
-  type: 'hat' | 'glasses' | 'mask' | 'backpack' | 'weapon' | 'chain' | 'shoes' | 'pet' | 'drone';  price: number;
+  type: 'hat' | 'glasses' | 'mask' | 'backpack' | 'weapon' | 'chain' | 'shoes' | 'pet' | 'drone';
+  price: number;
+  safetyPointsPrice?: number; // Price in Safety Points (for special accessories in Safety section)
   img: string;
   color?: string;
   position?: { x: number; y: number; z: number };

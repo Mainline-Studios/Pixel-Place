@@ -132,7 +132,8 @@ export function createGame(container: HTMLElement) {
   const handleImportFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const ext = file.name.toLowerCase().slice(file.name.lastIndexOf('.'));
+    if (!file.name || typeof file.name !== 'string') return;
+    const ext = (file.name || '').toLowerCase().slice((file.name || '').lastIndexOf('.'));
     if (!ALLOWED_IMPORT_TYPES.includes(ext)) {
       alert(`Allowed file types: ${ALLOWED_IMPORT_TYPES.join(', ')}`);
       return;

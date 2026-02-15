@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { TabType, User } from '@/types';
 import { getInitials } from '@/lib/utils';
 import { getPublished, savePublished } from '@/lib/storage';
+import { useUser } from '@/contexts/UserContext';
 import TopBar from './TopBar';
 import Sidebar from './Sidebar';
 import HomeTab from '../Tabs/HomeTab';
@@ -18,6 +19,7 @@ interface DashboardProps {
 }
 
 export default function Dashboard({ user }: DashboardProps) {
+  const { setUser, updateUser } = useUser();
   const [currentTab, setCurrentTab] = useState<TabType>('home');
   const [editMode, setEditMode] = useState(false);
 
@@ -38,7 +40,7 @@ export default function Dashboard({ user }: DashboardProps) {
       // Discover tab and Play tab were merged into Home tab - removed
       // Create tab removed
       case 'avatarShop':
-        return <AvatarShopTab user={user} editMode={editMode} />;
+        return <AvatarShopTab user={user} editMode={editMode} updateUser={updateUser} />;
       case 'coins':
         return <CoinsTab user={user} editMode={editMode} />;
       case 'friends':
@@ -57,12 +59,26 @@ export default function Dashboard({ user }: DashboardProps) {
     }
   };
 
+  const handleLogout = () => {
+    // Clear user session
+    setUser(null);
+    // Clear sessionStorage
+    if (typeof window !== 'undefined') {
+      try {
+        sessionStorage.removeItem('pixelPlaceLoggedInUser');
+      } catch (error) {
+        console.error('Error clearing session:', error);
+      }
+    }
+  };
+
   return (
     <div id="dashboard">
       <TopBar
         currentTab={currentTab}
         onTabChange={setCurrentTab}
         user={user}
+        onLogout={handleLogout}
       />
       <div className="body-row">
         <div className="body-inner">

@@ -41,6 +41,7 @@ const formatNumber = (num: number): string => {
 export default function CoinsTab({ user, editMode }: CoinsTabProps) {
   const { updateUser } = useUser();
   const bal = typeof user.coins === 'number' ? user.coins : 0;
+  const safetyPoints = typeof user.safetyPoints === 'number' ? user.safetyPoints : 0;
   const [loading, setLoading] = useState<string | null>(null);
   const [showHolidayBundle, setShowHolidayBundle] = useState(false);
 
@@ -215,7 +216,11 @@ export default function CoinsTab({ user, editMode }: CoinsTabProps) {
       <h2 className="section-title">Pixel Coins</h2>
       <div className="ai-box">
         <div className="ai-label">Your Balance</div>
-        <div className="ai-output">{formatNumber(bal)} Pixel Coins</div>
+        <div className="ai-output">
+          {formatNumber(bal)} Pixel Coins
+          <br />
+          🛡️ {formatNumber(safetyPoints)} Safety Points
+        </div>
       </div>
       <div className="ai-box">
         <div className="ai-label">Get More Coins</div>

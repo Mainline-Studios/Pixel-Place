@@ -5,12 +5,14 @@ import React from 'react';
 import { User, Skin, Accessory } from '@/types';
 import { getSkins, saveSkins, getAccessories, saveAccessories } from '@/lib/storage';
 import { apiUrl } from '@/lib/apiBaseUrl';
+import { escapeHTML } from '@/lib/utils';
 import Avatar3DViewer from '@/components/Avatar3DViewer';
-import Skin2DPreview from '@/components/Skin2DPreview';
+import Accessory3DThumbnail from '@/components/Accessory3DThumbnail';
 
 interface AvatarShopTabProps {
   user: User;
   editMode: boolean;
+  updateUser: (updates: Partial<User>) => Promise<void>;
 }
 
 function RarityBadge({ rarity }: { rarity: string }) {
@@ -89,7 +91,7 @@ const SUPPORTED_ACCESSORY_TYPES = new Set([
 function normalizeSkin(skin: Skin): Skin {
   const rawAccessories = (skin as any).accessories || (skin as any).skinAccessories;
   const accessories = Array.isArray(rawAccessories)
-    ? rawAccessories.filter((accessory) => accessory && SUPPORTED_ACCESSORY_TYPES.has(accessory.type))
+    ? rawAccessories.filter((accessory) => accessory && accessory.type && typeof accessory.type === 'string' && SUPPORTED_ACCESSORY_TYPES.has(accessory.type))
     : undefined;
 
   return {
@@ -104,12 +106,12 @@ function normalizeSkin(skin: Skin): Skin {
   };
 }
 
-function SkinThumb({ skin, previewMode, width = 80, height = 80 }: { skin: Skin; previewMode: '2d' | '3d'; width?: number; height?: number }) {
+function SkinThumb({ skin, width = 80, height = 80 }: { skin: Skin; width?: number; height?: number }) {
   const [isVisible, setIsVisible] = useState(false);
   const [is3DReady, setIs3DReady] = useState(false);
   const [has3DError, setHas3DError] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
-  
+
   useEffect(() => {
     // Lazy load - only render when visible
     const observer = new IntersectionObserver(
@@ -121,20 +123,18 @@ function SkinThumb({ skin, previewMode, width = 80, height = 80 }: { skin: Skin;
       },
       { threshold: 0.1 }
     );
-    
+
     if (containerRef.current) {
       observer.observe(containerRef.current);
     }
-    
+
     return () => observer.disconnect();
   }, []);
 
   useEffect(() => {
-    if (previewMode === '3d') {
-      setIs3DReady(false);
-      setHas3DError(false);
-    }
-  }, [previewMode, skin?.id]);
+    setIs3DReady(false);
+    setHas3DError(false);
+  }, [skin?.id]);
 
   // Validate skin has required properties
   if (!skin) {
@@ -159,18 +159,18 @@ function SkinThumb({ skin, previewMode, width = 80, height = 80 }: { skin: Skin;
     );
   }
 
-  const show3D = previewMode === '3d' && isVisible && !has3DError;
-  const showSpinner = previewMode === '3d' && isVisible && !is3DReady && !has3DError;
-  const show2D = previewMode === '2d' || !is3DReady || has3DError;
+  const show3D = isVisible && !has3DError;
+  const showSpinner = isVisible && !is3DReady && !has3DError;
 
   return (
     <div ref={containerRef} className="skin-thumb" style={{ width, height, minWidth: width, minHeight: height }}>
       {showSpinner && <div style={{ width, height, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>...</div>}
       {show3D && <Avatar3DViewer skin={skin} width={width} height={height} onReady={() => setIs3DReady(true)} onError={() => setHas3DError(true)} />}
-      {show2D && !showSpinner && <Skin2DPreview skin={skin} />}
+      {has3DError && <div style={{ width, height, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#888', fontSize: '10px' }}>Error</div>}
     </div>
   );
 }
+
 
 // Proper React Error Boundary class component
 class ErrorBoundary extends React.Component<
@@ -201,13 +201,10 @@ class ErrorBoundary extends React.Component<
   }
 }
 
-export default function AvatarShopTab({ user, editMode }: AvatarShopTabProps) {
-  const { updateUser } = useUser();
+export default function AvatarShopTab({ user, editMode, updateUser }: AvatarShopTabProps) {
   const [skins, setSkins] = useState<Skin[]>([]);
   const [accessories, setAccessories] = useState<Accessory[]>([]);
-  const [mainTab, setMainTab] = useState<'locker' | 'store'>('locker');
-  const [lockerTab, setLockerTab] = useState<'skins' | 'faces' | 'accessories'>('skins');
-  const [previewMode, setPreviewMode] = useState<'2d' | '3d'>('2d');
+  const previewMode: '3d' = '3d'; // Always use 3D preview
 
   useEffect(() => {
     const loadData = async () => {
@@ -218,8 +215,8 @@ export default function AvatarShopTab({ user, editMode }: AvatarShopTabProps) {
         ]);
         const normalizedSkins = Array.isArray(skinsData)
           ? skinsData
-              .filter((skin) => skin && skin.id && skin.name)
-              .map((skin) => normalizeSkin(skin))
+            .filter((skin) => skin && skin.id && skin.name)
+            .map((skin) => normalizeSkin(skin))
           : [];
         setSkins(normalizedSkins);
         setAccessories(Array.isArray(accessoriesData) ? accessoriesData : []);
@@ -232,16 +229,16 @@ export default function AvatarShopTab({ user, editMode }: AvatarShopTabProps) {
     loadData();
   }, [user.role]);
 
-  const ownedSkins = skins.filter((s) => user.ownedSkins?.includes(s.id));
-  const ownedAccessories = accessories.filter((a) => user.ownedAccessories?.includes(a.id));
+  const ownedSkins = skins.filter((s) => s && s.id && user.ownedSkins?.includes(s.id));
+  const ownedAccessories = accessories.filter((a) => a && a.id && user.ownedAccessories?.includes(a.id));
   const equippedAccessories = Array.isArray(user.equippedAccessories)
     ? user.equippedAccessories
     : Object.values(user.equippedAccessories || {});
-  
-  // Separate faces from regular skins
-  const regularSkins = skins.filter((s) => !s.isFace);
-  const faces = skins.filter((s) => s.isFace);
-  const ownedFaces = faces.filter((f) => user.ownedFaces?.includes(f.id));
+
+  // Separate faces from regular skins - add defensive checks
+  const regularSkins = skins.filter((s) => s && s.isFace !== true);
+  const faces = skins.filter((s) => s && s.isFace === true);
+  const ownedFaces = faces.filter((f) => f && f.id && user.ownedFaces?.includes(f.id));
 
   // Get equipped skin and face
   const equippedSkin = skins.find((s) => s.id === user.equippedSkin) || skins.find((s) => s.id === 'starter_classic') || skins[0];
@@ -277,11 +274,11 @@ export default function AvatarShopTab({ user, editMode }: AvatarShopTabProps) {
       const formattedSafetyPoints = userSafetyPoints.toLocaleString('en-US');
       const formattedCoinPrice = (skin.price || 0).toLocaleString('en-US');
       const formattedSPPrice = (skin.safetyPointsPrice || 0).toLocaleString('en-US');
-      
+
       // Check if user can afford with either currency
       const canAffordCoins = skin.price > 0 && userCoins >= skin.price;
       const canAffordSP = skin.safetyPointsPrice && userSafetyPoints >= skin.safetyPointsPrice;
-      
+
       if (!canAffordCoins && !canAffordSP) {
         return; // Not enough currency - silent fail
       }
@@ -291,7 +288,7 @@ export default function AvatarShopTab({ user, editMode }: AvatarShopTabProps) {
       if (canAffordCoins && canAffordSP) {
         useCoins = confirm(`Buy ${skin.name}?\n\nPay with:\n- ${formattedCoinPrice} Coins (you have ${formattedCoins})\n- OR ${formattedSPPrice} Safety Points (you have ${formattedSafetyPoints})\n\nClick OK to pay with Coins, Cancel to pay with Safety Points`);
       }
-      
+
       if (useCoins && canAffordCoins && skin.price > 0) {
         if (confirm(`Buy ${skin.name} for ${formattedCoinPrice} Coins?\nYour balance: ${formattedCoins} Coins`)) {
           try {
@@ -308,7 +305,7 @@ export default function AvatarShopTab({ user, editMode }: AvatarShopTabProps) {
             const newSafetyPoints = userSafetyPoints - skin.safetyPointsPrice;
             const newOwnedFaces = [...(user.ownedFaces || []), skin.id];
             await updateUser({ safetyPoints: newSafetyPoints, ownedFaces: newOwnedFaces });
-            
+
             // Sync safety points to backend
             try {
               await fetch(apiUrl('/api/safety'), {
@@ -333,27 +330,29 @@ export default function AvatarShopTab({ user, editMode }: AvatarShopTabProps) {
 
     // Regular skin purchase
     if (user.ownedSkins?.includes(skin.id)) {
-      return; // Already owned - silent fail
+      alert('You already own this skin!');
+      return; // Already owned
     }
 
-    // Check if it's a special skin (uses Safety Points)
-    if (skin.isSpecial && skin.safetyPointsPrice) {
+    // Check if it's a special skin (uses Safety Points only - no coin price)
+    if (skin.isSpecial && skin.safetyPointsPrice && !skin.price) {
       const userSafetyPoints = user.safetyPoints || 0;
       const formattedSafetyPoints = userSafetyPoints.toLocaleString('en-US');
       const formattedPrice = skin.safetyPointsPrice.toLocaleString('en-US');
-      
+
       if (userSafetyPoints < skin.safetyPointsPrice) {
-        return; // Not enough Safety Points - silent fail
+        alert(`You need ${formattedPrice} Safety Points to buy ${skin.name}, but you only have ${formattedSafetyPoints} Safety Points.`);
+        return; // Not enough Safety Points
       }
 
       if (confirm(`Buy ${skin.name} for ${formattedPrice} Safety Points?\nYour balance: ${formattedSafetyPoints} Safety Points`)) {
         try {
           const newSafetyPoints = userSafetyPoints - skin.safetyPointsPrice;
           const newOwnedSkins = [...(user.ownedSkins || []), skin.id];
-          
+
           // Update both user state and sync to backend
           await updateUser({ safetyPoints: newSafetyPoints, ownedSkins: newOwnedSkins });
-          
+
           // Also update backend safety points
           try {
             await fetch(apiUrl('/api/safety'), {
@@ -368,30 +367,52 @@ export default function AvatarShopTab({ user, editMode }: AvatarShopTabProps) {
           } catch (error) {
             console.warn('Failed to sync safety points:', error);
           }
+          alert(`Successfully purchased ${skin.name}!`);
         } catch (error) {
-          // Silent error handling
+          console.error('Purchase error:', error);
+          alert('Failed to purchase skin. Please try again.');
         }
       }
       return;
     }
 
-    // Regular skin purchase with Pixel Coins (no freebies)
+    // Regular skin purchase with Pixel Coins
     const userCoins = user.coins || 0;
-    const price = Math.max(skin.price || 0, MIN_SKIN_PRICE);
+    const price = skin.price || MIN_SKIN_PRICE;
     const formattedUserCoins = userCoins.toLocaleString('en-US');
     const formattedPrice = price.toLocaleString('en-US');
-    
-    if (userCoins < price) {      return; // Not enough coins - silent fail
+
+    if (price <= 0) {
+      // Free skin
+      if (confirm(`Get ${skin.name} for free?`)) {
+        try {
+          const newOwnedSkins = [...(user.ownedSkins || []), skin.id];
+          await updateUser({ ownedSkins: newOwnedSkins });
+          alert(`Successfully got ${skin.name}!`);
+        } catch (error) {
+          console.error('Purchase error:', error);
+          alert('Failed to get skin. Please try again.');
+        }
+      }
+      return;
     }
 
-    if (confirm(`Buy ${skin.name} for ${formattedPrice} Coins?\nYour balance: ${formattedUserCoins}`)) {
+    if (userCoins < price) {
+      alert(`You need ${formattedPrice} Coins to buy ${skin.name}, but you only have ${formattedUserCoins} Coins.`);
+      return; // Not enough coins
+    }
+
+    if (confirm(`Buy ${skin.name} for ${formattedPrice} Coins?\nYour balance: ${formattedUserCoins} Coins`)) {
       try {
-        const newCoins = (user.coins || 0) - price;        const newOwnedSkins = [...(user.ownedSkins || []), skin.id];
-        
+        const newCoins = (user.coins || 0) - price;
+        const newOwnedSkins = [...(user.ownedSkins || []), skin.id];
+
         // Save purchase to backend - updateUser already saves and updates state
         await updateUser({ coins: newCoins, ownedSkins: newOwnedSkins });
+        alert(`Successfully purchased ${skin.name}!`);
       } catch (error) {
-        // Silent error handling
+        console.error('Purchase error:', error);
+        alert('Failed to purchase skin. Please try again.');
       }
     }
   };
@@ -418,9 +439,54 @@ export default function AvatarShopTab({ user, editMode }: AvatarShopTabProps) {
           action: 'equip',
           faceId
         })
-      }).catch(() => {}); // Silent fail
+      }).catch(() => { }); // Silent fail
     } catch (error) {
       // Silent error handling
+    }
+  };
+
+  const handlePurchaseAccessory = async (accessory: Accessory) => {
+    if (user.ownedAccessories?.includes(accessory.id)) {
+      alert('You already own this accessory!');
+      return; // Already owned
+    }
+
+    // ALL accessories cost Safety Points (default to price * 2 if no safetyPointsPrice set, or use price if it exists)
+    const safetyPrice = accessory.safetyPointsPrice || (accessory.price ? Math.max(50, accessory.price * 2) : 100);
+    const userSafetyPoints = user.safetyPoints || 0;
+    const formattedSafetyPoints = userSafetyPoints.toLocaleString('en-US');
+    const formattedPrice = safetyPrice.toLocaleString('en-US');
+
+    if (userSafetyPoints < safetyPrice) {
+      alert(`You need ${formattedPrice} Safety Points to buy ${accessory.name}, but you only have ${formattedSafetyPoints} Safety Points.`);
+      return;
+    }
+
+    if (confirm(`Buy ${accessory.name} for ${formattedPrice} Safety Points?\nYour balance: ${formattedSafetyPoints} Safety Points`)) {
+      try {
+        const newSafetyPoints = userSafetyPoints - safetyPrice;
+        const newOwnedAccessories = [...(user.ownedAccessories || []), accessory.id];
+        await updateUser({ safetyPoints: newSafetyPoints, ownedAccessories: newOwnedAccessories });
+
+        // Sync safety points to backend
+        try {
+          await fetch(apiUrl('/api/safety'), {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              username: user.username,
+              action: 'updateSafetyPoints',
+              safetyPoints: newSafetyPoints
+            })
+          });
+        } catch (error) {
+          console.warn('Failed to sync safety points:', error);
+        }
+        alert(`Successfully purchased ${accessory.name}!`);
+      } catch (error) {
+        console.error('Purchase error:', error);
+        alert('Failed to purchase accessory. Please try again.');
+      }
     }
   };
 
@@ -437,379 +503,208 @@ export default function AvatarShopTab({ user, editMode }: AvatarShopTabProps) {
     await updateUser({ equippedAccessories: Array.from(current) });
   };
 
-  // Render Grocery Store tab
-  const renderGroceryStore = () => {
-    // Filter out owned items
-    const availableSkins = regularSkins.filter(s => !user.ownedSkins?.includes(s.id));
-    const availableFaces = faces.filter(f => !user.ownedFaces?.includes(f.id));
-    const premiumSkins = availableSkins.filter(s => s.isSpecial && s.safetyPointsPrice && s.use3d !== false);
-    const starterSkins = availableSkins.filter(s => !s.isSpecial && s.price === 10);
-    const regularAvailableSkins = availableSkins.filter(s => !s.isSpecial && s.price !== 10);
-    const availableAccessories = accessories.filter(a => !user.ownedAccessories?.includes(a.id));
-
-    return (
-      <div>
-        {/* Starter Skins - 10 Pixel-Coins - Perfect for new players! */}
-        {starterSkins.length > 0 && (
-          <div className="ai-box" style={{ marginBottom: '24px', border: '2px solid rgba(0, 170, 255, 0.4)', boxShadow: '0 0 24px rgba(0, 170, 255, 0.15)' }}>
-            <div className="skins-section-title" style={{ color: '#00aaff' }}>🌟 Starter Skins — 10 Pixel-Coins Each</div>
-            <div className="smalltext" style={{ marginBottom: '12px' }}>
-              Start with 10 Pixel-Coins! Personalize your avatar right away. All skins use 3D models.
-            </div>
-            <div className="skins-grid">
-              {starterSkins.map((s) => {
-                const affordable = (user.coins || 0) >= 10;
-                return (
-                  <div key={s.id} className="skin-card" style={{ border: '2px solid rgba(0, 170, 255, 0.3)' }}>
-                    <SkinThumb skin={s} previewMode="3d" width={100} height={100} />
-                    <div className="skin-name">{escapeHTML(s.name)}</div>
-                    <div className="skin-meta">
-                      <span className="price-tag" style={{ color: '#00aaff' }}>💠 10 Pixel-Coins</span>
-                    </div>
-                    <div className="skin-actions">
-                      <button
-                        className="btn"
-                        disabled={!affordable}
-                        onClick={() => handlePurchase(s)}
-                        style={affordable ? { background: 'linear-gradient(135deg, #00aaff, #0088cc)' } : {}}
-                      >
-                        {affordable ? 'Buy for 10 💠' : 'Need 10 Coins'}
-                      </button>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
-
-        {/* Safety Points Skins Section */}
-        {premiumSkins.length > 0 && (
-          <div className="ai-box" style={{ marginBottom: '24px' }}>
-            <div className="skins-section-title">✨ Safety Points Exclusives (500+ Polygons)</div>
-            <div className="smalltext" style={{ marginBottom: '8px' }}>
-              High-polygon skins with glows and accessories! Purchase with Safety Points.
-            </div>
-            <div className="skins-grid">
-              {premiumSkins.map((s) => {
-                const affordable = (user.safetyPoints || 0) >= (s.safetyPointsPrice || 0);
-                return (
-                  <div key={s.id} className="skin-card" style={{
-                    border: '2px solid rgba(255, 215, 0, 0.5)',
-                    boxShadow: '0 0 20px rgba(255, 215, 0, 0.3)'
-                  }}>
-                    <SkinThumb skin={s} previewMode={previewMode} />
-                    <div className="skin-name" style={{ color: '#ffd700', fontWeight: 600 }}>{escapeHTML(s.name)}</div>
-                    <div className="skin-meta">
-                      <span className="price-tag" style={{ color: '#ffd700', fontWeight: 600 }}>
-                        🛡️ {s.safetyPointsPrice} Safety Points
-                      </span>
-                    </div>
-                    <div className="skin-actions">
-                      <button
-                        className="btn"
-                        disabled={!affordable}
-                        onClick={() => handlePurchase(s)}
-                        style={{
-                          background: affordable ? 'linear-gradient(135deg, #ffd700 0%, #ffaa00 100%)' : '#444',
-                          border: '1px solid #ffd700',
-                          color: affordable ? '#000' : '#888',
-                          fontWeight: 700
-                        }}
-                      >
-                        {affordable ? `Buy (🛡️ ${s.safetyPointsPrice})` : 'Need More SP'}
-                      </button>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
-
-        {/* Regular Skins Section */}
-        {regularAvailableSkins.length > 0 && (
-          <div className="ai-box" style={{ marginBottom: '24px' }}>
-            <div className="skins-section-title">Regular Skins</div>
-            <div className="smalltext" style={{ marginBottom: '8px' }}>
-              Purchase skins with Pixel Coins
-            </div>
-            <div className="skins-grid">
-              {regularAvailableSkins.map((s) => {
-                const price = Math.max(s.price || 0, MIN_SKIN_PRICE);
-                const affordable = (user.coins || 0) >= price;
-                return (
-                  <div key={s.id} className="skin-card">
-                    <SkinThumb skin={s} previewMode={previewMode} />
-                    <div className="skin-name">{escapeHTML(s.name)}</div>
-                    <div className="skin-meta">
-                      <span className="price-tag">
-                        {`💠 ${price} Coins`}
-                      </span>
-                    </div>
-                    <div className="skin-actions">
-                      <button
-                        className="btn"
-                        disabled={!affordable}
-                        onClick={() => handlePurchase(s)}
-                      >
-                        {affordable ? `Buy for ${price} 💠` : 'Need More Coins'}
-                      </button>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
-
-        {/* Premium Faces Section */}
-        {availableFaces.length > 0 && (
-          <div className="ai-box" style={{ marginBottom: '24px' }}>
-            <div className="skins-section-title">✨ Premium Faces</div>
-            <div className="smalltext" style={{ marginBottom: '8px' }}>
-              High-polygon faces (500+ polygons) with glows! Choose to pay with Coins OR Safety Points.
-            </div>
-            <div className="skins-grid">
-              {availableFaces.map((s) => {
-                const affordable = (s.price > 0 && (user.coins || 0) >= s.price) || (s.safetyPointsPrice && (user.safetyPoints || 0) >= s.safetyPointsPrice);
-                return (
-                  <div key={s.id} className="skin-card" style={{
-                    border: '2px solid rgba(255, 215, 0, 0.5)',
-                    boxShadow: '0 0 20px rgba(255, 215, 0, 0.3)'
-                  }}>
-                    <FaceThumb face={s} previewMode={previewMode} />
-                    <div className="skin-name" style={{ color: '#ffd700', fontWeight: 600 }}>{escapeHTML(s.name)}</div>
-                    <div className="skin-meta">
-                      <span className="price-tag" style={{ color: '#ffd700', fontWeight: 600 }}>
-                        {s.price > 0 && s.safetyPointsPrice 
-                          ? `💠 ${s.price} Coins OR 🛡️ ${s.safetyPointsPrice} SP`
-                          : s.price > 0
-                            ? `💠 ${s.price} Coins`
-                            : s.safetyPointsPrice
-                              ? `🛡️ ${s.safetyPointsPrice} Safety Points`
-                              : 'Free'}
-                      </span>
-                    </div>
-                    <div className="skin-actions">
-                      <button
-                        className="btn"
-                        disabled={!affordable}
-                        onClick={() => handlePurchase(s)}
-                        style={{
-                          background: affordable ? 'linear-gradient(135deg, #ffd700 0%, #ffaa00 100%)' : '#444',
-                          border: '1px solid #ffd700',
-                          color: affordable ? '#000' : '#888',
-                          fontWeight: 700
-                        }}
-                      >
-                        {affordable 
-                          ? (s.price > 0 && s.safetyPointsPrice
-                              ? `Buy (💠 OR 🛡️)`
-                              : s.price > 0
-                                ? `Buy for ${s.price} 💠`
-                                : s.safetyPointsPrice
-                                  ? `Buy (🛡️ ${s.safetyPointsPrice})`
-                                  : 'Get Free') 
-                          : (s.price > 0 && s.safetyPointsPrice
-                              ? 'Need 💠 OR 🛡️'
-                              : s.price > 0
-                                ? 'Need More Coins'
-                                : s.safetyPointsPrice
-                                  ? 'Need More SP'
-                                  : 'Free')}
-                      </button>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
-
-        {/* Accessories Section */}
-        {availableAccessories.length > 0 && (
-          <div className="ai-box" style={{ marginBottom: '24px' }}>
-            <div className="skins-section-title">Accessories</div>
-            <div className="smalltext" style={{ marginBottom: '8px' }}>
-              Purchase accessories with Pixel Coins
-            </div>
-            <div className="skins-grid">
-              {availableAccessories.map((a) => {
-                const affordable = (user.coins || 0) >= a.price;
-                return (
-                  <div key={a.id} className="skin-card">
-                    <Accessory3DThumbnail accessory={a} />
-                    <div className="skin-name">{escapeHTML(a.name)}</div>
-                    <div className="skin-meta">
-                      <span className="price-tag">
-                        {a.price === 0 ? 'Free' : `💠 ${a.price} Coins`}
-                      </span>
-                    </div>
-                    <div className="skin-actions">
-                      <button
-                        className="btn"
-                        disabled={!affordable}
-                        onClick={() => handlePurchaseAccessory(a)}
-                      >
-                        {affordable ? (a.price === 0 ? 'Get Free' : `Buy for ${a.price} 💠`) : 'Need More Coins'}
-                      </button>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
-      </div>
-    );  };
-
+  // Filter available items - separate by payment type
+  const allAvailableSkins = regularSkins.filter(s => s && s.id && !user.ownedSkins?.includes(s.id));
+  const availableSkins = allAvailableSkins.filter(s => !(s.isSpecial && s.safetyPointsPrice && !s.price));
+  const safetySkins = allAvailableSkins.filter(s => s.isSpecial && s.safetyPointsPrice && !s.price);
+  const availableFaces = faces.filter(f => f && f.id && !user.ownedFaces?.includes(f.id));
+  // ALL accessories go to Safety section and cost Safety Points
+  const allAvailableAccessories = accessories.filter(a => a && a.id && !user.ownedAccessories?.includes(a.id));
+  const safetyAccessories = allAvailableAccessories; // All accessories are in Safety section
 
   return (
     <>
       <h2 className="section-title">Avatar Shop</h2>
-      
-      {/* Main Tab Navigation */}
-      <div style={{
-        display: 'flex',
-        gap: '12px',
-        marginBottom: '24px',
-        borderBottom: '2px solid rgba(255, 255, 255, 0.1)',
-        paddingBottom: '12px'
-      }}>
-        <button
-          onClick={() => setMainTab('locker')}
-          style={{
-            padding: '12px 24px',
-            background: mainTab === 'locker' ? 'linear-gradient(135deg, #4a90e2 0%, #357abd 100%)' : 'rgba(255, 255, 255, 0.05)',
-            border: `2px solid ${mainTab === 'locker' ? '#4a90e2' : 'rgba(255, 255, 255, 0.1)'}`,
-            borderRadius: '8px',
-            color: '#fff',
-            fontWeight: 700,
-            fontSize: '16px',
-            cursor: 'pointer',
-            transition: 'all 0.2s'
-          }}
-        >
-          🎽 Locker Room
-        </button>
-        <button
-          onClick={() => setMainTab('store')}
-          style={{
-            padding: '12px 24px',
-            background: mainTab === 'store' ? 'linear-gradient(135deg, #4a90e2 0%, #357abd 100%)' : 'rgba(255, 255, 255, 0.05)',
-            border: `2px solid ${mainTab === 'store' ? '#4a90e2' : 'rgba(255, 255, 255, 0.1)'}`,
-            borderRadius: '8px',
-            color: '#fff',
-            fontWeight: 700,
-            fontSize: '16px',
-            cursor: 'pointer',
-            transition: 'all 0.2s'
-          }}
-        >
-          🛒 Grocery Store
-        </button>
-      </div>
 
-      <div style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: '12px',
-        marginBottom: '16px',
-        flexWrap: 'wrap'
-      }}>
-        <span style={{ fontSize: '12px', color: '#9fa4b8', fontWeight: 600 }}>
-          Preview
-        </span>
-        <button
-          onClick={() => setPreviewMode('2d')}
-          style={{
-            padding: '6px 12px',
-            background: previewMode === '2d' ? 'rgba(74, 144, 226, 0.2)' : 'rgba(255, 255, 255, 0.05)',
-            border: `1px solid ${previewMode === '2d' ? '#4a90e2' : 'rgba(255, 255, 255, 0.1)'}`,
-            borderRadius: '6px',
-            color: '#fff',
-            fontWeight: previewMode === '2d' ? 700 : 400,
-            cursor: 'pointer',
-            transition: 'all 0.2s'
-          }}
-        >
-          2D
-        </button>
-        <button
-          onClick={() => setPreviewMode('3d')}
-          style={{
-            padding: '6px 12px',
-            background: previewMode === '3d' ? 'rgba(74, 144, 226, 0.2)' : 'rgba(255, 255, 255, 0.05)',
-            border: `1px solid ${previewMode === '3d' ? '#4a90e2' : 'rgba(255, 255, 255, 0.1)'}`,
-            borderRadius: '6px',
-            color: '#fff',
-            fontWeight: previewMode === '3d' ? 700 : 400,
-            cursor: 'pointer',
-            transition: 'all 0.2s'
-          }}
-        >
-          3D
-        </button>
-        <span className="smalltext">3D previews are 500+ polygons and may take a moment to load.</span>
-      </div>
-
-      {/* Locker Room Sub-tabs */}
-      {mainTab === 'locker' && (
-        <div style={{
-          display: 'flex',
-          gap: '8px',
-          marginBottom: '24px'
-        }}>
-          <button
-            onClick={() => setLockerTab('skins')}
-            style={{
-              padding: '8px 16px',
-              background: lockerTab === 'skins' ? 'rgba(74, 144, 226, 0.2)' : 'rgba(255, 255, 255, 0.05)',
-              border: `1px solid ${lockerTab === 'skins' ? '#4a90e2' : 'rgba(255, 255, 255, 0.1)'}`,
-              borderRadius: '6px',
-              color: '#fff',
-              fontWeight: lockerTab === 'skins' ? 700 : 400,
-              cursor: 'pointer',
-              transition: 'all 0.2s'
-            }}
-          >
-            Skins
-          </button>
-          <button
-            onClick={() => setLockerTab('faces')}
-            style={{
-              padding: '8px 16px',
-              background: lockerTab === 'faces' ? 'rgba(74, 144, 226, 0.2)' : 'rgba(255, 255, 255, 0.05)',
-              border: `1px solid ${lockerTab === 'faces' ? '#4a90e2' : 'rgba(255, 255, 255, 0.1)'}`,
-              borderRadius: '6px',
-              color: '#fff',
-              fontWeight: lockerTab === 'faces' ? 700 : 400,
-              cursor: 'pointer',
-              transition: 'all 0.2s'
-            }}
-          >
-            Faces
-          </button>
-          <button
-            onClick={() => setLockerTab('accessories')}
-            style={{
-              padding: '8px 16px',
-              background: lockerTab === 'accessories' ? 'rgba(74, 144, 226, 0.2)' : 'rgba(255, 255, 255, 0.05)',
-              border: `1px solid ${lockerTab === 'accessories' ? '#4a90e2' : 'rgba(255, 255, 255, 0.1)'}`,
-              borderRadius: '6px',
-              color: '#fff',
-              fontWeight: lockerTab === 'accessories' ? 700 : 400,
-              cursor: 'pointer',
-              transition: 'all 0.2s'
-            }}
-          >
-            Accessories
-          </button>
+      {/* Owned Skins */}
+      {ownedSkins.length > 0 && (
+        <div className="ai-box" style={{ marginBottom: '24px' }}>
+          <div className="skins-section-title">Your Skins</div>
+          <div className="skins-grid">
+            {ownedSkins.map((s) => {
+              const isEquipped = user.equippedSkin === s.id;
+              return (
+                <div
+                  key={s.id}
+                  className="skin-card"
+                  onClick={() => handleEquip(s.id)}
+                  style={{
+                    cursor: 'pointer',
+                    border: isEquipped ? '2px solid #4a90e2' : '1px solid rgba(255, 255, 255, 0.1)',
+                    background: isEquipped ? 'rgba(74, 144, 226, 0.1)' : 'transparent'
+                  }}
+                >
+                  <SkinThumb skin={s} />
+                  <div className="skin-name" style={{ color: isEquipped ? '#4a90e2' : '#fff' }}>
+                    {escapeHTML(s.name)}
+                    {isEquipped && ' ✓'}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         </div>
       )}
 
-      {/* Content */}
-      {mainTab === 'locker' ? renderLockerRoom() : renderGroceryStore()}    </>
+      {/* Original Section - Pixel Coins Skins Only */}
+      {availableSkins.length > 0 && (
+        <div className="ai-box" style={{ marginBottom: '24px' }}>
+          <div className="skins-section-title">Original</div>
+          <div className="smalltext" style={{ marginBottom: '8px' }}>
+            Purchase skins with Pixel Coins
+          </div>
+          <div className="skins-grid">
+            {availableSkins.map((s) => {
+              const price = s.price || MIN_SKIN_PRICE;
+              const affordable = (user.coins || 0) >= price;
+              return (
+                <div key={s.id} className="skin-card">
+                  <SkinThumb skin={s} />
+                  <div className="skin-name">{escapeHTML(s.name)}</div>
+                  <div className="skin-meta">
+                    <span className="price-tag">💠 {price} Coins</span>
+                  </div>
+                  <div className="skin-actions">
+                    <button
+                      className="btn"
+                      disabled={!affordable}
+                      onClick={() => handlePurchase(s)}
+                    >
+                      {affordable ? `Buy for ${price} 💠` : 'Need More Coins'}
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Safety Section - Safety Points Skins and Accessories */}
+      {(safetySkins.length > 0 || safetyAccessories.length > 0) && (
+        <div className="ai-box" style={{ marginBottom: '24px', border: '2px solid rgba(255, 215, 0, 0.5)', boxShadow: '0 0 20px rgba(255, 215, 0, 0.3)' }}>
+          <div className="skins-section-title" style={{ color: '#ffd700', fontWeight: 600 }}>🛡️ Safety</div>
+          <div className="smalltext" style={{ marginBottom: '8px' }}>
+            Purchase exclusive items with Safety Points
+          </div>
+
+          {/* Safety Points Skins */}
+          {safetySkins.length > 0 && (
+            <>
+              <div className="skins-section-title" style={{ fontSize: '14px', marginTop: '16px', marginBottom: '8px' }}>Skins</div>
+              <div className="skins-grid">
+                {safetySkins.map((s) => {
+                  const affordable = (user.safetyPoints || 0) >= (s.safetyPointsPrice || 0);
+                  return (
+                    <div key={s.id} className="skin-card" style={{
+                      border: '2px solid rgba(255, 215, 0, 0.5)',
+                      boxShadow: '0 0 20px rgba(255, 215, 0, 0.3)'
+                    }}>
+                      <SkinThumb skin={s} />
+                      <div className="skin-name" style={{ color: '#ffd700', fontWeight: 600 }}>{escapeHTML(s.name)}</div>
+                      <div className="skin-meta">
+                        <span className="price-tag" style={{ color: '#ffd700', fontWeight: 600 }}>
+                          🛡️ {s.safetyPointsPrice} Safety Points
+                        </span>
+                      </div>
+                      <div className="skin-actions">
+                        <button
+                          className="btn"
+                          disabled={!affordable}
+                          onClick={() => handlePurchase(s)}
+                          style={{
+                            background: affordable ? 'linear-gradient(135deg, #ffd700 0%, #ffaa00 100%)' : '#444',
+                            border: '1px solid #ffd700',
+                            color: affordable ? '#000' : '#888',
+                            fontWeight: 700
+                          }}
+                        >
+                          {affordable ? `Buy (🛡️ ${s.safetyPointsPrice})` : 'Need More SP'}
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </>
+          )}
+
+          {/* Safety Points Accessories in Safety Section - ALL accessories */}
+          {safetyAccessories.length > 0 && (
+            <>
+              <div className="skins-section-title" style={{ fontSize: '14px', marginTop: safetySkins.length > 0 ? '24px' : '0', marginBottom: '8px' }}>Accessories</div>
+              <div className="skins-grid">
+                {safetyAccessories.map((a) => {
+                  // Use safetyPointsPrice if set, otherwise default to price * 2 or 100
+                  const safetyPrice = a.safetyPointsPrice || (a.price ? Math.max(50, a.price * 2) : 100);
+                  const affordable = (user.safetyPoints || 0) >= safetyPrice;
+                  return (
+                    <div key={a.id} className="skin-card" style={{
+                      border: '2px solid rgba(255, 215, 0, 0.5)',
+                      boxShadow: '0 0 20px rgba(255, 215, 0, 0.3)'
+                    }}>
+                      <Accessory3DThumbnail accessory={a} />
+                      <div className="skin-name" style={{ color: '#ffd700', fontWeight: 600 }}>{escapeHTML(a.name)}</div>
+                      <div className="skin-meta">
+                        <span className="price-tag" style={{ color: '#ffd700', fontWeight: 600 }}>
+                          🛡️ {safetyPrice} Safety Points
+                        </span>
+                      </div>
+                      <div className="skin-actions">
+                        <button
+                          className="btn"
+                          disabled={!affordable}
+                          onClick={() => handlePurchaseAccessory(a)}
+                          style={{
+                            background: affordable ? 'linear-gradient(135deg, #ffd700 0%, #ffaa00 100%)' : '#444',
+                            border: '1px solid #ffd700',
+                            color: affordable ? '#000' : '#888',
+                            fontWeight: 700
+                          }}
+                        >
+                          {affordable ? `Buy (🛡️ ${safetyPrice})` : 'Need More SP'}
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </>
+          )}
+        </div>
+      )}
+
+
+      {/* Owned Accessories */}
+      {ownedAccessories.length > 0 && (
+        <div className="ai-box" style={{ marginBottom: '24px' }}>
+          <div className="skins-section-title">Your Accessories</div>
+          <div className="skins-grid">
+            {ownedAccessories.map((a) => {
+              const isEquipped = equippedAccessories.includes(a.id);
+              return (
+                <div
+                  key={a.id}
+                  className="skin-card"
+                  onClick={() => handleToggleAccessory(a)}
+                  style={{
+                    cursor: 'pointer',
+                    border: isEquipped ? '2px solid #4a90e2' : '1px solid rgba(255, 255, 255, 0.1)',
+                    background: isEquipped ? 'rgba(74, 144, 226, 0.1)' : 'transparent'
+                  }}
+                >
+                  <Accessory3DThumbnail accessory={a} />
+                  <div className="skin-name" style={{ color: isEquipped ? '#4a90e2' : '#fff' }}>
+                    {escapeHTML(a.name)}
+                    {isEquipped && ' ✓'}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+    </>
   );
 }

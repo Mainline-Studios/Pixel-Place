@@ -22,7 +22,7 @@ export const ADMIN_ACCOUNTS_LIST = ADMIN_ACCOUNTS;
 // This function is kept for backward compatibility but doesn't use localStorage
 export function initializeStorage() {
   if (typeof window === 'undefined') return;
-  
+
   // All data is now stored in Firebase Firestore (cloud)
   // No local storage initialization needed
   console.log('Storage initialized - all data stored in Firebase cloud');
@@ -59,8 +59,19 @@ export async function getUsers(): Promise<User[]> {
         const localUsers: User[] = JSON.parse(localData);
         if (localUsers.length > 0) {
           // Check if users need to be migrated
-          const apiUsernames = new Set(apiUsers.map((u: User) => u.username.toLowerCase()));
-          const usersToMigrate = localUsers.filter(u => !apiUsernames.has(u.username.toLowerCase()));
+          const apiUsernames = new Set(apiUsers
+            .filter((u: User) => u && u.username && typeof u.username === 'string')
+            .map((u: User) => (u.username || '').toLowerCase()));
+          const usersToMigrate = localUsers.filter(u => {
+            try {
+              console.log("DEBUG USER IN MIGRATE:", u);
+              if (!u || !u.username || typeof u.username !== 'string') return false;
+              return !apiUsernames.has((u.username || '').toLowerCase());
+            } catch (error) {
+              console.warn('Error checking user migration:', error, u);
+              return false;
+            }
+          });
 
           if (usersToMigrate.length > 0) {
             console.log(`Migrating ${usersToMigrate.length} users from localStorage to API`);
@@ -115,16 +126,28 @@ export async function getUsers(): Promise<User[]> {
 
 export async function saveUsers(users: User[]): Promise<void> {
   if (typeof window === 'undefined') return;
+
+  // Always save to localStorage as backup
+  try {
+    localStorage.setItem('pixelPlaceUsers', JSON.stringify(users));
+  } catch (e) {
+    console.error('Error saving users to localStorage:', e);
+  }
+
+  // Try to save to API
   try {
     // Save each user (API handles updates if user exists)
     for (const user of users) {
-      await fetch(apiUrl('/api/users'), {        method: 'POST',
+      await fetch(apiUrl('/api/users'), {
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(user)
       }).catch(() => { });
     }
+    console.log(`saveUsers: Saved ${users.length} users to API and localStorage`);
   } catch (e) {
-    console.error('Error saving users to API:', e);
+    console.error('Error saving users to API (using localStorage backup):', e);
+    // localStorage already saved above, so data is preserved
   }
 }
 
@@ -139,7 +162,8 @@ export async function getSkins(): Promise<Skin[]> {
   } catch (e) {
     console.error('Error reading skins from API:', e);
     return [];
-  }}
+  }
+}
 
 export async function saveSkins(skins: Skin[]): Promise<void> {
   if (typeof window === 'undefined') return;
@@ -370,7 +394,8 @@ export async function saveBannedUsers(bans: Ban[]): Promise<void> {
   try {
     // Save each ban
     for (const ban of bans) {
-      await fetch(apiUrl('/api/bans'), {        method: 'POST',
+      await fetch(apiUrl('/api/bans'), {
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(ban)
       }).catch(() => { });
@@ -384,15 +409,22 @@ export async function isUserBanned(username: string): Promise<boolean> {
   if (typeof window === 'undefined') return false;
   if (!username || !username.trim()) return false;
 
-  const usernameLower = username.trim().toLowerCase();
+  const usernameLower = (username || '').trim().toLowerCase();
   const bans = await getBannedUsers();
   const now = Date.now();
   const ban = bans.find(b => {
-    if (b.username.toLowerCase() !== usernameLower) return false;
-    // Check if ban is still active
-    if (b.permanent) return true;
-    if (b.expiresAt && b.expiresAt > now) return true;
-    return false;
+    try {
+      console.log("DEBUG BAN IN ISBANNED:", b);
+      if (!b || !b.username || typeof b.username !== 'string') return false;
+      if ((b.username || '').toLowerCase() !== usernameLower) return false;
+      // Check if ban is still active
+      if (b.permanent) return true;
+      if (b.expiresAt && b.expiresAt > now) return true;
+      return false;
+    } catch (error) {
+      console.warn('Error checking ban in isUserBanned:', error, b);
+      return false;
+    }
   });
   return !!ban;
 }
@@ -401,16 +433,24 @@ export async function getBanForUser(username: string): Promise<Ban | null> {
   if (typeof window === 'undefined') return null;
   if (!username || !username.trim()) return null;
 
-  const usernameLower = username.trim().toLowerCase();
+  const usernameLower = (username || '').trim().toLowerCase();
   const bans = await getBannedUsers();
   const now = Date.now();
   return bans.find(b => {
-    if (b.username.toLowerCase() !== usernameLower) return false;
-    // Check if ban is still active
-    if (b.permanent) return true;
-    if (b.expiresAt && b.expiresAt > now) return true;
-    return false;
-  }) || null;}
+    try {
+      console.log("DEBUG BAN IN GETBAN:", b);
+      if (!b || !b.username || typeof b.username !== 'string') return false;
+      if ((b.username || '').toLowerCase() !== usernameLower) return false;
+      // Check if ban is still active
+      if (b.permanent) return true;
+      if (b.expiresAt && b.expiresAt > now) return true;
+      return false;
+    } catch (error) {
+      console.warn('Error checking ban in getBanForUser:', error, b);
+      return false;
+    }
+  }) || null;
+}
 
 // Sync versions for compatibility
 export function getBannedUsersSync(): Ban[] {
@@ -427,16 +467,33 @@ export function getBannedUsersSync(): Ban[] {
 export async function banUser(username: string, bannedBy: string, reason: string, permanent: boolean = true, days?: number): Promise<boolean> {
   if (typeof window === 'undefined') return false;
 
-  const usernameLower = username.trim().toLowerCase();
+  const usernameLower = (username || '').trim().toLowerCase();
 
   // Check if trying to ban an admin
   const users = await getUsers();
-  const targetUser = users.find(u => u.username.toLowerCase() === usernameLower);
+  const targetUser = users.find(u => {
+    try {
+      console.log("DEBUG USER IN BANUSER:", u);
+      if (!u || !u.username || typeof u.username !== 'string') return false;
+      return (u.username || '').toLowerCase() === usernameLower;
+    } catch (error) {
+      console.warn('Error finding user in banUser:', error, u);
+      return false;
+    }
+  });
   if (targetUser && targetUser.role === 'admin') {
     return false;
   }
 
-  const isAdminAccount = ADMIN_ACCOUNTS_LIST.some(a => a.username.toLowerCase() === usernameLower);
+  const isAdminAccount = ADMIN_ACCOUNTS_LIST.some(a => {
+    try {
+      if (!a || !a.username || typeof a.username !== 'string') return false;
+      return (a.username || '').toLowerCase() === usernameLower;
+    } catch (error) {
+      console.warn('Error checking admin account:', error, a);
+      return false;
+    }
+  });
   if (isAdminAccount) {
     return false;
   }
@@ -451,7 +508,8 @@ export async function banUser(username: string, bannedBy: string, reason: string
   };
 
   try {
-    const response = await fetch(apiUrl('/api/bans'), {      method: 'POST',
+    const response = await fetch(apiUrl('/api/bans'), {
+      method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(newBan)
     });
@@ -465,7 +523,8 @@ export async function banUser(username: string, bannedBy: string, reason: string
 export async function unbanUser(username: string): Promise<void> {
   if (typeof window === 'undefined') return;
   try {
-    await fetch(apiUrl(`/api/bans?username=${encodeURIComponent(username)}`), {      method: 'DELETE'
+    await fetch(apiUrl(`/api/bans?username=${encodeURIComponent(username)}`), {
+      method: 'DELETE'
     });
   } catch (e) {
     console.error('Error unbanning user:', e);
@@ -507,7 +566,8 @@ export async function createReport(reportedUsername: string, reporterUsername: s
   };
 
   try {
-    const response = await fetch(apiUrl('/api/reports'), {      method: 'POST',
+    const response = await fetch(apiUrl('/api/reports'), {
+      method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(newReport)
     });
@@ -524,7 +584,8 @@ export async function createReport(reportedUsername: string, reporterUsername: s
 export async function updateReportStatus(reportId: string, status: Report['status'], adminUsername: string, notes?: string): Promise<void> {
   if (typeof window === 'undefined') return;
   try {
-    await fetch(apiUrl('/api/reports'), {      method: 'PUT',
+    await fetch(apiUrl('/api/reports'), {
+      method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id: reportId, status, reviewedBy: adminUsername, adminNotes: notes })
     });
@@ -560,11 +621,21 @@ export async function createBanAppeal(username: string, ban: Ban, appealMessage:
 
   // Check if user already has a pending appeal
   const existingAppeals = await getBanAppeals();
-  const existingAppeal = existingAppeals.find(
-    a => a.username.toLowerCase() === username.toLowerCase() &&
-      a.status === 'pending' &&
-      a.ban.username.toLowerCase() === ban.username.toLowerCase()
-  );
+  const existingAppeal = existingAppeals.find(a => {
+    try {
+      console.log("DEBUG APPEAL:", a);
+      if (!a || !a.username || typeof a.username !== 'string') return false;
+      if (!username || typeof username !== 'string') return false;
+      if (!a.ban || !a.ban.username || typeof a.ban.username !== 'string') return false;
+      if (!ban || !ban.username || typeof ban.username !== 'string') return false;
+      return (a.username || '').toLowerCase() === (username || '').toLowerCase() &&
+        a.status === 'pending' &&
+        (a.ban.username || '').toLowerCase() === (ban.username || '').toLowerCase();
+    } catch (error) {
+      console.warn('Error checking appeal:', error, a);
+      return false;
+    }
+  });
 
   if (existingAppeal) {
     return existingAppeal.id;
@@ -580,7 +651,8 @@ export async function createBanAppeal(username: string, ban: Ban, appealMessage:
   };
 
   try {
-    const response = await fetch(apiUrl('/api/appeals'), {      method: 'POST',
+    const response = await fetch(apiUrl('/api/appeals'), {
+      method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(newAppeal)
     });
@@ -597,7 +669,8 @@ export async function createBanAppeal(username: string, ban: Ban, appealMessage:
 export async function updateBanAppealStatus(appealId: string, status: BanAppeal['status'], adminUsername: string, notes?: string, shouldUnban?: boolean): Promise<void> {
   if (typeof window === 'undefined') return;
   try {
-    await fetch(apiUrl('/api/appeals'), {      method: 'PUT',
+    await fetch(apiUrl('/api/appeals'), {
+      method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id: appealId, status, reviewedBy: adminUsername, adminNotes: notes, shouldUnban })
     });
@@ -720,7 +793,8 @@ export async function getUserMadeGames(): Promise<UserMadeGame[]> {
 export async function saveUserMadeGame(game: UserMadeGame): Promise<void> {
   if (typeof window === 'undefined') return;
   try {
-    await fetch(apiUrl('/api/games'), {      method: 'POST',
+    await fetch(apiUrl('/api/games'), {
+      method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(game)
     });
@@ -732,7 +806,8 @@ export async function saveUserMadeGame(game: UserMadeGame): Promise<void> {
 export async function deleteUserMadeGame(gameId: string): Promise<void> {
   if (typeof window === 'undefined') return;
   try {
-    await fetch(apiUrl(`/api/games?id=${encodeURIComponent(gameId)}`), {      method: 'DELETE'
+    await fetch(apiUrl(`/api/games?id=${encodeURIComponent(gameId)}`), {
+      method: 'DELETE'
     });
   } catch (e) {
     console.error('Error deleting user-made game:', e);
@@ -755,7 +830,8 @@ export async function getGameSubmissions(): Promise<GameSubmission[]> {
 export async function saveGameSubmission(submission: GameSubmission): Promise<void> {
   if (typeof window === 'undefined') return;
   try {
-    await fetch(apiUrl('/api/gamesubmissions'), {      method: 'POST',
+    await fetch(apiUrl('/api/gamesubmissions'), {
+      method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(submission)
     });
@@ -767,7 +843,8 @@ export async function saveGameSubmission(submission: GameSubmission): Promise<vo
 export async function deleteGameSubmission(submissionId: string): Promise<void> {
   if (typeof window === 'undefined') return;
   try {
-    await fetch(apiUrl(`/api/gamesubmissions?id=${encodeURIComponent(submissionId)}`), {      method: 'DELETE'
+    await fetch(apiUrl(`/api/gamesubmissions?id=${encodeURIComponent(submissionId)}`), {
+      method: 'DELETE'
     });
   } catch (e) {
     console.error('Error deleting game submission:', e);

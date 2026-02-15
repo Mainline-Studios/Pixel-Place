@@ -265,9 +265,9 @@ export default function GamePlayer({ game, onClose }: GamePlayerProps) {
     setIsLoading(true);
     setLoadingProgress(0);
     
-    // Wrap everything in try-catch to handle any errors during game loading
-    try {
-      // Handle built-in games that use React components
+    // Define executeGame function
+    const executeGame = async () => {
+    // Handle built-in games that use React components
       if (safeGame.gameCode && safeGame.gameCode.startsWith('builtin_')) {
       const loadBuiltinGame = async () => {
         try {
@@ -364,17 +364,17 @@ export default function GamePlayer({ game, onClose }: GamePlayerProps) {
         }
       };
       
-      loadBuiltinGame();
+      await loadBuiltinGame();
       return;
     }
     
     if (!safeGame.gameCode) {
       setError('Game code is missing');
+      setIsLoading(false);
       return;
     }
     
     // Create a safe execution context for the game code
-    const executeGame = async () => {
       try {
         setLoadingProgress(20);
         // Import Three.js dynamically
@@ -702,7 +702,7 @@ export default function GamePlayer({ game, onClose }: GamePlayerProps) {
         if (errorMessage.includes('toLowerCase') || errorMessage.includes('Cannot read properties of undefined')) {
           setError('Game failed to load due to a data format issue. The game data may be corrupted. Please try again or contact support.');
         } else {
-          setError(errorMessage);
+        setError(errorMessage);
         }
 
         // Show error in console for debugging
@@ -716,10 +716,8 @@ export default function GamePlayer({ game, onClose }: GamePlayerProps) {
       }
     };
 
-    // Execute immediately without delay - wrap in try-catch for safety
-    try {
-      executeGame();
-    } catch (setupError: any) {
+    // Execute immediately without delay
+    executeGame().catch((setupError: any) => {
       console.error('Error setting up game execution:', setupError);
       const errorMessage = setupError?.message || 'Failed to set up game';
       if (errorMessage.includes('toLowerCase') || errorMessage.includes('Cannot read properties of undefined')) {
@@ -728,7 +726,7 @@ export default function GamePlayer({ game, onClose }: GamePlayerProps) {
         setError(`Failed to load game: ${errorMessage}`);
       }
       setIsLoading(false);
-    }
+    });
 
     return () => {
       if (cleanupRef.current) {

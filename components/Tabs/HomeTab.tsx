@@ -29,7 +29,7 @@ interface GameInfo {
 function getGameBackground(gameTitle: string, gameId?: string): string {
   const title = (gameTitle || '').toLowerCase();
   const id = (gameId || '').toLowerCase();
-  
+
   // Match games by title or ID
   if (title.includes('showdown') || id.includes('showdown')) {
     return 'linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 50%, #c44569 100%)';
@@ -58,7 +58,7 @@ function getGameBackground(gameTitle: string, gameId?: string): string {
   if (title.includes('gym') || id.includes('gym')) {
     return 'linear-gradient(135deg, #fd79a8 0%, #fdcb6e 50%, #fd79a8 100%)';
   }
-  
+
   // Default gradient based on first letter
   const firstChar = title.charAt(0);
   const gradients: Record<string, string> = {
@@ -89,7 +89,7 @@ function getGameBackground(gameTitle: string, gameId?: string): string {
     'y': 'linear-gradient(135deg, #fa709a 0%, #fee140 100%)',
     'z': 'linear-gradient(135deg, #30cfd0 0%, #330867 100%)',
   };
-  
+
   return gradients[firstChar] || 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
 }
 
@@ -106,146 +106,9 @@ import GhostInTheDark from '../Games/GhostInTheDark';
 import CityLife from '../Games/CityLife';
 import CelestialSeriesExploration from '../Games/CelestialSeriesExploration';
 import SuperShowdown2D from '../Games/SuperShowdown2D';
-import GameStudio from '../Games/GameStudio';
 import GymPump from '../Games/GymPump';
 
-const builtInGames: GameInfo[] = [
-  {
-    id: 'hypnosia',
-    name: 'Hypnosia Puzzle',
-    description: 'Test your deduction skills in this mysterious game!',
-    icon: '🔮',
-    category: 'Puzzle',
-    component: Hypnosia,
-    background: 'linear-gradient(135deg, #6c5ce7 0%, #a29bfe 50%, #6c5ce7 100%)'
-  },
-  {
-    id: 'underwaterOdyssey',
-    name: 'Underwater Odyssey Adventure',
-    description: 'Explore the depths of the ocean in this adventure series!',
-    icon: '🌊',
-    category: 'Adventure',
-    component: UnderwaterOddyseySeries,
-    background: 'linear-gradient(135deg, #00d4ff 0%, #0099cc 50%, #006699 100%)'
-  },
-  {
-    id: 'superShowdown2',
-    name: 'Super Showdown 2',
-    description: 'Epic arena battles with powerful abilities!',
-    icon: '⚔️',
-    category: 'Action',
-    component: SuperShowdown2,
-    background: 'linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 50%, #c44569 100%)'
-  },
-  {
-    id: 'superShowdown',
-    name: 'Super Showdown',
-    description: 'Original arena combat experience!',
-    icon: '🎯',
-    category: 'Action',
-    component: SuperShowdown,
-    background: 'linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 50%, #c44569 100%)'
-  },
-  {
-    id: 'redRover',
-    name: 'Red Rover',
-    description: 'Classic team-based multiplayer game!',
-    icon: '🏃',
-    category: 'Multiplayer',
-    component: RedRover,
-    background: 'linear-gradient(135deg, #ff4757 0%, #ff6348 50%, #ff4757 100%)'
-  },
-  {
-    id: 'jungleJourney',
-    name: 'Jungle Journey Adventure',
-    description: 'Navigate through the jungle and collect fruits!',
-    icon: '🌴',
-    category: 'Adventure',
-    component: JungleJourneySeries,
-    background: 'linear-gradient(135deg, #2d5016 0%, #3d6b1f 50%, #4a7c23 100%)'
-  },
-  {
-    id: 'floorIsLava',
-    name: 'Floor Is Lava',
-    description: 'Jump from platform to platform - don\'t touch the lava!',
-    icon: '🌋',
-    category: 'Platformer',
-    component: FloorIsLava,
-    background: 'linear-gradient(135deg, #ff6b35 0%, #f7931e 50%, #ff6b35 100%)'
-  },
-  {
-    id: 'insaneShowdown',
-    name: 'Insane Showdown',
-    description: 'Ultimate combined arena battle experience!',
-    icon: '🔥',
-    category: 'Action',
-    component: InsaneShowdown,
-    background: 'linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 50%, #c44569 100%)'
-  },
-  {
-    id: 'hideAndSeek',
-    name: 'Hide and Seek',
-    description: 'Hide from seekers or find the hiders!',
-    icon: '👻',
-    category: 'Multiplayer',
-    component: HideAndSeek,
-    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
-  },
-  {
-    id: 'ghostInTheDark',
-    name: 'Ghost In The Dark',
-    description: 'Survive the darkness and escape the ghost!',
-    icon: '👻',
-    category: 'Horror',
-    component: GhostInTheDark,
-    background: 'linear-gradient(135deg, #2c2c2c 0%, #1a1a1a 50%, #2c2c2c 100%)'
-  },
-  {
-    id: 'cityLife',
-    name: 'City Life',
-    description: 'Live your life in the city!',
-    icon: '🏙️',
-    category: 'Simulation',
-    component: CityLife,
-    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
-  },
-  {
-    id: 'celestialSeries',
-    name: 'Celestial Series Exploration',
-    description: 'Explore the cosmos and discover new worlds!',
-    icon: '🌌',
-    category: 'Adventure',
-    component: CelestialSeriesExploration,
-    background: 'linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%)'
-  },
-  {
-    id: 'superShowdown2D',
-    name: 'Super Showdown 2D',
-    description: '2D arena combat experience!',
-    icon: '🎮',
-    category: 'Action',
-    component: SuperShowdown2D,
-    background: 'linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 50%, #c44569 100%)'
-  },
-  {
-    id: 'gameStudio',
-    name: 'Game Studio',
-    description: 'Create your own games! Multiplayer game creation platform.',
-    icon: '🎮',
-    category: 'Creation',
-    component: GameStudio,
-    background: 'linear-gradient(135deg, #00b894 0%, #00cec9 50%, #00b894 100%)'
-  },
-  {
-    id: 'gymPump',
-    name: 'Gym Pump',
-    description: 'Build your strength and power! Pump iron and level up!',
-    icon: '💪',
-    category: 'Fitness',
-    component: GymPump,
-    background: 'linear-gradient(135deg, #fd79a8 0%, #fdcb6e 50%, #fd79a8 100%)'
-  }
-];
+const builtInGames: GameInfo[] = [];
 
 export default function HomeTab({ user, editMode, onResetPublished }: HomeTabProps) {
   const [selectedGame, setSelectedGame] = useState<PublishedGame | null>(null);
@@ -304,18 +167,18 @@ export default function HomeTab({ user, editMode, onResetPublished }: HomeTabPro
       setLoadingProgress(0);
       return;
     }
-    
+
     // Progress animation
     const progressInterval = setInterval(() => {
       setLoadingProgress(prev => Math.min(prev + 2, 100));
     }, 80);
-    
+
     // Hide loading after 4 seconds
     const hideTimeout = setTimeout(() => {
       setIsLoading(false);
       clearInterval(progressInterval);
     }, 4000);
-    
+
     return () => {
       clearInterval(progressInterval);
       clearTimeout(hideTimeout);
@@ -323,24 +186,28 @@ export default function HomeTab({ user, editMode, onResetPublished }: HomeTabPro
   }, [isLoading, selectedBuiltInGame]);
 
   // Include published games only - filter out any malformed games
-  const publishedArray = Array.isArray(published) ? published : [];
+  const publishedArray: any[] = []; // Empty array - all games removed
   // Filter out any games that are missing required properties to prevent toLowerCase errors
-  const validGames = publishedArray.filter(game => 
-    game && 
-    typeof game === 'object' && 
-    game.ts && 
-    game.title && 
-    typeof game.title === 'string' &&
-    game.owner &&
-    typeof game.owner === 'string'
-  );
+  const validGames = publishedArray.filter(game => {
+    try {
+      if (!game || typeof game !== 'object') return false;
+      if (!game.ts) return false;
+      if (!game.title || typeof game.title !== 'string') return false;
+      if (!game.owner || typeof game.owner !== 'string') return false;
+      if (game.id !== undefined && typeof game.id !== 'string') return false;
+      return true;
+    } catch (error) {
+      console.warn('Error filtering game:', error, game);
+      return false;
+    }
+  });
   const sortedGames = validGames.slice().sort((a, b) => b.ts - a.ts);
 
-  // Get friends - show first 8
-  const friends = (user.friends || []).slice(0, 8);
+  // Get friends - show first 8, filter out any undefined/null values
+  const friends = (user.friends || []).filter(f => f && typeof f === 'string').slice(0, 8);
   const usersArray = Array.isArray(users) ? users : [];
   const friendUsers = usersArray
-    .filter(u => u && u.username && friends.includes(u.username))
+    .filter(u => u && u.username && typeof u.username === 'string' && friends.includes(u.username))
     .slice(0, 8);
 
   // Handle built-in game selection
@@ -354,11 +221,11 @@ export default function HomeTab({ user, editMode, onResetPublished }: HomeTabPro
       setIsLoading(false);
       setLoadError(null);
     };
-    
+
     const supportsOnClose = ['hypnosia'].includes(selectedBuiltInGame);
     const gameInfo = builtInGames.find(g => g.id === selectedBuiltInGame);
     const gameName = gameInfo?.name || 'Game';
-    
+
     return (
       <FullScreenGameWrapper gameTitle={gameName} onExit={handleClose}>
         {isLoading && (
@@ -513,6 +380,627 @@ export default function HomeTab({ user, editMode, onResetPublished }: HomeTabPro
         Home
       </h1>
 
+      {/* Roblox-Style Game Categories - At Top */}
+      {builtInGames.length > 0 && (
+        <>
+          {/* Recently Played */}
+          <div style={{ marginBottom: '48px' }}>
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginBottom: '16px'
+            }}>
+              <h2 style={{
+                fontSize: '20px',
+                fontWeight: '600',
+                color: '#ffffff',
+                margin: 0
+              }}>
+                Recently Played
+              </h2>
+              <a
+                href="#"
+                onClick={(e) => e.preventDefault()}
+                style={{
+                  color: '#00a2ff',
+                  textDecoration: 'none',
+                  fontSize: '14px',
+                  cursor: 'pointer',
+                  fontWeight: '500'
+                }}
+              >
+                See All +
+              </a>
+            </div>
+            <div style={{
+              display: 'flex',
+              gap: '12px',
+              overflowX: 'auto',
+              paddingBottom: '8px',
+              scrollbarWidth: 'thin',
+              scrollbarColor: '#333 #1a1a1a',
+              WebkitOverflowScrolling: 'touch'
+            }}>
+              {builtInGames.slice(0, 5).filter(game => {
+                try {
+                  if (!game || typeof game !== 'object') return false;
+                  if (!game.id || typeof game.id !== 'string') return false;
+                  if (!game.name || typeof game.name !== 'string') return false;
+                  if (!game.category || typeof game.category !== 'string') return false;
+                  return true;
+                } catch (error) {
+                  console.warn('Error filtering builtInGame:', error, game);
+                  return false;
+                }
+              }).map((game) => {
+                if (!game || !game.id || !game.name || !game.category || typeof game.category !== 'string' || typeof game.name !== 'string' || typeof game.id !== 'string') return null;
+                return (
+                  <div
+                    key={game.id}
+                    className="game-card-enhanced"
+                    onClick={() => {
+                      setSelectedBuiltInGame(game.id);
+                    }}
+                    style={{
+                      minWidth: '160px',
+                      width: '160px',
+                      background: '#2a2a2a',
+                      borderRadius: '8px',
+                      border: '1px solid #333',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s ease',
+                      overflow: 'hidden',
+                      flexShrink: 0
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.transform = 'translateY(-4px)';
+                      e.currentTarget.style.boxShadow = '0 8px 16px rgba(0,0,0,0.5)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.transform = 'translateY(0)';
+                      e.currentTarget.style.boxShadow = 'none';
+                    }}
+                  >
+                    <div style={{
+                      width: '100%',
+                      height: '120px',
+                      position: 'relative',
+                      overflow: 'hidden',
+                      background: (game && game.background ? game.background : getGameBackground((game?.name && typeof game.name === 'string') ? game.name : '', (game?.id && typeof game.id === 'string') ? game.id : '')) || 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center'
+                    }}>
+                      <div style={{
+                        fontSize: '48px',
+                        textShadow: '0 2px 8px rgba(0,0,0,0.5)'
+                      }}>
+                        {game.icon}
+                      </div>
+                      <div style={{
+                        position: 'absolute',
+                        bottom: 0,
+                        left: 0,
+                        right: 0,
+                        height: '40%',
+                        background: 'linear-gradient(to top, rgba(0,0,0,0.7) 0%, transparent 100%)',
+                        pointerEvents: 'none'
+                      }} />
+                    </div>
+                    <div style={{ padding: '8px' }}>
+                      <div style={{
+                        fontSize: '13px',
+                        fontWeight: '600',
+                        color: '#ffffff',
+                        marginBottom: '4px',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap'
+                      }}>
+                        {game.name}
+                      </div>
+                      <div style={{
+                        fontSize: '11px',
+                        color: '#999',
+                        marginBottom: '8px'
+                      }}>
+                        {(game.category && typeof game.category === 'string') ? game.category : 'Game'}
+                      </div>
+                      <button
+                        className="btn"
+                        style={{
+                          width: '100%',
+                          padding: '6px 8px',
+                          fontSize: '12px',
+                          background: '#00a2ff',
+                          border: 'none',
+                          borderRadius: '4px',
+                          color: '#ffffff',
+                          cursor: 'pointer',
+                          fontWeight: '600',
+                          transition: 'background 0.2s'
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.background = '#0090e6';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.background = '#00a2ff';
+                        }}
+                      >
+                        Play
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Trending */}
+          <div style={{ marginBottom: '48px' }}>
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginBottom: '16px'
+            }}>
+              <h2 style={{
+                fontSize: '20px',
+                fontWeight: '600',
+                color: '#ffffff',
+                margin: 0
+              }}>
+                Trending
+              </h2>
+              <a
+                href="#"
+                onClick={(e) => e.preventDefault()}
+                style={{
+                  color: '#00a2ff',
+                  textDecoration: 'none',
+                  fontSize: '14px',
+                  cursor: 'pointer',
+                  fontWeight: '500'
+                }}
+              >
+                See All +
+              </a>
+            </div>
+            <div style={{
+              display: 'flex',
+              gap: '12px',
+              overflowX: 'auto',
+              paddingBottom: '8px',
+              scrollbarWidth: 'thin',
+              scrollbarColor: '#333 #1a1a1a',
+              WebkitOverflowScrolling: 'touch'
+            }}>
+              {builtInGames.slice(0, 3).filter(game => {
+                try {
+                  if (!game || typeof game !== 'object') return false;
+                  if (!game.id || typeof game.id !== 'string') return false;
+                  if (!game.name || typeof game.name !== 'string') return false;
+                  if (!game.category || typeof game.category !== 'string') return false;
+                  return true;
+                } catch (error) {
+                  console.warn('Error filtering builtInGame:', error, game);
+                  return false;
+                }
+              }).map((game) => {
+                if (!game || !game.id || !game.name || !game.category || typeof game.category !== 'string' || typeof game.name !== 'string' || typeof game.id !== 'string') return null;
+                return (
+                  <div
+                    key={`trending-${game.id}`}
+                    className="game-card-enhanced"
+                    onClick={() => {
+                      setSelectedBuiltInGame(game.id);
+                    }}
+                    style={{
+                      minWidth: '160px',
+                      width: '160px',
+                      background: '#2a2a2a',
+                      borderRadius: '8px',
+                      border: '1px solid #333',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s ease',
+                      overflow: 'hidden',
+                      flexShrink: 0
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.transform = 'translateY(-4px)';
+                      e.currentTarget.style.boxShadow = '0 8px 16px rgba(0,0,0,0.5)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.transform = 'translateY(0)';
+                      e.currentTarget.style.boxShadow = 'none';
+                    }}
+                  >
+                    <div style={{
+                      width: '100%',
+                      height: '120px',
+                      position: 'relative',
+                      overflow: 'hidden',
+                      background: (game && game.background ? game.background : getGameBackground((game?.name && typeof game.name === 'string') ? game.name : '', (game?.id && typeof game.id === 'string') ? game.id : '')) || 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center'
+                    }}>
+                      <div style={{
+                        fontSize: '48px',
+                        textShadow: '0 2px 8px rgba(0,0,0,0.5)'
+                      }}>
+                        {game.icon}
+                      </div>
+                      <div style={{
+                        position: 'absolute',
+                        bottom: 0,
+                        left: 0,
+                        right: 0,
+                        height: '40%',
+                        background: 'linear-gradient(to top, rgba(0,0,0,0.7) 0%, transparent 100%)',
+                        pointerEvents: 'none'
+                      }} />
+                    </div>
+                    <div style={{ padding: '8px' }}>
+                      <div style={{
+                        fontSize: '13px',
+                        fontWeight: '600',
+                        color: '#ffffff',
+                        marginBottom: '4px',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap'
+                      }}>
+                        {game.name}
+                      </div>
+                      <div style={{
+                        fontSize: '11px',
+                        color: '#999',
+                        marginBottom: '8px'
+                      }}>
+                        {(game.category && typeof game.category === 'string') ? game.category : 'Game'}
+                      </div>
+                      <button
+                        className="btn"
+                        style={{
+                          width: '100%',
+                          padding: '6px 8px',
+                          fontSize: '12px',
+                          background: '#00a2ff',
+                          border: 'none',
+                          borderRadius: '4px',
+                          color: '#ffffff',
+                          cursor: 'pointer',
+                          fontWeight: '600',
+                          transition: 'background 0.2s'
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.background = '#0090e6';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.background = '#00a2ff';
+                        }}
+                      >
+                        Play
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* New */}
+          <div style={{ marginBottom: '48px' }}>
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginBottom: '16px'
+            }}>
+              <h2 style={{
+                fontSize: '20px',
+                fontWeight: '600',
+                color: '#ffffff',
+                margin: 0
+              }}>
+                New
+              </h2>
+              <a
+                href="#"
+                onClick={(e) => e.preventDefault()}
+                style={{
+                  color: '#00a2ff',
+                  textDecoration: 'none',
+                  fontSize: '14px',
+                  cursor: 'pointer',
+                  fontWeight: '500'
+                }}
+              >
+                See All +
+              </a>
+            </div>
+            <div style={{
+              display: 'flex',
+              gap: '12px',
+              overflowX: 'auto',
+              paddingBottom: '8px',
+              scrollbarWidth: 'thin',
+              scrollbarColor: '#333 #1a1a1a',
+              WebkitOverflowScrolling: 'touch'
+            }}>
+              {builtInGames.filter(game => {
+                try {
+                  if (!game || typeof game !== 'object') return false;
+                  if (!game.id || typeof game.id !== 'string') return false;
+                  if (!game.name || typeof game.name !== 'string') return false;
+                  if (!game.category || typeof game.category !== 'string') return false;
+                  return true;
+                } catch (error) {
+                  console.warn('Error filtering builtInGame:', error, game);
+                  return false;
+                }
+              }).map((game) => {
+                if (!game || !game.id || !game.name || !game.category || typeof game.category !== 'string' || typeof game.name !== 'string' || typeof game.id !== 'string') return null;
+                return (
+                  <div
+                    key={`new-${game.id}`}
+                    className="game-card-enhanced"
+                    onClick={() => {
+                      setSelectedBuiltInGame(game.id);
+                    }}
+                    style={{
+                      minWidth: '160px',
+                      width: '160px',
+                      background: '#2a2a2a',
+                      borderRadius: '8px',
+                      border: '1px solid #333',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s ease',
+                      overflow: 'hidden',
+                      flexShrink: 0
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.transform = 'translateY(-4px)';
+                      e.currentTarget.style.boxShadow = '0 8px 16px rgba(0,0,0,0.5)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.transform = 'translateY(0)';
+                      e.currentTarget.style.boxShadow = 'none';
+                    }}
+                  >
+                    <div style={{
+                      width: '100%',
+                      height: '120px',
+                      position: 'relative',
+                      overflow: 'hidden',
+                      background: (game && game.background ? game.background : getGameBackground((game?.name && typeof game.name === 'string') ? game.name : '', (game?.id && typeof game.id === 'string') ? game.id : '')) || 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center'
+                    }}>
+                      <div style={{
+                        fontSize: '48px',
+                        textShadow: '0 2px 8px rgba(0,0,0,0.5)'
+                      }}>
+                        {game.icon}
+                      </div>
+                      <div style={{
+                        position: 'absolute',
+                        bottom: 0,
+                        left: 0,
+                        right: 0,
+                        height: '40%',
+                        background: 'linear-gradient(to top, rgba(0,0,0,0.7) 0%, transparent 100%)',
+                        pointerEvents: 'none'
+                      }} />
+                    </div>
+                    <div style={{ padding: '8px' }}>
+                      <div style={{
+                        fontSize: '13px',
+                        fontWeight: '600',
+                        color: '#ffffff',
+                        marginBottom: '4px',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap'
+                      }}>
+                        {game.name}
+                      </div>
+                      <div style={{
+                        fontSize: '11px',
+                        color: '#999',
+                        marginBottom: '8px'
+                      }}>
+                        {(game.category && typeof game.category === 'string') ? game.category : 'Game'}
+                      </div>
+                      <button
+                        className="btn"
+                        style={{
+                          width: '100%',
+                          padding: '6px 8px',
+                          fontSize: '12px',
+                          background: '#00a2ff',
+                          border: 'none',
+                          borderRadius: '4px',
+                          color: '#ffffff',
+                          cursor: 'pointer',
+                          fontWeight: '600',
+                          transition: 'background 0.2s'
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.background = '#0090e6';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.background = '#00a2ff';
+                        }}
+                      >
+                        Play
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Liked Most */}
+          <div style={{ marginBottom: '48px' }}>
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginBottom: '16px'
+            }}>
+              <h2 style={{
+                fontSize: '20px',
+                fontWeight: '600',
+                color: '#ffffff',
+                margin: 0
+              }}>
+                Liked Most
+              </h2>
+              <a
+                href="#"
+                onClick={(e) => e.preventDefault()}
+                style={{
+                  color: '#00a2ff',
+                  textDecoration: 'none',
+                  fontSize: '14px',
+                  cursor: 'pointer',
+                  fontWeight: '500'
+                }}
+              >
+                See All +
+              </a>
+            </div>
+            <div style={{
+              display: 'flex',
+              gap: '12px',
+              overflowX: 'auto',
+              paddingBottom: '8px',
+              scrollbarWidth: 'thin',
+              scrollbarColor: '#333 #1a1a1a',
+              WebkitOverflowScrolling: 'touch'
+            }}>
+              {[...builtInGames].reverse().slice(0, 4).filter(game => {
+                try {
+                  if (!game || typeof game !== 'object') return false;
+                  if (!game.id || typeof game.id !== 'string') return false;
+                  if (!game.name || typeof game.name !== 'string') return false;
+                  if (!game.category || typeof game.category !== 'string') return false;
+                  return true;
+                } catch (error) {
+                  console.warn('Error filtering builtInGame:', error, game);
+                  return false;
+                }
+              }).map((game) => {
+                if (!game || !game.id || !game.name || !game.category || typeof game.category !== 'string' || typeof game.name !== 'string' || typeof game.id !== 'string') return null;
+                return (
+                  <div
+                    key={`liked-${game.id}`}
+                    className="game-card-enhanced"
+                    onClick={() => {
+                      setSelectedBuiltInGame(game.id);
+                    }}
+                    style={{
+                      minWidth: '160px',
+                      width: '160px',
+                      background: '#2a2a2a',
+                      borderRadius: '8px',
+                      border: '1px solid #333',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s ease',
+                      overflow: 'hidden',
+                      flexShrink: 0
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.transform = 'translateY(-4px)';
+                      e.currentTarget.style.boxShadow = '0 8px 16px rgba(0,0,0,0.5)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.transform = 'translateY(0)';
+                      e.currentTarget.style.boxShadow = 'none';
+                    }}
+                  >
+                    <div style={{
+                      width: '100%',
+                      height: '120px',
+                      position: 'relative',
+                      overflow: 'hidden',
+                      background: (game && game.background ? game.background : getGameBackground((game?.name && typeof game.name === 'string') ? game.name : '', (game?.id && typeof game.id === 'string') ? game.id : '')) || 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center'
+                    }}>
+                      <div style={{
+                        fontSize: '48px',
+                        textShadow: '0 2px 8px rgba(0,0,0,0.5)'
+                      }}>
+                        {game.icon}
+                      </div>
+                      <div style={{
+                        position: 'absolute',
+                        bottom: 0,
+                        left: 0,
+                        right: 0,
+                        height: '40%',
+                        background: 'linear-gradient(to top, rgba(0,0,0,0.7) 0%, transparent 100%)',
+                        pointerEvents: 'none'
+                      }} />
+                    </div>
+                    <div style={{ padding: '8px' }}>
+                      <div style={{
+                        fontSize: '13px',
+                        fontWeight: '600',
+                        color: '#ffffff',
+                        marginBottom: '4px',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap'
+                      }}>
+                        {game.name}
+                      </div>
+                      <div style={{
+                        fontSize: '11px',
+                        color: '#999',
+                        marginBottom: '8px'
+                      }}>
+                        {(game.category && typeof game.category === 'string') ? game.category : 'Game'}
+                      </div>
+                      <button
+                        className="btn"
+                        style={{
+                          width: '100%',
+                          padding: '6px 8px',
+                          fontSize: '12px',
+                          background: '#00a2ff',
+                          border: 'none',
+                          borderRadius: '4px',
+                          color: '#ffffff',
+                          cursor: 'pointer',
+                          fontWeight: '600',
+                          transition: 'background 0.2s'
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.background = '#0090e6';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.background = '#00a2ff';
+                        }}
+                      >
+                        Play
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </>
+      )}
+
       {/* Friends Section - Roblox Style */}
       {friendUsers.length > 0 && (
         <div style={{ marginBottom: '48px' }}>
@@ -631,200 +1119,6 @@ export default function HomeTab({ user, editMode, onResetPublished }: HomeTabPro
         </div>
       )}
 
-      {/* Continue Section - Roblox Style */}
-      {sortedGames.length > 0 && (
-        <div style={{ marginBottom: '48px' }}>
-          <div style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            marginBottom: '16px'
-          }}>
-            <h2 style={{
-              fontSize: '20px',
-              fontWeight: '600',
-              color: '#ffffff',
-              margin: 0
-            }}>
-              Continue
-            </h2>
-            <a
-              href="#"
-              onClick={(e) => e.preventDefault()}
-              style={{
-                color: '#00a2ff',
-                textDecoration: 'none',
-                fontSize: '14px',
-                cursor: 'pointer',
-                fontWeight: '500'
-              }}
-            >
-              See All +
-            </a>
-          </div>
-          <div style={{
-            display: 'flex',
-            gap: '12px',
-            overflowX: 'auto',
-            paddingBottom: '8px',
-            scrollbarWidth: 'thin',
-            scrollbarColor: '#333 #1a1a1a',
-            WebkitOverflowScrolling: 'touch'
-          }}>
-            {sortedGames.slice(0, 10).filter(game => game && game.ts && game.title && game.owner).map((game) => {
-              if (!game || !game.ts || !game.title || !game.owner) return null;
-
-              return (
-                <div
-                  key={game.ts}
-                  style={{
-                    minWidth: '160px',
-                    width: '160px',
-                    background: '#2a2a2a',
-                    borderRadius: '8px',
-                    overflow: 'hidden',
-                    cursor: game.playable && game.gameCode ? 'pointer' : 'default',
-                    transition: 'all 0.2s ease',
-                    border: '1px solid #333',
-                    flexShrink: 0
-                  }}
-                  onMouseEnter={(e) => {
-                    if (game.playable && game.gameCode) {
-                      e.currentTarget.style.transform = 'translateY(-4px)';
-                      e.currentTarget.style.boxShadow = '0 8px 16px rgba(0,0,0,0.5)';
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.transform = 'translateY(0)';
-                    e.currentTarget.style.boxShadow = 'none';
-                  }}
-                  onClick={() => {
-                    if (game.playable && game.gameCode) {
-                      setSelectedGame(game);
-                    }
-                  }}
-                >
-                  {/* Game Thumbnail/Background - Roblox Style */}
-                  <div style={{
-                    width: '100%',
-                    height: '120px',
-                    position: 'relative',
-                    overflow: 'hidden',
-                    background: game.thumbnail ? 'transparent' : getGameBackground(game.title || '', game.id),
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center'
-                  }}>
-                    {game.thumbnail ? (
-                      <img
-                        src={game.thumbnail}
-                        alt={game.title || 'Game'}
-                        style={{
-                          width: '100%',
-                          height: '100%',
-                          objectFit: 'cover',
-                          display: 'block'
-                        }}
-                        onError={(e) => {
-                          // Fallback to gradient background
-                          e.currentTarget.style.display = 'none';
-                          const parent = e.currentTarget.parentElement;
-                          if (parent) {
-                            parent.style.background = getGameBackground(game.title || '', game.id);
-                            const fallback = document.createElement('div');
-                            fallback.style.cssText = 'width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 28px; font-weight: 700; text-shadow: 0 2px 4px rgba(0,0,0,0.5);';
-                            fallback.textContent = (game.title || 'G').charAt(0).toUpperCase();
-                            parent.appendChild(fallback);
-                          }
-                        }}
-                      />
-                    ) : (
-                      <div style={{
-                        width: '100%',
-                        height: '100%',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        color: '#fff',
-                        fontSize: '32px',
-                        fontWeight: 700,
-                        textShadow: '0 2px 8px rgba(0,0,0,0.5)'
-                      }}>
-                        {(game.title || 'G').charAt(0).toUpperCase()}
-                      </div>
-                    )}
-                    {/* Overlay gradient for better text readability */}
-                    <div style={{
-                      position: 'absolute',
-                      bottom: 0,
-                      left: 0,
-                      right: 0,
-                      height: '40%',
-                      background: 'linear-gradient(to top, rgba(0,0,0,0.7) 0%, transparent 100%)',
-                      pointerEvents: 'none'
-                    }} />
-                  </div>
-
-                  {/* Game Info */}
-                  <div style={{ padding: '8px' }}>
-                    <div style={{
-                      fontSize: '13px',
-                      fontWeight: '600',
-                      color: '#ffffff',
-                      marginBottom: '4px',
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                      whiteSpace: 'nowrap',
-                      lineHeight: '1.3'
-                    }}>
-                      {escapeHTML(game.title || 'Untitled Game')}
-                    </div>
-                    <div style={{
-                      fontSize: '11px',
-                      color: '#999',
-                      marginBottom: '8px',
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                      whiteSpace: 'nowrap'
-                    }}>
-                      by {escapeHTML(game.owner || 'Unknown')}
-                    </div>
-                    {game.playable && game.gameCode && (
-                      <button
-                        style={{
-                          width: '100%',
-                          padding: '6px 8px',
-                          fontSize: '12px',
-                          background: '#00a2ff',
-                          border: 'none',
-                          borderRadius: '4px',
-                          color: '#ffffff',
-                          cursor: 'pointer',
-                          fontWeight: '600',
-                          transition: 'background 0.2s'
-                        }}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.background = '#0090e6';
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.background = '#00a2ff';
-                        }}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setSelectedGame(game);
-                        }}
-                      >
-                        Play
-                      </button>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
       {/* Friend Activity Section - Roblox Style */}
       {sortedGames.length > 10 && (
         <div style={{ marginBottom: '48px' }}>
@@ -903,7 +1197,7 @@ export default function HomeTab({ user, editMode, onResetPublished }: HomeTabPro
                     height: '120px',
                     position: 'relative',
                     overflow: 'hidden',
-                    background: game.thumbnail ? 'transparent' : getGameBackground(game.title || '', game.id),
+                    background: game.thumbnail ? 'transparent' : getGameBackground((game.title && typeof game.title === 'string') ? game.title : '', (game.id && typeof game.id === 'string') ? game.id : ''),
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center'
@@ -923,7 +1217,7 @@ export default function HomeTab({ user, editMode, onResetPublished }: HomeTabPro
                           e.currentTarget.style.display = 'none';
                           const parent = e.currentTarget.parentElement;
                           if (parent) {
-                            parent.style.background = getGameBackground(game.title || '', game.id);
+                            parent.style.background = getGameBackground((game.title && typeof game.title === 'string') ? game.title : '', (game.id && typeof game.id === 'string') ? game.id : '');
                             const fallback = document.createElement('div');
                             fallback.style.cssText = 'width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 28px; font-weight: 700; text-shadow: 0 2px 4px rgba(0,0,0,0.5);';
                             fallback.textContent = (game.title || 'G').charAt(0).toUpperCase();
@@ -1031,133 +1325,6 @@ export default function HomeTab({ user, editMode, onResetPublished }: HomeTabPro
         </div>
       )}
 
-      {/* Built-in Games Section - At Bottom */}
-      {builtInGames.length > 0 && (
-        <div style={{ marginBottom: '48px' }}>
-          <h2 style={{
-            fontSize: '20px',
-            fontWeight: '600',
-            color: '#ffffff',
-            margin: '0 0 16px 0'
-          }}>
-            🎮 Play Games
-          </h2>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '20px' }}>
-            {[...builtInGames].reverse().filter(game => game && game.id && game.name).map((game) => (
-            <div
-              key={game.id}
-              className="game-card-enhanced"
-              onClick={() => {
-                setSelectedBuiltInGame(game.id);
-              }}
-              style={{
-                background: '#2a2a2a',
-                borderRadius: '12px',
-                border: '1px solid #333',
-                cursor: 'pointer',
-                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                position: 'relative',
-                overflow: 'hidden',
-                boxShadow: '0 4px 12px rgba(0, 0, 0, 0.3)',
-                display: 'flex',
-                flexDirection: 'column'
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.transform = 'translateY(-4px)';
-                e.currentTarget.style.boxShadow = '0 12px 24px rgba(0, 0, 0, 0.5)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.transform = 'translateY(0)';
-                e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.3)';
-              }}
-            >
-              {/* Game Background/Thumbnail - Roblox Style */}
-              <div style={{
-                width: '100%',
-                height: '180px',
-                position: 'relative',
-                overflow: 'hidden',
-                background: game.background || getGameBackground(game.name, game.id),
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center'
-              }}>
-                <div style={{
-                  fontSize: '64px',
-                  textShadow: '0 4px 12px rgba(0,0,0,0.5)'
-                }}>
-                  {game.icon}
-                </div>
-                {/* Overlay gradient for better text readability */}
-                <div style={{
-                  position: 'absolute',
-                  bottom: 0,
-                  left: 0,
-                  right: 0,
-                  height: '50%',
-                  background: 'linear-gradient(to top, rgba(0,0,0,0.8) 0%, transparent 100%)',
-                  pointerEvents: 'none'
-                }} />
-              </div>
-              
-              {/* Game Info */}
-              <div style={{ padding: '16px' }}>
-                <div style={{
-                  fontSize: '18px',
-                  fontWeight: 700,
-                  marginBottom: '6px',
-                  color: '#ffffff',
-                  textAlign: 'center'
-                }}>
-                  {game.name}
-                </div>
-                <div style={{
-                  fontSize: '12px',
-                  color: '#999',
-                  textAlign: 'center',
-                  marginBottom: '10px'
-                }}>
-                  {game.category || 'Game'}
-                </div>
-                <div style={{
-                  fontSize: '13px',
-                  color: '#ccc',
-                  textAlign: 'center',
-                  lineHeight: '1.5',
-                  marginBottom: '16px',
-                  minHeight: '40px'
-                }}>
-                  {game.description}
-                </div>
-                <button 
-                  className="btn" 
-                  style={{ 
-                    width: '100%',
-                    background: '#00a2ff',
-                    border: 'none',
-                    borderRadius: '6px',
-                    padding: '10px',
-                    color: '#ffffff',
-                    fontWeight: '600',
-                    fontSize: '14px',
-                    cursor: 'pointer',
-                    transition: 'background 0.2s'
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.background = '#0090e6';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.background = '#00a2ff';
-                  }}
-                >
-                  Play Now
-                </button>
-              </div>
-            </div>
-          ))}
-          </div>
-        </div>
-      )}
     </div>
   );
 }

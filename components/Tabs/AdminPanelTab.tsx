@@ -52,29 +52,48 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
         'admin2',
         '345',
         '67'
-      ].map(u => u.toLowerCase()));
+      ].filter(u => u && typeof u === 'string').map(u => (u || '').toLowerCase()));
 
       // Current admin usernames (case-insensitive)
       const currentAdminUsernames = new Set(
-        ADMIN_ACCOUNTS_LIST.map(a => a.username.toLowerCase())
+        ADMIN_ACCOUNTS_LIST
+          .filter(a => a && a.username && typeof a.username === 'string')
+          .map(a => (a.username || '').toLowerCase())
       );
 
       // Filter out old admin accounts from stored users
       const filteredStoredUsers = storedUsers.filter(user => {
-        const usernameLower = user.username.toLowerCase();
-        // Remove if it's an old admin account that's not in the current list
-        if (oldAdminUsernames.has(usernameLower) && !currentAdminUsernames.has(usernameLower)) {
+        try {
+          console.log("DEBUG USER IN ADMINPANEL:", user);
+          if (!user || !user.username || typeof user.username !== 'string') return false;
+          const usernameLower = (user.username || '').toLowerCase();
+          // Remove if it's an old admin account that's not in the current list
+          if (oldAdminUsernames.has(usernameLower) && !currentAdminUsernames.has(usernameLower)) {
+            return false;
+          }
+          return true;
+        } catch (error) {
+          console.warn('Error filtering user in AdminPanel:', error, user);
           return false;
         }
-        return true;
       });
 
       // Create a map of existing usernames for quick lookup
-      const existingUsernames = new Set(filteredStoredUsers.map(u => u.username.toLowerCase()));
+      const existingUsernames = new Set(filteredStoredUsers
+        .filter(u => u && u.username && typeof u.username === 'string')
+        .map(u => (u.username || '').toLowerCase()));
 
       // Add admin accounts that haven't logged in yet (so they appear in the list even if never logged in)
       const adminAccountsNotInStorage = ADMIN_ACCOUNTS_LIST
-        .filter(admin => !existingUsernames.has(admin.username.toLowerCase()))
+        .filter(admin => {
+          try {
+            if (!admin || !admin.username || typeof admin.username !== 'string') return false;
+            return !existingUsernames.has((admin.username || '').toLowerCase());
+          } catch (error) {
+            console.warn('Error checking admin account:', error, admin);
+            return false;
+          }
+        })
         .map(admin => ({
           username: admin.username,
           password: admin.password,
@@ -95,7 +114,16 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
       // Add admin accounts that haven't logged in yet (so they appear in the list)
       adminAccountsNotInStorage.forEach(admin => {
         // Only add if not already in the list
-        if (!uniqueUsers.some(u => u.username.toLowerCase() === admin.username.toLowerCase())) {
+        if (!uniqueUsers.some(u => {
+          try {
+            if (!u || !u.username || typeof u.username !== 'string') return false;
+            if (!admin || !admin.username || typeof admin.username !== 'string') return false;
+            return (u.username || '').toLowerCase() === (admin.username || '').toLowerCase();
+          } catch (error) {
+            console.warn('Error comparing usernames:', error, u, admin);
+            return false;
+          }
+        })) {
           uniqueUsers.push(admin);
         }
       });
@@ -184,10 +212,20 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
       return;
     }
 
-    const usernameToBan = banUsername.trim().toLowerCase();
+    if (!banUsername || typeof banUsername !== 'string') return;
+    const usernameToBan = (banUsername || '').trim().toLowerCase();
 
     // Check if user is an admin (only check if user exists in system)
-    const targetUser = allUsers.find(u => u.username.toLowerCase() === usernameToBan);
+    const targetUser = allUsers.find(u => {
+      try {
+        console.log("DEBUG USER IN BAN:", u);
+        if (!u || !u.username || typeof u.username !== 'string') return false;
+        return (u.username || '').toLowerCase() === usernameToBan;
+      } catch (error) {
+        console.warn('Error finding user to ban:', error, u);
+        return false;
+      }
+    });
     if (targetUser && targetUser.role === 'admin') {
       // Silent error - no alert
       return;
@@ -200,7 +238,17 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
     if (success) {
       // Verify the ban was actually saved
       const updatedBans = await getBannedUsers();
-      const banExists = updatedBans.some(b => b.username.toLowerCase() === usernameToBanFinal.toLowerCase());
+      const banExists = updatedBans.some(b => {
+        try {
+          console.log("DEBUG BAN IN VERIFY:", b);
+          if (!b || !b.username || typeof b.username !== 'string') return false;
+          if (!usernameToBanFinal || typeof usernameToBanFinal !== 'string') return false;
+          return (b.username || '').toLowerCase() === (usernameToBanFinal || '').toLowerCase();
+        } catch (error) {
+          console.warn('Error checking ban existence:', error, b);
+          return false;
+        }
+      });
 
       if (banExists) {
         setBanUsername('');
@@ -266,15 +314,34 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
     }
   }, [chatMessages]);
 
-  const filteredUsers = allUsers.filter(u =>
-    u.username.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredUsers = allUsers.filter(u => {
+    try {
+      console.log("DEBUG USER IN FILTER:", u);
+      if (!u || !u.username || typeof u.username !== 'string') return false;
+      const search = (searchTerm || '').toLowerCase();
+      return (u.username || '').toLowerCase().includes(search);
+    } catch (error) {
+      console.warn('Error filtering user:', error, u);
+      return false;
+    }
+  });
 
-  const filteredReports = reports.filter(r =>
-    r.reportedUsername.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    r.reporterUsername.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    r.reason.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredReports = reports.filter(r => {
+    try {
+      console.log("DEBUG REPORT IN FILTER:", r);
+      if (!r) return false;
+      const search = (searchTerm || '').toLowerCase();
+      const reportedUsername = (r.reportedUsername || '').toLowerCase();
+      const reporterUsername = (r.reporterUsername || '').toLowerCase();
+      const reason = (r.reason || '').toLowerCase();
+      return reportedUsername.includes(search) ||
+        reporterUsername.includes(search) ||
+        reason.includes(search);
+    } catch (error) {
+      console.warn('Error filtering report:', error, r);
+      return false;
+    }
+  });
 
 
   if (user.role !== 'admin') {
@@ -383,7 +450,16 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
                             className="btn"
                             onClick={async () => {
                               const updated = { ...u, role: 'admin' as const, coins: Math.max(u.coins, 99999) };
-                              setAllUsers((prev) => prev.map((x) => (x.username.toLowerCase() === u.username.toLowerCase() ? updated : x)));
+                              setAllUsers((prev) => prev.map((x) => {
+                                try {
+                                  if (!x || !x.username || typeof x.username !== 'string') return x;
+                                  if (!u || !u.username || typeof u.username !== 'string') return x;
+                                  return (x.username || '').toLowerCase() === (u.username || '').toLowerCase() ? updated : x;
+                                } catch (error) {
+                                  console.warn('Error mapping user:', error, x, u);
+                                  return x;
+                                }
+                              }));
                               await saveUsers([updated]);
                             }}
                             style={{ background: '#00aaff', padding: '6px 12px', fontSize: '12px' }}
@@ -403,12 +479,30 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
                         </>
                       ) : (
                         <>
-                          {!ADMIN_ACCOUNTS_LIST.some((a) => a.username.toLowerCase() === u.username.toLowerCase()) ? (
+                          {!ADMIN_ACCOUNTS_LIST.some((a) => {
+                            try {
+                              if (!a || !a.username || typeof a.username !== 'string') return false;
+                              if (!u || !u.username || typeof u.username !== 'string') return false;
+                              return (a.username || '').toLowerCase() === (u.username || '').toLowerCase();
+                            } catch (error) {
+                              console.warn('Error checking admin account:', error, a, u);
+                              return false;
+                            }
+                          }) ? (
                             <button
                               className="btn"
                               onClick={async () => {
                                 const updated = { ...u, role: 'user' as const };
-                                setAllUsers((prev) => prev.map((x) => (x.username.toLowerCase() === u.username.toLowerCase() ? updated : x)));
+                                setAllUsers((prev) => prev.map((x) => {
+                                try {
+                                  if (!x || !x.username || typeof x.username !== 'string') return x;
+                                  if (!u || !u.username || typeof u.username !== 'string') return x;
+                                  return (x.username || '').toLowerCase() === (u.username || '').toLowerCase() ? updated : x;
+                                } catch (error) {
+                                  console.warn('Error mapping user:', error, x, u);
+                                  return x;
+                                }
+                              }));
                                 await saveUsers([updated]);
                               }}
                               style={{ background: '#666', padding: '6px 12px', fontSize: '12px' }}
@@ -735,8 +829,27 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
                             <button
                               className="btn"
                               onClick={async () => {
-                                const reportedUser = allUsers.find(u => u.username.toLowerCase() === report.reportedUsername.toLowerCase());
-                                const isAdminAccount = ADMIN_ACCOUNTS_LIST.some(a => a.username.toLowerCase() === report.reportedUsername.toLowerCase());
+                                const reportedUser = allUsers.find(u => {
+                                  try {
+                                    console.log("DEBUG USER IN REPORT:", u);
+                                    if (!u || !u.username || typeof u.username !== 'string') return false;
+                                    if (!report || !report.reportedUsername || typeof report.reportedUsername !== 'string') return false;
+                                    return (u.username || '').toLowerCase() === (report.reportedUsername || '').toLowerCase();
+                                  } catch (error) {
+                                    console.warn('Error finding reported user:', error, u);
+                                    return false;
+                                  }
+                                });
+                                const isAdminAccount = ADMIN_ACCOUNTS_LIST.some(a => {
+                                  try {
+                                    if (!a || !a.username || typeof a.username !== 'string') return false;
+                                    if (!report || !report.reportedUsername || typeof report.reportedUsername !== 'string') return false;
+                                    return (a.username || '').toLowerCase() === (report.reportedUsername || '').toLowerCase();
+                                  } catch (error) {
+                                    console.warn('Error checking admin account in report:', error, a);
+                                    return false;
+                                  }
+                                });
 
                                 if (reportedUser?.role === 'admin' || isAdminAccount) {
                                   // Silent error - no alert
@@ -904,7 +1017,20 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
             ) : (
               <div style={{ display: 'grid', gap: '12px' }}>
                 {gameSubmissions
-                  .filter(s => searchTerm === '' || s.title.toLowerCase().includes(searchTerm.toLowerCase()) || s.owner.toLowerCase().includes(searchTerm.toLowerCase()))
+                  .filter(s => {
+                    try {
+                      console.log("DEBUG SUBMISSION IN FILTER:", s);
+                      if (!s) return false;
+                      if (searchTerm === '') return true;
+                      const search = (searchTerm || '').toLowerCase();
+                      const title = (s.title || '').toLowerCase();
+                      const owner = (s.owner || '').toLowerCase();
+                      return title.includes(search) || owner.includes(search);
+                    } catch (error) {
+                      console.warn('Error filtering submission:', error, s);
+                      return false;
+                    }
+                  })
                   .map((submission) => (
                     <div
                       key={submission.id}

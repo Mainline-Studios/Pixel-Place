@@ -4,13 +4,13 @@ import { TabType, User, Skin, Accessory } from '@/types';
 import Image from 'next/image';
 import { getSkins, getAccessories } from '@/lib/storage';
 import Avatar3DViewer from '@/components/Avatar3DViewer';
-import { useUser } from '@/contexts/UserContext';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 
 interface TopBarProps {
   currentTab: TabType;
   onTabChange: (tab: TabType) => void;
   user: User;
+  onLogout: () => void;
 }
 
 const TABS: { key: TabType; label: string; adminOnly?: boolean }[] = [
@@ -21,10 +21,11 @@ const TABS: { key: TabType; label: string; adminOnly?: boolean }[] = [
   { key: 'settings', label: 'Settings' },
 ];
 
-export default function TopBar({ currentTab, onTabChange, user }: TopBarProps) {
-  const { setUser } = useUser();
+export default function TopBar({ currentTab, onTabChange, user, onLogout }: TopBarProps) {
   const [skins, setSkins] = useState<Skin[]>([]);
   const [accessories, setAccessories] = useState<Accessory[]>([]);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const loadData = async () => {
@@ -37,6 +38,23 @@ export default function TopBar({ currentTab, onTabChange, user }: TopBarProps) {
     };
     loadData();
   }, []);
+
+  // Close menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setMenuOpen(false);
+      }
+    };
+
+    if (menuOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [menuOpen]);
 
   const equippedSkin = skins.find(s => s.id === user.equippedSkin) || skins.find(s => s.id === 'starter_classic') || (skins.length > 0 ? skins[0] : null);
   // Get equipped face if available
@@ -56,20 +74,16 @@ export default function TopBar({ currentTab, onTabChange, user }: TopBarProps) {
   } : null;
 
   const handleLogout = () => {
-    // Clear user session
-    setUser(null);
-    // Clear sessionStorage (which will be done automatically by UserContext useEffect, but we can also do it here)
-    if (typeof window !== 'undefined') {
-      try {
-        sessionStorage.removeItem('pixelPlaceLoggedInUser');
-      } catch (error) {
-        console.error('Error clearing session:', error);
-      }
-    }
+    setMenuOpen(false);
+    onLogout();
+  };
+
+  const toggleMenu = () => {
+    setMenuOpen(!menuOpen);
   };
 
   return (
-    <div className="topbar">
+    <div className="topbar" style={{ position: 'relative', zIndex: 100000 }}>
       <div className="topbar-inner">
         <div className="brand" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
           <Image
@@ -96,10 +110,10 @@ export default function TopBar({ currentTab, onTabChange, user }: TopBarProps) {
               </button>
             ))}
         </div>
-        <div className="userbox">
+        <div className="userbox" style={{ position: 'relative', zIndex: 100001 }} ref={menuRef}>
           <div
             className="avatar-top"
-            onClick={handleLogout}
+            onClick={toggleMenu}
             style={{
               width: '40px',
               height: '40px',
@@ -110,7 +124,8 @@ export default function TopBar({ currentTab, onTabChange, user }: TopBarProps) {
               justifyContent: 'center',
               background: 'transparent',
               cursor: 'pointer',
-              transition: 'opacity 0.2s'
+              transition: 'opacity 0.2s',
+              border: menuOpen ? '2px solid #00a2ff' : '2px solid transparent'
             }}
             onMouseEnter={(e) => {
               e.currentTarget.style.opacity = '0.8';
@@ -118,7 +133,7 @@ export default function TopBar({ currentTab, onTabChange, user }: TopBarProps) {
             onMouseLeave={(e) => {
               e.currentTarget.style.opacity = '1';
             }}
-            title="Click to log out"
+            title="Click to open menu"
           >
             {skinWithAccessories && (
               <Avatar3DViewer
@@ -131,6 +146,74 @@ export default function TopBar({ currentTab, onTabChange, user }: TopBarProps) {
               />
             )}
           </div>
+          
+          {/* Dropdown Menu */}
+          {menuOpen && (
+            <div
+              style={{
+                position: 'absolute',
+                top: '50px',
+                right: '0',
+                background: '#2a2a2a',
+                borderRadius: '8px',
+                border: '1px solid #333',
+                boxShadow: '0 4px 12px rgba(0, 0, 0, 0.5)',
+                minWidth: '180px',
+                zIndex: 100001,
+                overflow: 'hidden'
+              }}
+            >
+              <div style={{
+                padding: '8px 0',
+                borderBottom: '1px solid #333'
+              }}>
+                <div style={{
+                  padding: '8px 16px',
+                  fontSize: '14px',
+                  fontWeight: '600',
+                  color: '#ffffff'
+                }}>
+                  {user.username}
+                </div>
+                <div style={{
+                  padding: '0 16px 8px',
+                  fontSize: '12px',
+                  color: '#999'
+                }}>
+                  {user.role === 'admin' ? 'Administrator' : 'User'}
+                </div>
+              </div>
+              <div style={{ padding: '4px 0' }}>
+                <button
+                  onClick={handleLogout}
+                  style={{
+                    width: '100%',
+                    padding: '10px 16px',
+                    background: 'transparent',
+                    border: 'none',
+                    color: '#ff6b6b',
+                    fontSize: '14px',
+                    fontWeight: '500',
+                    cursor: 'pointer',
+                    textAlign: 'left',
+                    transition: 'background 0.2s',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = 'rgba(255, 107, 107, 0.1)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = 'transparent';
+                  }}
+                >
+                  <span>🚪</span>
+                  <span>Log Out</span>
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>

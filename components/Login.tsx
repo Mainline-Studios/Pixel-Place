@@ -28,8 +28,8 @@ export default function Login() {
       setMessage('Enter both username and password.');
       return;
     }
-    if (password.length < 6) {
-      setMessage('Password must be at least 6 characters.');
+    if (password.length < 3) {
+      setMessage('Password must be at least 3 characters.');
       return;
     }
     const result = await login(username, password);
@@ -65,8 +65,8 @@ export default function Login() {
       setMessage('Username and password are required.');
       return;
     }
-    if (password.length < 8) {
-      setMessage('Password must be at least 8 characters.');
+    if (password.length < 3) {
+      setMessage('Password must be at least 3 characters.');
       return;
     }
     const result = await createAccount(username, password, gender);
@@ -138,7 +138,7 @@ export default function Login() {
                 onChange={handlePasswordChange}
                 onKeyPress={(e) => e.key === 'Enter' && handleSignIn()}
               />
-              <div className="input-hint">At least 6 characters</div>
+              <div className="input-hint">At least 3 characters</div>
               <button 
                 className="btn auth-btn signin-btn" 
                 onClick={(e) => {
@@ -231,7 +231,7 @@ export default function Login() {
                 value={password}
                 onChange={handlePasswordChange}
               />
-              <div className="input-hint">At least 8 characters</div>
+              <div className="input-hint">At least 3 characters</div>
 
               <div className="gender-section">
                 <label>Gender (Optional)</label>
