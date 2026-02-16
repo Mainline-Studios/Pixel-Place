@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { Accessory } from '@/types';
+import { createTextureByStyle } from '@/lib/threeTextures';
 
 interface Accessory3DViewerProps {
   accessory: Accessory;
@@ -23,7 +24,6 @@ export default function Accessory3DViewer({
   const sceneRef = useRef<any>(null);
   const cameraRef = useRef<any>(null);
   const accessoryGroupRef = useRef<any>(null);
-  const animationFrameRef = useRef<number | null>(null);
   const mousePositionRef = useRef({ x: 0, y: 0 });
   const rotationRef = useRef({ x: 0, y: 0 });
 
@@ -68,12 +68,17 @@ export default function Accessory3DViewer({
         const renderer = new THREE.WebGLRenderer({
           canvas,
           antialias: true,
-          alpha: true
+          alpha: true,
+          powerPreference: 'high-performance'
         });
         rendererRef.current = renderer;
         renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
         renderer.setSize(width, height);
         renderer.setClearColor(0x000000, 0);
+        if (THREE.ACESFilmicToneMapping !== undefined) {
+          renderer.toneMapping = THREE.ACESFilmicToneMapping;
+          renderer.toneMappingExposure = 1;
+        }
         if ('outputColorSpace' in renderer && THREE.SRGBColorSpace) {
           renderer.outputColorSpace = THREE.SRGBColorSpace;
         } else if ('outputEncoding' in renderer && THREE.sRGBEncoding) {
@@ -82,60 +87,116 @@ export default function Accessory3DViewer({
 
         const scene = new THREE.Scene();
         sceneRef.current = scene;
-        // Camera setup - centered on accessory
         const camera = new THREE.PerspectiveCamera(50, width / height, 0.1, 1000);
         camera.position.set(0, 0, 3);
         camera.lookAt(0, 0, 0);
         cameraRef.current = camera;
-        // Create pixelated texture
-        const createPixelatedTexture = (color: {r: number, g: number, b: number}, pixelSize: number = 8) => {
-          const canvas = document.createElement('canvas');
-          const ctx = canvas.getContext('2d')!;
-          const size = 512;
-          canvas.width = size;
-          canvas.height = size;
-          
-          const pixelsPerRow = Math.floor(size / pixelSize);
-          
-          for (let y = 0; y < pixelsPerRow; y++) {
-            for (let x = 0; x < pixelsPerRow; x++) {
-              const variation = (Math.random() - 0.5) * 0.15;
-              const pixelColor = {
-                r: Math.max(0, Math.min(255, Math.floor((color.r + variation) * 255))),
-                g: Math.max(0, Math.min(255, Math.floor((color.g + variation) * 255))),
-                b: Math.max(0, Math.min(255, Math.floor((color.b + variation) * 255)))
-              };
-              
-              ctx.fillStyle = `rgb(${pixelColor.r}, ${pixelColor.g}, ${pixelColor.b})`;
-              ctx.fillRect(x * pixelSize, y * pixelSize, pixelSize, pixelSize);
-            }
+
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+        scene.add(ambientLight);
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 0.7);
+        directionalLight.position.set(3, 5, 4);
+        scene.add(directionalLight);
+        const fillLight = new THREE.DirectionalLight(0xe8f4ff, 0.35);
+        fillLight.position.set(-2, 2, -2);
+        scene.add(fillLight);
+
+        const type = (accessory.type || 'default').toLowerCase();
+        const accTextureStyle = (accessory as any).textureStyle || (type === 'glasses' || type === 'chain' ? 'metal' : type === 'shoes' ? 'leather' : ['shirt', 'pants', 'hat', 'backpack'].includes(type) ? 'fabric' : 'pixelated');
+        const canvasToTex = (canvas: HTMLCanvasElement) => {
+          const tex = new THREE.CanvasTexture(canvas);
+          tex.magFilter = THREE.NearestFilter;
+          tex.minFilter = THREE.NearestFilter;
+          if ('colorSpace' in tex && THREE.SRGBColorSpace) (tex as any).colorSpace = THREE.SRGBColorSpace;
+          else if ('encoding' in tex && THREE.sRGBEncoding) (tex as any).encoding = THREE.sRGBEncoding;
+          return tex;
+        };
+
+        const accColor = hexToColor(accessory.color || '#ffffff');
+        const accMat = new THREE.MeshStandardMaterial({
+          map: canvasToTex(createTextureByStyle(accTextureStyle, accColor, 512, 8)),
+          color: new THREE.Color(accColor.r, accColor.g, accColor.b),
+          roughness: 0.6,
+          metalness: 0.2
+        });
+
+        accessoryGroup = new THREE.Group();
+        if (accessory.modelUrl && GLTFLoader) {
+          const loader = new GLTFLoader();
+          loader.load(
+            accessory.modelUrl,
+            (gltf: any) => {
+              if (!isMounted || !accessoryGroup) return;
+              const model = gltf.scene;
+              const scale = (accessory as any).scale ?? 1;
+              model.scale.set(scale, scale, scale);
+              const box = new THREE.Box3().setFromObject(model);
+              const center = box.getCenter(new THREE.Vector3());
+              model.position.sub(center);
+              accessoryGroup.add(model);
+            },
+            undefined,
+            () => { createFallbackMesh(); }
+          );
+        } else {
+          createFallbackMesh();
+        }
+
+        function createFallbackMesh() {
+          if (!accessoryGroup || !THREE) return;
+          let mesh: any;
+          switch (type) {
+            case 'hat':
+              mesh = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.5, 0.15, 16), accMat);
+              mesh.position.y = 0.4;
+              break;
+            case 'glasses':
+              mesh = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.2, 0.1), accMat);
+              mesh.position.z = 0.35;
+              break;
+            case 'chain':
+              mesh = new THREE.Mesh(new THREE.TorusGeometry(0.35, 0.04, 8, 16), accMat);
+              mesh.rotation.x = Math.PI / 2;
+              break;
+            case 'shirt':
+              mesh = new THREE.Mesh(new THREE.BoxGeometry(1, 1.2, 0.5), accMat);
+              break;
+            case 'pants':
+              mesh = new THREE.Mesh(new THREE.BoxGeometry(0.9, 1, 0.5), accMat);
+              mesh.position.y = -0.4;
+              break;
+            case 'shoes':
+              mesh = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.2, 0.4), accMat);
+              mesh.position.y = -0.55;
+              break;
+            case 'backpack':
+              mesh = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.7, 0.3), accMat);
+              mesh.position.z = -0.35;
+              break;
+            default:
+              mesh = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.5, 0.5), accMat);
           }
-          
-          const texture = new THREE.CanvasTexture(canvas);
-          if ('colorSpace' in texture && THREE.SRGBColorSpace) {
-            (texture as any).colorSpace = THREE.SRGBColorSpace;
-          } else if ('encoding' in texture && THREE.sRGBEncoding) {
-            (texture as any).encoding = THREE.sRGBEncoding;
+          if (mesh) {
+            mesh.castShadow = true;
+            accessoryGroup.add(mesh);
           }
         }
 
-        // Auto-rotate for display
+        scene.add(accessoryGroup);
+        accessoryGroupRef.current = accessoryGroup;
+
         const animate = () => {
           if (!isMounted || !accessoryGroup) return;
-          
           if (interactive && isHovered) {
             accessoryGroup.rotation.y = rotationRef.current.y;
             accessoryGroup.rotation.x = rotationRef.current.x;
           } else {
-            // Auto-rotate slowly
             accessoryGroup.rotation.y += 0.01;
           }
-          
           renderer.render(scene, camera);
-          animationFrameRef.current = requestAnimationFrame(animate);
         };
 
-        animate();
+        renderer.setAnimationLoop(animate);
 
         // Mouse interaction
         if (interactive && mountRef.current) {
@@ -175,11 +236,20 @@ export default function Accessory3DViewer({
 
     return () => {
       isMounted = false;
-      if (animationFrameRef.current) {
-        cancelAnimationFrame(animationFrameRef.current);
-      }
       if (rendererRef.current) {
-        rendererRef.current.dispose();
+        try {
+          rendererRef.current.setAnimationLoop(null);
+          rendererRef.current.dispose();
+        } catch (e) { /* ignore */ }
+      }
+      if (sceneRef.current) {
+        sceneRef.current.traverse((obj: any) => {
+          if (obj.geometry) obj.geometry.dispose();
+          if (obj.material) {
+            if (Array.isArray(obj.material)) obj.material.forEach((m: any) => m.dispose());
+            else obj.material.dispose();
+          }
+        });
       }
     };
   }, [accessory, width, height, interactive, isHovered]);

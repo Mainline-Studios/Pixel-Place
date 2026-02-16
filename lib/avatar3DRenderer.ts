@@ -1,10 +1,13 @@
 /**
  * Utility functions for rendering user avatars in 3D games
- * Reuses logic from Avatar3DViewer for consistency
+ * Reuses logic from Avatar3DViewer for consistency.
+ * For best quality: enable renderer.shadowMap, use a directional light with
+ * castShadow and configure shadow camera (see configureLightForShadows).
  */
 
 import { Skin, User } from '@/types';
 import { getSkins, getAccessories } from '@/lib/storage';
+import { createTextureByStyle } from '@/lib/threeTextures';
 
 export interface AvatarRenderOptions {
   scale?: number;
@@ -96,37 +99,14 @@ export function createAvatarMesh(
     }
   };
 
-  // Create pixelated texture (only works in browser)
-  const createPixelatedTexture = (color: { r: number, g: number, b: number }, pixelSize: number = 8) => {
-    if (typeof document === 'undefined') {
-      // Server-side: return a simple colored material instead
-      return null;
-    }
-    
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return null;
-    
-    const size = 512;
-    canvas.width = size;
-    canvas.height = size;
+  // Create texture (only works in browser); style from skin.textureStyle or material type
+  const matToStyle = (t?: string) => (t === 'metal' ? 'metal' : t === 'leather' ? 'leather' : t === 'denim' ? 'denim' : t === 'fabric' || t === 'cloth' ? 'fabric' : t === 'skin' ? 'skin' : 'pixelated');
+  const bodyTextureStyle = (skin as any).textureStyle || matToStyle(skin.materials?.torso?.type);
+  const headTextureStyle = (skin as any).textureStyle || matToStyle(skin.materials?.head?.type) || 'skin';
 
-    const pixelsPerRow = Math.floor(size / pixelSize);
-
-    for (let y = 0; y < pixelsPerRow; y++) {
-      for (let x = 0; x < pixelsPerRow; x++) {
-        const variation = (Math.random() - 0.5) * 0.15;
-        const pixelColor = {
-          r: Math.max(0, Math.min(255, Math.floor((color.r + variation) * 255))),
-          g: Math.max(0, Math.min(255, Math.floor((color.g + variation) * 255))),
-          b: Math.max(0, Math.min(255, Math.floor((color.b + variation) * 255)))
-        };
-
-        ctx.fillStyle = `rgb(${pixelColor.r}, ${pixelColor.g}, ${pixelColor.b})`;
-        ctx.fillRect(x * pixelSize, y * pixelSize, pixelSize, pixelSize);
-      }
-    }
-
+  const createTexture = (color: { r: number; g: number; b: number }, style?: string, pixelSize: number = 8) => {
+    if (typeof document === 'undefined') return null;
+    const canvas = createTextureByStyle(style || bodyTextureStyle, color, 512, pixelSize);
     const texture = new THREE.CanvasTexture(canvas);
     texture.magFilter = THREE.NearestFilter;
     texture.minFilter = THREE.NearestFilter;
@@ -188,10 +168,10 @@ export function createAvatarMesh(
   const glowIntensity = faceGlowIntensity || skin.materials?.torso?.emissiveIntensity || skin.materials?.head?.emissiveIntensity || 0.6;
 
   // Create materials
-  const headTexture = createPixelatedTexture(headColor, 8);
-  const torsoTexture = createPixelatedTexture(torsoColor, 8);
-  const armTexture = createPixelatedTexture(armColor, 8);
-  const legTexture = createPixelatedTexture(legColor, 8);
+  const headTexture = createTexture(headColor, headTextureStyle, 8);
+  const torsoTexture = createTexture(torsoColor, bodyTextureStyle, 8);
+  const armTexture = createTexture(armColor, bodyTextureStyle, 8);
+  const legTexture = createTexture(legColor, bodyTextureStyle, 8);
 
   const headMaterial = (hasGlow && (faceHasGlow || skin.isSpecial))
     ? createGlowMaterial(headColor, true, glowColor, glowIntensity)
@@ -323,7 +303,8 @@ export function createAvatarMesh(
     const accColor = hexToColor(accessory.color || '#ffffff');
     
     // Create pixelated texture for accessories
-    const accTexture = createPixelatedTexture(accColor, 8);
+    const accStyle = (acc: any) => (acc.textureStyle) || (acc.type === 'glasses' || acc.type === 'chain' ? 'metal' : acc.type === 'shoes' ? 'leather' : ['shirt', 'pants', 'hat', 'backpack'].includes(acc.type) ? 'fabric' : 'pixelated');
+    const accTexture = createTexture(accColor, accStyle(accessory), 8);
     
     switch (accessory.type) {
       case 'hat':
@@ -485,4 +466,22 @@ export function createAvatarMesh(
     characterGroup,
     bodyParts: { head, torso, leftArm, rightArm, leftLeg, rightLeg }
   };
+}
+
+/**
+ * Configure a Three.js DirectionalLight for casting shadows on avatar meshes.
+ * Call after adding the light to the scene. Requires renderer.shadowMap.enabled = true.
+ */
+export function configureLightForShadows(light: any): void {
+  if (!light || !light.isDirectionalLight) return;
+  light.castShadow = true;
+  light.shadow.mapSize.width = 1024;
+  light.shadow.mapSize.height = 1024;
+  light.shadow.camera.near = 0.5;
+  light.shadow.camera.far = 25;
+  light.shadow.camera.left = -8;
+  light.shadow.camera.right = 8;
+  light.shadow.camera.top = 8;
+  light.shadow.camera.bottom = -8;
+  light.shadow.bias = -0.0001;
 }

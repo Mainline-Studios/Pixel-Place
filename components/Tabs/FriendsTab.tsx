@@ -38,7 +38,6 @@ export default function FriendsTab({ user, editMode }: FriendsTabProps) {
   const filteredUsers = useMemo(() => {
     return allUsers.filter(u => {
       try {
-        console.log("DEBUG USER:", u);
         if (!u || !u.username || typeof u.username !== 'string') return false;
         if (!user || !user.username || typeof user.username !== 'string') return false;
         const query = (searchQuery || '').toLowerCase().trim();
@@ -97,7 +96,6 @@ export default function FriendsTab({ user, editMode }: FriendsTabProps) {
       const users = await getUsers();
       setAllUsers(users.filter(u => {
         try {
-          console.log("DEBUG USER IN LOAD:", u);
           if (!u || !u.username || typeof u.username !== 'string') return false;
           if (!user || !user.username || typeof user.username !== 'string') return false;
           return (u.username || '').toLowerCase() !== (user.username || '').toLowerCase();
@@ -121,7 +119,6 @@ export default function FriendsTab({ user, editMode }: FriendsTabProps) {
         // Mark messages as read
         msgs.forEach((msg: Message) => {
           try {
-            console.log("DEBUG MESSAGE:", msg);
             if (!msg || !msg.to || typeof msg.to !== 'string') return;
             if (!user || !user.username || typeof user.username !== 'string') return;
             if ((msg.to || '').toLowerCase() === (user.username || '').toLowerCase() && !msg.read) {
@@ -885,7 +882,6 @@ export default function FriendsTab({ user, editMode }: FriendsTabProps) {
               ) : (
                 messages.map((msg) => {
                   try {
-                    console.log("DEBUG MESSAGE IN MAP:", msg);
                     if (!msg || !msg.from || typeof msg.from !== 'string') return null;
                     if (!user || !user.username || typeof user.username !== 'string') return null;
                     const isOwn = (msg.from || '').toLowerCase() === (user.username || '').toLowerCase();

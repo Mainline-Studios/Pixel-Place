@@ -1,9 +1,7 @@
 const PATH_TO_TAB: Record<string, string> = {
   '/': 'home',
   '/home': 'home',
-  '/play': 'play',
   '/create': 'createGame',
-  '/games': 'games',
   '/avatarshop': 'avatarShop',
   '/coins': 'coins',
   '/friends': 'friends',
@@ -15,9 +13,7 @@ const PATH_TO_TAB: Record<string, string> = {
 
 const TAB_TO_PATH: Record<string, string> = {
   home: '/home',
-  play: '/play',
   createGame: '/create',
-  games: '/games',
   avatarShop: '/avatarshop',
   coins: '/coins',
   friends: '/friends',

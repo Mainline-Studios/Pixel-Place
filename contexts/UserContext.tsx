@@ -18,87 +18,76 @@ interface UserContextType {
 const UserContext = createContext<UserContextType | undefined>(undefined);
 
 export function UserProvider({ children }: { children: React.ReactNode }) {
-  // #region agent log
-  useEffect(() => {
-    fetch('http://127.0.0.1:7242/ingest/002741fb-cb98-444e-83cd-7086902151aa', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'UserContext.tsx:20', message: 'UserProvider render', data: {}, timestamp: Date.now(), sessionId: 'debug-session', runId: 'run1', hypothesisId: 'F' }) }).catch(() => { });
-  }, []);
-  // #endregion
-
-  // Restore user from sessionStorage on mount
   const getInitialUser = async (): Promise<User | null> => {
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/002741fb-cb98-444e-83cd-7086902151aa', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'UserContext.tsx:24', message: 'getInitialUser called', data: { isWindow: typeof window !== 'undefined' }, timestamp: Date.now(), sessionId: 'debug-session', runId: 'run1', hypothesisId: 'G' }) }).catch(() => { });
-    // #endregion
     if (typeof window === 'undefined') return null;
     try {
       const savedUsername = sessionStorage.getItem('pixelPlaceLoggedInUser');
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/002741fb-cb98-444e-83cd-7086902151aa', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'UserContext.tsx:28', message: 'Checking sessionStorage', data: { savedUsername }, timestamp: Date.now(), sessionId: 'debug-session', runId: 'run1', hypothesisId: 'G' }) }).catch(() => { });
-      // #endregion
-      if (savedUsername) {
-        const users = await getUsers();
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/002741fb-cb98-444e-83cd-7086902151aa', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'UserContext.tsx:31', message: 'Got users from storage', data: { userCount: users.length, foundUser: !!users.find(u => u.username === savedUsername) }, timestamp: Date.now(), sessionId: 'debug-session', runId: 'run1', hypothesisId: 'G' }) }).catch(() => { });
-        // #endregion
-        const found = users.find(u => u.username === savedUsername);
-        if (found) {
-          // Ensure arrays exist
-          if (!found.ownedSkins) found.ownedSkins = ['starter_classic'];
-          if (!found.ownedAccessories) found.ownedAccessories = [];
-          if (!found.equippedAccessories) found.equippedAccessories = {};
-          if (!found.ownedFaces) found.ownedFaces = [];
+      if (!savedUsername) return null;
 
-          // Load safety points from API - CRITICAL: Must load before returning user
-          try {
-            const safetyResponse = await fetch(apiUrl(`/api/safety?username=${encodeURIComponent(found.username)}`));
-            if (safetyResponse.ok) {
-              const safetyData = await safetyResponse.json();
-              if (typeof safetyData?.safetyPoints === 'number') {
-                found.safetyPoints = safetyData.safetyPoints;
-                console.log(`Loaded ${safetyData.safetyPoints} safety points for ${found.username}`);
-              } else {
-                found.safetyPoints = 0;
-              }
-            } else {
-              found.safetyPoints = 0;
-            }
-          } catch (error) {
-            console.warn('Failed to fetch safety points on restore:', error);
-            found.safetyPoints = 0;
-          }
+      // Fast path: use cached users so restore is instant (~0ms)
+      const localUsers = getUsersLocal();
+      let found = localUsers.find(u => (u.username || '').toLowerCase() === (savedUsername || '').toLowerCase());
+      if (found) {
+        found = { ...found };
+        if (!found.ownedSkins) found.ownedSkins = ['starter_classic'];
+        if (!found.ownedAccessories) found.ownedAccessories = [];
+        if (!found.equippedAccessories) found.equippedAccessories = {};
+        if (!found.ownedFaces) found.ownedFaces = [];
+        if (typeof found.safetyPoints !== 'number') found.safetyPoints = 0;
 
-          // Ensure safetyPoints is always a number
-          if (typeof found.safetyPoints !== 'number') {
-            found.safetyPoints = 0;
-          }
-
-          // Special coins for 6767kid - massive amount
-          if (found.username === '6767kid') {
-            // 2e268 × 2e203 = 4e471 coins (4 followed by 471 zeros)
-            found.coins = 4e471;
-            // Update in storage
-            const userIndex = users.findIndex(u => u.username === '6767kid');
-            if (userIndex !== -1) {
-              users[userIndex].coins = 4e471;
-              await saveUsers(users);
-            }
-          }
-
-          // Special coins for daniello1 - massive amount
-          if (found.username && typeof found.username === 'string' && (found.username || '').toLowerCase() === 'daniello1') {
-            // Massive coin amount for daniello1
-            found.coins = 5.534e200; // Very large number in scientific notation
-            // Update in storage
-            const userIndex = users.findIndex(u => u && u.username && typeof u.username === 'string' && (u.username || '').toLowerCase() === 'daniello1');
-            if (userIndex !== -1) {
-              users[userIndex].coins = 5.534e200;
-              await saveUsers(users);
-            }
-          }
-
-          return found;
+        if (found.username === '6767kid') {
+          found.coins = 4e471;
+          if ((found.safetyPoints || 0) < 20000) found.safetyPoints = 20000;
         }
+        if (found.username && (found.username || '').toLowerCase() === 'daniello1') {
+          found.coins = 5.534e200;
+        }
+
+        // Background: refresh from API and safety (don't block)
+        getUsers().then(users => {
+          const fresh = users.find(u => (u.username || '').toLowerCase() === (savedUsername || '').toLowerCase());
+          if (fresh) setUser(prev => prev ? { ...prev, ...fresh, safetyPoints: prev.safetyPoints ?? fresh.safetyPoints ?? 0 } : null);
+        }).catch(() => {});
+        fetch(apiUrl(`/api/safety?username=${encodeURIComponent(found.username)}`))
+          .then(r => r.ok ? r.json() : null)
+          .then(data => {
+            if (data && typeof data.safetyPoints === 'number') setUser(prev => prev ? { ...prev, safetyPoints: data.safetyPoints } : null);
+          })
+          .catch(() => {});
+        if (found.username === '6767kid' && (found.safetyPoints || 0) < 20000) {
+          fetch(apiUrl('/api/safety'), {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username: '6767kid', action: 'updateSafetyPoints', safetyPoints: 20000 })
+          }).catch(() => {});
+        }
+
+        return found;
       }
+
+      // No cache: wait for API with short timeout (max ~500ms)
+      const users = await Promise.race([
+        getUsers(),
+        new Promise<User[]>((_, reject) => setTimeout(() => reject(new Error('timeout')), 500))
+      ]).catch(() => getUsersLocal());
+
+      found = users.find(u => (u.username || '').toLowerCase() === (savedUsername || '').toLowerCase());
+      if (!found) return null;
+
+      found = { ...found };
+      if (!found.ownedSkins) found.ownedSkins = ['starter_classic'];
+      if (!found.ownedAccessories) found.ownedAccessories = [];
+      if (!found.equippedAccessories) found.equippedAccessories = {};
+      if (!found.ownedFaces) found.ownedFaces = [];
+      if (typeof found.safetyPoints !== 'number') found.safetyPoints = 0;
+      if (found.username === '6767kid') { found.coins = 4e471; if ((found.safetyPoints || 0) < 20000) found.safetyPoints = 20000; }
+      if (found.username && (found.username || '').toLowerCase() === 'daniello1') found.coins = 5.534e200;
+
+      fetch(apiUrl(`/api/safety?username=${encodeURIComponent(found.username)}`))
+        .then(r => r.ok ? r.json() : null)
+        .then(data => { if (data && typeof data.safetyPoints === 'number') setUser(prev => prev ? { ...prev, safetyPoints: data.safetyPoints } : null); })
+        .catch(() => {});
+      return found;
     } catch (error) {
       console.error('Error restoring user session:', error);
     }
@@ -109,30 +98,16 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
   const [isRestoring, setIsRestoring] = useState(true);
 
   useEffect(() => {
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/002741fb-cb98-444e-83cd-7086902151aa', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'UserContext.tsx:72', message: 'UserProvider useEffect started', data: {}, timestamp: Date.now(), sessionId: 'debug-session', runId: 'run1', hypothesisId: 'H' }) }).catch(() => { });
-    // #endregion
     initializeStorage();
-    // Restore user session on mount
     getInitialUser().then(restoredUser => {
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/002741fb-cb98-444e-83cd-7086902151aa', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'UserContext.tsx:76', message: 'getInitialUser resolved', data: { hasRestoredUser: !!restoredUser, username: restoredUser?.username }, timestamp: Date.now(), sessionId: 'debug-session', runId: 'run1', hypothesisId: 'H' }) }).catch(() => { });
-      // #endregion
-      if (restoredUser) {
-        setUser(restoredUser);
-      }
+      if (restoredUser) setUser(restoredUser);
       setIsRestoring(false);
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/002741fb-cb98-444e-83cd-7086902151aa', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'UserContext.tsx:81', message: 'Setting isRestoring to false', data: {}, timestamp: Date.now(), sessionId: 'debug-session', runId: 'run1', hypothesisId: 'H' }) }).catch(() => { });
-      // #endregion
-    }).catch((error) => {
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/002741fb-cb98-444e-83cd-7086902151aa', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ location: 'UserContext.tsx:84', message: 'getInitialUser error', data: { error: error?.message || String(error) }, timestamp: Date.now(), sessionId: 'debug-session', runId: 'run1', hypothesisId: 'H' }) }).catch(() => { });
-      // #endregion
-      setIsRestoring(false);
-    });
+    }).catch(() => setIsRestoring(false));
   }, []);
-  // #endregion
+
+  useEffect(() => {
+    if (!user && !isRestoring) getUsers().catch(() => { });
+  }, [user, isRestoring]);
 
   // Persist user to sessionStorage whenever it changes
   useEffect(() => {
@@ -226,59 +201,96 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       return { success: false, message: 'Enter username and password.' };
     }
 
+    const checkLocalBan = (): Ban | null => {
+      const localBans = getBannedUsersSync();
+      const now = Date.now();
+      const b = localBans.find((ban: Ban) => {
+        if (!ban?.username || typeof username !== 'string') return false;
+        if ((ban.username || '').toLowerCase() !== (username || '').toLowerCase()) return false;
+        if (ban.permanent) return true;
+        if (ban.expiresAt && ban.expiresAt > now) return true;
+        return false;
+      });
+      return b || null;
+    };
+
     let isOffline = false;
     let users: User[] = [];
     let found: User | undefined;
 
-    try {
-      // Try to get users from API (Firebase)
-      users = await getUsers();
-    } catch (error) {
-      // Fallback to localStorage if API fails
-      isOffline = true;
-      users = getUsersLocal();
-      console.log('Using offline mode - localStorage');
+    // Fast path: use cached users first for instant login (~0.5s)
+    const localUsers = getUsersLocal();
+    if (localUsers.length > 0) {
+      found = localUsers.find(x => (x.username || '').toLowerCase() === (username || '').toLowerCase());
+      if (found && found.password === password) {
+        const localBan = checkLocalBan();
+        if (localBan) {
+          return { success: false, message: 'This account has been banned. Please contact an administrator.', ban: localBan };
+        }
+        if (!found.ownedSkins) found.ownedSkins = ['starter_classic'];
+        if (!found.ownedAccessories) found.ownedAccessories = [];
+        if (!found.equippedAccessories) found.equippedAccessories = {};
+        if (typeof found.safetyPoints !== 'number') found.safetyPoints = 0;
+        setUser(found);
+        if (typeof window !== 'undefined') {
+          try {
+            sessionStorage.setItem('pixelPlaceLoggedInUser', found.username);
+            sessionStorage.removeItem('pixelPlaceOffline');
+          } catch (e) { /* ignore */ }
+        }
+        // Background: sync safety points and refresh user data
+        fetch(apiUrl(`/api/safety?username=${encodeURIComponent(found.username)}`))
+          .then(r => r.ok ? r.json() : null)
+          .then(data => {
+            if (data && typeof data.safetyPoints === 'number') {
+              setUser(prev => prev ? { ...prev, safetyPoints: data.safetyPoints } : null);
+            }
+          })
+          .catch(() => { });
+        getUsers().then(freshUsers => {
+          const fresh = freshUsers.find(u => (u.username || '').toLowerCase() === (found?.username || '').toLowerCase());
+          if (fresh) setUser(prev => prev ? { ...prev, ...fresh, safetyPoints: prev.safetyPoints ?? fresh.safetyPoints ?? 0 } : null);
+        }).catch(() => { });
+        return { success: true, message: '' };
+      }
     }
 
-    // Check if user is banned (try online first, then offline fallback)
+    // Slow path: fetch users + ban check in parallel with short timeouts (~0.5s total)
+    const getUsersWithTimeout = (ms: number) =>
+      Promise.race([
+        getUsers(),
+        new Promise<User[]>((_, reject) => setTimeout(() => reject(new Error('timeout')), ms))
+      ]).catch(() => {
+        isOffline = true;
+        return getUsersLocal();
+      });
+    const USER_FETCH_MS = 500;
+    const BAN_CHECK_MS = 400;
+
+    const localBan = checkLocalBan();
+    if (localBan) {
+      return { success: false, message: 'This account has been banned. Please contact an administrator.', ban: localBan };
+    }
+
     try {
-      const isBanned = await isUserBanned(username);
+      const [fetchedUsers, isBanned] = await Promise.all([
+        getUsersWithTimeout(USER_FETCH_MS),
+        Promise.race([
+          isUserBanned(username),
+          new Promise<boolean>((_, reject) => setTimeout(() => reject(new Error('timeout')), BAN_CHECK_MS))
+        ]).catch(() => false)
+      ]);
+      users = fetchedUsers;
       if (isBanned) {
         const ban = await getBanForUser(username);
-        if (ban) {
-          return { success: false, message: 'This account has been banned. Please contact an administrator.', ban };
-        }
+        if (ban) return { success: false, message: 'This account has been banned. Please contact an administrator.', ban };
       }
     } catch (error) {
-      // If online ban check fails, try offline fallback
-      if (!isOffline) {
-        try {
-          const localBans = getBannedUsersSync();
-          const now = Date.now();
-          const localBan = localBans.find((b: Ban) => {
-            try {
-              console.log("DEBUG BAN:", b);
-              if (!b || !b.username || typeof b.username !== 'string') return false;
-              if (!username || typeof username !== 'string') return false;
-              if ((b.username || '').toLowerCase() !== (username || '').toLowerCase()) return false;
-              if (b.permanent) return true;
-              if (b.expiresAt && b.expiresAt > now) return true;
-              return false;
-            } catch (error) {
-              console.warn('Error checking ban:', error, b);
-              return false;
-            }
-          });
-          if (localBan) {
-            return { success: false, message: 'This account has been banned. Please contact an administrator.', ban: localBan };
-          }
-        } catch {
-          // If offline check also fails, continue anyway (don't block login)
-        }
-      }
+      isOffline = true;
+      users = getUsersLocal();
     }
 
-    found = users.find(x => x.username === username);
+    found = users.find(x => (x.username || '').toLowerCase() === (username || '').toLowerCase());
 
     // Auto-create admin if not found but matches admin list
     if (!found) {
@@ -305,17 +317,8 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
           equippedAccessories: {}
         };
         users.push(found);
-        if (isOffline) {
-          saveUsersLocal(users);
-        } else {
-          try {
-            await saveUsers(users);
-          } catch {
-            // Fallback to localStorage if save fails
-            saveUsersLocal(users);
-            isOffline = true;
-          }
-        }
+        if (isOffline) saveUsersLocal(users);
+        else saveUsers(users).catch(() => { saveUsersLocal(users); });
       }
     }
 
@@ -332,86 +335,47 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     if (!found.ownedAccessories) found.ownedAccessories = [];
     if (!found.equippedAccessories) found.equippedAccessories = {};
 
-    // Special coins for 6767kid - massive amount
+    // Special coins - update in memory; persist in background (don't block login)
     if (found.username === '6767kid') {
-      // 2e268 × 2e203 = 4e471 coins (4 followed by 471 zeros)
       found.coins = 4e471;
-      // Update in storage
       const userIndex = users.findIndex(u => u.username === '6767kid');
       if (userIndex !== -1) {
         users[userIndex].coins = 4e471;
-        if (isOffline) {
-          saveUsersLocal(users);
-        } else {
-          try {
-            await saveUsers(users);
-          } catch {
-            saveUsersLocal(users);
-            isOffline = true;
-          }
-        }
+        if (isOffline) saveUsersLocal(users);
+        else saveUsers(users).catch(() => { saveUsersLocal(users); });
       }
     }
-
-    // Special coins for daniello1 - massive amount
     if (found.username && typeof found.username === 'string' && (found.username || '').toLowerCase() === 'daniello1') {
-      // Massive coin amount for daniello1
       found.coins = 5.534e200;
-      // Update in storage
       const userIndex = users.findIndex(u => u && u.username && typeof u.username === 'string' && (u.username || '').toLowerCase() === 'daniello1');
       if (userIndex !== -1) {
         users[userIndex].coins = 5.534e200;
-        if (isOffline) {
-          saveUsersLocal(users);
-        } else {
-          try {
-            await saveUsers(users);
-          } catch {
-            saveUsersLocal(users);
-            isOffline = true;
-          }
-        }
+        if (isOffline) saveUsersLocal(users);
+        else saveUsers(users).catch(() => { saveUsersLocal(users); });
       }
     }
 
-    // Sync safety points from backend - CRITICAL: Must load before setting user
-    if (!isOffline) {
-      try {
-        const safetyResponse = await fetch(apiUrl(`/api/safety?username=${encodeURIComponent(found.username)}`));
-        if (safetyResponse.ok) {
-          const safetyData = await safetyResponse.json();
-          found.safetyPoints = typeof safetyData?.safetyPoints === 'number' ? safetyData.safetyPoints : 0;
-          console.log(`Loaded ${found.safetyPoints} safety points for ${found.username} on login`);
-        } else {
-          found.safetyPoints = 0;
-        }
-      } catch (error) {
-        console.warn('Failed to fetch safety points:', error);
-        found.safetyPoints = 0;
-      }
-    } else {
-      found.safetyPoints = 0;
-    }
-
-    // Ensure safetyPoints is always a number
-    if (typeof found.safetyPoints !== 'number') {
-      found.safetyPoints = 0;
-    }
+    found.safetyPoints = 0;
+    if (typeof found.safetyPoints !== 'number') found.safetyPoints = 0;
 
     setUser(found);
-    // Persist to sessionStorage
     if (typeof window !== 'undefined') {
       try {
         sessionStorage.setItem('pixelPlaceLoggedInUser', found.username);
-        // Mark as offline in sessionStorage
-        if (isOffline) {
-          sessionStorage.setItem('pixelPlaceOffline', 'true');
-        } else {
-          sessionStorage.removeItem('pixelPlaceOffline');
-        }
-      } catch (error) {
-        console.error('Error saving user session:', error);
-      }
+        if (isOffline) sessionStorage.setItem('pixelPlaceOffline', 'true');
+        else sessionStorage.removeItem('pixelPlaceOffline');
+      } catch (e) { /* ignore */ }
+    }
+    // Background: load safety points (don't block dashboard)
+    if (!isOffline) {
+      fetch(apiUrl(`/api/safety?username=${encodeURIComponent(found.username)}`))
+        .then(r => r.ok ? r.json() : null)
+        .then(data => {
+          if (data && typeof data.safetyPoints === 'number') {
+            setUser(prev => prev ? { ...prev, safetyPoints: data.safetyPoints } : null);
+          }
+        })
+        .catch(() => { });
     }
     return { success: true, message: isOffline ? 'Signed in offline. Data stored locally.' : '', offline: isOffline };
   };
@@ -480,7 +444,6 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
           const now = Date.now();
           const localBan = localBans.find((b: Ban) => {
             try {
-              console.log("DEBUG BAN:", b);
               if (!b || !b.username || typeof b.username !== 'string') return false;
               if (!username || typeof username !== 'string') return false;
               if ((b.username || '').toLowerCase() !== (username || '').toLowerCase()) return false;
@@ -606,7 +569,6 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
 
     const index = users.findIndex(u => {
       try {
-        console.log("DEBUG USER IN UPDATE:", u, user);
         if (!u || !u.username || typeof u.username !== 'string') return false;
         if (!user || !user.username || typeof user.username !== 'string') return false;
         return (u.username || '').toLowerCase() === (user.username || '').toLowerCase();

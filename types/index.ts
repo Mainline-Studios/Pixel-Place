@@ -134,6 +134,8 @@ export interface Skin {
     arm?: string;
     legs?: string;
   };
+  /** Programmatic texture style: 'pixelated' | 'skin' | 'fabric' | 'metal' | 'leather' | 'denim' | 'wood' | 'carbon' */
+  textureStyle?: string;
 }
 
 export interface Accessory {
@@ -149,6 +151,8 @@ export interface Accessory {
   modelUrl?: string; // Path to GLTF/GLB model file (e.g., '/models/drone.glb')
   floatHeight?: number; // Height above player for floating accessories (default: 3.0)
   rotationSpeed?: number; // Rotation speed for floating animation (default: 0.5)
+  /** Programmatic texture style: 'pixelated' | 'fabric' | 'metal' | 'leather' | 'denim' | 'wood' | 'carbon' */
+  textureStyle?: string;
 }
 
 export interface PublishedGame {

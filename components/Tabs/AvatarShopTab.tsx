@@ -76,6 +76,9 @@ const DEFAULT_SKIN_COLORS = {
   arm: '#3a3f56',
   legs: '#3a3f56'
 };
+const MAX_WEBGL_VIEWERS = 6;
+const WebGLSlotContext = React.createContext<{ requestSlot: () => boolean; releaseSlot: () => void } | null>(null);
+
 const SUPPORTED_ACCESSORY_TYPES = new Set([
   'hat',
   'chain',
@@ -107,13 +110,20 @@ function normalizeSkin(skin: Skin): Skin {
 }
 
 function SkinThumb({ skin, width = 80, height = 80 }: { skin: Skin; width?: number; height?: number }) {
+  const slotContext = React.useContext(WebGLSlotContext);
   const [isVisible, setIsVisible] = useState(false);
   const [is3DReady, setIs3DReady] = useState(false);
   const [has3DError, setHas3DError] = useState(false);
-  const containerRef = useRef<HTMLDivElement>(null);
+  const [use3D, setUse3D] = useState(!slotContext);
 
   useEffect(() => {
-    // Lazy load - only render when visible
+    if (!slotContext) return;
+    const ok = slotContext.requestSlot();
+    setUse3D(ok);
+    return () => { if (ok) slotContext.releaseSlot(); };
+  }, [slotContext]);
+
+  useEffect(() => {
     const observer = new IntersectionObserver(
       (entries) => {
         if (entries[0].isIntersecting) {
@@ -159,13 +169,14 @@ function SkinThumb({ skin, width = 80, height = 80 }: { skin: Skin; width?: numb
     );
   }
 
-  const show3D = isVisible && !has3DError;
-  const showSpinner = isVisible && !is3DReady && !has3DError;
+  const show3D = use3D && isVisible && !has3DError;
+  const showSpinner = use3D && isVisible && !is3DReady && !has3DError;
 
   return (
     <div ref={containerRef} className="skin-thumb" style={{ width, height, minWidth: width, minHeight: height }}>
       {showSpinner && <div style={{ width, height, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>...</div>}
       {show3D && <Avatar3DViewer skin={skin} width={width} height={height} onReady={() => setIs3DReady(true)} onError={() => setHas3DError(true)} />}
+      {!use3D && isVisible && <div style={{ width, height, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#2a2a33', borderRadius: '8px', color: '#888', fontSize: '10px' }}>{escapeHTML(skin.name)}</div>}
       {has3DError && <div style={{ width, height, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#888', fontSize: '10px' }}>Error</div>}
     </div>
   );
@@ -201,10 +212,43 @@ class ErrorBoundary extends React.Component<
   }
 }
 
+function AccessoryThumbWithSlot({ accessory }: { accessory: Accessory }) {
+  const slotContext = React.useContext(WebGLSlotContext);
+  const [use3D, setUse3D] = useState(!slotContext);
+  useEffect(() => {
+    if (!slotContext) return;
+    const ok = slotContext.requestSlot();
+    setUse3D(ok);
+    return () => { if (ok) slotContext.releaseSlot(); };
+  }, [slotContext]);
+  if (!use3D) {
+    return (
+      <div style={{ width: 80, height: 80, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#2a2a33', borderRadius: '8px', color: '#888', fontSize: '10px', padding: 4 }}>
+        {escapeHTML(accessory.name)}
+      </div>
+    );
+  }
+  return <Accessory3DThumbnail accessory={accessory} />;
+}
+
 export default function AvatarShopTab({ user, editMode, updateUser }: AvatarShopTabProps) {
   const [skins, setSkins] = useState<Skin[]>([]);
   const [accessories, setAccessories] = useState<Accessory[]>([]);
-  const previewMode: '3d' = '3d'; // Always use 3D preview
+  const previewMode: '3d' = '3d';
+  const slotCountRef = useRef(0);
+  const slotContextValue = React.useMemo(
+    () => ({
+      requestSlot: () => {
+        if (slotCountRef.current >= MAX_WEBGL_VIEWERS) return false;
+        slotCountRef.current += 1;
+        return true;
+      },
+      releaseSlot: () => {
+        slotCountRef.current = Math.max(0, slotCountRef.current - 1);
+      }
+    }),
+    []
+  );
 
   useEffect(() => {
     const loadData = async () => {
@@ -513,6 +557,7 @@ export default function AvatarShopTab({ user, editMode, updateUser }: AvatarShop
   const safetyAccessories = allAvailableAccessories; // All accessories are in Safety section
 
   return (
+    <WebGLSlotContext.Provider value={slotContextValue}>
     <>
       <h2 className="section-title">Avatar Shop</h2>
 
@@ -643,7 +688,7 @@ export default function AvatarShopTab({ user, editMode, updateUser }: AvatarShop
                       border: '2px solid rgba(255, 215, 0, 0.5)',
                       boxShadow: '0 0 20px rgba(255, 215, 0, 0.3)'
                     }}>
-                      <Accessory3DThumbnail accessory={a} />
+                      <AccessoryThumbWithSlot accessory={a} />
                       <div className="skin-name" style={{ color: '#ffd700', fontWeight: 600 }}>{escapeHTML(a.name)}</div>
                       <div className="skin-meta">
                         <span className="price-tag" style={{ color: '#ffd700', fontWeight: 600 }}>
@@ -693,7 +738,7 @@ export default function AvatarShopTab({ user, editMode, updateUser }: AvatarShop
                     background: isEquipped ? 'rgba(74, 144, 226, 0.1)' : 'transparent'
                   }}
                 >
-                  <Accessory3DThumbnail accessory={a} />
+                  <AccessoryThumbWithSlot accessory={a} />
                   <div className="skin-name" style={{ color: isEquipped ? '#4a90e2' : '#fff' }}>
                     {escapeHTML(a.name)}
                     {isEquipped && ' ✓'}
@@ -706,5 +751,6 @@ export default function AvatarShopTab({ user, editMode, updateUser }: AvatarShop
       )}
 
     </>
+    </WebGLSlotContext.Provider>
   );
 }

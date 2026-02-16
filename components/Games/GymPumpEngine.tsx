@@ -11,23 +11,11 @@ interface GymPumpEngineProps {
 }
 
 export default function GymPumpEngine({ onClose, user }: GymPumpEngineProps) {
-  // #region agent log
-  fetch('http://127.0.0.1:7242/ingest/002741fb-cb98-444e-83cd-7086902151aa',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'GymPumpEngine.tsx:12',message:'GymPumpEngine render start',data:{hasUser:!!user,hasOnClose:!!onClose},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
-  // #endregion
   const containerRef = useRef<HTMLDivElement>(null);
   const apiRef = useRef<PixelPlaceAPI | null>(null);
-  // #region agent log
-  fetch('http://127.0.0.1:7242/ingest/002741fb-cb98-444e-83cd-7086902151aa',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'GymPumpEngine.tsx:15',message:'Before useUser hook',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
-  // #endregion
   const { user: contextUser } = useUser();
-  // #region agent log
-  fetch('http://127.0.0.1:7242/ingest/002741fb-cb98-444e-83cd-7086902151aa',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'GymPumpEngine.tsx:16',message:'After useUser hook',data:{hasContextUser:!!contextUser},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
-  // #endregion
   const currentUser = user || contextUser;
   const [score, setScore] = useState({ power: 0, coins: 0, level: 1 });
-  // #region agent log
-  fetch('http://127.0.0.1:7242/ingest/002741fb-cb98-444e-83cd-7086902151aa',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'GymPumpEngine.tsx:17',message:'After useState score',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
-  // #endregion
   const [isLifting, setIsLifting] = useState(false);
   const [liftProgress, setLiftProgress] = useState(0);
   const [gameStarted, setGameStarted] = useState(false);
@@ -36,9 +24,6 @@ export default function GymPumpEngine({ onClose, user }: GymPumpEngineProps) {
   const [rhythmProgress, setRhythmProgress] = useState(0);
   const [combo, setCombo] = useState(0);
   const [streak, setStreak] = useState(0);
-  // #region agent log
-  fetch('http://127.0.0.1:7242/ingest/002741fb-cb98-444e-83cd-7086902151aa',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'GymPumpEngine.tsx:20',message:'After all useState hooks',data:{hookCount:4},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
-  // #endregion
 
   const sceneRef = useRef<any>(null);
   const rendererRef = useRef<any>(null);

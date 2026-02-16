@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { Skin } from '@/types';
+import { createTextureByStyle } from '@/lib/threeTextures';
 
 interface Avatar3DViewerProps {
   skin: Skin;
@@ -109,12 +110,19 @@ export default function Avatar3DViewer({
         const renderer = new THREE.WebGLRenderer({
           canvas,
           antialias: true,
-          alpha: true
+          alpha: true,
+          powerPreference: 'high-performance'
         });
         rendererRef.current = renderer;
         renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
         renderer.setSize(width, height);
         renderer.setClearColor(0x000000, 0);
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        if (THREE.ACESFilmicToneMapping !== undefined) {
+          renderer.toneMapping = THREE.ACESFilmicToneMapping;
+          renderer.toneMappingExposure = 1;
+        }
         if ('outputColorSpace' in renderer && THREE.SRGBColorSpace) {
           renderer.outputColorSpace = THREE.SRGBColorSpace;
         } else if ('outputEncoding' in renderer && THREE.sRGBEncoding) {
@@ -130,104 +138,78 @@ export default function Avatar3DViewer({
         camera.lookAt(0, 1.5, 0);
         cameraRef.current = camera;
 
-        // Lighting - soft ambient + directional
-        const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+        // Lighting - three-point setup with shadows
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.45);
         scene.add(ambientLight);
+        const hemisphereLight = new THREE.HemisphereLight(0xffffff, 0x444466, 0.35);
+        scene.add(hemisphereLight);
 
-        const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
-        directionalLight.position.set(5, 10, 5);
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 0.85);
+        directionalLight.position.set(5, 12, 6);
         directionalLight.castShadow = true;
+        directionalLight.shadow.mapSize.width = 1024;
+        directionalLight.shadow.mapSize.height = 1024;
+        directionalLight.shadow.camera.near = 0.5;
+        directionalLight.shadow.camera.far = 25;
+        directionalLight.shadow.camera.left = -6;
+        directionalLight.shadow.camera.right = 6;
+        directionalLight.shadow.camera.top = 6;
+        directionalLight.shadow.camera.bottom = -6;
+        directionalLight.shadow.bias = -0.0001;
         scene.add(directionalLight);
 
-        const fillLight = new THREE.DirectionalLight(0xffffff, 0.3);
+        const fillLight = new THREE.DirectionalLight(0xe8f4ff, 0.4);
         fillLight.position.set(-5, 5, -5);
         scene.add(fillLight);
+        const backLight = new THREE.DirectionalLight(0xffffff, 0.25);
+        backLight.position.set(0, 4, -8);
+        scene.add(backLight);
+
+        // Soft shadow-receiving ground plane
+        const groundGeometry = new THREE.PlaneGeometry(20, 20);
+        const groundMaterial = new THREE.ShadowMaterial({ opacity: 0.15 });
+        const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+        ground.rotation.x = -Math.PI / 2;
+        ground.position.y = -2.2;
+        ground.receiveShadow = true;
+        scene.add(ground);
 
         // Create character group
         characterGroup = new THREE.Group();
         scene.add(characterGroup);
         characterGroupRef.current = characterGroup;
 
-        // Texture creation functions - Realistic textures like Roblox
-        const createSkinTexture = (color: { r: number, g: number, b: number }) => {
-          const canvas = document.createElement('canvas');
-          const ctx = canvas.getContext('2d')!;
-          const size = 512;
-          canvas.width = size;
-          canvas.height = size;
+        const matToStyle = (t?: string) => (t === 'metal' ? 'metal' : t === 'leather' ? 'leather' : t === 'denim' ? 'denim' : t === 'fabric' || t === 'cloth' ? 'fabric' : t === 'skin' ? 'skin' : 'pixelated');
+        const bodyTextureStyle = (skin as any).textureStyle || matToStyle(skin.materials?.torso?.type);
+        const headTextureStyle = (skin as any).textureStyle || matToStyle(skin.materials?.head?.type) || 'skin';
+        const getAccessoryTextureStyle = (acc: any) => (acc?.textureStyle) || (acc?.type === 'glasses' || acc?.type === 'chain' ? 'metal' : acc?.type === 'shoes' ? 'leather' : ['shirt', 'pants', 'hat', 'backpack'].includes(acc?.type) ? 'fabric' : 'pixelated');
 
-          // Base skin color
-          ctx.fillStyle = `rgb(${Math.floor(color.r * 255)}, ${Math.floor(color.g * 255)}, ${Math.floor(color.b * 255)})`;
-          ctx.fillRect(0, 0, size, size);
-
-          // Add subtle skin texture with pores and variations
-          const imageData = ctx.getImageData(0, 0, size, size);
-          for (let i = 0; i < imageData.data.length; i += 4) {
-            const noise = (Math.random() - 0.5) * 15;
-            imageData.data[i] = Math.max(0, Math.min(255, imageData.data[i] + noise));
-            imageData.data[i + 1] = Math.max(0, Math.min(255, imageData.data[i + 1] + noise));
-            imageData.data[i + 2] = Math.max(0, Math.min(255, imageData.data[i + 2] + noise));
-          }
-          ctx.putImageData(imageData, 0, 0);
-
-          // Add pore-like texture
-          for (let i = 0; i < 200; i++) {
-            const x = Math.random() * size;
-            const y = Math.random() * size;
-            const radius = Math.random() * 2 + 0.5;
-            ctx.fillStyle = `rgba(${Math.floor(color.r * 200)}, ${Math.floor(color.g * 200)}, ${Math.floor(color.b * 200)}, 0.3)`;
-            ctx.beginPath();
-            ctx.arc(x, y, radius, 0, Math.PI * 2);
-            ctx.fill();
-          }
-
-          const texture = new THREE.CanvasTexture(canvas);
-          if ('colorSpace' in texture && THREE.SRGBColorSpace) {
-            (texture as any).colorSpace = THREE.SRGBColorSpace;
-          } else if ('encoding' in texture && THREE.sRGBEncoding) {
-            (texture as any).encoding = THREE.sRGBEncoding;
-          }
-          texture.wrapS = THREE.RepeatWrapping;
-          texture.wrapT = THREE.RepeatWrapping;
-          return texture;
+        const canvasToThreeTexture = (canvas: HTMLCanvasElement) => {
+          const tex = new THREE.CanvasTexture(canvas);
+          tex.flipY = false;
+          if ('colorSpace' in tex && THREE.SRGBColorSpace) (tex as any).colorSpace = THREE.SRGBColorSpace;
+          else if ('encoding' in tex && THREE.sRGBEncoding) (tex as any).encoding = THREE.sRGBEncoding;
+          tex.magFilter = THREE.NearestFilter;
+          tex.minFilter = THREE.NearestFilter;
+          tex.wrapS = THREE.RepeatWrapping;
+          tex.wrapT = THREE.RepeatWrapping;
+          return tex;
         };
 
-        // Create pixelated texture - generates a pixelated pattern
-        const createPixelatedTexture = (color: { r: number, g: number, b: number }, pixelSize: number = 8) => {
-          const canvas = document.createElement('canvas');
-          const ctx = canvas.getContext('2d')!;
-          const size = 512;
-          canvas.width = size;
-          canvas.height = size;
+        const createTexture = (color: { r: number; g: number; b: number }, style?: string, pixelSize: number = 8) => {
+          const canvas = createTextureByStyle(style || bodyTextureStyle, color, 512, pixelSize);
+          return canvasToThreeTexture(canvas);
+        };
 
-          const pixelsPerRow = Math.floor(size / pixelSize);
-
-          for (let y = 0; y < pixelsPerRow; y++) {
-            for (let x = 0; x < pixelsPerRow; x++) {
-              // Add slight color variation per pixel
-              const variation = (Math.random() - 0.5) * 0.15;
-              const pixelColor = {
-                r: Math.max(0, Math.min(255, Math.floor((color.r + variation) * 255))),
-                g: Math.max(0, Math.min(255, Math.floor((color.g + variation) * 255))),
-                b: Math.max(0, Math.min(255, Math.floor((color.b + variation) * 255)))
-              };
-
-              ctx.fillStyle = `rgb(${pixelColor.r}, ${pixelColor.g}, ${pixelColor.b})`;
-              ctx.fillRect(x * pixelSize, y * pixelSize, pixelSize, pixelSize);
-            }
-          }
-
-          const texture = new THREE.CanvasTexture(canvas);
-          if ('colorSpace' in texture && THREE.SRGBColorSpace) {
-            (texture as any).colorSpace = THREE.SRGBColorSpace;
-          } else if ('encoding' in texture && THREE.sRGBEncoding) {
-            (texture as any).encoding = THREE.sRGBEncoding;
-          }
-          texture.magFilter = THREE.NearestFilter;
-          texture.minFilter = THREE.NearestFilter;
-          texture.wrapS = THREE.RepeatWrapping;
-          texture.wrapT = THREE.RepeatWrapping;
-          return texture;
+        const createGlowMaterial = (baseColor: { r: number, g: number, b: number }, hasGlow: boolean, glowColor?: string, glowIntensity: number = 0.5) => {
+          const material = new THREE.MeshStandardMaterial({
+            color: new THREE.Color(baseColor.r, baseColor.g, baseColor.b),
+            roughness: hasGlow ? 0.3 : 0.7,
+            metalness: hasGlow ? 0.5 : 0.1,
+            emissive: hasGlow && glowColor ? new THREE.Color(glowColor) : new THREE.Color(0, 0, 0),
+            emissiveIntensity: hasGlow ? glowIntensity : 0
+          });
+          return material;
         };
 
         // Colors - apply equipped face to head if available
@@ -250,7 +232,7 @@ export default function Avatar3DViewer({
         const headMaterial = (hasGlow && (faceHasGlow || skin.isSpecial))
           ? createGlowMaterial(headColor, true, glowColor, glowIntensity)
           : new THREE.MeshStandardMaterial({
-              map: createPixelatedTexture(headColor, 8),
+              map: createTexture(headColor, headTextureStyle, 8),
               color: new THREE.Color(headColor.r, headColor.g, headColor.b),
               roughness: 0.8,
               metalness: 0.0
@@ -258,7 +240,7 @@ export default function Avatar3DViewer({
         const torsoMaterial = hasGlow
           ? createGlowMaterial(torsoColor, true, glowColor, glowIntensity)
           : new THREE.MeshStandardMaterial({
-              map: createPixelatedTexture(torsoColor, 8),
+              map: createTexture(torsoColor, bodyTextureStyle, 8),
               color: new THREE.Color(torsoColor.r, torsoColor.g, torsoColor.b),
               roughness: 0.7,
               metalness: 0.1
@@ -266,7 +248,7 @@ export default function Avatar3DViewer({
         const armMaterial = hasGlow
           ? createGlowMaterial(armColor, true, glowColor, glowIntensity)
           : new THREE.MeshStandardMaterial({
-              map: createPixelatedTexture(armColor, 8),
+              map: createTexture(armColor, bodyTextureStyle, 8),
               color: new THREE.Color(armColor.r, armColor.g, armColor.b),
               roughness: 0.7,
               metalness: 0.1
@@ -274,7 +256,7 @@ export default function Avatar3DViewer({
         const legMaterial = hasGlow
           ? createGlowMaterial(legColor, true, glowColor, glowIntensity)
           : new THREE.MeshStandardMaterial({
-              map: createPixelatedTexture(legColor, 8),
+              map: createTexture(legColor, bodyTextureStyle, 8),
               color: new THREE.Color(legColor.r, legColor.g, legColor.b),
               roughness: 0.7,
               metalness: 0.1
@@ -374,24 +356,13 @@ export default function Avatar3DViewer({
           return geometry;
         };
 
-        // Helper to create glowing material with emissive properties
-        const createGlowMaterial = (baseColor: { r: number, g: number, b: number }, hasGlow: boolean, glowColor?: string, glowIntensity: number = 0.5) => {
-          const material = new THREE.MeshStandardMaterial({
-            color: new THREE.Color(baseColor.r, baseColor.g, baseColor.b),
-            roughness: hasGlow ? 0.3 : 0.7,
-            metalness: hasGlow ? 0.5 : 0.1,
-            emissive: hasGlow && glowColor ? new THREE.Color(glowColor) : new THREE.Color(0, 0, 0),
-            emissiveIntensity: hasGlow ? glowIntensity : 0
-          });
-          return material;
-        };
-
         // Add accessories if available
         // Head - high-poly sphere for special skins, box for regular
         const headSize = isSpecial ? 1.2 : 1.2;
         const headGeometry = createHighPolyGeometry('head', headSize * headScale.x, headSize * headScale.y, headSize * headScale.z);
         const head = new THREE.Mesh(headGeometry, headMaterial);
         head.position.set(0, 2.1, 0);
+        head.castShadow = true;
         characterGroup.add(head);
 
         // Torso - high-poly for special skins
@@ -404,6 +375,7 @@ export default function Avatar3DViewer({
         );
         const torso = new THREE.Mesh(torsoGeometry, torsoMaterial);
         torso.position.set(0, 0.9, 0);
+        torso.castShadow = true;
         characterGroup.add(torso);
 
         // Left Arm - high-poly for special skins
@@ -416,6 +388,7 @@ export default function Avatar3DViewer({
         );
         const leftArm = new THREE.Mesh(leftArmGeometry, armMaterial);
         leftArm.position.set(-1.15 * bodyScale.x, 0.9, 0);
+        leftArm.castShadow = true;
         characterGroup.add(leftArm);
 
         // Right Arm - high-poly for special skins
@@ -427,6 +400,7 @@ export default function Avatar3DViewer({
         );
         const rightArm = new THREE.Mesh(rightArmGeometry, armMaterial);
         rightArm.position.set(1.15 * bodyScale.x, 0.9, 0);
+        rightArm.castShadow = true;
         characterGroup.add(rightArm);
 
         // Left Leg - high-poly for special skins
@@ -439,6 +413,7 @@ export default function Avatar3DViewer({
         );
         const leftLeg = new THREE.Mesh(leftLegGeometry, legMaterial);
         leftLeg.position.set(-0.4 * bodyScale.x, -1.0, 0);
+        leftLeg.castShadow = true;
         characterGroup.add(leftLeg);
 
         // Right Leg - high-poly for special skins
@@ -450,6 +425,7 @@ export default function Avatar3DViewer({
         );
         const rightLeg = new THREE.Mesh(rightLegGeometry, legMaterial);
         rightLeg.position.set(0.4 * bodyScale.x, -1.0, 0);
+        rightLeg.castShadow = true;
         characterGroup.add(rightLeg);
 
         // Store references for animation
@@ -462,37 +438,30 @@ export default function Avatar3DViewer({
           rightLeg
         };
 
-        // Note: We don't rotate the character for accessories - they should be visible from the front
-
-        // Add accessories if available
         if (skin.accessories && skin.accessories.length > 0) {
           skin.accessories.forEach((accessory) => {
             const accessoryColor = accessory.color
               ? hexToColor(accessory.color)
               : { r: 0.5, g: 0.5, b: 0.5 };
-
-            // Determine material type based on accessory type - all use pixelated textures
+            const accStyle = getAccessoryTextureStyle(accessory);
             let accessoryMaterial: any;
             if (accessory.type === 'glasses') {
-              // Metal accessories with pixelated texture
               accessoryMaterial = new THREE.MeshStandardMaterial({
-                map: createPixelatedTexture(accessoryColor, 8),
+                map: createTexture(accessoryColor, accStyle, 8),
                 color: new THREE.Color(accessoryColor.r, accessoryColor.g, accessoryColor.b),
                 roughness: 0.2,
                 metalness: 0.9
               });
             } else if (accessory.type === 'hat' || accessory.type === 'shirt' || accessory.type === 'pants' || accessory.type === 'shoes') {
-              // Fabric accessories with pixelated texture
               accessoryMaterial = new THREE.MeshStandardMaterial({
-                map: createPixelatedTexture(accessoryColor, 8),
+                map: createTexture(accessoryColor, accStyle, 8),
                 color: new THREE.Color(accessoryColor.r, accessoryColor.g, accessoryColor.b),
                 roughness: 0.6,
                 metalness: 0.1
               });
             } else {
-              // Default material with pixelated texture
               accessoryMaterial = new THREE.MeshStandardMaterial({
-                map: createPixelatedTexture(accessoryColor, 8),
+                map: createTexture(accessoryColor, accStyle, 8),
                 color: new THREE.Color(accessoryColor.r, accessoryColor.g, accessoryColor.b),
                 roughness: 0.5,
                 metalness: 0.3
@@ -507,7 +476,7 @@ export default function Avatar3DViewer({
                 const chainGroup = new THREE.Group();
                 const chainColor = hexToColor(accessory.color || '#FFD700');
                 const chainMat = new THREE.MeshStandardMaterial({
-                  map: createPixelatedTexture(chainColor, 8),
+                  map: createTexture(chainColor, accStyle, 8),
                   color: new THREE.Color(chainColor.r, chainColor.g, chainColor.b),
                   roughness: 0.2,
                   metalness: 0.9
@@ -547,7 +516,7 @@ export default function Avatar3DViewer({
                   const hatGroup = new THREE.Group();
                   const hatColor = hexToColor(accessory.color || '#4B0082');
                   const hatMainMat = new THREE.MeshStandardMaterial({
-                    map: createPixelatedTexture(hatColor),
+                    map: createTexture(hatColor, accStyle, 8),
                     color: new THREE.Color(hatColor.r, hatColor.g, hatColor.b),
                     roughness: 0.6,
                     metalness: 0.1
@@ -593,7 +562,7 @@ export default function Avatar3DViewer({
                   const hatGroup = new THREE.Group();
                   const hatColor = hexToColor(accessory.color || '#FF0000');
                   const hatMainMat = new THREE.MeshStandardMaterial({
-                    map: createPixelatedTexture(hatColor, 8),
+                    map: createTexture(hatColor, accStyle, 8),
                     color: new THREE.Color(hatColor.r, hatColor.g, hatColor.b),
                     roughness: 0.6,
                     metalness: 0.1
@@ -614,7 +583,7 @@ export default function Avatar3DViewer({
                   // Visor (front part)
                   const visorColor = hexToColor(accessory.color || '#000000');
                   const visorMat = new THREE.MeshStandardMaterial({
-                    map: createPixelatedTexture({ r: visorColor.r * 0.5, g: visorColor.g * 0.5, b: visorColor.b * 0.5 }, 8),
+                    map: createTexture({ r: visorColor.r * 0.5, g: visorColor.g * 0.5, b: visorColor.b * 0.5 }, accStyle, 8),
                     color: new THREE.Color(visorColor.r * 0.5, visorColor.g * 0.5, visorColor.b * 0.5),
                     roughness: 0.4,
                     metalness: 0.2
@@ -634,7 +603,7 @@ export default function Avatar3DViewer({
                 const glassesGroup = new THREE.Group();
                 const frameColor = hexToColor(accessory.color || '#000000');
                 const frameMaterial = new THREE.MeshStandardMaterial({
-                  map: createPixelatedTexture(frameColor, 8),
+                  map: createTexture(frameColor, accStyle, 8),
                   color: new THREE.Color(frameColor.r, frameColor.g, frameColor.b),
                   roughness: 0.3,
                   metalness: 0.7
@@ -699,7 +668,7 @@ export default function Avatar3DViewer({
                 const shirtGroup = new THREE.Group();
                 const shirtColor = hexToColor(accessory.color || '#FF0000');
                 const shirtMat = new THREE.MeshStandardMaterial({
-                  map: createPixelatedTexture(shirtColor),
+                  map: createTexture(shirtColor, accStyle, 8),
                   color: new THREE.Color(shirtColor.r, shirtColor.g, shirtColor.b),
                   roughness: 0.7,
                   metalness: 0.1
@@ -741,7 +710,7 @@ export default function Avatar3DViewer({
                 const pantsGroup = new THREE.Group();
                 const pantsColor = hexToColor(accessory.color || '#0000FF');
                 const pantsMat = new THREE.MeshStandardMaterial({
-                  map: createPixelatedTexture(pantsColor),
+                  map: createTexture(pantsColor, accStyle, 8),
                   color: new THREE.Color(pantsColor.r, pantsColor.g, pantsColor.b),
                   roughness: 0.7,
                   metalness: 0.1
@@ -779,7 +748,7 @@ export default function Avatar3DViewer({
                 const shoesGroup = new THREE.Group();
                 const shoeColor = hexToColor(accessory.color || '#FFFFFF');
                 const shoeMat = new THREE.MeshStandardMaterial({
-                  map: createPixelatedTexture(shoeColor),
+                  map: createTexture(shoeColor, accStyle, 8),
                   color: new THREE.Color(shoeColor.r, shoeColor.g, shoeColor.b),
                   roughness: 0.5,
                   metalness: 0.2
@@ -823,7 +792,7 @@ export default function Avatar3DViewer({
                 const backpackGroup = new THREE.Group();
                 const backpackColor = hexToColor(accessory.color || '#8B4513');
                 const backpackMat = new THREE.MeshStandardMaterial({
-                  map: createPixelatedTexture(backpackColor),
+                  map: createTexture(backpackColor, accStyle, 8),
                   color: new THREE.Color(backpackColor.r, backpackColor.g, backpackColor.b),
                   roughness: 0.6,
                   metalness: 0.2
@@ -838,7 +807,7 @@ export default function Avatar3DViewer({
                 // Front pocket (different color, rounded)
                 const pocketColor = hexToColor(accessory.color || '#654321');
                 const pocketMat = new THREE.MeshStandardMaterial({
-                  map: createPixelatedTexture({ r: pocketColor.r * 0.7, g: pocketColor.g * 0.7, b: pocketColor.b * 0.7 }),
+                  map: createTexture({ r: pocketColor.r * 0.7, g: pocketColor.g * 0.7, b: pocketColor.b * 0.7 }, accStyle, 8),
                   color: new THREE.Color(pocketColor.r * 0.7, pocketColor.g * 0.7, pocketColor.b * 0.7),
                   roughness: 0.5
                 });
@@ -849,7 +818,7 @@ export default function Avatar3DViewer({
 
                 // Straps (black, rounded)
                 const strapMat = new THREE.MeshStandardMaterial({
-                  map: createPixelatedTexture({ r: 0.1, g: 0.1, b: 0.1 }),
+                  map: createTexture({ r: 0.1, g: 0.1, b: 0.1 }, accStyle, 8),
                   color: new THREE.Color(0.1, 0.1, 0.1),
                   roughness: 0.8
                 });
@@ -1040,7 +1009,7 @@ export default function Avatar3DViewer({
                 if (isSlime) {
                   // SLIME PET - Square block with pixelated texture
                   const slimeMat = new THREE.MeshStandardMaterial({
-                    map: createPixelatedTexture(petColor, 8),
+                    map: createTexture(petColor, accStyle, 8),
                     color: new THREE.Color(petColor.r, petColor.g, petColor.b),
                     roughness: 0.2,
                     metalness: 0.0,
@@ -1087,7 +1056,7 @@ export default function Avatar3DViewer({
                 } else if (isDog) {
                   // DOG PET - Friendly dog design with pixelated texture
                   const dogMat = new THREE.MeshStandardMaterial({
-                    map: createPixelatedTexture(petColor, 8),
+                    map: createTexture(petColor, accStyle, 8),
                     color: new THREE.Color(petColor.r, petColor.g, petColor.b),
                     roughness: 0.6,
                     metalness: 0.1
@@ -1181,7 +1150,7 @@ export default function Avatar3DViewer({
                 } else if (isRobot) {
                   // ROBOT PET - More robotic with pixelated texture, joints, and details
                   const robotMat = new THREE.MeshStandardMaterial({
-                    map: createPixelatedTexture(petColor, 8),
+                    map: createTexture(petColor, accStyle, 8),
                     color: new THREE.Color(petColor.r, petColor.g, petColor.b),
                     roughness: 0.3,
                     metalness: 0.8
@@ -1195,7 +1164,7 @@ export default function Avatar3DViewer({
 
                   // Robot chest panel
                   const panelMat = new THREE.MeshStandardMaterial({
-                    map: createPixelatedTexture({ r: petColor.r * 0.7, g: petColor.g * 0.7, b: petColor.b * 0.7 }, 8),
+                    map: createTexture({ r: petColor.r * 0.7, g: petColor.g * 0.7, b: petColor.b * 0.7 }, accStyle, 8),
                     color: new THREE.Color(petColor.r * 0.7, petColor.g * 0.7, petColor.b * 0.7),
                     roughness: 0.2,
                     metalness: 0.9
@@ -1240,7 +1209,7 @@ export default function Avatar3DViewer({
 
                   // Robot shoulders (joints)
                   const jointMat = new THREE.MeshStandardMaterial({
-                    map: createPixelatedTexture({ r: petColor.r * 0.5, g: petColor.g * 0.5, b: petColor.b * 0.5 }, 8),
+                    map: createTexture({ r: petColor.r * 0.5, g: petColor.g * 0.5, b: petColor.b * 0.5 }, accStyle, 8),
                     color: new THREE.Color(petColor.r * 0.5, petColor.g * 0.5, petColor.b * 0.5),
                     roughness: 0.1,
                     metalness: 0.9
@@ -1535,7 +1504,6 @@ export default function Avatar3DViewer({
         };
 
         const animate = () => {
-          animationFrameRef.current = requestAnimationFrame(animate);
           animationTime += 0.016; // ~60fps
 
           // Animate floating drones
@@ -1624,11 +1592,21 @@ export default function Avatar3DViewer({
             characterGroup.position.y = 0;
           }
 
-          renderer.render(scene, camera);
+          try {
+            if (renderer.getContext().isContextLost()) return;
+            renderer.render(scene, camera);
+          } catch (e) {
+            return;
+          }
           signalReady();
         };
 
-        animate();
+        const onContextLost = () => {
+          try { renderer.setAnimationLoop(null); } catch (e) { /* ignore */ }
+        };
+        canvas.addEventListener('webglcontextlost', onContextLost);
+
+        renderer.setAnimationLoop(animate);
       } catch (error) {
         console.error('Error in Avatar3DViewer:', error);
         onErrorRef.current?.(error as Error);
@@ -1646,15 +1624,22 @@ export default function Avatar3DViewer({
 
     return () => {
       isMounted = false;
-      if (animationFrameRef.current) {
-        cancelAnimationFrame(animationFrameRef.current);
-      }
       if (rendererRef.current) {
         try {
+          rendererRef.current.setAnimationLoop(null);
           rendererRef.current.dispose();
         } catch (e) {
           // Ignore cleanup errors
         }
+      }
+      if (sceneRef.current) {
+        sceneRef.current.traverse((obj: any) => {
+          if (obj.geometry) obj.geometry.dispose();
+          if (obj.material) {
+            if (Array.isArray(obj.material)) obj.material.forEach((m: any) => m.dispose());
+            else obj.material.dispose();
+          }
+        });
       }
     };
   }, [skin, width, height, interactive, animation, isHovered]);

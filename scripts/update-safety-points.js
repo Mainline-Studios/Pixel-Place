@@ -4,7 +4,7 @@
 const fetch = require('node-fetch');
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://us-central1-pixel-place-823b1.cloudfunctions.net';
-const USERNAME = '67 kid'; // or '6767kid' if that's the actual username
+const USERNAME = '6767kid';
 const SAFETY_POINTS = 20000;
 
 async function updateSafetyPoints() {

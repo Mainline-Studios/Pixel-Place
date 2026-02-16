@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { User, Report, Ban, GameSubmission, UserMadeGame } from '@/types';
-import { getBannedUsers, getReports, banUser, unbanUser, updateReportStatus, saveBannedUsers, saveUsers, ADMIN_ACCOUNTS_LIST, getBanAppeals, updateBanAppealStatus, getMessagesAPI, sendMessage, getGameSubmissions, saveUserMadeGame, deleteGameSubmission } from '@/lib/storage';
+import { getUsers, getBannedUsers, getReports, banUser, unbanUser, updateReportStatus, saveBannedUsers, saveUsers, ADMIN_ACCOUNTS_LIST, getBanAppeals, updateBanAppealStatus, getMessagesAPI, sendMessage, getGameSubmissions, saveUserMadeGame, deleteGameSubmission } from '@/lib/storage';
 import { subscribeToUsers } from '@/lib/firestoreClient';
 
 interface AdminPanelTabProps {
@@ -27,12 +27,23 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
   const [newChatMessage, setNewChatMessage] = useState('');
   const [sendingChatMessage, setSendingChatMessage] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
+  const apiUsersRef = useRef<User[]>([]);
 
-  // Real-time users from Firestore (instant updates when admin changes role/etc in Firebase Console)
+  // Load ALL users from API so ban section shows every user (not just Firestore subset)
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    getUsers().then((users) => {
+      apiUsersRef.current = users || [];
+      processUsersFromFirestore(apiUsersRef.current);
+    }).catch(() => {});
+  }, []);
+
+  // Real-time users from Firestore (merge with API users for instant updates)
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const unsub = subscribeToUsers((firestoreUsers) => {
-      processUsersFromFirestore(firestoreUsers);    });
+      processUsersFromFirestore(firestoreUsers);
+    });
     return () => unsub();
   }, []);
 
@@ -42,6 +53,21 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
   }, []);
 
   const processUsersFromFirestore = (storedUsers: User[]) => {
+    // Merge API users (full list) with Firestore (real-time updates). Firestore overwrites for matching usernames.
+    const apiBase = apiUsersRef.current.length > 0 ? apiUsersRef.current : storedUsers;
+    const byUsername = new Map<string, User>();
+    apiBase.forEach(u => {
+      if (u?.username && typeof u.username === 'string') {
+        byUsername.set((u.username || '').toLowerCase(), { ...u });
+      }
+    });
+    storedUsers.forEach(u => {
+      if (u?.username && typeof u.username === 'string') {
+        byUsername.set((u.username || '').toLowerCase(), { ...u });
+      }
+    });
+    const mergedUsers = Array.from(byUsername.values());
+
     // Old admin accounts that should be filtered out (not in current ADMIN_ACCOUNTS_LIST)
       const oldAdminUsernames = new Set([
         'number 9',
@@ -61,10 +87,9 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
           .map(a => (a.username || '').toLowerCase())
       );
 
-      // Filter out old admin accounts from stored users
-      const filteredStoredUsers = storedUsers.filter(user => {
+      // Filter out old admin accounts from merged users
+      const filteredStoredUsers = mergedUsers.filter(user => {
         try {
-          console.log("DEBUG USER IN ADMINPANEL:", user);
           if (!user || !user.username || typeof user.username !== 'string') return false;
           const usernameLower = (user.username || '').toLowerCase();
           // Remove if it's an old admin account that's not in the current list
@@ -218,7 +243,6 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
     // Check if user is an admin (only check if user exists in system)
     const targetUser = allUsers.find(u => {
       try {
-        console.log("DEBUG USER IN BAN:", u);
         if (!u || !u.username || typeof u.username !== 'string') return false;
         return (u.username || '').toLowerCase() === usernameToBan;
       } catch (error) {
@@ -240,7 +264,6 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
       const updatedBans = await getBannedUsers();
       const banExists = updatedBans.some(b => {
         try {
-          console.log("DEBUG BAN IN VERIFY:", b);
           if (!b || !b.username || typeof b.username !== 'string') return false;
           if (!usernameToBanFinal || typeof usernameToBanFinal !== 'string') return false;
           return (b.username || '').toLowerCase() === (usernameToBanFinal || '').toLowerCase();
@@ -316,7 +339,6 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
 
   const filteredUsers = allUsers.filter(u => {
     try {
-      console.log("DEBUG USER IN FILTER:", u);
       if (!u || !u.username || typeof u.username !== 'string') return false;
       const search = (searchTerm || '').toLowerCase();
       return (u.username || '').toLowerCase().includes(search);
@@ -328,7 +350,6 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
 
   const filteredReports = reports.filter(r => {
     try {
-      console.log("DEBUG REPORT IN FILTER:", r);
       if (!r) return false;
       const search = (searchTerm || '').toLowerCase();
       const reportedUsername = (r.reportedUsername || '').toLowerCase();
@@ -831,7 +852,6 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
                               onClick={async () => {
                                 const reportedUser = allUsers.find(u => {
                                   try {
-                                    console.log("DEBUG USER IN REPORT:", u);
                                     if (!u || !u.username || typeof u.username !== 'string') return false;
                                     if (!report || !report.reportedUsername || typeof report.reportedUsername !== 'string') return false;
                                     return (u.username || '').toLowerCase() === (report.reportedUsername || '').toLowerCase();
@@ -1019,7 +1039,6 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
                 {gameSubmissions
                   .filter(s => {
                     try {
-                      console.log("DEBUG SUBMISSION IN FILTER:", s);
                       if (!s) return false;
                       if (searchTerm === '') return true;
                       const search = (searchTerm || '').toLowerCase();

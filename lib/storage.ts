@@ -24,8 +24,6 @@ export function initializeStorage() {
   if (typeof window === 'undefined') return;
 
   // All data is now stored in Firebase Firestore (cloud)
-  // No local storage initialization needed
-  console.log('Storage initialized - all data stored in Firebase cloud');
 }
 
 // User functions - Now using API
@@ -50,7 +48,9 @@ export async function getUsers(): Promise<User[]> {
       return [];
     }
 
-    console.log(`getUsers: Fetched ${apiUsers.length} users from API`);
+    try {
+      localStorage.setItem('pixelPlaceUsers', JSON.stringify(apiUsers));
+    } catch (e) { /* ignore */ }
 
     // Migration: Move localStorage data to API if it exists
     try {
@@ -64,7 +64,6 @@ export async function getUsers(): Promise<User[]> {
             .map((u: User) => (u.username || '').toLowerCase()));
           const usersToMigrate = localUsers.filter(u => {
             try {
-              console.log("DEBUG USER IN MIGRATE:", u);
               if (!u || !u.username || typeof u.username !== 'string') return false;
               return !apiUsernames.has((u.username || '').toLowerCase());
             } catch (error) {
@@ -74,7 +73,6 @@ export async function getUsers(): Promise<User[]> {
           });
 
           if (usersToMigrate.length > 0) {
-            console.log(`Migrating ${usersToMigrate.length} users from localStorage to API`);
             // Migrate users that don't exist in API
             for (const user of usersToMigrate) {
               await fetch(apiUrl('/api/users'), {
@@ -89,8 +87,11 @@ export async function getUsers(): Promise<User[]> {
             const updatedResponse = await fetch(apiUrl('/api/users'), { cache: 'no-store' });
             if (updatedResponse.ok) {
               const updatedUsers = await updatedResponse.json();
-              console.log(`getUsers: After migration, fetched ${updatedUsers.length} users`);
-              return Array.isArray(updatedUsers) ? updatedUsers : [];
+              if (Array.isArray(updatedUsers)) {
+                try { localStorage.setItem('pixelPlaceUsers', JSON.stringify(updatedUsers)); } catch (e) { /* ignore */ }
+                return updatedUsers;
+              }
+              return [];
             }
           }
         }
@@ -144,7 +145,6 @@ export async function saveUsers(users: User[]): Promise<void> {
         body: JSON.stringify(user)
       }).catch(() => { });
     }
-    console.log(`saveUsers: Saved ${users.length} users to API and localStorage`);
   } catch (e) {
     console.error('Error saving users to API (using localStorage backup):', e);
     // localStorage already saved above, so data is preserved
@@ -414,7 +414,6 @@ export async function isUserBanned(username: string): Promise<boolean> {
   const now = Date.now();
   const ban = bans.find(b => {
     try {
-      console.log("DEBUG BAN IN ISBANNED:", b);
       if (!b || !b.username || typeof b.username !== 'string') return false;
       if ((b.username || '').toLowerCase() !== usernameLower) return false;
       // Check if ban is still active
@@ -438,7 +437,6 @@ export async function getBanForUser(username: string): Promise<Ban | null> {
   const now = Date.now();
   return bans.find(b => {
     try {
-      console.log("DEBUG BAN IN GETBAN:", b);
       if (!b || !b.username || typeof b.username !== 'string') return false;
       if ((b.username || '').toLowerCase() !== usernameLower) return false;
       // Check if ban is still active
@@ -473,7 +471,6 @@ export async function banUser(username: string, bannedBy: string, reason: string
   const users = await getUsers();
   const targetUser = users.find(u => {
     try {
-      console.log("DEBUG USER IN BANUSER:", u);
       if (!u || !u.username || typeof u.username !== 'string') return false;
       return (u.username || '').toLowerCase() === usernameLower;
     } catch (error) {
@@ -623,7 +620,6 @@ export async function createBanAppeal(username: string, ban: Ban, appealMessage:
   const existingAppeals = await getBanAppeals();
   const existingAppeal = existingAppeals.find(a => {
     try {
-      console.log("DEBUG APPEAL:", a);
       if (!a || !a.username || typeof a.username !== 'string') return false;
       if (!username || typeof username !== 'string') return false;
       if (!a.ban || !a.ban.username || typeof a.ban.username !== 'string') return false;

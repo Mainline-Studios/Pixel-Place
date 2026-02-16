@@ -86,8 +86,7 @@ export function subscribeToUser(
         callback(null);
       }
     },
-    (err) => {
-      console.warn('Firestore user subscription error:', err);
+    () => {
       callback(null);
     }
   );
