@@ -4,6 +4,8 @@ import { useState, useEffect, useRef } from 'react';
 import { User, Report, Ban, GameSubmission, UserMadeGame } from '@/types';
 import { getBannedUsers, getReports, banUser, unbanUser, updateReportStatus, saveBannedUsers, saveUsers, ADMIN_ACCOUNTS_LIST, getBanAppeals, updateBanAppealStatus, getMessagesAPI, sendMessage, getGameSubmissions, saveUserMadeGame, deleteGameSubmission } from '@/lib/storage';
 import { subscribeToUsers } from '@/lib/firestoreClient';
+import WarningsTab from './WarningsTab';
+import TrainAITab from './TrainAITab';
 
 interface AdminPanelTabProps {
   user: User;
@@ -15,7 +17,7 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
   const [bans, setBans] = useState<Ban[]>([]);
   const [reports, setReports] = useState<Report[]>([]);
   const [appeals, setAppeals] = useState<any[]>([]);
-  const [activeTab, setActiveTab] = useState<'users' | 'bans' | 'reports' | 'appeals' | 'gamesubmissions'>('users');
+  const [activeTab, setActiveTab] = useState<'users' | 'bans' | 'reports' | 'appeals' | 'gamesubmissions' | 'warnings' | 'trainai'>('users');
   const [gameSubmissions, setGameSubmissions] = useState<GameSubmission[]>([]);
   const [banUsername, setBanUsername] = useState('');
   const [banReason, setBanReason] = useState('');
@@ -308,6 +310,13 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
           Bans ({bans.length})
         </button>
         <button
+          className={`btn ${activeTab === 'warnings' ? 'active' : ''}`}
+          onClick={() => setActiveTab('warnings')}
+          style={{ background: activeTab === 'warnings' ? '#ff9800' : undefined }}
+        >
+          ⚠️ Warnings
+        </button>
+        <button
           className={`btn ${activeTab === 'reports' ? 'active' : ''}`}
           onClick={() => setActiveTab('reports')}
         >
@@ -324,6 +333,13 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
           onClick={() => setActiveTab('gamesubmissions')}
         >
           Game Submissions ({gameSubmissions.filter(s => s.status === 'pending').length} pending)
+        </button>
+        <button
+          className={`btn ${activeTab === 'trainai' ? 'active' : ''}`}
+          onClick={() => setActiveTab('trainai')}
+          style={{ background: activeTab === 'trainai' ? '#00aaff' : undefined }}
+        >
+          🤖 Train AI
         </button>
       </div>
 
@@ -968,6 +984,14 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
             )}
           </div>
         </div>
+      )}
+
+      {activeTab === 'warnings' && (
+        <WarningsTab currentUser={user.username} />
+      )}
+
+      {activeTab === 'trainai' && (
+        <TrainAITab currentUser={user.username} />
       )}
     </div>
   );
