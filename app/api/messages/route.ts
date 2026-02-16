@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDocuments, addDocument, updateDocument, queryDocuments, COLLECTIONS, getFirestoreInstance } from '@/lib/firestore';
 import { Message } from '@/types';
+import { moderateContent } from '@/lib/moderateContent';
 
 function messageFromDoc(doc: any): Message {
   return {
@@ -90,6 +91,19 @@ export async function POST(request: NextRequest) {
 
     if (!message.trim()) {
       return NextResponse.json({ error: 'Message cannot be empty' }, { status: 400 });
+    }
+
+    // MODERATION CHECK
+    const modResult = await moderateContent(message, fromUsername, 'private_message');
+    if (!modResult.safe) {
+      return NextResponse.json({ 
+        error: 'Message blocked due to content violation',
+        warning: modResult.warning,
+        warningsThisMonth: modResult.warningsThisMonth,
+        score: modResult.score,
+        severity: modResult.severity,
+        banned: modResult.banned || false
+      }, { status: 403 });
     }
 
     const messageId = await addDocument(COLLECTIONS.MESSAGES, {

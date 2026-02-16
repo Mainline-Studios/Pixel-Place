@@ -316,6 +316,36 @@ export interface Report {
   adminNotes?: string;
 }
 
+export interface Warning {
+  id: string;
+  username: string;
+  username_lower: string;
+  message: string;
+  violation_type: 'inappropriate' | 'profanity' | 'pii';
+  severity: 'low' | 'medium' | 'high';
+  score: number; // Pyx AI score
+  timestamp: number;
+  month: string; // "YYYY-MM" for monthly tracking
+  context: 'global_chat' | 'private_message' | 'waiting_room' | 'appeal_chat';
+  action_taken: 'warning' | 'blocked' | 'banned';
+}
+
+export interface ModerationResult {
+  safe: boolean;
+  score: number;
+  severity: 'low' | 'medium' | 'high' | null;
+  blocked: boolean;
+  warning?: Warning;
+  warningsThisMonth?: number;
+  banned?: boolean;
+}
+
+export interface PyxTrainingData {
+  words: Record<string, number>;
+  phrases: Record<string, number>;
+  game_ideas: Record<string, number>;
+}
+
 export interface PrebuiltGame {
   id: string;
   title: string;

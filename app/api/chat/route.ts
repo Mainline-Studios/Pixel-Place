@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getFirestoreInstance, COLLECTIONS, setDocument } from '@/lib/firestore';
+import { moderateContent } from '@/lib/moderateContent';
 
 export async function GET(request: NextRequest) {
   try {
@@ -36,6 +37,19 @@ export async function POST(request: NextRequest) {
 
     if (!username || !channel || !message) {
       return NextResponse.json({ error: 'Username, channel, and message required' }, { status: 400 });
+    }
+
+    // MODERATION CHECK
+    const modResult = await moderateContent(message, username, 'global_chat');
+    if (!modResult.safe) {
+      return NextResponse.json({ 
+        error: 'Message blocked due to content violation',
+        warning: modResult.warning,
+        warningsThisMonth: modResult.warningsThisMonth,
+        score: modResult.score,
+        severity: modResult.severity,
+        banned: modResult.banned || false
+      }, { status: 403 });
     }
 
     const db = getFirestoreInstance();
