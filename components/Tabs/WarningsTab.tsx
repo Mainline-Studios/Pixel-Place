@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { Warning } from '@/types';
+import { getSeverityColor } from '@/lib/moderationUtils';
 
 interface WarningsTabProps {
   currentUser: string;
@@ -51,6 +52,8 @@ export default function WarningsTab({ currentUser }: WarningsTabProps) {
     if (!confirm('Are you sure you want to remove this warning?')) return;
     
     try {
+      // NOTE: Passing username for auth is consistent with existing codebase patterns
+      // but should be replaced with proper session auth in production
       const response = await fetch(`/api/warnings?id=${warningId}&admin=${currentUser}`, {
         method: 'DELETE'
       });
@@ -72,15 +75,6 @@ export default function WarningsTab({ currentUser }: WarningsTabProps) {
       loadUserWarnings(filterUsername.trim());
     } else {
       loadAllWarnings();
-    }
-  };
-
-  const getSeverityColor = (severity: string) => {
-    switch (severity) {
-      case 'high': return '#ff4444';
-      case 'medium': return '#ff9800';
-      case 'low': return '#ffeb3b';
-      default: return '#999';
     }
   };
 

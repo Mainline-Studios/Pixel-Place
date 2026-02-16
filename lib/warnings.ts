@@ -231,7 +231,7 @@ export async function getWarningStats(username: string): Promise<{
   ]);
   
   return {
-    totalWarnings: allWarnings.length > 0 ? allWarnings.length : 0,
+    totalWarnings: allWarnings.length,
     warningsThisMonth: monthWarnings.length,
     lastWarning: allWarnings[0]
   };

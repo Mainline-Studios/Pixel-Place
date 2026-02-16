@@ -19,6 +19,8 @@ export const MODERATION_CONFIG = {
   ENABLE_MODERATION: true,
   
   // Usernames exempt from moderation (admins)
+  // NOTE: This should be replaced with role-based access control from the database
+  // Hardcoding usernames is a temporary solution for consistency with existing codebase
   EXEMPT_USERNAMES: ['admin', 'tictalk', 'idon\'tknow', '6767kid', 'billibob', 'daniello1', 'funboy', 'belloboy1', 'bob', 'mr.noob', 'bdawgsawesome1'],
   
   // Neural network configuration

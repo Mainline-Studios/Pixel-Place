@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { getScoreColor, getScoreLabel } from '@/lib/moderationUtils';
 
 interface TrainAITabProps {
   currentUser: string;
@@ -66,6 +67,8 @@ export default function TrainAITab({ currentUser }: TrainAITabProps) {
     
     setLoading(true);
     try {
+      // NOTE: Passing username for auth is consistent with existing codebase patterns
+      // but should be replaced with proper session auth in production
       const response = await fetch('/api/moderation/train', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -101,20 +104,6 @@ export default function TrainAITab({ currentUser }: TrainAITabProps) {
     } finally {
       setLoading(false);
     }
-  };
-
-  const getScoreColor = (score: number) => {
-    if (score >= 0.9) return '#ff4444';
-    if (score >= 0.8) return '#ff9800';
-    if (score >= 0.7) return '#ffeb3b';
-    return '#4caf50';
-  };
-
-  const getScoreLabel = (score: number) => {
-    if (score >= 0.9) return 'High Risk - Definitely Inappropriate';
-    if (score >= 0.8) return 'Medium Risk - Likely Inappropriate';
-    if (score >= 0.7) return 'Low Risk - Possibly Inappropriate';
-    return 'Safe - Allowed';
   };
 
   return (

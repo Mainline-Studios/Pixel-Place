@@ -38,6 +38,8 @@ export async function moderateContent(
   }
   
   // Truncate very long messages (performance consideration)
+  // Limit to 1000 characters to prevent excessive processing time
+  // Note: This means content after 1000 chars is not checked - consider full message scanning for production
   const messageToCheck = message.length > 1000 ? message.substring(0, 1000) : message;
   
   try {

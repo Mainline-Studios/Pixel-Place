@@ -2,6 +2,7 @@
 
 import { useEffect } from 'react';
 import { Warning } from '@/types';
+import { getSeverityColor, getSeverityLabel } from '@/lib/moderationUtils';
 
 interface WarningModalProps {
   isOpen: boolean;
@@ -24,13 +25,8 @@ export default function WarningModal({ isOpen, warning, warningsThisMonth, onClo
 
   if (!isOpen || !warning) return null;
 
-  const severityColor = warning.severity === 'high' ? '#ff4444' : 
-                        warning.severity === 'medium' ? '#ff9800' : 
-                        '#ffeb3b';
-  
-  const severityText = warning.severity === 'high' ? 'High Severity' :
-                       warning.severity === 'medium' ? 'Medium Severity' :
-                       'Low Severity';
+  const severityColor = getSeverityColor(warning.severity);
+  const severityText = getSeverityLabel(warning.severity);
 
   return (
     <div 

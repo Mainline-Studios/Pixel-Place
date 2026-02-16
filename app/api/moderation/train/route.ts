@@ -12,6 +12,9 @@ import { ADMIN_ACCOUNTS_LIST } from '@/lib/storage';
  * POST /api/moderation/train
  * Train Pyx AI on a new example (admin only)
  * 
+ * NOTE: Authentication uses username verification against hardcoded list for consistency
+ * with existing codebase. Production systems should use proper JWT/session authentication.
+ * 
  * Request: { text: string, safe: boolean, category?: string, username: string }
  * Response: { success: boolean, newScore: number, message: string }
  */

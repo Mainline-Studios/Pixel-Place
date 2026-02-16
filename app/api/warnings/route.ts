@@ -93,6 +93,9 @@ export async function POST(request: NextRequest) {
 /**
  * DELETE /api/warnings?id=X
  * Remove a warning (admin only)
+ * 
+ * NOTE: Authentication uses username verification against hardcoded list for consistency
+ * with existing codebase. Production systems should use proper JWT/session authentication.
  */
 export async function DELETE(request: NextRequest) {
   try {

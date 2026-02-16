@@ -39,7 +39,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Username, channel, and message required' }, { status: 400 });
     }
 
-    // MODERATION CHECK
+    // Moderation check
     const modResult = await moderateContent(message, username, 'global_chat');
     if (!modResult.safe) {
       return NextResponse.json({ 

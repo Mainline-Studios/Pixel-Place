@@ -93,7 +93,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Message cannot be empty' }, { status: 400 });
     }
 
-    // MODERATION CHECK
+    // Moderation check
     const modResult = await moderateContent(message, fromUsername, 'private_message');
     if (!modResult.safe) {
       return NextResponse.json({ 
