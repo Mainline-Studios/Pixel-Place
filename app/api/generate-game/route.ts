@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 
 // AI Game Generation API
-// Supports OpenAI, Anthropic Claude, or other LLM providers
+// Supports OpenAI, Anthropic Claude, Google Gemini, or template fallback
 export async function POST(request: NextRequest) {
   let prompt = '';
 
@@ -16,12 +17,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check which LLM provider to use (default to OpenAI)
     const provider = process.env.AI_PROVIDER || 'openai';
-    const apiKey = process.env.OPENAI_API_KEY || process.env.ANTHROPIC_API_KEY;
+    const apiKey = process.env.OPENAI_API_KEY || process.env.ANTHROPIC_API_KEY || process.env.GEMINI_API_KEY || process.env.GROQ_API_KEY;
 
     if (!apiKey) {
-      // Fallback to a smart template-based generator if no API key
       return NextResponse.json({
         code: generateSmartTemplateCode(prompt),
         provider: 'template'
@@ -30,12 +29,19 @@ export async function POST(request: NextRequest) {
 
     let generatedCode = '';
 
-    if (provider === 'openai' && process.env.OPENAI_API_KEY) {
+    if (provider === 'groq' && process.env.GROQ_API_KEY) {
+      generatedCode = await generateWithGroq(prompt, process.env.GROQ_API_KEY);
+    } else if (provider === 'gemini' && process.env.GEMINI_API_KEY) {
+      generatedCode = await generateWithGemini(prompt, process.env.GEMINI_API_KEY);
+    } else if (provider === 'openai' && process.env.OPENAI_API_KEY) {
       generatedCode = await generateWithOpenAI(prompt, process.env.OPENAI_API_KEY);
     } else if (provider === 'anthropic' && process.env.ANTHROPIC_API_KEY) {
       generatedCode = await generateWithAnthropic(prompt, process.env.ANTHROPIC_API_KEY);
+    } else if (process.env.GROQ_API_KEY) {
+      generatedCode = await generateWithGroq(prompt, process.env.GROQ_API_KEY);
+    } else if (process.env.GEMINI_API_KEY) {
+      generatedCode = await generateWithGemini(prompt, process.env.GEMINI_API_KEY);
     } else {
-      // Fallback to smart template
       generatedCode = generateSmartTemplateCode(prompt);
     }
 
@@ -200,6 +206,83 @@ Generate a MASSIVE, COMPREHENSIVE, BEAUTIFUL game (5000+ lines) that matches the
   let code = data.content[0]?.text || '';
 
   // Clean up markdown
+  code = code.replace(/```typescript\n?/g, '').replace(/```javascript\n?/g, '').replace(/```\n?/g, '').trim();
+
+  if (!code.includes('export function createGame') && !code.includes('function createGame')) {
+    code = `export function createGame(container: HTMLElement) {\n${code}\n}`;
+  }
+
+  return code;
+}
+
+async function generateWithGroq(prompt: string, apiKey: string): Promise<string> {
+  const model = process.env.GROQ_MODEL || 'llama-3.3-70b-versatile';
+  const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({
+      model,
+      messages: [
+        {
+          role: 'system',
+          content: `You are an expert game developer and Three.js specialist. Generate complete, working 3D games.
+
+REQUIREMENTS:
+1. Export: export function createGame(container: HTMLElement)
+2. Import: import * as THREE from 'three'
+3. Create a COMPLETE, playable game (aim for 500+ lines minimum)
+4. Include: lighting, materials, player controls (WASD, mouse), physics, game state (score, health), UI elements, win/lose conditions
+5. Return ONLY the TypeScript/JavaScript code. NO markdown, NO code blocks, NO backticks, NO explanations.`,
+        },
+        {
+          role: 'user',
+          content: `Create a complete, working 3D game based on this description:\n\n${prompt}\n\nGenerate production-ready Three.js code with full gameplay, controls, and visuals. Return ONLY the code.`,
+        },
+      ],
+      temperature: 0.8,
+      max_tokens: 16000,
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Groq API error: ${response.statusText}`);
+  }
+
+  const data = await response.json();
+  let code = data.choices?.[0]?.message?.content || '';
+
+  code = code.replace(/```typescript\n?/g, '').replace(/```javascript\n?/g, '').replace(/```\n?/g, '').trim();
+
+  if (!code.includes('export function createGame') && !code.includes('function createGame')) {
+    code = `export function createGame(container: HTMLElement) {\n${code}\n}`;
+  }
+
+  return code;
+}
+
+async function generateWithGemini(prompt: string, apiKey: string): Promise<string> {
+  const genAI = new GoogleGenerativeAI(apiKey);
+  const model = genAI.getGenerativeModel({
+    model: process.env.GEMINI_MODEL || 'gemini-1.5-flash',
+    systemInstruction: `You are an ELITE game developer and Three.js expert. Generate MASSIVE, production-quality 3D games. CRITICAL: 1) export function createGame(container: HTMLElement) 2) import * as THREE from 'three' 3) At least 5000 lines 4) Beautiful visuals, full mechanics, physics, controls (WASD, mouse), UI, sound. 5) Return ONLY code, NO markdown, NO backticks, NO explanations.`,
+    generationConfig: {
+      temperature: 0.8,
+      maxOutputTokens: 32000,
+    },
+  });
+
+  const userPrompt = `Create a massive, comprehensive, production-quality 3D game based on this description:\n\n${prompt}\n\nGenerate at least 5000 lines with beautiful visuals, complete game mechanics, and professional polish. Return ONLY the TypeScript/JavaScript code.`;
+  const result = await model.generateContent(userPrompt);
+  const response = result.response;
+  if (!response || !response.text) {
+    throw new Error('Gemini API returned no content');
+  }
+
+  let code = response.text().trim();
+
   code = code.replace(/```typescript\n?/g, '').replace(/```javascript\n?/g, '').replace(/```\n?/g, '').trim();
 
   if (!code.includes('export function createGame') && !code.includes('function createGame')) {
