@@ -109,7 +109,7 @@ CRITICAL REQUIREMENTS - YOU MUST FOLLOW ALL OF THESE:
    - Game state management (score, health, lives, levels)
    - Win/lose conditions with proper feedback
    - Sound effects (using Web Audio API or similar)
-   - UI elements (HUD, menus, score displays)
+   - UI elements (REQUIRED): HUD with score/health display, start screen/menu, pause menu, game-over screen with restart button, on-screen instructions
 6. CODE QUALITY:
    - Well-organized, modular code structure
    - Comprehensive comments explaining complex logic
@@ -191,7 +191,7 @@ CRITICAL REQUIREMENTS - FOLLOW ALL:
    - Game state (score, health, lives, levels)
    - Win/lose conditions with feedback
    - Sound effects (Web Audio API)
-   - UI elements (HUD, menus, score displays)
+   - UI elements (REQUIRED): HUD with score/health display, start screen/menu, pause menu, game-over screen with restart button, on-screen instructions
 6. CODE QUALITY:
    - Well-organized, modular structure
    - Comprehensive comments
@@ -254,7 +254,7 @@ REQUIREMENTS:
 1. Export: export function createGame(container: HTMLElement)
 2. Import: import * as THREE from 'three'
 3. Create a COMPLETE, playable game (aim for 500+ lines minimum)
-4. Include: lighting, materials, player controls (WASD, mouse), physics, game state (score, health), UI elements, win/lose conditions
+4. Include: lighting, materials, player controls (WASD, mouse), physics, game state (score, health), REQUIRED UI (HUD, score/health display, start menu, game-over screen), win/lose conditions
 5. Return ONLY the TypeScript/JavaScript code. NO markdown, NO code blocks, NO backticks, NO explanations.`,
         },
         {
@@ -287,7 +287,7 @@ async function generateWithGemini(prompt: string, apiKey: string): Promise<strin
   const genAI = new GoogleGenerativeAI(apiKey);
   const model = genAI.getGenerativeModel({
     model: process.env.GEMINI_MODEL || 'gemini-1.5-flash',
-    systemInstruction: `You are an ELITE game developer and Three.js expert. Generate MASSIVE, production-quality 3D games. CRITICAL: 1) export function createGame(container: HTMLElement) 2) import * as THREE from 'three' 3) At least 5000 lines 4) Beautiful visuals, full mechanics, physics, controls (WASD, mouse), UI, sound. 5) Return ONLY code, NO markdown, NO backticks, NO explanations.`,
+    systemInstruction: `You are an ELITE game developer and Three.js expert. Generate MASSIVE, production-quality 3D games. CRITICAL: 1) export function createGame(container: HTMLElement) 2) import * as THREE from 'three' 3) At least 5000 lines 4) Beautiful visuals, full mechanics, physics, controls (WASD, mouse), REQUIRED UI (HUD, score/health display, start menu, game-over screen), sound. 5) Return ONLY code, NO markdown, NO backticks, NO explanations.`,
     generationConfig: {
       temperature: 0.8,
       maxOutputTokens: 32000,

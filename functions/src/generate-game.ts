@@ -29,7 +29,7 @@ REQUIREMENTS:
 1. Export: export function createGame(container: HTMLElement)
 2. Import: import * as THREE from 'three'
 3. Create a COMPLETE, playable game (aim for 500+ lines minimum)
-4. Include: lighting, materials, player controls (WASD, mouse), physics, game state (score, health), UI elements, win/lose conditions
+4. Include: lighting, materials, player controls (WASD, mouse), physics, game state (score, health), REQUIRED UI (HUD, score/health display, start menu, game-over screen), win/lose conditions
 5. Return ONLY the TypeScript/JavaScript code. NO markdown, NO code blocks, NO backticks, NO explanations.`,
         },
         {

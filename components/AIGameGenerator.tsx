@@ -1,10 +1,13 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import dynamic from 'next/dynamic';
 import { User, DraftGame } from '@/types';
-import { getDraft, saveDraft } from '@/lib/storage';
+import { getDraft, saveDraft, saveUserMadeGame } from '@/lib/storage';
 import { apiUrl } from '@/lib/apiBaseUrl';
 import { useUser } from '@/contexts/UserContext';
+
+const GamePlayer = dynamic(() => import('@/components/GamePlayer'), { ssr: false });
 
 type InputMode = 'direct' | 'conversation';
 
@@ -46,6 +49,7 @@ export default function AIGameGenerator({ user, onCodeGenerated, onSwitchToCodeE
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedCode, setGeneratedCode] = useState<string | null>(null);
   const [generationProvider, setGenerationProvider] = useState<string>('');
+  const [showPreview, setShowPreview] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -136,15 +140,33 @@ export default function AIGameGenerator({ user, onCodeGenerated, onSwitchToCodeE
         setGenerationProvider(data.provider || 'AI');
 
         // Update draft with generated code
+        const gameTitle = draft.title || 'AI Generated Game';
+        const gameDesc = draft.desc || effectivePrompt.slice(0, 200);
         const updatedDraft = {
           ...draft,
-          title: draft.title || 'AI Generated Game',
-          desc: draft.desc || effectivePrompt.slice(0, 200),
+          title: gameTitle,
+          desc: gameDesc,
           owner: user.username,
           gameCode: code,
         };
         saveDraft(updatedDraft);
         setDraft(updatedDraft);
+
+        // Save to Games tab (user-made games) so it appears in the Games tab
+        try {
+          await saveUserMadeGame({
+            id: `game_${Date.now()}`,
+            title: gameTitle,
+            desc: gameDesc,
+            owner: user.username,
+            ts: Date.now(),
+            gameCode: code,
+            gameType: 'code',
+          });
+        } catch (saveErr) {
+          console.warn('Could not save to Games tab:', saveErr);
+          // Still show success - draft is saved, user can publish manually
+        }
 
         // Notify parent component
         if (onCodeGenerated) {
@@ -164,7 +186,9 @@ export default function AIGameGenerator({ user, onCodeGenerated, onSwitchToCodeE
           updateUser({ coins: data.newCoins });
         }
 
-        alert(`✅ Game generated successfully using ${data.provider || 'AI'}!\n\nYour game code is ready in the Code Editor. You can now:\n1. Review and customize the code\n2. Set up game name, description, and thumbnail\n3. Publish your game!`);
+        setShowPreview(true);
+
+        alert(`✅ Game generated successfully using ${data.provider || 'AI'}!\n\nPreview will open automatically. You can:\n1. Play your game in the preview\n2. Close preview to edit code in the Code Editor\n3. Set up game name, description, and thumbnail\n4. Publish your game!`);
       } else {
         throw new Error(data.error || 'Failed to generate game');
       }
@@ -410,14 +434,33 @@ export default function AIGameGenerator({ user, onCodeGenerated, onSwitchToCodeE
             <div className="section-title" style={{ margin: 0 }}>
               ✅ Generated Code ({generationProvider})
             </div>
-            <button className="btn" onClick={handleCopyCode}>
-              📋 Copy Code
-            </button>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button className="btn" onClick={() => setShowPreview(true)}>
+                ▶️ Preview Game
+              </button>
+              <button className="btn" onClick={handleCopyCode}>
+                📋 Copy Code
+              </button>
+            </div>
           </div>
           <div className="smalltext" style={{ marginBottom: '8px', color: 'var(--accent)' }}>
-            Code has been loaded into the Code Editor. You can review and customize it there.
+            Code has been loaded into the Code Editor. Preview your game or edit the code.
           </div>
         </div>
+      )}
+
+      {showPreview && generatedCode && (
+        <GamePlayer
+          game={{
+            title: 'AI Preview',
+            gameCode: generatedCode,
+            owner: user.username,
+            desc: '',
+            ts: Date.now(),
+            id: 'ai-preview'
+          }}
+          onClose={() => setShowPreview(false)}
+        />
       )}
     </div>
   );

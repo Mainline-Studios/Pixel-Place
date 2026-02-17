@@ -1,6 +1,7 @@
 import { User, Skin, PublishedGame, DraftGame, SceneData, TabContent, GameServer, ServerPlan, FriendRequest, Message, Accessory, PrebuiltGame, Ban, BanAppeal, UserMadeGame, GameSubmission, Report } from '@/types';
 import { NEW_SKINS, NEW_ACCESSORIES } from './newCatalog';
 import { apiUrl } from './apiBaseUrl';
+import { authenticatedFetch } from './api';
 
 const ADMIN_ACCOUNTS = [
   { username: "admin", password: "extra" },
@@ -730,19 +731,26 @@ export async function getUserMadeGames(): Promise<UserMadeGame[]> {
 export async function saveUserMadeGame(game: UserMadeGame): Promise<void> {
   if (typeof window === 'undefined') return;
   try {
-    await fetch(apiUrl('/api/games'), {      method: 'POST',
+    const res = await authenticatedFetch(apiUrl('/api/games'), {
+      method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(game)
     });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || `Failed to save game: ${res.status}`);
+    }
   } catch (e) {
     console.error('Error saving user-made game to API:', e);
+    throw e;
   }
 }
 
 export async function deleteUserMadeGame(gameId: string): Promise<void> {
   if (typeof window === 'undefined') return;
   try {
-    await fetch(apiUrl(`/api/games?id=${encodeURIComponent(gameId)}`), {      method: 'DELETE'
+    await authenticatedFetch(apiUrl(`/api/games?id=${encodeURIComponent(gameId)}`), {
+      method: 'DELETE'
     });
   } catch (e) {
     console.error('Error deleting user-made game:', e);

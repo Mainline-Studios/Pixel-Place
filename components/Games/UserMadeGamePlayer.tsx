@@ -1,12 +1,20 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
+import dynamic from 'next/dynamic';
 import { UserMadeGame, User } from '@/types';
+
+const GamePlayer = dynamic(() => import('@/components/GamePlayer'), { ssr: false });
 
 interface UserMadeGamePlayerProps {
   game: UserMadeGame;
   user?: User;
   onClose?: () => void;
+}
+
+/** Check if game has createGame(container) code - AI-generated or code editor */
+function isCodeGame(game: UserMadeGame): boolean {
+  return !!(game.gameCode && game.gameCode.trim().length > 0);
 }
 
 /** Check if game is an imported file (HTML/JS/etc) rather than 3D scene */
@@ -180,6 +188,23 @@ export default function UserMadeGamePlayer({ game, user, onClose }: UserMadeGame
       }
     };
   }, [game]);
+
+  // Render createGame(container) code via GamePlayer (AI-generated, code editor)
+  if (isCodeGame(game) && game.gameCode) {
+    return (
+      <GamePlayer
+        game={{
+          title: game.title,
+          desc: game.desc,
+          owner: game.owner,
+          ts: game.ts,
+          id: game.id,
+          gameCode: game.gameCode,
+        }}
+        onClose={onClose || (() => {})}
+      />
+    );
+  }
 
   // Render imported HTML/JS files in iframe
   if (isImportedFileGame(game) && game.fileContent) {

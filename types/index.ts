@@ -264,6 +264,8 @@ export interface UserMadeGame {
   fileContent?: string;
   /** Original file extension, e.g. 'html', 'js' */
   fileType?: string;
+  /** Three.js createGame(container) code - AI-generated or code editor games */
+  gameCode?: string;
 }
 
 export interface GameSubmission {

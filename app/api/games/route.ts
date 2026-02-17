@@ -14,7 +14,8 @@ function gameFromDoc(doc: any): UserMadeGame {
     publishedBy: doc.published_by,
     gameType: doc.game_type,
     fileContent: doc.file_content,
-    fileType: doc.file_type
+    fileType: doc.file_type,
+    gameCode: doc.game_code || undefined
   };
 }
 
@@ -60,6 +61,7 @@ export async function POST(request: NextRequest) {
       game_type: game.gameType || null,
       file_content: game.fileContent || null,
       file_type: game.fileType || null,
+      game_code: game.gameCode || null,
       created_at: Date.now(),
       updated_at: Date.now()
     });
