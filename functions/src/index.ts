@@ -593,7 +593,9 @@ app.delete('/gamesubmissions', async (req, res) => {
 
 // AI Game Generator (Groq + template fallback)
 import { handleGenerateGame } from './generate-game';
+import { handleChat } from './chat';
 app.post('/generate-game', (req, res) => handleGenerateGame(req, res));
+app.post('/chat', (req, res) => handleChat(req, res));
 
 // 404 for unknown routes
 app.use((_req, res) => res.status(404).json({ error: 'Not found' }));

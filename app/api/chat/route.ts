@@ -1,64 +1,49 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getFirestoreInstance, COLLECTIONS, setDocument } from '@/lib/firestore';
-
-export async function GET(request: NextRequest) {
-  try {
-    const { searchParams } = new URL(request.url);
-    const channel = searchParams.get('channel') || 'global';
-    const limit = parseInt(searchParams.get('limit') || '50');
-
-    const db = getFirestoreInstance();
-    if (!db) {
-      return NextResponse.json({ messages: [] });
-    }
-
-    const messagesRef = db.collection(COLLECTIONS.CHAT_MESSAGES)
-      .where('channel', '==', channel)
-      .orderBy('timestamp', 'desc')
-      .limit(limit);
-
-    const snapshot = await messagesRef.get();
-    const messages = snapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data()
-    })).reverse();
-
-    return NextResponse.json({ messages, channel });
-  } catch (error: any) {
-    console.error('Error fetching chat messages:', error);
-    return NextResponse.json({ messages: [] });
-  }
-}
 
 export async function POST(request: NextRequest) {
   try {
-    const { username, channel, message, type } = await request.json();
+    const body = await request.json();
+    const messages = body.messages || [];
 
-    if (!username || !channel || !message) {
-      return NextResponse.json({ error: 'Username, channel, and message required' }, { status: 400 });
+    if (!Array.isArray(messages) || messages.length === 0) {
+      return NextResponse.json({ error: 'Messages array required' }, { status: 400 });
     }
 
-    const db = getFirestoreInstance();
-    if (!db) {
-      return NextResponse.json({ error: 'Database not available' }, { status: 503 });
+    const groqKey = process.env.GROQ_API_KEY;
+    if (!groqKey) {
+      return NextResponse.json({ error: 'Chat not available (no API key configured)' }, { status: 503 });
     }
 
-    const chatMessage = {
-      username,
-      username_lower: username.toLowerCase(),
-      channel,
-      message: message.substring(0, 500),
-      type: type || 'text',
-      timestamp: Date.now(),
-      read: false
+    const systemMsg = {
+      role: 'system',
+      content: 'You are a helpful game design assistant. Help the user design their 3D game. Discuss mechanics, visuals, controls, objectives. Be concise. Ask clarifying questions. When they describe a game idea, suggest improvements and details.',
     };
+    const apiMessages = [systemMsg, ...messages.map((m: { role: string; content: string }) => ({ role: m.role, content: m.content }))];
 
-    const docRef = db.collection(COLLECTIONS.CHAT_MESSAGES).doc();
-    await setDocument(COLLECTIONS.CHAT_MESSAGES, docRef.id, chatMessage);
+    const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${groqKey}`,
+      },
+      body: JSON.stringify({
+        model: 'llama-3.1-8b-instant',
+        messages: apiMessages,
+        temperature: 0.7,
+        max_tokens: 1024,
+      }),
+    });
 
-    return NextResponse.json({ success: true, message: chatMessage });
-  } catch (error: any) {
-    console.error('Error sending chat message:', error);
-    return NextResponse.json({ error: 'Failed to send message' }, { status: 500 });
+    if (!response.ok) {
+      throw new Error(`Groq API error: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    const content = data.choices?.[0]?.message?.content?.trim() || 'I had trouble responding. Try again.';
+    return NextResponse.json({ content });
+  } catch (error: unknown) {
+    const err = error instanceof Error ? error : new Error(String(error));
+    console.error('Chat error:', err);
+    return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
