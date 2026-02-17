@@ -265,10 +265,8 @@ export default function GamePlayer({ game, onClose }: GamePlayerProps) {
     setIsLoading(true);
     setLoadingProgress(0);
     
-    // Wrap everything in try-catch to handle any errors during game loading
-    try {
-      // Handle built-in games that use React components
-      if (safeGame.gameCode && safeGame.gameCode.startsWith('builtin_')) {
+    // Handle built-in games that use React components
+    if (safeGame.gameCode && safeGame.gameCode.startsWith('builtin_')) {
       const loadBuiltinGame = async () => {
         try {
           setLoadingProgress(20);

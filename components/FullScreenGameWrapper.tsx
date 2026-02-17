@@ -86,6 +86,7 @@ export default function FullScreenGameWrapper({
         flexDirection: 'column',
         overflow: 'hidden'
       }}
+    >
       {/* Options Button - Small button at top */}
       <button
         onClick={() => setShowOptions(!showOptions)}
