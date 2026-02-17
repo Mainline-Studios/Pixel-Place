@@ -57,6 +57,11 @@ AppData/
 /functions/lib/
 /functions/node_modules/
 
+# Firebase Functions env (contains API keys - never commit)
+/functions/.env
+/functions/.env.*
+!/functions/.env.example
+
 
 
 
