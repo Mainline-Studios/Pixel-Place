@@ -3,6 +3,7 @@
 import { useRef, useState, useEffect } from 'react';
 import { User, DraftGame, PublishedGame, GameSubmission } from '@/types';
 import { getDraft, saveDraft, getPublished, savePublished, saveGameSubmission } from '@/lib/storage';
+import { navigateToTab } from '@/lib/routing';
 import { useUser } from '@/contexts/UserContext';
 import AIGameGenerator from '@/components/AIGameGenerator';
 import FullScreenStudio from '@/components/FullScreenStudio';
@@ -218,7 +219,8 @@ export function createGame(container: HTMLElement) {
     };
     pub.push(publishedGame);
     await savePublished(pub);
-    alert("Published '" + draft.title + "' to Home instantly!");
+    alert("Published '" + draft.title + "' to Games tab!");
+    navigateToTab('games');
   };
 
   return (

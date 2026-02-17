@@ -3,7 +3,7 @@
  * Deploy: firebase deploy --only functions
  * URL: https://us-central1-pixel-place-823b1.cloudfunctions.net/api
  */
-import { onRequest } from 'firebase-functions/v2/https';
+import * as functions from 'firebase-functions';
 import * as admin from 'firebase-admin';
 import express from 'express';
 import cors from 'cors';
@@ -598,4 +598,4 @@ app.post('/generate-game', (req, res) => handleGenerateGame(req, res));
 // 404 for unknown routes
 app.use((_req, res) => res.status(404).json({ error: 'Not found' }));
 
-export const api = onRequest({ region: 'us-central1' }, app);
+export const api = functions.region('us-central1').https.onRequest(app);

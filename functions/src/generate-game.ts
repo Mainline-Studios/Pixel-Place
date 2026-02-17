@@ -2,9 +2,16 @@
  * AI Game Generation - Groq + template fallback
  * Used by Cloud Functions (Next.js API routes not available with static export)
  */
+import * as admin from 'firebase-admin';
 
-async function generateWithGroq(prompt: string, apiKey: string): Promise<string> {
-  const model = process.env.GROQ_MODEL || 'llama-3.3-70b-versatile';
+const AI_MODELS: Record<string, { groqModel: string; cost: number }> = {
+  template: { groqModel: '', cost: 0 },
+  'groq-8b': { groqModel: 'llama-3.1-8b-instant', cost: 0 },
+  'groq-70b': { groqModel: 'llama-3.3-70b-versatile', cost: 10 },
+};
+
+async function generateWithGroq(prompt: string, apiKey: string, groqModel?: string): Promise<string> {
+  const model = groqModel || process.env.GROQ_MODEL || 'llama-3.3-70b-versatile';
   const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
     method: 'POST',
     headers: {
@@ -462,31 +469,58 @@ export function createGame(container: HTMLElement) {
 }`;
 }
 
-export async function handleGenerateGame(req: { body: { prompt?: string } }, res: { status: (n: number) => { json: (d: object) => void } }) {
+export async function handleGenerateGame(
+  req: { body: { prompt?: string; model?: string; username?: string } },
+  res: { status: (n: number) => { json: (d: object) => void } }
+) {
   try {
     const prompt = (req.body?.prompt || '').trim();
+    const modelId = req.body?.model || 'groq-8b';
+    const username = (req.body?.username || '').trim();
+
     if (!prompt) {
       return res.status(400).json({ error: 'Prompt is required' });
     }
 
-    const provider = process.env.AI_PROVIDER || 'groq';
+    const modelConfig = AI_MODELS[modelId] || AI_MODELS['groq-8b'];
     const groqKey = process.env.GROQ_API_KEY;
+
+    let newCoins: number | undefined;
+
+    if (modelConfig.cost > 0 && username) {
+      const db = admin.firestore();
+      const userRef = db.collection('users').doc(username.toLowerCase());
+      const userSnap = await userRef.get();
+      if (!userSnap.exists) {
+        return res.status(400).json({ error: 'User not found' });
+      }
+      const userData = userSnap.data();
+      const currentCoins = (userData?.coins ?? 0) as number;
+      if (currentCoins < modelConfig.cost) {
+        return res.status(400).json({ error: `Not enough Pixel Coins. Need ${modelConfig.cost}, you have ${currentCoins}.` });
+      }
+      newCoins = currentCoins - modelConfig.cost;
+      await userRef.update({ coins: newCoins, updated_at: Date.now() });
+    }
 
     let code: string;
     let usedProvider: string;
 
-    if (provider === 'groq' && groqKey) {
-      code = await generateWithGroq(prompt, groqKey);
-      usedProvider = 'groq';
+    if (modelId === 'template') {
+      code = generateSmartTemplateCode(prompt);
+      usedProvider = 'template';
+    } else if (groqKey && modelConfig.groqModel) {
+      code = await generateWithGroq(prompt, groqKey, modelConfig.groqModel);
+      usedProvider = modelId;
     } else if (groqKey) {
-      code = await generateWithGroq(prompt, groqKey);
-      usedProvider = 'groq';
+      code = await generateWithGroq(prompt, groqKey, 'llama-3.1-8b-instant');
+      usedProvider = 'groq-8b';
     } else {
       code = generateSmartTemplateCode(prompt);
       usedProvider = 'template';
     }
 
-    res.status(200).json({ code, provider: usedProvider });
+    res.status(200).json(newCoins !== undefined ? { code, provider: usedProvider, newCoins } : { code, provider: usedProvider });
   } catch (err: unknown) {
     const error = err instanceof Error ? err : new Error(String(err));
     console.error('AI generation error:', error);

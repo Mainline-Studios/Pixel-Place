@@ -1,14 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import { getDocument, updateDocument, COLLECTIONS } from '@/lib/firestore';
+
+const AI_MODELS: Record<string, { groqModel: string; cost: number }> = {
+  template: { groqModel: '', cost: 0 },
+  'groq-8b': { groqModel: 'llama-3.1-8b-instant', cost: 0 },
+  'groq-70b': { groqModel: 'llama-3.3-70b-versatile', cost: 10 },
+};
 
 // AI Game Generation API
-// Supports OpenAI, Anthropic Claude, Google Gemini, or template fallback
+// Supports model selection; some models cost Pixel Coins
 export async function POST(request: NextRequest) {
   let prompt = '';
 
   try {
     const body = await request.json();
     prompt = body.prompt || '';
+    const modelId = body.model || 'groq-8b';
+    const username = (body.username || '').trim();
 
     if (!prompt || !prompt.trim()) {
       return NextResponse.json(
@@ -17,35 +26,46 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const provider = process.env.AI_PROVIDER || 'openai';
-    const apiKey = process.env.OPENAI_API_KEY || process.env.ANTHROPIC_API_KEY || process.env.GEMINI_API_KEY || process.env.GROQ_API_KEY;
+    const modelConfig = AI_MODELS[modelId] || AI_MODELS['groq-8b'];
+    let newCoins: number | undefined;
 
-    if (!apiKey) {
-      return NextResponse.json({
-        code: generateSmartTemplateCode(prompt),
-        provider: 'template'
+    if (modelConfig.cost > 0 && username) {
+      const userDoc = await getDocument(COLLECTIONS.USERS, username.toLowerCase());
+      if (!userDoc) {
+        return NextResponse.json({ error: 'User not found' }, { status: 400 });
+      }
+      const currentCoins = (userDoc.coins ?? 0) as number;
+      if (currentCoins < modelConfig.cost) {
+        return NextResponse.json(
+          { error: `Not enough Pixel Coins. Need ${modelConfig.cost}, you have ${currentCoins}.` },
+          { status: 400 }
+        );
+      }
+      newCoins = currentCoins - modelConfig.cost;
+      await updateDocument(COLLECTIONS.USERS, username.toLowerCase(), {
+        coins: newCoins,
+        updated_at: Date.now(),
       });
     }
 
     let generatedCode = '';
+    let usedProvider = modelId;
 
-    if (provider === 'groq' && process.env.GROQ_API_KEY) {
-      generatedCode = await generateWithGroq(prompt, process.env.GROQ_API_KEY);
-    } else if (provider === 'gemini' && process.env.GEMINI_API_KEY) {
-      generatedCode = await generateWithGemini(prompt, process.env.GEMINI_API_KEY);
-    } else if (provider === 'openai' && process.env.OPENAI_API_KEY) {
-      generatedCode = await generateWithOpenAI(prompt, process.env.OPENAI_API_KEY);
-    } else if (provider === 'anthropic' && process.env.ANTHROPIC_API_KEY) {
-      generatedCode = await generateWithAnthropic(prompt, process.env.ANTHROPIC_API_KEY);
+    if (modelId === 'template') {
+      generatedCode = generateSmartTemplateCode(prompt);
+    } else if (modelConfig.groqModel && process.env.GROQ_API_KEY) {
+      generatedCode = await generateWithGroq(prompt, process.env.GROQ_API_KEY, modelConfig.groqModel);
     } else if (process.env.GROQ_API_KEY) {
-      generatedCode = await generateWithGroq(prompt, process.env.GROQ_API_KEY);
-    } else if (process.env.GEMINI_API_KEY) {
-      generatedCode = await generateWithGemini(prompt, process.env.GEMINI_API_KEY);
+      generatedCode = await generateWithGroq(prompt, process.env.GROQ_API_KEY, 'llama-3.1-8b-instant');
+      usedProvider = 'groq-8b';
     } else {
       generatedCode = generateSmartTemplateCode(prompt);
+      usedProvider = 'template';
     }
 
-    return NextResponse.json({ code: generatedCode, provider });
+    const response: { code: string; provider: string; newCoins?: number } = { code: generatedCode, provider: usedProvider };
+    if (newCoins !== undefined) response.newCoins = newCoins;
+    return NextResponse.json(response);
   } catch (error: any) {
     console.error('AI generation error:', error);
     // Fallback to template-based generation on error
@@ -215,8 +235,8 @@ Generate a MASSIVE, COMPREHENSIVE, BEAUTIFUL game (5000+ lines) that matches the
   return code;
 }
 
-async function generateWithGroq(prompt: string, apiKey: string): Promise<string> {
-  const model = process.env.GROQ_MODEL || 'llama-3.3-70b-versatile';
+async function generateWithGroq(prompt: string, apiKey: string, groqModel?: string): Promise<string> {
+  const model = groqModel || process.env.GROQ_MODEL || 'llama-3.3-70b-versatile';
   const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
     method: 'POST',
     headers: {
