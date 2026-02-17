@@ -9,6 +9,7 @@ import Sidebar from './Sidebar';
 import FloatingParticles from '../FloatingParticles';
 import ScrollToTop from '../ScrollToTop';
 import GamesTab from '../Tabs/GamesTab';
+import CreateTab from '../Tabs/CreateTab';
 import AvatarShopTab from '../Tabs/AvatarShopTab';
 import CoinsTab from '../Tabs/CoinsTab';
 import FriendsTab from '../Tabs/FriendsTab';
@@ -28,7 +29,7 @@ export default function Dashboard({ user }: DashboardProps) {
     if (typeof window === 'undefined') return;
     const sync = () => {
       const tab = pathToTab(window.location.pathname) as TabType;
-      if (['games', 'avatarShop', 'coins', 'friends', 'settings', 'donation'].includes(tab)) {
+      if (['games', 'avatarShop', 'coins', 'friends', 'settings', 'studio', 'donation'].includes(tab)) {
         setCurrentTab(tab);
       }
     };
@@ -53,7 +54,7 @@ export default function Dashboard({ user }: DashboardProps) {
     const handler = (e: KeyboardEvent) => {
       if (e.ctrlKey || e.metaKey || e.altKey || e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
       const key = e.key.toLowerCase();
-      const map: Record<string, TabType> = { g: 'games', c: 'avatarShop', p: 'coins', f: 'friends', o: 'settings' };
+      const map: Record<string, TabType> = { g: 'games', s: 'studio', c: 'avatarShop', p: 'coins', f: 'friends', o: 'settings' };
       if (map[key]) {
         e.preventDefault();
         handleTabChange(map[key]);
@@ -67,6 +68,8 @@ export default function Dashboard({ user }: DashboardProps) {
     switch (currentTab) {
       case 'games':
         return <GamesTab user={user} editMode={editMode} />;
+      case 'studio':
+        return <CreateTab user={user} editMode={editMode} />;
       case 'avatarShop':
         return <AvatarShopTab user={user} editMode={editMode} />;
       case 'coins':
@@ -113,7 +116,7 @@ export default function Dashboard({ user }: DashboardProps) {
         <span style={{ margin: '0 12px', opacity: 0.5 }}>•</span>
         <span>Play. Create. Share.</span>
         <span style={{ margin: '0 12px', opacity: 0.5 }}>•</span>
-        <span>Press G, C, P, F, or O to switch tabs</span>
+        <span>Press G, S, C, P, F, or O to switch tabs</span>
       </footer>
       <ScrollToTop />
     </div>
