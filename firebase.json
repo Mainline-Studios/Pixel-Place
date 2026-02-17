@@ -18,6 +18,8 @@
       {"source": "/coins", "destination": "/index.html"},
       {"source": "/friends", "destination": "/index.html"},
       {"source": "/settings", "destination": "/index.html"},
+      {"source": "/studio", "destination": "/index.html"},
+      {"source": "/studio/**", "destination": "/index.html"},
       {"source": "/donation", "destination": "/index.html"}
     ],
     "headers": [

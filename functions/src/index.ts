@@ -591,6 +591,10 @@ app.delete('/gamesubmissions', async (req, res) => {
   }
 });
 
+// AI Game Generator (Groq + template fallback)
+import { handleGenerateGame } from './generate-game';
+app.post('/generate-game', (req, res) => handleGenerateGame(req, res));
+
 // 404 for unknown routes
 app.use((_req, res) => res.status(404).json({ error: 'Not found' }));
 
