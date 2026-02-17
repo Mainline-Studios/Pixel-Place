@@ -57,12 +57,12 @@ GROQ_API_KEY=gsk_your-api-key-here
 3. Go to API Keys → Create API Key
 4. Copy the key and add to `.env.local`
 
-**Firebase production (Cloud Functions):** The generate-game API runs in Cloud Functions. You must provide the key via `functions/.env`:
+**Firebase production (Cloud Functions):** The generate-game API runs in Cloud Functions. Provide the key via `functions/.env`:
 1. Copy `functions/.env.example` to `functions/.env`
 2. Add your Groq key: `GROQ_API_KEY=gsk_your-key`
 3. Deploy: `firebase deploy --only functions`
 
-Firebase loads `functions/.env` on deploy. (The `.env` file is gitignored — never commit it.)
+Firebase loads `functions/.env` on deploy. (The `.env` file is gitignored — GitHub blocks pushes with API keys.)
 
 ### 5. Template Fallback (No API Key Required)
 If no API key is set, the system automatically falls back to smart template-based generation that matches game types:
