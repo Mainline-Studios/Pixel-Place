@@ -84,7 +84,7 @@ export default function TopBar({ currentTab, onTabChange, user }: TopBarProps) {
         </div>
         <div className="header-nav">
           {TABS
-            .filter(tab => !tab.adminOnly || user.role === 'admin')
+            .filter(tab => !tab.adminOnly || user.role === 'admin' || user.role === 'head_admin')
             .map((tab) => (
               <button
                 key={tab.key}

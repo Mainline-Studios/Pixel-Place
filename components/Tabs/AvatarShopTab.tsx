@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import React from 'react';
 import { User, Skin, Accessory } from '@/types';
 import { useUser } from '@/contexts/UserContext';
+import { useSound } from '@/contexts/SoundContext';
 import { getSkins, saveSkins, getAccessories, saveAccessories } from '@/lib/storage';
 import { apiUrl } from '@/lib/apiBaseUrl';
 import { escapeHTML } from '@/lib/utils';
@@ -207,6 +208,7 @@ class ErrorBoundary extends React.Component<
 
 export default function AvatarShopTab({ user, editMode }: AvatarShopTabProps) {
   const { updateUser } = useUser();
+  const { playPurchase, playEquip } = useSound();
   const [skins, setSkins] = useState<Skin[]>([]);
   const [accessories, setAccessories] = useState<Accessory[]>([]);
   const [mainTab, setMainTab] = useState<'locker' | 'store'>('locker');
@@ -302,6 +304,7 @@ export default function AvatarShopTab({ user, editMode }: AvatarShopTabProps) {
             const newCoins = userCoins - skin.price;
             const newOwnedFaces = [...(user.ownedFaces || []), skin.id];
             await updateUser({ coins: newCoins, ownedFaces: newOwnedFaces });
+            playPurchase();
           } catch (error) {
             // Silent error handling
           }
@@ -327,6 +330,7 @@ export default function AvatarShopTab({ user, editMode }: AvatarShopTabProps) {
             } catch (error) {
               console.warn('Failed to sync safety points:', error);
             }
+            playPurchase();
           } catch (error) {
             // Silent error handling
           }
@@ -372,6 +376,7 @@ export default function AvatarShopTab({ user, editMode }: AvatarShopTabProps) {
           } catch (error) {
             console.warn('Failed to sync safety points:', error);
           }
+          playPurchase();
         } catch (error) {
           // Silent error handling
         }
@@ -394,6 +399,7 @@ export default function AvatarShopTab({ user, editMode }: AvatarShopTabProps) {
         
         // Save purchase to backend - updateUser already saves and updates state
         await updateUser({ coins: newCoins, ownedSkins: newOwnedSkins });
+        playPurchase();
       } catch (error) {
         // Silent error handling
       }
@@ -405,6 +411,7 @@ export default function AvatarShopTab({ user, editMode }: AvatarShopTabProps) {
       return; // Silent fail - don't own skin
     }
     updateUser({ equippedSkin: skinId });
+    playEquip();
   };
 
   const handleEquipFace = async (faceId: string) => {
@@ -413,6 +420,7 @@ export default function AvatarShopTab({ user, editMode }: AvatarShopTabProps) {
     }
     try {
       await updateUser({ equippedFace: faceId });
+      playEquip();
       // Also sync to backend
       await fetch(apiUrl('/api/faces'), {
         method: 'POST',
@@ -428,6 +436,25 @@ export default function AvatarShopTab({ user, editMode }: AvatarShopTabProps) {
     }
   };
 
+  const handlePurchaseAccessory = async (accessory: Accessory) => {
+    if (user.ownedAccessories?.includes(accessory.id)) return;
+    const price = accessory.price ?? 0;
+    const userCoins = user.coins || 0;
+    if (userCoins < price) return;
+    const msg = price === 0
+      ? `Get ${accessory.name} for free?`
+      : `Buy ${accessory.name} for ${price} Coins? Your balance: ${userCoins.toLocaleString()}`;
+    if (!confirm(msg)) return;
+    try {
+      const newCoins = userCoins - price;
+      const newOwned = [...(user.ownedAccessories || []), accessory.id];
+      await updateUser({ coins: newCoins, ownedAccessories: newOwned });
+      playPurchase();
+    } catch {
+      // Silent error handling
+    }
+  };
+
   const handleToggleAccessory = async (accessory: Accessory) => {
     if (!user.ownedAccessories?.includes(accessory.id)) {
       return; // Silent fail - don't own accessory
@@ -439,6 +466,7 @@ export default function AvatarShopTab({ user, editMode }: AvatarShopTabProps) {
       current.add(accessory.id);
     }
     await updateUser({ equippedAccessories: Array.from(current) });
+    playEquip();
   };
 
   // Render Locker Room tab (owned items)

@@ -118,7 +118,7 @@ export default function CoinsTab({ user, editMode }: CoinsTabProps) {
     }
 
     // Admin pack special handling - free for 6767kid, $5 for other admins
-    if (pack.stripePriceId === 'price_admin_1000000' && user.role === 'admin') {
+    if (pack.stripePriceId === 'price_admin_1000000' && (user.role === 'admin' || user.role === 'head_admin')) {
       if (!confirm(`Buy ${formatNumber(pack.coins)} Coins for ${pack.priceLabel}?\nCurrent balance: ${formatNumber(bal)}`)) {
         return;
       }
@@ -271,7 +271,7 @@ export default function CoinsTab({ user, editMode }: CoinsTabProps) {
       )}
 
       {/* Admin-only coin pack */}
-      {user.role === 'admin' && (
+      {(user.role === 'admin' || user.role === 'head_admin') && (
         <div className="ai-box" style={{ marginTop: '20px', border: '2px solid #00aaff' }}>
           <div className="ai-label" style={{ color: '#00aaff' }}>Admin Exclusive</div>
           <div className="coins-store-row">

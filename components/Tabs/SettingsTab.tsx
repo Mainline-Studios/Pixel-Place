@@ -7,6 +7,7 @@ import AdminPanelTab from './AdminPanelTab';
 import { escapeHTML } from '@/lib/utils';
 import { useUser } from '@/contexts/UserContext';
 import { useStyle } from '@/components/StyleProvider';
+import { useSound } from '@/contexts/SoundContext';
 import { STYLE_OPTIONS } from '@/lib/styleTheme';
 
 interface SettingsTabProps {
@@ -18,6 +19,7 @@ interface SettingsTabProps {
 export default function SettingsTab({ user, editMode, onToggleEditMode }: SettingsTabProps) {
   const { updateUser } = useUser();
   const { style, setStyle } = useStyle();
+  const { soundsEnabled, setSoundsEnabled } = useSound();
   const [skins, setSkins] = useState<Skin[]>([]);
   const [tabContent, setTabContent] = useState<TabContent | null>(null);
   const coins = user.coins || 0;
@@ -57,7 +59,7 @@ export default function SettingsTab({ user, editMode, onToggleEditMode }: Settin
         </div>
       </div>
 
-      {user.role === 'admin' && (
+      {(user.role === 'admin' || user.role === 'head_admin') && (
         <div className="ai-box">
           <div className="ai-label">Admin Tools</div>
           <div className="ai-output">
@@ -72,6 +74,22 @@ export default function SettingsTab({ user, editMode, onToggleEditMode }: Settin
           </div>
         </div>
       )}
+      <div className="ai-box">
+        <div className="ai-label">Sound Effects</div>
+        <div className="ai-output" style={{ marginBottom: '12px' }}>
+          Play sound effects for button clicks, tab changes, purchases, and more.
+        </div>
+        <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer' }}>
+          <input
+            type="checkbox"
+            checked={soundsEnabled}
+            onChange={(e) => setSoundsEnabled(e.target.checked)}
+            style={{ width: '18px', height: '18px' }}
+          />
+          <span>Enable sound effects</span>
+        </label>
+      </div>
+
       <div className="ai-box">
         <div className="ai-label">Style</div>
         <div className="ai-output" style={{ marginBottom: '12px' }}>
@@ -99,7 +117,7 @@ export default function SettingsTab({ user, editMode, onToggleEditMode }: Settin
         <div className="ai-output">{tabContent?.settings ?? ''}</div>
       </div>
       {/* Admin Panel - Only visible to admins */}
-      {user.role === 'admin' && (
+      {(user.role === 'admin' || user.role === 'head_admin') && (
         <div style={{ marginTop: '40px' }}>
           <AdminPanelTab user={user} editMode={editMode} />
         </div>

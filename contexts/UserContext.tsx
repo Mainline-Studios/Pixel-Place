@@ -225,11 +225,12 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
         } else if (username.toLowerCase() === 'daniello1') {
           coins = 5.534e200;
         }
+        const isHeadAdmin = (await import('@/lib/storage')).HEAD_ADMIN_USERNAMES.includes(username);
         found = {
           username,
           password,
           gender: 'N/A',
-          role: 'admin',
+          role: isHeadAdmin ? 'head_admin' : 'admin',
           coins,
           ownedSkins: ['starter_classic'],
           equippedSkin: 'starter_classic',
@@ -320,6 +321,12 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       }
     }
 
+    // Upgrade to head_admin if username is in HEAD_ADMIN_USERNAMES
+    const { HEAD_ADMIN_USERNAMES } = await import('@/lib/storage');
+    if (HEAD_ADMIN_USERNAMES.includes(found.username)) {
+      found.role = 'head_admin';
+    }
+
     setUser(found);
     // Persist to sessionStorage
     if (typeof window !== 'undefined') {
@@ -374,6 +381,9 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     if (!username || !password) {
       return { success: false, message: 'Username and password are required.' };
     }
+    if (password.length < 6) {
+      return { success: false, message: 'Password must be at least 6 characters.' };
+    }
 
     let isOffline = false;
     let users: User[] = [];
@@ -419,19 +429,20 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     }
 
     const isAdmin = ADMIN_ACCOUNTS_LIST.some(a => a.username === username && a.password === password);
-    const role = isAdmin ? 'admin' : 'user';
+    const isHeadAdmin = isAdmin && (await import('@/lib/storage')).HEAD_ADMIN_USERNAMES.includes(username);
+    const role = isHeadAdmin ? 'head_admin' : isAdmin ? 'admin' : 'user';
 
     // Check for emojis in username - only allow for admins
-    if (containsEmoji(username) && role !== 'admin') {
+    if (containsEmoji(username) && role !== 'admin' && role !== 'head_admin') {
       return { success: false, message: 'Emojis are only allowed in usernames for admin accounts.' };
     }
 
     // Check for emojis in password - only allow for admins
-    if (containsEmoji(password) && role !== 'admin') {
+    if (containsEmoji(password) && role !== 'admin' && role !== 'head_admin') {
       return { success: false, message: 'Emojis are only allowed in passwords for admin accounts.' };
     }
-    // Special coins for 6767kid and daniello1 - massive amounts
-    let coins = role === 'admin' ? 99999 : 10;
+    // Special coins for admins and head_admins
+    let coins = (role === 'admin' || role === 'head_admin') ? 99999 : 10;
     if (username === '6767kid') {
       coins = 4e471;
     } else if (username.toLowerCase() === 'daniello1') {

@@ -49,7 +49,7 @@ function userFromDoc(d: { id: string } & Record<string, unknown>): User {
     username: (doc.username as string) || doc.id,
     password: (doc.password_hash as string) || (doc.password as string) || '',
     gender: (doc.gender as string) || '',
-    role: ((doc.role as string) || 'user') as 'admin' | 'user',
+    role: ((doc.role as string) || 'user') as 'admin' | 'user' | 'head_admin',
     coins: (doc.coins as number) ?? 0,
     ownedSkins: Array.isArray(doc.owned_skins) ? doc.owned_skins as string[] : [],
     equippedSkin: (doc.equipped_skin as string) || '',

@@ -102,8 +102,10 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
 
       // Sort: admins first, then alphabetically
       uniqueUsers.sort((a, b) => {
-        if (a.role === 'admin' && b.role !== 'admin') return -1;
-        if (a.role !== 'admin' && b.role === 'admin') return 1;
+        if ((a.role === 'head_admin' || a.role === 'admin') && (b.role !== 'head_admin' && b.role !== 'admin')) return -1;
+        if ((a.role !== 'head_admin' && a.role !== 'admin') && (b.role === 'head_admin' || b.role === 'admin')) return 1;
+        if (a.role === 'head_admin' && b.role === 'admin') return -1;
+        if (a.role === 'admin' && b.role === 'head_admin') return 1;
         return a.username.localeCompare(b.username);
       });
 
@@ -186,16 +188,16 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
 
     const usernameToBan = banUsername.trim().toLowerCase();
 
-    // Check if user is an admin (only check if user exists in system)
+    // Check if user is an admin (head_admin can ban admins)
+    const canBanAdmins = user.role === 'head_admin';
     const targetUser = allUsers.find(u => u.username.toLowerCase() === usernameToBan);
-    if (targetUser && targetUser.role === 'admin') {
-      // Silent error - no alert
+    if (!canBanAdmins && targetUser && (targetUser.role === 'admin' || targetUser.role === 'head_admin')) {
       return;
     }
 
     const usernameToBanFinal = banUsername.trim();
     const days = banPermanent ? undefined : banDays;
-    const success = await banUser(usernameToBanFinal, user.username, banReason.trim(), banPermanent, days);
+    const success = await banUser(usernameToBanFinal, user.username, banReason.trim(), banPermanent, days, canBanAdmins);
 
     if (success) {
       // Verify the ban was actually saved
@@ -277,7 +279,8 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
   );
 
 
-  if (user.role !== 'admin') {
+  const isAdminOrHeadAdmin = user.role === 'admin' || user.role === 'head_admin';
+  if (!isAdminOrHeadAdmin) {
     return (
       <div className="ai-box">
         <div className="ai-label">Access Denied</div>
@@ -370,14 +373,15 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
                     <div>
                       <div style={{ fontWeight: 600, marginBottom: '4px' }}>
                         {u.username}
-                        {u.role === 'admin' && <span style={{ color: '#ff4d4d', marginLeft: '8px' }}>👑 ADMIN</span>}
+                        {u.role === 'head_admin' && <span style={{ color: '#c9a43a', marginLeft: '8px' }}>👑 HEAD ADMIN</span>}
+                      {u.role === 'admin' && <span style={{ color: '#ff4d4d', marginLeft: '8px' }}>👑 ADMIN</span>}
                       </div>
                       <div className="smalltext">
                         Role: {u.role} • Coins: {u.coins} • Gender: Boy
                       </div>
                     </div>
                     <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                      {u.role !== 'admin' ? (
+                      {u.role !== 'admin' && u.role !== 'head_admin' ? (
                         <>
                           <button
                             className="btn"
@@ -416,7 +420,20 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
                               Remove admin
                             </button>
                           ) : null}
-                          <span style={{ color: '#999', fontSize: '12px' }}>Protected from ban</span>
+                          {user.role === 'head_admin' && u.username !== user.username ? (
+                            <button
+                              className="btn"
+                              onClick={() => {
+                                setBanUsername(u.username);
+                                setActiveTab('bans');
+                              }}
+                              style={{ background: '#ff4d4d', padding: '6px 12px', fontSize: '12px' }}
+                            >
+                              Ban
+                            </button>
+                          ) : (
+                            <span style={{ color: '#999', fontSize: '12px' }}>Protected from ban</span>
+                          )}
                         </>
                       )}
                     </div>
@@ -739,16 +756,16 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
                                 if (!reportedName) return;
                                 const reportedUser = allUsers.find(u => u.username.toLowerCase() === reportedName.toLowerCase());
                                 const isAdminAccount = ADMIN_ACCOUNTS_LIST.some(a => a.username.toLowerCase() === reportedName.toLowerCase());
+                                const canBanAdmins = user.role === 'head_admin';
 
-                                if (reportedUser?.role === 'admin' || isAdminAccount) {
-                                  // Silent error - no alert
+                                if (!canBanAdmins && (reportedUser?.role === 'admin' || reportedUser?.role === 'head_admin' || isAdminAccount)) {
                                   return;
                                 }
 
                                 if (confirm(`Ban user "${reportedName}" based on this report?`)) {
                                   const reason = prompt('Ban reason:', `Reported for: ${report.reason ?? ''}`);
                                   if (reason) {
-                                    const success = await banUser(reportedName, user.username, reason, true);
+                                    const success = await banUser(reportedName, user.username, reason, true, undefined, canBanAdmins);
                                     if (success) {
                                       await handleReportAction(report.id, 'resolved', `User banned based on report`);
                                       await loadData();

@@ -23,7 +23,7 @@ export function requireAdmin(request: NextRequest): { user: any; error: null } |
     return authResult;
   }
   
-  if (authResult.user.role !== 'admin') {
+  if (authResult.user.role !== 'admin' && authResult.user.role !== 'head_admin') {
     return {
       user: null,
       error: NextResponse.json({ error: 'Forbidden - Admin access required' }, { status: 403 }),

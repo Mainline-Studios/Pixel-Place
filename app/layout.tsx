@@ -3,6 +3,8 @@ import "./globals.css";
 import Script from "next/script";
 import { UserProvider } from "@/contexts/UserContext";
 import { StyleProvider } from "@/components/StyleProvider";
+import { SoundProvider } from "@/contexts/SoundContext";
+import SoundEffects from "@/components/SoundEffects";
 
 export const metadata: Metadata = {
   title: "Pixel Place",
@@ -30,9 +32,12 @@ export default function RootLayout({
       </head>
       <body>
         <StyleProvider>
-          <UserProvider>
-            {children}
-          </UserProvider>
+          <SoundProvider>
+            <UserProvider>
+              <SoundEffects />
+              {children}
+            </UserProvider>
+          </SoundProvider>
         </StyleProvider>
       </body>
     </html>

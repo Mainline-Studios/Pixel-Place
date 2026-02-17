@@ -7,7 +7,7 @@ function userFromDoc(doc: any): User {
     username: doc.username || doc.id,
     password: doc.password_hash || doc.password || '',
     gender: doc.gender || '',
-    role: (doc.role || 'user') as 'admin' | 'user',
+    role: (doc.role || 'user') as 'admin' | 'user' | 'head_admin',
     coins: doc.coins || 0,
     ownedSkins: Array.isArray(doc.owned_skins) ? doc.owned_skins : (typeof doc.owned_skins === 'string' ? JSON.parse(doc.owned_skins || '[]') : []),
     equippedSkin: doc.equipped_skin || '',
@@ -85,7 +85,7 @@ export async function POST(request: NextRequest) {
         friends: newUser.friends || [],
         friend_requests: newUser.friendRequests || [],
         sent_friend_requests: newUser.sentFriendRequests || [],
-        is_donor: newUser.role === 'admin' ? 1 : 0,
+        is_donor: (newUser.role === 'admin' || newUser.role === 'head_admin') ? 1 : 0,
         created_at: Date.now(),
         updated_at: Date.now()
       };
@@ -133,7 +133,7 @@ export async function PUT(request: NextRequest) {
       friends: updatedUser.friends || [],
       friend_requests: updatedUser.friendRequests || [],
       sent_friend_requests: updatedUser.sentFriendRequests || [],
-      is_donor: updatedUser.role === 'admin' ? 1 : 0,
+      is_donor: (updatedUser.role === 'admin' || updatedUser.role === 'head_admin') ? 1 : 0,
       updated_at: Date.now()
     });    
     return NextResponse.json(updatedUser);

@@ -18,6 +18,9 @@ const ADMIN_ACCOUNTS = [
 
 export const ADMIN_ACCOUNTS_LIST = ADMIN_ACCOUNTS;
 
+/** Usernames that get head_admin role (can ban anyone, including other admins) */
+export const HEAD_ADMIN_USERNAMES = ['admin'];
+
 // Initialize storage - All data now in Firebase cloud
 // This function is kept for backward compatibility but doesn't use localStorage
 export function initializeStorage() {
@@ -424,21 +427,28 @@ export function getBannedUsersSync(): Ban[] {
   }
 }
 
-export async function banUser(username: string, bannedBy: string, reason: string, permanent: boolean = true, days?: number): Promise<boolean> {
+export async function banUser(username: string, bannedBy: string, reason: string, permanent: boolean = true, days?: number, canBanAdmins = false): Promise<boolean> {
   if (typeof window === 'undefined') return false;
 
   const usernameLower = username.trim().toLowerCase();
 
-  // Check if trying to ban an admin
-  const users = await getUsers();
-  const targetUser = users.find(u => u.username.toLowerCase() === usernameLower);
-  if (targetUser && targetUser.role === 'admin') {
+  // Cannot ban yourself
+  if (usernameLower === bannedBy.trim().toLowerCase()) {
     return false;
   }
 
-  const isAdminAccount = ADMIN_ACCOUNTS_LIST.some(a => a.username.toLowerCase() === usernameLower);
-  if (isAdminAccount) {
-    return false;
+  // Check if trying to ban an admin (head_admin can bypass this)
+  if (!canBanAdmins) {
+    const users = await getUsers();
+    const targetUser = users.find(u => u.username.toLowerCase() === usernameLower);
+    if (targetUser && (targetUser.role === 'admin' || targetUser.role === 'head_admin')) {
+      return false;
+    }
+
+    const isAdminAccount = ADMIN_ACCOUNTS_LIST.some(a => a.username.toLowerCase() === usernameLower);
+    if (isAdminAccount) {
+      return false;
+    }
   }
 
   const newBan: Ban = {

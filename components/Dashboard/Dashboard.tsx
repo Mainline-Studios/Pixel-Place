@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { TabType, User } from '@/types';
+import { useSound } from '@/contexts/SoundContext';
 import { pathToTab, tabToPath } from '@/lib/routing';
 import TopBar from './TopBar';
 import Sidebar from './Sidebar';
@@ -18,6 +19,7 @@ interface DashboardProps {
 }
 
 export default function Dashboard({ user }: DashboardProps) {
+  const { playTabSwitch } = useSound();
   const [currentTab, setCurrentTab] = useState<TabType>('games');
   const [editMode, setEditMode] = useState(false);
 
@@ -36,6 +38,7 @@ export default function Dashboard({ user }: DashboardProps) {
   }, []);
 
   const handleTabChange = useCallback((tab: TabType) => {
+    playTabSwitch();
     setCurrentTab(tab);
     if (typeof window !== 'undefined') {
       const path = tabToPath(tab);
@@ -43,7 +46,7 @@ export default function Dashboard({ user }: DashboardProps) {
         window.history.replaceState({}, '', path);
       }
     }
-  }, []);
+  }, [playTabSwitch]);
 
   // Keyboard shortcuts: G=Games, C=Avatar Shop, P=Coins, F=Friends, O=Settings (avoid WASD)
   useEffect(() => {

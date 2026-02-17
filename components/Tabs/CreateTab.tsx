@@ -196,7 +196,7 @@ export function createGame(container: HTMLElement) {
   };
 
   const publishDraftNow = async () => {
-    if (user.role !== 'admin') {
+    if (user.role !== 'admin' && user.role !== 'head_admin') {
       alert('Only admins can publish live.');
       return;
     }
@@ -636,7 +636,7 @@ export function createGame(container: HTMLElement) {
                 Submit for Admin Approval
               </button>
             )}
-            {user.role === 'admin' ? (
+            {(user.role === 'admin' || user.role === 'head_admin') ? (
               <button className="btn" onClick={publishDraftNow}>
                 Publish Game Now
               </button>

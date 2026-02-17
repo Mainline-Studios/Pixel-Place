@@ -25,7 +25,7 @@ function userFromDoc(doc: any): User {
     username: doc.username || doc.id,
     password: doc.password_hash || doc.password || '',
     gender: doc.gender || '',
-    role: (doc.role || 'user') as 'admin' | 'user',
+    role: (doc.role || 'user') as 'admin' | 'user' | 'head_admin',
     coins: doc.coins || 0,
     ownedSkins: Array.isArray(doc.owned_skins) ? doc.owned_skins : (typeof doc.owned_skins === 'string' ? JSON.parse(doc.owned_skins || '[]') : []),
     equippedSkin: doc.equipped_skin || '',

@@ -10,6 +10,11 @@ import GymPumpEngine from '../Games/GymPumpEngine';
 import Hypnosia from '../Games/Hypnosia';
 import UnderwaterOddyseySeries from '../Games/UnderwaterOddyseySeries';
 import Showdown from '../Games/Showdown';
+import SuperShowdown from '../Games/SuperShowdown';
+import SuperShowdown2 from '../Games/SuperShowdown2';
+import SuperShowdown2D from '../Games/SuperShowdown2D';
+import InsaneShowdown from '../Games/InsaneShowdown';
+import CelestialSeriesExploration from '../Games/CelestialSeriesExploration';
 import RedRover from '../Games/RedRover';
 import JungleJourneySeries from '../Games/JungleJourneySeries';
 import Chess from '../Games/Chess';
@@ -81,6 +86,52 @@ const games: GameInfo[] = [
     component: Showdown,
   },
   {
+    id: 'superShowdown',
+    name: 'Super Showdown',
+    description: '3D arena combat with original powers and entities!',
+    icon: '⚔️',
+    thumbnail: '/images/games/showdown.svg',
+    category: 'Action',
+    component: SuperShowdown,
+  },
+  {
+    id: 'superShowdown2',
+    name: 'Super Showdown 2',
+    description: 'New powers: mud, parasite, harmony, regen, hex, lunar, soleil, doppelganger!',
+    icon: '⚔️',
+    thumbnail: '/images/games/showdown.svg',
+    category: 'Action',
+    component: SuperShowdown2,
+  },
+  {
+    id: 'superShowdown2D',
+    name: 'Super Showdown 2D',
+    description: '2D arena combat — fast-paced pixel brawling!',
+    icon: '⚔️',
+    thumbnail: '/images/games/showdown.svg',
+    category: 'Action',
+    is3D: false,
+    component: SuperShowdown2D,
+  },
+  {
+    id: 'insaneShowdown',
+    name: 'Insane Showdown',
+    description: 'Combined arena — all powers, whirlpools, black holes, doppelgangers!',
+    icon: '⚔️',
+    thumbnail: '/images/games/showdown.svg',
+    category: 'Action',
+    component: InsaneShowdown,
+  },
+  {
+    id: 'celestialSeries',
+    name: 'Celestial Series',
+    description: 'Explore the Solar System — dock at Earth, Moon, Mars, and beyond!',
+    icon: '🪐',
+    thumbnail: '/images/games/hypnosia.svg',
+    category: 'Adventure',
+    component: CelestialSeriesExploration,
+  },
+  {
     id: 'redRover',
     name: 'Red Rover',
     description: 'Classic team-based multiplayer game!',
@@ -97,6 +148,24 @@ const games: GameInfo[] = [
     thumbnail: '/images/games/chess.svg',
     category: 'Strategy',
     component: Chess,
+  },
+  {
+    id: 'floorIsLava',
+    name: 'Floor Is Lava',
+    description: 'Platformer where the floor is lava! Vote for maps and survive.',
+    icon: '🔥',
+    thumbnail: '/images/games/floor-is-lava.svg',
+    category: 'Action',
+    component: FloorIsLava,
+  },
+  {
+    id: 'jungleJourney',
+    name: 'Jungle Journey',
+    description: 'Explore a dense jungle with trees, swamps, animals, and mysterious fruits!',
+    icon: '🌴',
+    thumbnail: '/images/games/jungle-journey.svg',
+    category: 'Adventure',
+    component: JungleJourneySeries,
   },
 ];
 
@@ -381,7 +450,7 @@ export default function GamesTab({ user, editMode }: GamesTabProps) {
                   <button className="btn" style={{ flex: 1 }} onClick={(e) => { e.stopPropagation(); setSelectedUserGame(game); }}>
                     Play Now
                   </button>
-                  {user.role === 'admin' && (
+                  {(user.role === 'admin' || user.role === 'head_admin') && (
                     <button 
                       className="btn" 
                       style={{ 

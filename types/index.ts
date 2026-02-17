@@ -2,7 +2,7 @@ export interface User {
   username: string;
   password: string;
   gender: string;
-  role: 'admin' | 'user';
+  role: 'admin' | 'user' | 'head_admin';
   coins: number;
   safetyPoints?: number; // Safety Points currency (separate from coins)
   ownedSkins: string[];

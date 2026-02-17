@@ -107,7 +107,7 @@ app.post('/users', async (req, res) => {
       friends: u.friends || [],
       friend_requests: u.friendRequests || [],
       sent_friend_requests: u.sentFriendRequests || [],
-      is_donor: u.role === 'admin' ? 1 : 0,
+      is_donor: (u.role === 'admin' || u.role === 'head_admin') ? 1 : 0,
       updated_at: Date.now(),
     };
     if (existing.exists) {
@@ -144,7 +144,7 @@ app.put('/users', async (req, res) => {
       friends: u.friends || [],
       friend_requests: u.friendRequests || [],
       sent_friend_requests: u.sentFriendRequests || [],
-      is_donor: u.role === 'admin' ? 1 : 0,
+      is_donor: (u.role === 'admin' || u.role === 'head_admin') ? 1 : 0,
       updated_at: Date.now(),
     }, { merge: true });
     res.json(u);
@@ -194,6 +194,9 @@ app.post('/auth', async (req, res) => {
     }
 
     if (action === 'register') {
+      if (String(password).length < 6) {
+        return res.status(400).json({ error: 'Password must be at least 6 characters' });
+      }
       const id = username.toLowerCase();
       const existing = await db.collection(COLLECTIONS.USERS).doc(id).get();
       if (existing.exists) return res.status(400).json({ error: 'Username already exists' });

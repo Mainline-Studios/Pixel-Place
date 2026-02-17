@@ -93,7 +93,7 @@ export async function PUT(request: NextRequest) {
     const existingGames = await getDocuments(COLLECTIONS.GAMES || 'games');
     const existing = existingGames.find(g => g.id === game.id);
     
-    if (existing && existing.owner !== authResult.user.username && authResult.user.role !== 'admin') {
+    if (existing && existing.owner !== authResult.user.username && authResult.user.role !== 'admin' && authResult.user.role !== 'head_admin') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
     
@@ -131,7 +131,7 @@ export async function DELETE(request: NextRequest) {
     const existingGames = await getDocuments(COLLECTIONS.GAMES || 'games');
     const existing = existingGames.find(g => g.id === gameId);
     
-    if (existing && existing.owner !== authResult.user.username && authResult.user.role !== 'admin') {
+    if (existing && existing.owner !== authResult.user.username && authResult.user.role !== 'admin' && authResult.user.role !== 'head_admin') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
     

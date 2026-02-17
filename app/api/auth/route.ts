@@ -13,8 +13,9 @@ export async function POST(request: NextRequest) {
       }
       
       // Check if this is an admin account that needs to be created
-      const { ADMIN_ACCOUNTS_LIST } = await import('@/lib/storage');
+      const { ADMIN_ACCOUNTS_LIST, HEAD_ADMIN_USERNAMES } = await import('@/lib/storage');
       const isAdmin = ADMIN_ACCOUNTS_LIST.some(a => a.username === username && a.password === password);
+      const isHeadAdmin = isAdmin && HEAD_ADMIN_USERNAMES.includes(username);
       
       if (isAdmin) {
         const existing = await getUserFromDb(username);
@@ -24,7 +25,7 @@ export async function POST(request: NextRequest) {
             username,
             password: '',
             gender: 'N/A',
-            role: 'admin',
+            role: isHeadAdmin ? 'head_admin' : 'admin',
             coins: 99999,
             ownedSkins: ['starter_classic'],
             equippedSkin: 'starter_classic',
@@ -57,6 +58,9 @@ export async function POST(request: NextRequest) {
       if (!username || !password) {
         return NextResponse.json({ error: 'Username and password required' }, { status: 400 });
       }
+      if (String(password).length < 6) {
+        return NextResponse.json({ error: 'Password must be at least 6 characters' }, { status: 400 });
+      }
       
       // Check if user exists
       const existing = await getUserFromDb(username);
@@ -72,7 +76,7 @@ export async function POST(request: NextRequest) {
         password: '', // Will be hashed
         gender: gender || '',
         role: role || 'user',
-        coins: coins !== undefined ? coins : (role === 'admin' ? 99999 : 10),
+        coins: coins !== undefined ? coins : ((role === 'admin' || role === 'head_admin') ? 99999 : 10),
         ownedSkins: ['starter_classic'],
         equippedSkin: 'starter_classic',
         ownedAccessories: [],
