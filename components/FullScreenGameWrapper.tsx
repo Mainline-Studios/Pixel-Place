@@ -2,6 +2,7 @@
 
 import { useState, useEffect, ReactNode } from 'react';
 import { useUser } from '@/contexts/UserContext';
+import { filterForDisplay } from '@/lib/pyx';
 
 interface FullScreenGameWrapperProps {
   children: ReactNode;
@@ -43,16 +44,16 @@ export default function FullScreenGameWrapper({
     };
   }, []);
 
-  const handleSendMessage = () => {
-    if (chatInput.trim() && user) {
-      const newMessage = {
-        username: user.username,
-        message: chatInput.trim(),
-        timestamp: Date.now()
-      };
-      setChatMessages(prev => [...prev, newMessage]);
-      setChatInput('');
-    }
+  const handleSendMessage = async () => {
+    if (!chatInput.trim() || !user) return;
+    const raw = chatInput.trim();
+    setChatInput('');
+    const filtered = await filterForDisplay(raw);
+    setChatMessages(prev => [...prev, {
+      username: user.username,
+      message: filtered,
+      timestamp: Date.now()
+    }]);
   };
 
   const handleInviteFriends = () => {

@@ -3,6 +3,7 @@
 import { useEffect, useRef } from 'react';
 import dynamic from 'next/dynamic';
 import { UserMadeGame, User } from '@/types';
+import FilteredText from '@/components/FilteredText';
 
 const GamePlayer = dynamic(() => import('@/components/GamePlayer'), { ssr: false });
 
@@ -223,8 +224,8 @@ export default function UserMadeGamePlayer({ game, user, onClose }: UserMadeGame
           <button onClick={onClose} style={{ position: 'absolute', top: 20, right: 20, zIndex: 1000, padding: '10px 20px', background: 'var(--panel)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--text)', cursor: 'pointer', fontSize: 14 }}>Close</button>
         )}
         <div style={{ position: 'absolute', top: 20, left: 20, zIndex: 1000, background: 'rgba(0,0,0,0.7)', padding: 15, borderRadius: 8, color: 'var(--text)' }}>
-          <h3 style={{ margin: '0 0 10px 0' }}>{game.title}</h3>
-          <p style={{ margin: 0, fontSize: 12, opacity: 0.8 }}>By: {game.owner}</p>
+          <h3 style={{ margin: '0 0 10px 0' }}><FilteredText text={game.title} /></h3>
+          <p style={{ margin: 0, fontSize: 12, opacity: 0.8 }}>By: <FilteredText text={game.owner} /></p>
         </div>
         <iframe srcDoc={htmlToRender} title={game.title} style={{ width: '100%', height: '100%', border: 'none', display: 'block' }} sandbox="allow-scripts allow-same-origin" />
       </div>
@@ -263,9 +264,9 @@ export default function UserMadeGamePlayer({ game, user, onClose }: UserMadeGame
         borderRadius: '8px',
         color: 'var(--text)'
       }}>
-        <h3 style={{ margin: '0 0 10px 0' }}>{game.title}</h3>
-        <p style={{ margin: '0 0 5px 0', fontSize: '12px', opacity: 0.8 }}>By: {game.owner}</p>
-        <p style={{ margin: 0, fontSize: '12px', opacity: 0.8 }}>{game.desc}</p>
+        <h3 style={{ margin: '0 0 10px 0' }}><FilteredText text={game.title} /></h3>
+        <p style={{ margin: '0 0 5px 0', fontSize: '12px', opacity: 0.8 }}>By: <FilteredText text={game.owner} /></p>
+        <p style={{ margin: 0, fontSize: '12px', opacity: 0.8 }}><FilteredText text={game.desc || ''} /></p>
       </div>
       <canvas
         ref={canvasRef}

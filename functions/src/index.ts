@@ -591,6 +591,29 @@ app.delete('/gamesubmissions', async (req, res) => {
   }
 });
 
+// Pyx content filter - calls Pyx API
+import { filterForDisplay, sendFeedback } from './pyx';
+app.post('/pyx/filter', async (req, res) => {
+  try {
+    const text = typeof req.body?.text === 'string' ? req.body.text : '';
+    const filtered = await filterForDisplay(text);
+    res.json({ filtered, score: 0 });
+  } catch (e) {
+    res.status(500).json({ filtered: '', error: 'Filter failed' });
+  }
+});
+app.post('/pyx/feedback', async (req, res) => {
+  try {
+    const text = typeof req.body?.text === 'string' ? req.body.text : '';
+    const safe = req.body?.safe === true;
+    if (!text) return res.status(400).json({ error: 'text required' });
+    await sendFeedback(text, safe);
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: 'Feedback failed' });
+  }
+});
+
 // AI Game Generator (Groq + template fallback)
 import { handleGenerateGame } from './generate-game';
 import { handleChat } from './chat';

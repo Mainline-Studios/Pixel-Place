@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { filterForDisplayAIDecideServer } from '@/lib/pyx';
 
 export async function POST(request: NextRequest) {
   try {
@@ -39,7 +40,8 @@ export async function POST(request: NextRequest) {
     }
 
     const data = await response.json();
-    const content = data.choices?.[0]?.message?.content?.trim() || 'I had trouble responding. Try again.';
+    const raw = data.choices?.[0]?.message?.content?.trim() || 'I had trouble responding. Try again.';
+    const content = await filterForDisplayAIDecideServer(raw);
     return NextResponse.json({ content });
   } catch (error: unknown) {
     const err = error instanceof Error ? error : new Error(String(error));

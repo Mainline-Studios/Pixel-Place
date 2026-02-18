@@ -7,6 +7,7 @@ import { navigateToTab } from '@/lib/routing';
 import { useUser } from '@/contexts/UserContext';
 import AIGameGenerator from '@/components/AIGameGenerator';
 import FullScreenStudio from '@/components/FullScreenStudio';
+import PyxCheckingPopup from '@/components/PyxCheckingPopup';
 
 interface CreateTabProps {
   user: User;
@@ -44,6 +45,8 @@ export default function CreateTab({ user, editMode }: CreateTabProps) {
   const [maxPlayers, setMaxPlayers] = useState(10);
   const [importedFile, setImportedFile] = useState<{ content: string; type: string; name: string } | null>(null);
   const importInputRef = useRef<HTMLInputElement>(null);
+  const [showPyxCheck, setShowPyxCheck] = useState(false);
+  const [pyxCheckAction, setPyxCheckAction] = useState<'publish' | 'import' | null>(null);
 
   function getDefaultGameCode(): string {
     return `// 3D Game Template
@@ -149,7 +152,7 @@ export function createGame(container: HTMLElement) {
     e.target.value = '';
   };
 
-  const submitImportedGameForApproval = async () => {
+  const submitImportedGameForApproval = () => {
     if (!draft.title) {
       alert('Enter a game title first.');
       return;
@@ -158,6 +161,12 @@ export function createGame(container: HTMLElement) {
       alert('Import a game file first (.html, .js, etc.).');
       return;
     }
+    setPyxCheckAction('import');
+    setShowPyxCheck(true);
+  };
+
+  const doSubmitImportedAfterCheck = async () => {
+    if (!draft.title || !importedFile?.content) return;
     const submission: GameSubmission = {
       id: 'submission_' + Date.now(),
       title: draft.title,
@@ -196,7 +205,7 @@ export function createGame(container: HTMLElement) {
     alert('Draft saved.');
   };
 
-  const publishDraftNow = async () => {
+  const publishDraftNow = () => {
     if (user.role !== 'admin' && user.role !== 'head_admin') {
       alert('Only admins can publish live.');
       return;
@@ -205,6 +214,11 @@ export function createGame(container: HTMLElement) {
       alert('No draft to publish. Save draft first.');
       return;
     }
+    setPyxCheckAction('publish');
+    setShowPyxCheck(true);
+  };
+
+  const doPublishDraftAfterCheck = async () => {
     const pub = await getPublished();
     const publishedGame: PublishedGame = {
       title: draft.title,
@@ -223,8 +237,34 @@ export function createGame(container: HTMLElement) {
     navigateToTab('games');
   };
 
+  const handlePyxCheckComplete = (result: { safe: boolean; titleBlocked?: boolean; descBlocked?: boolean }) => {
+    const action = pyxCheckAction;
+    setShowPyxCheck(false);
+    setPyxCheckAction(null);
+    if (!result.safe) {
+      const parts: string[] = [];
+      if (result.titleBlocked) parts.push('title');
+      if (result.descBlocked) parts.push('description');
+      alert(`Content safety check failed. Please revise the ${parts.join(' and ')}. Our Pyx AI system detected content that doesn't meet our community guidelines.`);
+      return;
+    }
+    if (action === 'publish') {
+      doPublishDraftAfterCheck();
+    } else if (action === 'import') {
+      doSubmitImportedAfterCheck();
+    }
+  };
+
   return (
     <>
+      {showPyxCheck && (
+        <PyxCheckingPopup
+          open={showPyxCheck}
+          title={draft.title || ''}
+          desc={draft.desc || ''}
+          onComplete={handlePyxCheckComplete}
+        />
+      )}
       {showFullScreenStudio && (
         <FullScreenStudio
           mode={pixelPlacerMode}
@@ -232,7 +272,10 @@ export function createGame(container: HTMLElement) {
         />
       )}
       
-      <h2 className="section-title">Game Studio</h2>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px', marginBottom: '8px' }}>
+        <h2 className="section-title" style={{ margin: 0 }}>Game Studio</h2>
+        <span className="smalltext" style={{ color: 'var(--text-dim)' }}>🛡️ Content safety powered by Pyx AI</span>
+      </div>
 
       {/* Mode Selector - Four Options */}
       <div className="ai-box" style={{ marginBottom: '24px' }}>

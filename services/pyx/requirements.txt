@@ -1,0 +1,2 @@
+flask>=3.0.0
+# pyx_ai  # Uncomment and add your Pyx package (or pip install pyx_ai)

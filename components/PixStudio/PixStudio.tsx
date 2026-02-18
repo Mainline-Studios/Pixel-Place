@@ -3,29 +3,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { User, PublishedGame, SceneData, SceneObject } from '@/types';
 import { getPublished, savePublished, getSceneData, saveSceneData } from '@/lib/storage';
-import { apiUrl } from '@/lib/apiBaseUrl';        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          prompt: `Help me code this in Three.js: ${aiPrompt}. The code should work in Pix Studio. Return only the code snippet, not a full game.`
-        })
-      });
-
-      const data = await response.json();
-      if (data.code) {
-        setAiResponse(data.code);
-        // Optionally insert into code
-        if (confirm('Insert AI code into your script?')) {
-          setCodeContent(codeContent + '\n\n// AI Generated Code:\n' + data.code);
-        }
-      } else {
-        setAiResponse('Error: Could not generate code. Try again.');
-      }
-    } catch (error) {
-      setAiResponse('Error connecting to AI. Make sure you have an API key set up.');
-    } finally {
-      setAiLoading(false);
-    }
-  };
+import { apiUrl } from '@/lib/apiBaseUrl';
 
   // Handle publish
   const handlePublish = async () => {

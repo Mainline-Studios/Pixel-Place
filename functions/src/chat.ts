@@ -1,7 +1,9 @@
 /**
  * AI Chat API - Game design conversation
  * Uses Groq 8B (free) for conversation
+ * Filters AI response through Pyx /ai-decide for kid-safe display (trains Pyx from game usage)
  */
+import { filterForDisplayAIDecide } from './pyx';
 async function chatWithGroq(messages: { role: string; content: string }[], apiKey: string): Promise<string> {
   const model = 'llama-3.1-8b-instant';
   const systemMsg = {
@@ -47,7 +49,8 @@ export async function handleChat(
       return res.status(503).json({ error: 'Chat not available (no API key configured)' });
     }
 
-    const content = await chatWithGroq(messages, groqKey);
+    const raw = await chatWithGroq(messages, groqKey);
+    const content = await filterForDisplayAIDecide(raw);
     res.status(200).json({ content });
   } catch (err: unknown) {
     const error = err instanceof Error ? err : new Error(String(err));

@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import dynamic from 'next/dynamic';
 import { User, DraftGame } from '@/types';
 import { getDraft, saveDraft, saveUserMadeGame } from '@/lib/storage';
+import { filterForDisplay } from '@/lib/pyx';
 import { apiUrl } from '@/lib/apiBaseUrl';
 import { useUser } from '@/contexts/UserContext';
 
@@ -59,12 +60,13 @@ export default function AIGameGenerator({ user, onCodeGenerated, onSwitchToCodeE
   const sendChatMessage = async () => {
     const msg = chatInput.trim();
     if (!msg || isChatting) return;
-    const userMsg: ChatMessage = { role: 'user', content: msg };
-    setConversation((prev) => [...prev, userMsg]);
     setChatInput('');
     setIsChatting(true);
+    const userContentFiltered = await filterForDisplay(msg);
+    const userMsg: ChatMessage = { role: 'user', content: userContentFiltered };
+    setConversation((prev) => [...prev, userMsg]);
     try {
-      const messagesForApi = [...conversation, userMsg].map((m) => ({ role: m.role, content: m.content }));
+      const messagesForApi = [...conversation, { role: 'user' as const, content: msg }].map((m) => ({ role: m.role, content: m.content }));
       const response = await fetch(apiUrl('/api/chat'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -211,7 +213,10 @@ export default function AIGameGenerator({ user, onCodeGenerated, onSwitchToCodeE
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
       <div className="ai-box">
-        <div className="section-title" style={{ marginBottom: '16px' }}>🤖 AI Game Generator</div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px', marginBottom: '16px' }}>
+          <div className="section-title" style={{ margin: 0 }}>🤖 AI Game Generator</div>
+          <span className="smalltext" style={{ color: 'var(--text-dim)', opacity: 0.9 }}>🛡️ Powered by Pyx AI</span>
+        </div>
         <div className="ai-label" style={{ marginBottom: '8px' }}>Input Mode</div>
         <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
           <button
