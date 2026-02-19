@@ -516,9 +516,13 @@ export default function StudioTab({ user, editMode }: StudioTabProps) {
 
   const selectedObject = sceneObjects.find(o => o.id === selectedObjectId);
 
-  const handlePyxCheckComplete = (result: { safe: boolean; titleBlocked?: boolean; descBlocked?: boolean }) => {
+  const handlePyxCheckComplete = (result: { safe: boolean; titleBlocked?: boolean; descBlocked?: boolean; connectionError?: boolean }) => {
     setShowPyxCheck(false);
     if (!result.safe) {
+      if (result.connectionError) {
+        toast.error("Couldn't connect to Pyx AI. Your game was not published.");
+        return;
+      }
       const parts: string[] = [];
       if (result.titleBlocked) parts.push('title');
       if (result.descBlocked) parts.push('description');

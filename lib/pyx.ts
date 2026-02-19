@@ -103,8 +103,8 @@ export async function sendFeedback(text: string, safe: boolean): Promise<void> {
   }
 }
 
-/** Client: check content for publish — returns { safe, filtered }. Use before publishing. */
-export async function checkForPublish(text: string): Promise<{ safe: boolean; filtered: string }> {
+/** Client: check content for publish — returns { safe, filtered, connectionError? }. Use before publishing. */
+export async function checkForPublish(text: string): Promise<{ safe: boolean; filtered: string; connectionError?: boolean }> {
   if (!text || typeof text !== 'string') return { safe: true, filtered: text };
   try {
     const { apiUrl } = await import('@/lib/apiBaseUrl');
@@ -113,14 +113,16 @@ export async function checkForPublish(text: string): Promise<{ safe: boolean; fi
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ text }),
     });
-    if (!res.ok) return { safe: false, filtered: censorLetters(text) };
-    const data = (await res.json()) as { safe?: boolean; filtered?: string };
+    const data = (await res.json()) as { safe?: boolean; filtered?: string; connectionError?: boolean };
+    if (!res.ok || data.connectionError) {
+      return { safe: false, filtered: '', connectionError: true };
+    }
     const safe = data.safe !== false;
     const filtered = typeof data.filtered === 'string' ? data.filtered : censorLetters(text);
     return { safe, filtered };
   } catch (e) {
     console.warn('[Pyx] Check failed:', e);
-    return { safe: false, filtered: censorLetters(text) };
+    return { safe: false, filtered: '', connectionError: true };
   }
 }
 

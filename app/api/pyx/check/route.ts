@@ -17,7 +17,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ safe: true, filtered: '' });
     }
     if (!url) {
-      return NextResponse.json({ safe: false, filtered: text.replace(/[A-Za-z]/g, '~') });
+      return NextResponse.json({ safe: false, filtered: '', connectionError: true });
     }
 
     const res = await fetch(`${url.replace(/\/$/, '')}/score`, {
@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
     });
 
     if (!res.ok) {
-      return NextResponse.json({ safe: false, filtered: text.replace(/[A-Za-z]/g, '~') });
+      return NextResponse.json({ safe: false, filtered: '', connectionError: true });
     }
 
     const data = (await res.json()) as PyxResponse;
@@ -37,6 +37,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ safe: !bad, filtered });
   } catch (error) {
     console.error('[Pyx] Check error:', error);
-    return NextResponse.json({ safe: false, filtered: '' }, { status: 500 });
+    return NextResponse.json({ safe: false, filtered: '', connectionError: true }, { status: 500 });
   }
 }

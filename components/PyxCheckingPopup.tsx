@@ -15,7 +15,7 @@ interface PyxCheckingPopupProps {
   open: boolean;
   title: string;
   desc: string;
-  onComplete: (result: { safe: boolean; titleBlocked?: boolean; descBlocked?: boolean }) => void;
+  onComplete: (result: { safe: boolean; titleBlocked?: boolean; descBlocked?: boolean; connectionError?: boolean }) => void;
 }
 
 export default function PyxCheckingPopup({ open, title, desc, onComplete }: PyxCheckingPopupProps) {
@@ -55,10 +55,12 @@ export default function PyxCheckingPopup({ open, title, desc, onComplete }: PyxC
 
       const titleBlocked = !titleResult.safe;
       const descBlocked = !descResult.safe;
+      const connectionError = titleResult.connectionError || descResult.connectionError;
       onComplete({
         safe: !titleBlocked && !descBlocked,
-        titleBlocked: titleBlocked || undefined,
-        descBlocked: descBlocked || undefined,
+        titleBlocked: titleBlocked && !connectionError ? true : undefined,
+        descBlocked: descBlocked && !connectionError ? true : undefined,
+        connectionError: connectionError || undefined,
       });
     };
 

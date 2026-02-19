@@ -359,7 +359,8 @@ app.get('/games', async (req, res) => {
         publishedBy: data.published_by,
         gameType: data.game_type,
         fileContent: data.file_content,
-        fileType: data.file_type
+        fileType: data.file_type,
+        gameCode: data.game_code || undefined
       };
     });
     res.json(games);
@@ -384,6 +385,7 @@ app.post('/games', async (req, res) => {
       game_type: game.gameType || null,
       file_content: game.fileContent || null,
       file_type: game.fileType || null,
+      game_code: game.gameCode || null,
       created_at: Date.now(),
       updated_at: Date.now()
     }, { merge: true });

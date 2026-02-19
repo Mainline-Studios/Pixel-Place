@@ -237,11 +237,15 @@ export function createGame(container: HTMLElement) {
     navigateToTab('games');
   };
 
-  const handlePyxCheckComplete = (result: { safe: boolean; titleBlocked?: boolean; descBlocked?: boolean }) => {
+  const handlePyxCheckComplete = (result: { safe: boolean; titleBlocked?: boolean; descBlocked?: boolean; connectionError?: boolean }) => {
     const action = pyxCheckAction;
     setShowPyxCheck(false);
     setPyxCheckAction(null);
     if (!result.safe) {
+      if (result.connectionError) {
+        alert("Couldn't connect to Pyx AI. Your game was not published.");
+        return;
+      }
       const parts: string[] = [];
       if (result.titleBlocked) parts.push('title');
       if (result.descBlocked) parts.push('description');

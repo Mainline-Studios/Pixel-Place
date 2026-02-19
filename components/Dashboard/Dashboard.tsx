@@ -49,12 +49,12 @@ export default function Dashboard({ user }: DashboardProps) {
     }
   }, [playTabSwitch]);
 
-  // Keyboard shortcuts: G=Games, C=Avatar Shop, P=Coins, F=Friends, O=Settings (avoid WASD)
+  // Keyboard shortcuts: G=Games, C=Studio, V=Avatar Shop, P=Coins, F=Friends, O=Settings (avoid WASD/B/A)
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (e.ctrlKey || e.metaKey || e.altKey || e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
       const key = e.key.toLowerCase();
-      const map: Record<string, TabType> = { g: 'games', s: 'studio', c: 'avatarShop', p: 'coins', f: 'friends', o: 'settings' };
+      const map: Record<string, TabType> = { g: 'games', c: 'studio', v: 'avatarShop', p: 'coins', f: 'friends', o: 'settings' };
       if (map[key]) {
         e.preventDefault();
         handleTabChange(map[key]);
