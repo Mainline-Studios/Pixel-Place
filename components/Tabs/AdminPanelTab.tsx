@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { User, Report, Ban, GameSubmission, UserMadeGame } from '@/types';
 import { getBannedUsers, getReports, banUser, unbanUser, updateReportStatus, saveBannedUsers, saveUsers, ADMIN_ACCOUNTS_LIST, getBanAppeals, updateBanAppealStatus, getMessagesAPI, sendMessage, getGameSubmissions, saveUserMadeGame, deleteGameSubmission } from '@/lib/storage';
 import { subscribeToUsers } from '@/lib/firestoreClient';
+import FilteredText from '@/components/FilteredText';
 
 interface AdminPanelTabProps {
   user: User;
@@ -942,7 +943,7 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
                           {submission.title}
                         </div>
                         <div className="smalltext" style={{ marginBottom: '8px' }}>
-                          By: {submission.owner} • Submitted: {new Date(submission.ts).toLocaleString()}
+                          By: <FilteredText text={submission.owner || ''} /> • Submitted: {new Date(submission.ts).toLocaleString()}
                           <br />
                           Status: <span style={{ color: submission.status === 'pending' ? '#ffa500' : submission.status === 'approved' ? '#2ecc71' : '#ff4d4d' }}>
                             {submission.status.toUpperCase()}

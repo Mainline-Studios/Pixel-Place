@@ -158,6 +158,27 @@ export async function analyzeCodeForPublish(source: string): Promise<{
   }
 }
 
+/** Client: Pyx Code — code completion. Free option for AI Coder. */
+export async function pyxCodeComplete(prompt: string, maxTokens: number = 256): Promise<{ completion: string; connectionError?: boolean }> {
+  if (!prompt || typeof prompt !== 'string') return { completion: '' };
+  try {
+    const { apiUrl } = await import('@/lib/apiBaseUrl');
+    const res = await fetch(apiUrl('/api/pyx/code/complete'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prompt, max_tokens: maxTokens }),
+    });
+    const data = (await res.json()) as { completion?: string; connectionError?: boolean };
+    if (!res.ok || data.connectionError) {
+      return { completion: '', connectionError: true };
+    }
+    return { completion: typeof data.completion === 'string' ? data.completion : '' };
+  } catch (e) {
+    console.warn('[Pyx] Code complete failed:', e);
+    return { completion: '', connectionError: true };
+  }
+}
+
 /** Client: calls /api/pyx/filter which proxies to your Pyx app (/score). */
 export async function filterForDisplay(text: string): Promise<string> {
   if (!text || typeof text !== 'string') return text;

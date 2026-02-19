@@ -2,8 +2,9 @@
 
 import { useState, useRef } from 'react';
 import { User } from '@/types';
-import { useUser } from '@/contexts/UserContext';
-import { navigateToTab } from '@/lib/routing';
+import { pyxCodeComplete } from '@/lib/pyx';
+
+type CodeProvider = 'pyx' | 'template';
 
 interface AICoderTabProps {
   user: User;
@@ -14,26 +15,28 @@ export default function AICoderTab({ user, editMode }: AICoderTabProps) {
   const [prompt, setPrompt] = useState('');
   const [codeOutput, setCodeOutput] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
-  const [usageCount, setUsageCount] = useState(0);
+  const [provider, setProvider] = useState<CodeProvider>('pyx');
   const outputRef = useRef<HTMLTextAreaElement>(null);
 
-  const isDonor = user.isDonor || false;
-  const maxUsage = isDonor ? Infinity : 10; // Limited for non-donors, unlimited for donors
-  const remainingUses = isDonor ? 'Unlimited' : Math.max(0, maxUsage - usageCount);
+  const canGenerate = !!prompt.trim();
 
   const generateCode = async () => {
     if (!prompt.trim()) return;
-    
-    if (!isDonor && usageCount >= maxUsage) {
-      // Silently prevent usage, no popup
-      return;
-    }
 
     setIsGenerating(true);
-    
-    // Simulate AI code generation
-    setTimeout(() => {
-      const exampleCode = `// Generated code for: ${prompt}
+
+    if (provider === 'pyx') {
+      const { completion, connectionError } = await pyxCodeComplete(prompt.trim(), 512);
+      setIsGenerating(false);
+      if (connectionError) {
+        setCodeOutput('// Could not connect to Pyx AI Code. Check your connection or try the Template option.');
+      } else {
+        setCodeOutput(completion || '// No completion returned.');
+      }
+    } else {
+      // Template (simulated)
+      setTimeout(() => {
+        const exampleCode = `// Generated code for: ${prompt}
 function ${prompt.toLowerCase().replace(/\s+/g, '_')}() {
   // Example function structure
   console.log('${prompt}');
@@ -47,16 +50,14 @@ function ${prompt.toLowerCase().replace(/\s+/g, '_')}() {
 
 // Usage example:
 ${prompt.toLowerCase().replace(/\s+/g, '_')}();`;
-      
-      setCodeOutput(exampleCode);
-      setIsGenerating(false);
-      if (!isDonor) {
-        setUsageCount(prev => prev + 1);
-      }
-      if (outputRef.current) {
-        outputRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-      }
-    }, 1500);
+        setCodeOutput(exampleCode);
+        setIsGenerating(false);
+      }, 1500);
+    }
+
+    if (outputRef.current) {
+      outputRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
   };
 
   const copyCode = () => {
@@ -85,28 +86,29 @@ ${prompt.toLowerCase().replace(/\s+/g, '_')}();`;
     <>
       <h2 className="section-title">AI Coder</h2>
       
-      {isDonor ? (
-        <div className="ai-box" style={{ 
-          background: 'linear-gradient(135deg, #2a3a1a 0%, #1a2a0a 100%)',
-          borderColor: '#4a6a2a'
-        }}>
-          <div className="ai-label">✨ Full Access (Donor)</div>
-          <div className="ai-output">
-            You have <strong>unlimited</strong> access to the AI Coder. Generate code for any feature or game mechanic.
-          </div>
+      <div className="ai-box">
+        <div className="ai-label">Code provider</div>
+        <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', marginBottom: '12px' }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+            <input
+              type="radio"
+              name="coderProvider"
+              checked={provider === 'pyx'}
+              onChange={() => setProvider('pyx')}
+            />
+            <span><strong>Pyx AI Code</strong></span>
+          </label>
+          <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+            <input
+              type="radio"
+              name="coderProvider"
+              checked={provider === 'template'}
+              onChange={() => setProvider('template')}
+            />
+            <span><strong>Template</strong></span>
+          </label>
         </div>
-      ) : (
-        <div className="ai-box">
-          <div className="ai-label">Limited Access</div>
-          <div className="ai-output">
-            You have <strong>{remainingUses}</strong> uses remaining today.
-            <br />
-            <span style={{ fontSize: '12px', color: '#8b90a8' }}>
-              Donate to unlock unlimited access and full AI Coder features.
-            </span>
-          </div>
-        </div>
-      )}
+      </div>
 
       <div className="ai-box">
         <div className="ai-label">Describe What You Want to Build</div>
@@ -120,35 +122,20 @@ ${prompt.toLowerCase().replace(/\s+/g, '_')}();`;
             fontFamily: 'monospace',
             fontSize: '14px'
           }}
-          disabled={!isDonor && usageCount >= maxUsage}
         />
         <div style={{ display: 'flex', gap: '10px', marginTop: '12px' }}>
           <button 
             className="btn" 
             onClick={generateCode}
-            disabled={!prompt.trim() || isGenerating || (!isDonor && usageCount >= maxUsage)}
+            disabled={!canGenerate || isGenerating}
             style={{ 
-              background: !isDonor && usageCount >= maxUsage ? 'var(--panel-alt)' : '#4a90e2',
-              opacity: (!isDonor && usageCount >= maxUsage) ? 0.5 : 1
+              background: !canGenerate ? 'var(--panel-alt)' : '#4a90e2',
+              opacity: !canGenerate ? 0.5 : 1
             }}
           >
             {isGenerating ? 'Generating...' : 'Generate Code'}
           </button>
-          {!isDonor && usageCount >= maxUsage && (
-            <button 
-              className="btn" 
-              onClick={() => navigateToTab('donation')}
-              style={{ background: '#4a6a2a' }}
-            >
-              Unlock Unlimited
-            </button>
-          )}
         </div>
-        {!isDonor && usageCount >= maxUsage && (
-          <div className="smalltext" style={{ marginTop: '8px', color: '#8b90a8' }}>
-            Daily limit reached. Upgrade to donor status for unlimited access.
-          </div>
-        )}
       </div>
 
       {codeOutput && (
@@ -194,42 +181,6 @@ ${prompt.toLowerCase().replace(/\s+/g, '_')}();`;
           <br />• <strong>Customize:</strong> The generated code is a starting point - modify it to fit your game
         </div>
       </div>
-
-      {!isDonor && (
-        <div className="ai-box" style={{ 
-          background: 'linear-gradient(135deg, #3a2a1a 0%, #2a1a0a 100%)',
-          borderColor: '#6a4a2a'
-        }}>
-          <div className="ai-label">Unlock Full Access</div>
-          <div className="ai-output">
-            Donate any amount to get <strong>unlimited AI Coder access</strong> plus bonus coins and exclusive features.
-            <br />
-            <div style={{ marginTop: '12px' }}>
-              <a 
-                href="/donation" 
-                onClick={(e) => {
-                  e.preventDefault();
-                  navigateToTab('donation');
-                }}
-                style={{ 
-                  display: 'inline-block',
-                  padding: '10px 16px',
-                  background: '#4a6a2a',
-                  border: '1px solid #6a8a3a',
-                  borderRadius: '10px',
-                  color: '#fff',
-                  textDecoration: 'none',
-                  fontSize: '13px',
-                  fontWeight: 600,
-                  cursor: 'pointer'
-                }}
-              >
-                View Donation Options
-              </a>
-            </div>
-          </div>
-        </div>
-      )}
     </>
   );
 }

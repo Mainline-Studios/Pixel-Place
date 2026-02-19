@@ -6,6 +6,7 @@ import { getServers, getUsers, saveUsers } from '@/lib/storage';
 import { io, Socket } from 'socket.io-client';
 import { useUser } from '@/contexts/UserContext';
 import FullScreenGameWrapper from '@/components/FullScreenGameWrapper';
+import FilteredText from '@/components/FilteredText';
 
 interface GamePlayerProps {
   game: PublishedGame;
@@ -901,7 +902,7 @@ export default function GamePlayer({ game, onClose }: GamePlayerProps) {
               margin: '10px 0 0 0',
               fontWeight: 300
             }}>
-              by {safeGame.owner}
+              by <FilteredText text={safeGame.owner || ''} />
             </p>
           </div>
 
@@ -1021,7 +1022,7 @@ export default function GamePlayer({ game, onClose }: GamePlayerProps) {
             </div>
             <div style={{ color: '#999', marginBottom: '20px', fontSize: '14px' }}>
               <strong>Game:</strong> {safeGame.title}<br />
-              <strong>Owner:</strong> {safeGame.owner}
+              <strong>Owner:</strong> <FilteredText text={safeGame.owner || ''} />
             </div>
             <button
               onClick={onClose}

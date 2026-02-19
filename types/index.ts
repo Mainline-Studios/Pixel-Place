@@ -28,7 +28,9 @@ export interface User {
   isOnline?: boolean; // Online status
   lastSeen?: number; // Last seen timestamp
   currentSessionId?: string; // Current multiplayer session ID
-  safetyPoints?: number; // Safety Points currency (earned from breaks)}
+  safetyPoints?: number; // Safety Points currency (earned from breaks)
+  isDonor?: boolean; // Donor status for premium features (e.g. unlimited Template in AI Coder)
+}
 
 export interface FriendRequest {
   from: string; // Username who sent the request

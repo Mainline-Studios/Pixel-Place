@@ -5,6 +5,7 @@ import { User, Skin, TabContent } from '@/types';
 import { getSkins, getTabContent } from '@/lib/storage';
 import AdminPanelTab from './AdminPanelTab';
 import { escapeHTML } from '@/lib/utils';
+import FilteredText from '@/components/FilteredText';
 import { useUser } from '@/contexts/UserContext';
 import { useStyle } from '@/components/StyleProvider';
 import { useSound } from '@/contexts/SoundContext';
@@ -47,7 +48,7 @@ export default function SettingsTab({ user, editMode, onToggleEditMode }: Settin
       <div className="ai-box">
         <div className="ai-label">Account</div>
         <div className="ai-output">
-          Username: {escapeHTML(user.username)}
+          Username: <FilteredText text={user.username || ''} />
           <br />
           Role: {escapeHTML(user.role)}
           <br />
@@ -110,6 +111,22 @@ export default function SettingsTab({ user, editMode, onToggleEditMode }: Settin
             </button>
           ))}
         </div>
+      </div>
+
+      <div className="ai-box">
+        <div className="ai-label">Pyx status checker</div>
+        <div className="ai-output" style={{ marginBottom: '12px' }}>
+          Check the status of Pyx AI services (moderator, code, analyze, check).
+        </div>
+        <a
+          href="https://pyxaiapi-574247481583.us-central1.run.app"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="btn"
+          style={{ display: 'inline-block', textDecoration: 'none', color: 'inherit' }}
+        >
+          Open Pyx status
+        </a>
       </div>
 
       <div className="ai-box">
