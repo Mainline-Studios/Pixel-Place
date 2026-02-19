@@ -99,55 +99,48 @@ export async function sendFeedback(text: string, safe: boolean): Promise<void> {
   }
 }
 
-/** Client: check content for publish — returns { safe, filtered, connectionError? }. Use before publishing. */
+/** Client: check content for publish — returns { safe, filtered, connectionError? }. Calls Pyx directly (no proxy). */
 export async function checkForPublish(text: string): Promise<{ safe: boolean; filtered: string; connectionError?: boolean }> {
   if (!text || typeof text !== 'string') return { safe: true, filtered: text };
+  const url = (typeof process !== 'undefined' && (process as any).env?.NEXT_PUBLIC_PYX_SERVICE_URL) || PYX_DEFAULT_URL;
   try {
-    const { apiUrl } = await import('@/lib/apiBaseUrl');
-    const res = await fetch(apiUrl('/api/pyx/check'), {
+    const res = await fetch(`${url.replace(/\/$/, '')}/score`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ text }),
     });
-    const data = (await res.json()) as { safe?: boolean; filtered?: string; connectionError?: boolean };
-    if (!res.ok || data.connectionError) {
+    if (!res.ok) {
       return { safe: false, filtered: '', connectionError: true };
     }
-    const safe = data.safe !== false;
-    const filtered = typeof data.filtered === 'string' ? data.filtered : censorLetters(text);
-    return { safe, filtered };
+    const data = (await res.json()) as { score?: number; bad?: boolean; censored?: string };
+    const bad = data.bad === true || (typeof data.score === 'number' && data.score >= BAN_LINE);
+    const filtered = bad && typeof data.censored === 'string' ? data.censored : text;
+    return { safe: !bad, filtered };
   } catch (e) {
     console.warn('[Pyx] Check failed:', e);
     return { safe: false, filtered: '', connectionError: true };
   }
 }
 
-/** Client: Pyx Analyze — scan code for inappropriate content. Use before publishing game code. */
+/** Client: Pyx Analyze — scan code for inappropriate content. Calls Pyx directly (no proxy). */
 export async function analyzeCodeForPublish(source: string): Promise<{
   safe: boolean;
   connectionError?: boolean;
   flagged?: Array<{ snippet: string; score: number; reason?: string }>;
 }> {
   if (!source || typeof source !== 'string') return { safe: true };
+  const url = (typeof process !== 'undefined' && (process as any).env?.NEXT_PUBLIC_PYX_SERVICE_URL) || PYX_DEFAULT_URL;
   try {
-    const { apiUrl } = await import('@/lib/apiBaseUrl');
-    const res = await fetch(apiUrl('/api/pyx/analyze'), {
+    const res = await fetch(`${url.replace(/\/$/, '')}/analyze/three`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ source }),
     });
-    const data = (await res.json()) as {
-      safe?: boolean;
-      connectionError?: boolean;
-      flagged?: Array<{ snippet: string; score: number; reason?: string }>;
-    };
-    if (!res.ok || data.connectionError) {
+    if (!res.ok) {
       return { safe: false, connectionError: true };
     }
-    return {
-      safe: data.safe !== false,
-      flagged: data.flagged,
-    };
+    const data = (await res.json()) as { safe?: boolean; flagged?: Array<{ snippet: string; score: number; reason?: string }> };
+    return { safe: data.safe !== false, flagged: data.flagged };
   } catch (e) {
     console.warn('[Pyx] Analyze failed:', e);
     return { safe: false, connectionError: true };

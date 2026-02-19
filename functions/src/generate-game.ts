@@ -544,12 +544,10 @@ export async function handleGenerateGame(
     } else if (modelId === 'pyx') {
       const pyxResult = await generateWithPyx(prompt);
       if (pyxResult.connectionError || !pyxResult.completion?.trim()) {
-        code = generateSmartTemplateCode(prompt);
-        usedProvider = 'template';
-      } else {
-        code = normalizeGameCode(pyxResult.completion);
-        usedProvider = 'pyx';
+        return res.status(503).json({ error: "Couldn't connect to Pyx AI Code. Please try again or use another model." });
       }
+      code = normalizeGameCode(pyxResult.completion);
+      usedProvider = 'pyx';
     } else if (groqKey && modelConfig.groqModel) {
       code = await generateWithGroq(prompt, groqKey, modelConfig.groqModel);
       usedProvider = modelId;
@@ -565,11 +563,6 @@ export async function handleGenerateGame(
   } catch (err: unknown) {
     const error = err instanceof Error ? err : new Error(String(err));
     console.error('AI generation error:', error);
-    const fallbackPrompt = (req.body?.prompt || '').trim() || 'creative sandbox game';
-    res.status(200).json({
-      code: generateSmartTemplateCode(fallbackPrompt),
-      provider: 'template-fallback',
-      error: error.message,
-    });
+    res.status(500).json({ error: error.message || 'AI generation failed' });
   }
 }
