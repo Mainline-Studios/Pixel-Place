@@ -126,6 +126,38 @@ export async function checkForPublish(text: string): Promise<{ safe: boolean; fi
   }
 }
 
+/** Client: Pyx Analyze — scan code for inappropriate content. Use before publishing game code. */
+export async function analyzeCodeForPublish(source: string): Promise<{
+  safe: boolean;
+  connectionError?: boolean;
+  flagged?: Array<{ snippet: string; score: number; reason?: string }>;
+}> {
+  if (!source || typeof source !== 'string') return { safe: true };
+  try {
+    const { apiUrl } = await import('@/lib/apiBaseUrl');
+    const res = await fetch(apiUrl('/api/pyx/analyze'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ source }),
+    });
+    const data = (await res.json()) as {
+      safe?: boolean;
+      connectionError?: boolean;
+      flagged?: Array<{ snippet: string; score: number; reason?: string }>;
+    };
+    if (!res.ok || data.connectionError) {
+      return { safe: false, connectionError: true };
+    }
+    return {
+      safe: data.safe !== false,
+      flagged: data.flagged,
+    };
+  } catch (e) {
+    console.warn('[Pyx] Analyze failed:', e);
+    return { safe: false, connectionError: true };
+  }
+}
+
 /** Client: calls /api/pyx/filter which proxies to your Pyx app (/score). */
 export async function filterForDisplay(text: string): Promise<string> {
   if (!text || typeof text !== 'string') return text;

@@ -237,7 +237,7 @@ export function createGame(container: HTMLElement) {
     navigateToTab('games');
   };
 
-  const handlePyxCheckComplete = (result: { safe: boolean; titleBlocked?: boolean; descBlocked?: boolean; connectionError?: boolean }) => {
+  const handlePyxCheckComplete = (result: { safe: boolean; titleBlocked?: boolean; descBlocked?: boolean; codeBlocked?: boolean; connectionError?: boolean }) => {
     const action = pyxCheckAction;
     setShowPyxCheck(false);
     setPyxCheckAction(null);
@@ -249,6 +249,7 @@ export function createGame(container: HTMLElement) {
       const parts: string[] = [];
       if (result.titleBlocked) parts.push('title');
       if (result.descBlocked) parts.push('description');
+      if (result.codeBlocked) parts.push('game code (inappropriate content detected)');
       alert(`Content safety check failed. Please revise the ${parts.join(' and ')}. Our Pyx AI system detected content that doesn't meet our community guidelines.`);
       return;
     }
@@ -266,6 +267,7 @@ export function createGame(container: HTMLElement) {
           open={showPyxCheck}
           title={draft.title || ''}
           desc={draft.desc || ''}
+          gameCode={pyxCheckAction === 'publish' ? gameCode : undefined}
           onComplete={handlePyxCheckComplete}
         />
       )}

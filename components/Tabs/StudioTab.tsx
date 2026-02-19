@@ -516,7 +516,7 @@ export default function StudioTab({ user, editMode }: StudioTabProps) {
 
   const selectedObject = sceneObjects.find(o => o.id === selectedObjectId);
 
-  const handlePyxCheckComplete = (result: { safe: boolean; titleBlocked?: boolean; descBlocked?: boolean; connectionError?: boolean }) => {
+  const handlePyxCheckComplete = (result: { safe: boolean; titleBlocked?: boolean; descBlocked?: boolean; codeBlocked?: boolean; connectionError?: boolean }) => {
     setShowPyxCheck(false);
     if (!result.safe) {
       if (result.connectionError) {
@@ -526,6 +526,7 @@ export default function StudioTab({ user, editMode }: StudioTabProps) {
       const parts: string[] = [];
       if (result.titleBlocked) parts.push('title');
       if (result.descBlocked) parts.push('description');
+      if (result.codeBlocked) parts.push('game code');
       toast.error(`Content safety check failed. Please revise the ${parts.join(' and ')}.`);
       return;
     }

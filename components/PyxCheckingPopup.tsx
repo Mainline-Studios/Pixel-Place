@@ -1,13 +1,13 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { checkForPublish } from '@/lib/pyx';
+import { checkForPublish, analyzeCodeForPublish } from '@/lib/pyx';
 
 const STEPS = [
   'Scanning title...',
   'Analyzing description...',
   'Verifying content safety...',
-  'Running Pyx AI checks...',
+  'Scanning code...',
   'Almost there...',
 ];
 
@@ -15,10 +15,12 @@ interface PyxCheckingPopupProps {
   open: boolean;
   title: string;
   desc: string;
-  onComplete: (result: { safe: boolean; titleBlocked?: boolean; descBlocked?: boolean; connectionError?: boolean }) => void;
+  /** When provided, game code is scanned with Pyx Analyze (/analyze/three). */
+  gameCode?: string;
+  onComplete: (result: { safe: boolean; titleBlocked?: boolean; descBlocked?: boolean; codeBlocked?: boolean; connectionError?: boolean }) => void;
 }
 
-export default function PyxCheckingPopup({ open, title, desc, onComplete }: PyxCheckingPopupProps) {
+export default function PyxCheckingPopup({ open, title, desc, gameCode, onComplete }: PyxCheckingPopupProps) {
   const [progress, setProgress] = useState(0);
   const [stepIndex, setStepIndex] = useState(0);
   const completedRef = useRef(false);
@@ -48,24 +50,34 @@ export default function PyxCheckingPopup({ open, title, desc, onComplete }: PyxC
       setProgress(100);
       setStepIndex(STEPS.length - 1);
 
-      const [titleResult, descResult] = await Promise.all([
+      const checks: Promise<unknown>[] = [
         checkForPublish(title || ''),
         checkForPublish(desc || ''),
-      ]);
+      ];
+      if (gameCode && gameCode.trim()) {
+        checks.push(analyzeCodeForPublish(gameCode));
+      }
+      const results = await Promise.all(checks);
+      const titleResult = results[0] as { safe: boolean; connectionError?: boolean };
+      const descResult = results[1] as { safe: boolean; connectionError?: boolean };
+      const codeResult = checks.length > 2 ? (results[2] as { safe: boolean; connectionError?: boolean }) : { safe: true };
 
       const titleBlocked = !titleResult.safe;
       const descBlocked = !descResult.safe;
-      const connectionError = titleResult.connectionError || descResult.connectionError;
+      const codeBlocked = !codeResult.safe;
+      const connectionError =
+        titleResult.connectionError || descResult.connectionError || codeResult.connectionError;
       onComplete({
-        safe: !titleBlocked && !descBlocked,
+        safe: !titleBlocked && !descBlocked && !codeBlocked,
         titleBlocked: titleBlocked && !connectionError ? true : undefined,
         descBlocked: descBlocked && !connectionError ? true : undefined,
+        codeBlocked: codeBlocked && !connectionError ? true : undefined,
         connectionError: connectionError || undefined,
       });
     };
 
     run();
-  }, [open, title, desc, onComplete]);
+  }, [open, title, desc, gameCode, onComplete]);
 
   if (!open) return null;
 
