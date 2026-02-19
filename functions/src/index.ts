@@ -594,7 +594,7 @@ app.delete('/gamesubmissions', async (req, res) => {
 });
 
 // Pyx content filter - calls Pyx API
-import { filterForDisplay, sendFeedback } from './pyx';
+import { filterForDisplay, sendFeedback, checkForPublish, analyzeCodeForPublish, pyxCodeComplete } from './pyx';
 app.post('/pyx/filter', async (req, res) => {
   try {
     const text = typeof req.body?.text === 'string' ? req.body.text : '';
@@ -613,6 +613,37 @@ app.post('/pyx/feedback', async (req, res) => {
     res.json({ ok: true });
   } catch (e) {
     res.status(500).json({ error: 'Feedback failed' });
+  }
+});
+app.post('/pyx/check', async (req, res) => {
+  try {
+    const text = typeof req.body?.text === 'string' ? req.body.text : '';
+    const result = await checkForPublish(text);
+    res.json(result);
+  } catch (e) {
+    console.error('[Pyx] Check route error:', e);
+    res.status(500).json({ safe: false, filtered: '', connectionError: true });
+  }
+});
+app.post('/pyx/analyze', async (req, res) => {
+  try {
+    const source = typeof req.body?.source === 'string' ? req.body.source : '';
+    const result = await analyzeCodeForPublish(source);
+    res.json(result);
+  } catch (e) {
+    console.error('[Pyx] Analyze route error:', e);
+    res.status(500).json({ safe: false, connectionError: true });
+  }
+});
+app.post('/pyx/code/complete', async (req, res) => {
+  try {
+    const prompt = typeof req.body?.prompt === 'string' ? req.body.prompt : '';
+    const maxTokens = typeof req.body?.max_tokens === 'number' ? req.body.max_tokens : 256;
+    const result = await pyxCodeComplete(prompt, maxTokens);
+    res.json(result);
+  } catch (e) {
+    console.error('[Pyx] Code complete route error:', e);
+    res.status(500).json({ completion: '', connectionError: true });
   }
 });
 
