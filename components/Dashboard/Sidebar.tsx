@@ -3,7 +3,7 @@
 import { User, Skin, Accessory } from '@/types';
 import { getSkins, getAccessories } from '@/lib/storage';
 import Avatar3DViewer from '@/components/Avatar3DViewer';
-import FilteredText from '@/components/FilteredText';
+import { FilteredUsername } from '@/components/FilteredText';
 import { useState, useEffect } from 'react';
 
 interface SidebarProps {
@@ -63,7 +63,7 @@ export default function Sidebar({ user, onNavigate }: SidebarProps) {
           />
         )}
       </div>
-      <div className="info-name"><FilteredText text={user.username || ''} /></div>
+      <div className="info-name"><FilteredUsername username={user.username || ''} currentUsername={user.username || ''} /></div>
       <div className="info-role">Role: {user.role}</div>
       <div className="info-gender">Gender: Boy</div>
       <div className="sidebar-sep"></div>

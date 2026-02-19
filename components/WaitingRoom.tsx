@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { User } from '@/types';
-import FilteredText from './FilteredText';
+import FilteredText, { FilteredUsername } from './FilteredText';
 
 interface WaitingRoomProps {
   gameTitle: string;
@@ -216,7 +216,7 @@ export default function WaitingRoom({
                 {new Date(msg.timestamp).toLocaleTimeString()}
               </span>
               <span style={{ fontWeight: 'bold', color: msg.username === 'System' ? '#4CAF50' : '#4A9EFF' }}>
-                <FilteredText text={msg.username || ''} />:
+                <FilteredUsername username={msg.username || ''} currentUsername={username} />:
               </span>
               <span style={{ marginLeft: '8px' }}><FilteredText text={msg.message || ''} /></span>
             </div>

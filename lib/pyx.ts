@@ -168,24 +168,85 @@ export async function pyxCodeComplete(prompt: string, maxTokens: number = 256): 
   }
 }
 
-/** Client: calls /api/pyx/filter which proxies to your Pyx app (/score). */
+// Client-only: Pyx availability for username display (when down, censor others' usernames until retry succeeds)
+let pyxAvailable = true;
+let pyxRetryTimerId: ReturnType<typeof setInterval> | null = null;
+const PYX_RETRY_MS = 60 * 60 * 1000; // 1 hour
+
+export function getPyxAvailable(): boolean {
+  if (typeof window === 'undefined') return true;
+  return pyxAvailable;
+}
+
+function setPyxAvailable(v: boolean): void {
+  if (typeof window === 'undefined') return;
+  if (pyxAvailable === v) return;
+  pyxAvailable = v;
+  if (v && pyxRetryTimerId !== null) {
+    clearInterval(pyxRetryTimerId);
+    pyxRetryTimerId = null;
+  }
+  pyxListeners.forEach((fn) => fn());
+}
+
+const pyxListeners: Array<() => void> = [];
+/** Subscribe to Pyx availability changes (e.g. when hourly retry succeeds). */
+export function subscribePyxAvailability(fn: () => void): () => void {
+  pyxListeners.push(fn);
+  return () => {
+    const i = pyxListeners.indexOf(fn);
+    if (i !== -1) pyxListeners.splice(i, 1);
+  };
+}
+
+/** Client: check Pyx connection (for hourly retry). */
+export async function checkPyxConnection(): Promise<boolean> {
+  const url = (typeof process !== 'undefined' && (process as any).env?.NEXT_PUBLIC_PYX_SERVICE_URL) || PYX_DEFAULT_URL;
+  try {
+    const res = await fetch(`${url.replace(/\/$/, '')}/score`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text: 'ok' }),
+    });
+    if (res.ok) {
+      setPyxAvailable(true);
+      return true;
+    }
+    return false;
+  } catch {
+    return false;
+  }
+}
+
+function startPyxRetryTimer(): void {
+  if (typeof window === 'undefined' || pyxRetryTimerId !== null) return;
+  pyxRetryTimerId = setInterval(async () => {
+    const ok = await checkPyxConnection();
+    if (ok) setPyxAvailable(true);
+  }, PYX_RETRY_MS);
+}
+
+/** Client: calls Pyx /score directly. On connection failure, marks Pyx unavailable and starts hourly retry. */
 export async function filterForDisplay(text: string): Promise<string> {
   if (!text || typeof text !== 'string') return text;
+  const url = (typeof process !== 'undefined' && (process as any).env?.NEXT_PUBLIC_PYX_SERVICE_URL) || PYX_DEFAULT_URL;
   try {
-    const { apiUrl } = await import('@/lib/apiBaseUrl');
-    const res = await fetch(apiUrl('/api/pyx/filter'), {
+    const res = await fetch(`${url.replace(/\/$/, '')}/score`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ text }),
     });
     if (!res.ok) {
-      console.warn('[Pyx] Filter API error:', res.status);
-      return text;
+      setPyxAvailable(false);
+      startPyxRetryTimer();
+      return censorLetters(text);
     }
-    const data = await res.json();
-    return typeof data.filtered === 'string' ? data.filtered : text;
+    const data = (await res.json()) as { score?: number; bad?: boolean; censored?: string };
+    return applyPyxResponse(data, text);
   } catch (e) {
     console.warn('[Pyx] Filter failed:', e);
-    return text;
+    setPyxAvailable(false);
+    startPyxRetryTimer();
+    return censorLetters(text);
   }
 }

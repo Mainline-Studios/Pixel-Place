@@ -3,7 +3,7 @@
 import { useState, useEffect, ReactNode } from 'react';
 import { useUser } from '@/contexts/UserContext';
 import { filterForDisplay } from '@/lib/pyx';
-import FilteredText from '@/components/FilteredText';
+import { FilteredUsername } from '@/components/FilteredText';
 
 interface FullScreenGameWrapperProps {
   children: ReactNode;
@@ -351,7 +351,7 @@ export default function FullScreenGameWrapper({
                 >
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
                     <span style={{ color: '#00a2ff', fontSize: '13px', fontWeight: '600' }}>
-                      <FilteredText text={msg.username || ''} />
+                      <FilteredUsername username={msg.username || ''} currentUsername={user?.username || ''} />
                     </span>
                     <span style={{ color: '#666', fontSize: '11px' }}>
                       {new Date(msg.timestamp).toLocaleTimeString()}

@@ -516,7 +516,7 @@ export default function StudioTab({ user, editMode }: StudioTabProps) {
 
   const selectedObject = sceneObjects.find(o => o.id === selectedObjectId);
 
-  const handlePyxCheckComplete = (result: { safe: boolean; titleBlocked?: boolean; descBlocked?: boolean; codeBlocked?: boolean; connectionError?: boolean }) => {
+  const handlePyxCheckComplete = (result: { safe: boolean; usernameBlocked?: boolean; titleBlocked?: boolean; descBlocked?: boolean; codeBlocked?: boolean; connectionError?: boolean }) => {
     setShowPyxCheck(false);
     if (!result.safe) {
       if (result.connectionError) {
@@ -524,6 +524,7 @@ export default function StudioTab({ user, editMode }: StudioTabProps) {
         return;
       }
       const parts: string[] = [];
+      if (result.usernameBlocked) parts.push('username');
       if (result.titleBlocked) parts.push('title');
       if (result.descBlocked) parts.push('description');
       if (result.codeBlocked) parts.push('game code');
@@ -538,6 +539,7 @@ export default function StudioTab({ user, editMode }: StudioTabProps) {
       {showPyxCheck && (
         <PyxCheckingPopup
           open={showPyxCheck}
+          username={draft.owner || user.username || ''}
           title={draft.title || ''}
           desc={draft.desc || ''}
           onComplete={handlePyxCheckComplete}

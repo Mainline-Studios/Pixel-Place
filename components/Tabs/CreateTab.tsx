@@ -237,7 +237,7 @@ export function createGame(container: HTMLElement) {
     navigateToTab('games');
   };
 
-  const handlePyxCheckComplete = (result: { safe: boolean; titleBlocked?: boolean; descBlocked?: boolean; codeBlocked?: boolean; connectionError?: boolean }) => {
+  const handlePyxCheckComplete = (result: { safe: boolean; usernameBlocked?: boolean; titleBlocked?: boolean; descBlocked?: boolean; codeBlocked?: boolean; connectionError?: boolean }) => {
     const action = pyxCheckAction;
     setShowPyxCheck(false);
     setPyxCheckAction(null);
@@ -247,6 +247,7 @@ export function createGame(container: HTMLElement) {
         return;
       }
       const parts: string[] = [];
+      if (result.usernameBlocked) parts.push('username');
       if (result.titleBlocked) parts.push('title');
       if (result.descBlocked) parts.push('description');
       if (result.codeBlocked) parts.push('game code (inappropriate content detected)');
@@ -265,6 +266,7 @@ export function createGame(container: HTMLElement) {
       {showPyxCheck && (
         <PyxCheckingPopup
           open={showPyxCheck}
+          username={draft.owner || user.username || ''}
           title={draft.title || ''}
           desc={draft.desc || ''}
           gameCode={pyxCheckAction === 'publish' ? gameCode : undefined}

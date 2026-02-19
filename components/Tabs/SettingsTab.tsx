@@ -5,7 +5,7 @@ import { User, Skin, TabContent } from '@/types';
 import { getSkins, getTabContent } from '@/lib/storage';
 import AdminPanelTab from './AdminPanelTab';
 import { escapeHTML } from '@/lib/utils';
-import FilteredText from '@/components/FilteredText';
+import { FilteredUsername } from '@/components/FilteredText';
 import { useUser } from '@/contexts/UserContext';
 import { useStyle } from '@/components/StyleProvider';
 import { useSound } from '@/contexts/SoundContext';
@@ -48,7 +48,7 @@ export default function SettingsTab({ user, editMode, onToggleEditMode }: Settin
       <div className="ai-box">
         <div className="ai-label">Account</div>
         <div className="ai-output">
-          Username: <FilteredText text={user.username || ''} />
+          Username: <FilteredUsername username={user.username || ''} currentUsername={user.username || ''} />
           <br />
           Role: {escapeHTML(user.role)}
           <br />

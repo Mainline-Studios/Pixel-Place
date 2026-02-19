@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { checkForPublish, analyzeCodeForPublish } from '@/lib/pyx';
 
 const STEPS = [
+  'Checking username...',
   'Scanning title...',
   'Analyzing description...',
   'Verifying content safety...',
@@ -13,14 +14,16 @@ const STEPS = [
 
 interface PyxCheckingPopupProps {
   open: boolean;
+  /** Username (owner) to check for publish. */
+  username: string;
   title: string;
   desc: string;
   /** When provided, game code is scanned with Pyx Analyze (/analyze/three). */
   gameCode?: string;
-  onComplete: (result: { safe: boolean; titleBlocked?: boolean; descBlocked?: boolean; codeBlocked?: boolean; connectionError?: boolean }) => void;
+  onComplete: (result: { safe: boolean; usernameBlocked?: boolean; titleBlocked?: boolean; descBlocked?: boolean; codeBlocked?: boolean; connectionError?: boolean }) => void;
 }
 
-export default function PyxCheckingPopup({ open, title, desc, gameCode, onComplete }: PyxCheckingPopupProps) {
+export default function PyxCheckingPopup({ open, username, title, desc, gameCode, onComplete }: PyxCheckingPopupProps) {
   const [progress, setProgress] = useState(0);
   const [stepIndex, setStepIndex] = useState(0);
   const completedRef = useRef(false);
@@ -51,6 +54,7 @@ export default function PyxCheckingPopup({ open, title, desc, gameCode, onComple
       setStepIndex(STEPS.length - 1);
 
       const checks: Promise<unknown>[] = [
+        checkForPublish(username || ''),
         checkForPublish(title || ''),
         checkForPublish(desc || ''),
       ];
@@ -58,17 +62,20 @@ export default function PyxCheckingPopup({ open, title, desc, gameCode, onComple
         checks.push(analyzeCodeForPublish(gameCode));
       }
       const results = await Promise.all(checks);
-      const titleResult = results[0] as { safe: boolean; connectionError?: boolean };
-      const descResult = results[1] as { safe: boolean; connectionError?: boolean };
-      const codeResult = checks.length > 2 ? (results[2] as { safe: boolean; connectionError?: boolean }) : { safe: true };
+      const usernameResult = results[0] as { safe: boolean; connectionError?: boolean };
+      const titleResult = results[1] as { safe: boolean; connectionError?: boolean };
+      const descResult = results[2] as { safe: boolean; connectionError?: boolean };
+      const codeResult = checks.length > 3 ? (results[3] as { safe: boolean; connectionError?: boolean }) : { safe: true };
 
+      const usernameBlocked = !usernameResult.safe;
       const titleBlocked = !titleResult.safe;
       const descBlocked = !descResult.safe;
       const codeBlocked = !codeResult.safe;
       const connectionError =
-        titleResult.connectionError || descResult.connectionError || codeResult.connectionError;
+        usernameResult.connectionError || titleResult.connectionError || descResult.connectionError || codeResult.connectionError;
       onComplete({
-        safe: !titleBlocked && !descBlocked && !codeBlocked,
+        safe: !usernameBlocked && !titleBlocked && !descBlocked && !codeBlocked,
+        usernameBlocked: usernameBlocked && !connectionError ? true : undefined,
         titleBlocked: titleBlocked && !connectionError ? true : undefined,
         descBlocked: descBlocked && !connectionError ? true : undefined,
         codeBlocked: codeBlocked && !connectionError ? true : undefined,
@@ -77,7 +84,7 @@ export default function PyxCheckingPopup({ open, title, desc, gameCode, onComple
     };
 
     run();
-  }, [open, title, desc, gameCode, onComplete]);
+  }, [open, username, title, desc, gameCode, onComplete]);
 
   if (!open) return null;
 

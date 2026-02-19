@@ -3,7 +3,7 @@
 import { useEffect, useRef } from 'react';
 import dynamic from 'next/dynamic';
 import { UserMadeGame, User } from '@/types';
-import FilteredText from '@/components/FilteredText';
+import FilteredText, { FilteredUsername } from '@/components/FilteredText';
 
 const GamePlayer = dynamic(() => import('@/components/GamePlayer'), { ssr: false });
 
@@ -225,7 +225,7 @@ export default function UserMadeGamePlayer({ game, user, onClose }: UserMadeGame
         )}
         <div style={{ position: 'absolute', top: 20, left: 20, zIndex: 1000, background: 'rgba(0,0,0,0.7)', padding: 15, borderRadius: 8, color: 'var(--text)' }}>
           <h3 style={{ margin: '0 0 10px 0' }}><FilteredText text={game.title} /></h3>
-          <p style={{ margin: 0, fontSize: 12, opacity: 0.8 }}>By: <FilteredText text={game.owner} /></p>
+          <p style={{ margin: 0, fontSize: 12, opacity: 0.8 }}>By: <FilteredUsername username={game.owner} currentUsername={user?.username ?? ''} /></p>
         </div>
         <iframe srcDoc={htmlToRender} title={game.title} style={{ width: '100%', height: '100%', border: 'none', display: 'block' }} sandbox="allow-scripts allow-same-origin" />
       </div>
@@ -265,7 +265,7 @@ export default function UserMadeGamePlayer({ game, user, onClose }: UserMadeGame
         color: 'var(--text)'
       }}>
         <h3 style={{ margin: '0 0 10px 0' }}><FilteredText text={game.title} /></h3>
-        <p style={{ margin: '0 0 5px 0', fontSize: '12px', opacity: 0.8 }}>By: <FilteredText text={game.owner} /></p>
+        <p style={{ margin: '0 0 5px 0', fontSize: '12px', opacity: 0.8 }}>By: <FilteredUsername username={game.owner} currentUsername={user?.username ?? ''} /></p>
         <p style={{ margin: 0, fontSize: '12px', opacity: 0.8 }}><FilteredText text={game.desc || ''} /></p>
       </div>
       <canvas

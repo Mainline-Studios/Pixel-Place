@@ -5,7 +5,7 @@ import { User, UserMadeGame } from '@/types';
 import { getUserMadeGames, deleteUserMadeGame } from '@/lib/storage';
 import { subscribeToUserMadeGames } from '@/lib/firestoreClient';
 import UserMadeGamePlayer from '../Games/UserMadeGamePlayer';
-import FilteredText from '../FilteredText';
+import FilteredText, { FilteredUsername } from '../FilteredText';
 import GameErrorBoundary from '../GameErrorBoundary';
 import GymPumpEngine from '../Games/GymPumpEngine';
 import Hypnosia from '../Games/Hypnosia';
@@ -445,7 +445,7 @@ export default function GamesTab({ user, editMode }: GamesTabProps) {
                   textAlign: 'center',
                   marginBottom: '16px'
                 }}>
-                  By: <FilteredText text={game.owner || ''} />
+                  By: <FilteredUsername username={game.owner || ''} currentUsername={user.username || ''} />
                 </div>
                 <div style={{ display: 'flex', gap: '8px' }}>
                   <button className="btn" style={{ flex: 1 }} onClick={(e) => { e.stopPropagation(); setSelectedUserGame(game); }}>
