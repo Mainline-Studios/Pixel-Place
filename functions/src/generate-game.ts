@@ -4,11 +4,43 @@
  */
 import * as admin from 'firebase-admin';
 
+const PYX_DEFAULT_URL = 'https://pyxaiapi-574247481583.us-central1.run.app';
+const PYX_CODE_MAX_TOKENS = 4096;
+
 const AI_MODELS: Record<string, { groqModel: string; cost: number }> = {
   template: { groqModel: '', cost: 0 },
+  pyx: { groqModel: '', cost: 0 },
   'groq-8b': { groqModel: 'llama-3.1-8b-instant', cost: 0 },
   'groq-70b': { groqModel: 'llama-3.3-70b-versatile', cost: 10 },
 };
+
+async function generateWithPyx(prompt: string): Promise<{ completion: string; connectionError?: boolean }> {
+  const url = process.env.PYX_SERVICE_URL || PYX_DEFAULT_URL;
+  const gamePrompt = `Create a complete Three.js game. Export: export function createGame(container: HTMLElement). Import: import * as THREE from 'three'. Include lighting, player controls (WASD, mouse), and a simple playable scene. Return ONLY the TypeScript/JavaScript code, no markdown or explanation.
+
+User request: ${prompt}`;
+  try {
+    const res = await fetch(`${url.replace(/\/$/, '')}/code/complete`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prompt: gamePrompt, max_tokens: PYX_CODE_MAX_TOKENS }),
+    });
+    if (!res.ok) return { completion: '', connectionError: true };
+    const data = (await res.json()) as { completion?: string };
+    return { completion: typeof data.completion === 'string' ? data.completion : '' };
+  } catch (e) {
+    console.error('[Pyx] Code complete error:', e);
+    return { completion: '', connectionError: true };
+  }
+}
+
+function normalizeGameCode(code: string): string {
+  let out = (code || '').replace(/```typescript\n?/g, '').replace(/```javascript\n?/g, '').replace(/```\n?/g, '').trim();
+  if (!out.includes('export function createGame') && !out.includes('function createGame')) {
+    out = `export function createGame(container: HTMLElement) {\n${out}\n}`;
+  }
+  return out;
+}
 
 async function generateWithGroq(prompt: string, apiKey: string, groqModel?: string): Promise<string> {
   const model = groqModel || process.env.GROQ_MODEL || 'llama-3.3-70b-versatile';
@@ -509,6 +541,15 @@ export async function handleGenerateGame(
     if (modelId === 'template') {
       code = generateSmartTemplateCode(prompt);
       usedProvider = 'template';
+    } else if (modelId === 'pyx') {
+      const pyxResult = await generateWithPyx(prompt);
+      if (pyxResult.connectionError || !pyxResult.completion?.trim()) {
+        code = generateSmartTemplateCode(prompt);
+        usedProvider = 'template';
+      } else {
+        code = normalizeGameCode(pyxResult.completion);
+        usedProvider = 'pyx';
+      }
     } else if (groqKey && modelConfig.groqModel) {
       code = await generateWithGroq(prompt, groqKey, modelConfig.groqModel);
       usedProvider = modelId;

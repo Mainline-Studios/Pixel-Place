@@ -1,12 +1,17 @@
 /**
  * Pyx content filter - calls YOUR Pyx Python app via HTTP.
- * Set PYX_SERVICE_URL to your Pyx service URL.
+ * Set PYX_SERVICE_URL to your Pyx service URL (optional; defaults to shared Pyx API).
  *
  * Endpoints:
  * - POST /score — Decision only, no training. Use for normal checks (chat, messages).
  * - POST /ai-decide — Decision + training. Use for game AI content (AI chat, prompts).
  * - POST /feedback — Moderator override: {text, safe}. Trains Pyx.
  */
+const PYX_DEFAULT_URL = 'https://pyxaiapi-574247481583.us-central1.run.app';
+
+function getPyxBaseUrl(): string {
+  return process.env.PYX_SERVICE_URL || PYX_DEFAULT_URL;
+}
 
 /** Replace every letter (A-Z, a-z) with ~. Leaves spaces, numbers, symbols. */
 export function censorLetters(text: string): string {
@@ -41,11 +46,7 @@ async function callPyx(base: string, path: string, body: object): Promise<PyxRes
 /** Server-side: POST /score — decision only, no training. Use for chat, messages. */
 export async function filterForDisplayServer(text: string): Promise<string> {
   if (!text || typeof text !== 'string') return text;
-  const url = process.env.PYX_SERVICE_URL;
-  if (!url) {
-    console.error('[Pyx] PYX_SERVICE_URL not set! Add it to .env.local / Vercel / Firebase config.');
-    return censorLetters(text);
-  }
+  const url = getPyxBaseUrl();
   try {
     const data = await callPyx(url, '/score', { text });
     return applyPyxResponse(data, text);
@@ -58,11 +59,7 @@ export async function filterForDisplayServer(text: string): Promise<string> {
 /** Server-side: POST /ai-decide — decision + training. Use for game AI content (AI chat, prompts). */
 export async function filterForDisplayAIDecideServer(text: string): Promise<string> {
   if (!text || typeof text !== 'string') return text;
-  const url = process.env.PYX_SERVICE_URL;
-  if (!url) {
-    console.error('[Pyx] PYX_SERVICE_URL not set!');
-    return censorLetters(text);
-  }
+  const url = getPyxBaseUrl();
   try {
     const data = await callPyx(url, '/ai-decide', { text });
     return applyPyxResponse(data, text);
@@ -75,8 +72,7 @@ export async function filterForDisplayAIDecideServer(text: string): Promise<stri
 /** Send moderator feedback to train Pyx. Call when a moderator overrides a decision. */
 export async function sendFeedbackServer(text: string, safe: boolean): Promise<void> {
   if (!text || typeof text !== 'string') return;
-  const url = process.env.PYX_SERVICE_URL;
-  if (!url) return;
+  const url = getPyxBaseUrl();
   try {
     await fetch(`${url.replace(/\/$/, '')}/feedback`, {
       method: 'POST',

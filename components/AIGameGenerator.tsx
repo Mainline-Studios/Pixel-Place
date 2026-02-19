@@ -19,6 +19,7 @@ interface ChatMessage {
 
 export const AI_MODELS = [
   { id: 'template', name: 'Template (Smart)', cost: 0, desc: 'Free — quick template based on your description' },
+  { id: 'pyx', name: 'Pyx AI Code', cost: 0, desc: 'Free — Pyx code generation' },
   { id: 'groq-8b', name: 'Llama 3.1 8B', cost: 0, desc: 'Free — fast AI generation' },
   { id: 'groq-70b', name: 'Llama 3.3 70B', cost: 10, desc: '10 Pixel Coins — higher quality AI' },
 ] as const;

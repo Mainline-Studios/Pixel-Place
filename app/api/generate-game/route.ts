@@ -2,8 +2,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { getDocument, updateDocument, COLLECTIONS } from '@/lib/firestore';
 
+const PYX_DEFAULT_URL = 'https://pyxaiapi-574247481583.us-central1.run.app';
+
 const AI_MODELS: Record<string, { groqModel: string; cost: number }> = {
   template: { groqModel: '', cost: 0 },
+  pyx: { groqModel: '', cost: 0 },
   'groq-8b': { groqModel: 'llama-3.1-8b-instant', cost: 0 },
   'groq-70b': { groqModel: 'llama-3.3-70b-versatile', cost: 10 },
 };
@@ -53,6 +56,15 @@ export async function POST(request: NextRequest) {
 
     if (modelId === 'template') {
       generatedCode = generateSmartTemplateCode(prompt);
+    } else if (modelId === 'pyx') {
+      const pyxResult = await generateWithPyx(prompt);
+      if (pyxResult.connectionError || !pyxResult.completion?.trim()) {
+        generatedCode = generateSmartTemplateCode(prompt);
+        usedProvider = 'template';
+      } else {
+        generatedCode = normalizeGameCode(pyxResult.completion);
+        usedProvider = 'pyx';
+      }
     } else if (modelConfig.groqModel && process.env.GROQ_API_KEY) {
       generatedCode = await generateWithGroq(prompt, process.env.GROQ_API_KEY, modelConfig.groqModel);
     } else if (process.env.GROQ_API_KEY) {
@@ -76,6 +88,36 @@ export async function POST(request: NextRequest) {
       error: error.message
     });
   }
+}
+
+const PYX_CODE_MAX_TOKENS = 4096;
+
+async function generateWithPyx(prompt: string): Promise<{ completion: string; connectionError?: boolean }> {
+  const url = process.env.PYX_SERVICE_URL || PYX_DEFAULT_URL;
+  const gamePrompt = `Create a complete Three.js game. Export: export function createGame(container: HTMLElement). Import: import * as THREE from 'three'. Include lighting, player controls (WASD, mouse), and a simple playable scene. Return ONLY the TypeScript/JavaScript code, no markdown or explanation.
+
+User request: ${prompt}`;
+  try {
+    const res = await fetch(`${url.replace(/\/$/, '')}/code/complete`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prompt: gamePrompt, max_tokens: PYX_CODE_MAX_TOKENS }),
+    });
+    if (!res.ok) return { completion: '', connectionError: true };
+    const data = (await res.json()) as { completion?: string };
+    return { completion: typeof data.completion === 'string' ? data.completion : '' };
+  } catch (e) {
+    console.error('[Pyx] Code complete error:', e);
+    return { completion: '', connectionError: true };
+  }
+}
+
+function normalizeGameCode(code: string): string {
+  let out = (code || '').replace(/```typescript\n?/g, '').replace(/```javascript\n?/g, '').replace(/```\n?/g, '').trim();
+  if (!out.includes('export function createGame') && !out.includes('function createGame')) {
+    out = `export function createGame(container: HTMLElement) {\n${out}\n}`;
+  }
+  return out;
 }
 
 async function generateWithOpenAI(prompt: string, apiKey: string): Promise<string> {

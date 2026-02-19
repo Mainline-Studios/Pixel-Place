@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 
+const PYX_DEFAULT_URL = 'https://pyxaiapi-574247481583.us-central1.run.app';
+
 /**
  * Pyx Analyze — scan code for inappropriate content (Pyx Analyze service).
  * POST { source: string } → { safe: boolean, flagged?: array }
@@ -9,13 +11,10 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const source = typeof body?.source === 'string' ? body.source : '';
-    const url = process.env.PYX_SERVICE_URL;
+    const url = process.env.PYX_SERVICE_URL || PYX_DEFAULT_URL;
 
     if (!source) {
       return NextResponse.json({ safe: true });
-    }
-    if (!url) {
-      return NextResponse.json({ safe: false, connectionError: true });
     }
 
     const res = await fetch(`${url.replace(/\/$/, '')}/analyze/three`, {

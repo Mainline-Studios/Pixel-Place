@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 
+const PYX_DEFAULT_URL = 'https://pyxaiapi-574247481583.us-central1.run.app';
+
 /**
  * Pyx Code — completion. Proxies to Pyx POST /code/complete.
  * POST { prompt: string, max_tokens?: number } → { completion: string }
@@ -9,13 +11,10 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const prompt = typeof body?.prompt === 'string' ? body.prompt : '';
     const maxTokens = typeof body?.max_tokens === 'number' ? body.max_tokens : 256;
-    const url = process.env.PYX_SERVICE_URL;
+    const url = process.env.PYX_SERVICE_URL || PYX_DEFAULT_URL;
 
     if (!prompt) {
       return NextResponse.json({ completion: '' });
-    }
-    if (!url) {
-      return NextResponse.json({ completion: '', connectionError: true });
     }
 
     const res = await fetch(`${url.replace(/\/$/, '')}/code/complete`, {
