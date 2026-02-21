@@ -3,6 +3,12 @@
  * Deploy: firebase deploy --only functions
  * URL: https://us-central1-pixel-place-823b1.cloudfunctions.net/api
  */
+import path from 'path';
+import { config as loadEnv } from 'dotenv';
+
+// Load functions/.env (no deprecated functions.config() - works after March 2026)
+loadEnv({ path: path.join(__dirname, '..', '.env') });
+
 import * as functions from 'firebase-functions';
 import * as admin from 'firebase-admin';
 import express from 'express';
@@ -34,6 +40,7 @@ const COLLECTIONS = {
 };
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
+import { requireAuth, requireAdmin, requireOwnerOrAdmin, getAuthFromRequest, isAdmin } from './authMiddleware';
 
 // Minimal NEW_SKINS fallback (starter skins)
 const FALLBACK_SKINS = [
@@ -66,11 +73,12 @@ app.use(cors({ origin: true }));
 app.use(express.json());
 
 // Cloud Functions URL is .../api - requests to .../api/users have path /api/users
-// Strip /api so our routes match /users, /skins, etc.
+// Strip /api so our routes match /users, /skins, etc. (Hosting rewrite may leave path as /api/...)
 app.use((req, res, next) => {
-  const p = req.path;
-  if (p.startsWith('/api')) {
-    req.url = (p.length === 4 ? '/' : p.slice(4)) || '/';
+  const p = req.path || req.url || '';
+  const pathOnly = p.split('?')[0];
+  if (pathOnly.startsWith('/api/') || pathOnly === '/api') {
+    req.url = pathOnly === '/api' ? '/' : pathOnly.slice(4) || '/';
   }
   next();
 });
@@ -88,9 +96,13 @@ app.get('/users', async (_req, res) => {
 
 app.post('/users', async (req, res) => {
   try {
+    const auth = requireAuth(req, res);
+    if (!auth) return;
     const u = req.body;
     const id = (u.username || '').toLowerCase();
     if (!id) return res.status(400).json({ error: 'Username required' });
+    const selfOnly = id === auth.username.toLowerCase();
+    if (!selfOnly && !isAdmin(auth)) return res.status(403).json({ error: 'Forbidden' });
     const existing = await db.collection(COLLECTIONS.USERS).doc(id).get();
     const data = {
       username: u.username,
@@ -124,9 +136,13 @@ app.post('/users', async (req, res) => {
 
 app.put('/users', async (req, res) => {
   try {
+    const auth = requireAuth(req, res);
+    if (!auth) return;
     const u = req.body;
     const id = (u.username || '').toLowerCase();
     if (!id) return res.status(400).json({ error: 'Username required' });
+    const selfOnly = id === auth.username.toLowerCase();
+    if (!selfOnly && !isAdmin(auth)) return res.status(403).json({ error: 'Forbidden' });
     const ref = db.collection(COLLECTIONS.USERS).doc(id);
     const existing = await ref.get();
     if (!existing.exists) return res.status(404).json({ error: 'User not found' });
@@ -168,6 +184,8 @@ app.get('/skins', async (_req, res) => {
 
 app.post('/skins', async (req, res) => {
   try {
+    const auth = requireAdmin(req, res);
+    if (!auth) return;
     const skins = req.body;
     await db.collection(COLLECTIONS.SKINS_CATALOG).doc('catalog').set({ skins, updated_at: Date.now() }, { merge: true });
     res.json(skins);
@@ -232,11 +250,12 @@ app.post('/auth', async (req, res) => {
   }
 });
 
-// GET/POST /safety
+// GET/POST /safety — identity from token only
 app.get('/safety', async (req, res) => {
   try {
-    const username = req.query.username as string;
-    if (!username) return res.json({ safetyPoints: 0, lastBreakAt: 0 });
+    const auth = requireAuth(req, res);
+    if (!auth) return;
+    const username = auth.username;
     const doc = await db.collection(COLLECTIONS.USER_SAFETY).doc(username.toLowerCase()).get();
     const d = doc.data();
     return res.json({ safetyPoints: d?.safety_points ?? 0, lastBreakAt: d?.last_break_at ?? 0 });
@@ -247,12 +266,26 @@ app.get('/safety', async (req, res) => {
 
 app.post('/safety', async (req, res) => {
   try {
-    const { username, action, safetyPoints } = req.body;
-    if (!username) return res.status(400).json({ error: 'Username required' });
+    const auth = requireAuth(req, res);
+    if (!auth) return;
+    const username = auth.username;
+    const { action, safetyPoints, playtime } = req.body;
     const id = username.toLowerCase();
     const ref = db.collection(COLLECTIONS.USER_SAFETY).doc(id);
     if (action === 'updateSafetyPoints') {
       await ref.set({ safety_points: safetyPoints, updated_at: Date.now() }, { merge: true });
+    } else if (action === 'updatePlaytime' && typeof playtime === 'number') {
+      const doc = await ref.get();
+      const d = doc.data() || {};
+      const playtimeToday = (d.playtime_today ?? 0) + playtime;
+      const totalPlaytime = (d.total_playtime ?? 0) + playtime;
+      await ref.set({
+        playtime_today: playtimeToday,
+        total_playtime: totalPlaytime,
+        last_active_at: Date.now(),
+        updated_at: Date.now()
+      }, { merge: true });
+      return res.json({ success: true, playtimeToday, totalPlaytime });
     }
     const doc = await ref.get();
     const d = doc.data();
@@ -262,10 +295,12 @@ app.post('/safety', async (req, res) => {
   }
 });
 
-// Draft: GET by username, POST to save
+// Draft: GET/POST — identity from token only
 app.get('/draft', async (req, res) => {
   try {
-    const username = (req.query.username as string) || 'default';
+    const auth = requireAuth(req, res);
+    if (!auth) return;
+    const username = auth.username;
     const doc = await db.collection(COLLECTIONS.DRAFTS).doc(username).get();
     const d = doc.data();
     if (!d) return res.json({ title: '', desc: '', owner: '' });
@@ -286,8 +321,10 @@ app.get('/draft', async (req, res) => {
 });
 app.post('/draft', async (req, res) => {
   try {
+    const auth = requireAuth(req, res);
+    if (!auth) return;
+    const username = auth.username;
     const draft = req.body;
-    const username = draft.owner || 'default';
     await db.collection(COLLECTIONS.DRAFTS).doc(username).set({
       username,
       title: draft.title || '',
@@ -307,10 +344,12 @@ app.post('/draft', async (req, res) => {
   }
 });
 
-// Scene: GET/POST by userId
+// Scene: GET/POST — identity from token only
 app.get('/scene', async (req, res) => {
   try {
-    const userId = (req.query.userId as string) || 'default';
+    const auth = requireAuth(req, res);
+    if (!auth) return;
+    const userId = auth.username.toLowerCase();
     const doc = await db.collection(COLLECTIONS.SCENES).doc(userId).get();
     const d = doc.data();
     if (!d || !d.scene_data) return res.json({ objects: [] });
@@ -322,8 +361,10 @@ app.get('/scene', async (req, res) => {
 });
 app.post('/scene', async (req, res) => {
   try {
+    const auth = requireAuth(req, res);
+    if (!auth) return;
     const scene = req.body;
-    const userId = (req.query.userId as string) || 'default';
+    const userId = auth.username.toLowerCase();
     await db.collection(COLLECTIONS.SCENES).doc(userId).set({
       user_id: userId,
       scene_data: scene,
@@ -335,13 +376,15 @@ app.post('/scene', async (req, res) => {
   }
 });
 
-// Games: GET all or by owner, POST to create
+// Games: GET all or by owner (owner from token only when filtering)
 app.get('/games', async (req, res) => {
   try {
-    const owner = req.query.owner as string;
+    const ownerQuery = req.query.owner as string;
     let snap;
-    if (owner) {
-      snap = await db.collection(COLLECTIONS.GAMES).where('owner', '==', owner).orderBy('ts', 'desc').get();
+    if (ownerQuery) {
+      const auth = getAuthFromRequest(req);
+      if (!auth) return res.status(401).json({ error: 'Unauthorized' });
+      snap = await db.collection(COLLECTIONS.GAMES).where('owner', '==', auth.username).orderBy('ts', 'desc').get();
     } else {
       snap = await db.collection(COLLECTIONS.GAMES).orderBy('ts', 'desc').get();
     }
@@ -370,13 +413,15 @@ app.get('/games', async (req, res) => {
 });
 app.post('/games', async (req, res) => {
   try {
+    const auth = requireAuth(req, res);
+    if (!auth) return;
     const game = req.body;
     const gameId = game.id || `game_${Date.now()}`;
     await db.collection(COLLECTIONS.GAMES).doc(gameId).set({
       id: gameId,
       title: game.title,
       description: game.desc || '',
-      owner: game.owner,
+      owner: auth.username,
       ts: game.ts || Date.now(),
       scene_data: game.sceneData || null,
       preset_messages: game.presetMessages || null,
@@ -395,13 +440,15 @@ app.post('/games', async (req, res) => {
   }
 });
 
-// Gym Pump game API (for production - Next.js API routes not available with static export)
+// Gym Pump game API — identity from token only
 app.post('/games/gym-pump/connect', async (req, res) => {
   try {
-    const { gameId, username } = req.body;
-    if (!gameId || !username) return res.status(400).json({ error: 'gameId and username required' });
+    const auth = requireAuth(req, res);
+    if (!auth) return;
+    const { gameId } = req.body;
+    if (!gameId) return res.status(400).json({ error: 'gameId required' });
     const sessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    await db.collection('gym_pump_sessions').doc(sessionId).set({ sessionId, gameId, username, timestamp: Date.now() });
+    await db.collection('gym_pump_sessions').doc(sessionId).set({ sessionId, gameId, username: auth.username, timestamp: Date.now() });
     return res.json({ sessionId });
   } catch (e) {
     return res.status(500).json({ error: 'Failed to connect' });
@@ -409,9 +456,11 @@ app.post('/games/gym-pump/connect', async (req, res) => {
 });
 app.post('/games/gym-pump/score', async (req, res) => {
   try {
-    const { gameId, power, coins, level, username } = req.body;
+    const auth = requireAuth(req, res);
+    if (!auth) return;
+    const { gameId, power, coins, level } = req.body;
     if (!gameId || power === undefined || coins === undefined || level === undefined) return res.status(400).json({ error: 'Invalid request' });
-    await db.collection('gym_pump_scores').add({ gameId, username: username || 'Anonymous', power, coins, level: level || 1, timestamp: Date.now() });
+    await db.collection('gym_pump_scores').add({ gameId, username: auth.username, power, coins, level: level || 1, timestamp: Date.now() });
     return res.json({ success: true });
   } catch (e) {
     return res.status(500).json({ error: 'Failed to save score' });
@@ -419,9 +468,11 @@ app.post('/games/gym-pump/score', async (req, res) => {
 });
 app.post('/games/gym-pump/sync', async (req, res) => {
   try {
-    const { gameId, power, coins, level, username } = req.body;
-    if (!gameId || !username || power === undefined || coins === undefined || level === undefined) return res.status(400).json({ error: 'Invalid request' });
-    const progressId = `${username}_${gameId}`;
+    const auth = requireAuth(req, res);
+    if (!auth) return;
+    const { gameId, power, coins, level } = req.body;
+    if (!gameId || power === undefined || coins === undefined || level === undefined) return res.status(400).json({ error: 'Invalid request' });
+    const progressId = `${auth.username}_${gameId}`;
     const ref = db.collection('gym_pump_progress').doc(progressId);
     const existing = (await ref.get()).data();
     const merged = {
@@ -434,6 +485,24 @@ app.post('/games/gym-pump/sync', async (req, res) => {
     return res.json({ success: true });
   } catch (e) {
     return res.status(500).json({ error: 'Failed to sync' });
+  }
+});
+app.get('/games/gym-pump/sync', async (req, res) => {
+  try {
+    const auth = requireAuth(req, res);
+    if (!auth) return;
+    const gameId = (req.query.gameId as string) || 'gym-pump';
+    const progressId = `${auth.username}_${gameId}`;
+    const ref = db.collection('gym_pump_progress').doc(progressId);
+    const existing = (await ref.get()).data();
+    if (!existing) return res.json({ power: 0, coins: 0, level: 1 });
+    return res.json({
+      power: existing.power ?? 0,
+      coins: existing.coins ?? 0,
+      level: existing.level ?? 1
+    });
+  } catch (e) {
+    return res.status(500).json({ error: 'Failed to get progress' });
   }
 });
 app.get('/games/gym-pump/leaderboard', async (req, res) => {
@@ -474,6 +543,8 @@ app.get('/published', async (req, res) => {
 });
 app.post('/published', async (req, res) => {
   try {
+    const auth = requireAdmin(req, res);
+    if (!auth) return;
     const games = req.body as any[];
     const batch = db.batch();
     const existing = await db.collection(COLLECTIONS.PUBLISHED_GAMES).get();
@@ -512,6 +583,8 @@ app.get('/prebuilt', async (req, res) => {
 });
 app.post('/prebuilt', async (req, res) => {
   try {
+    const auth = requireAdmin(req, res);
+    if (!auth) return;
     const games = req.body as any[];
     const batch = db.batch();
     const existing = await db.collection(COLLECTIONS.PREBUILT_GAMES).get();
@@ -562,13 +635,15 @@ app.get('/gamesubmissions', async (req, res) => {
 });
 app.post('/gamesubmissions', async (req, res) => {
   try {
+    const auth = requireAuth(req, res);
+    if (!auth) return;
     const s = req.body;
     const id = s.id || `submission_${Date.now()}`;
     await db.collection(COLLECTIONS.GAME_SUBMISSIONS).doc(id).set({
       id,
       title: s.title,
       description: s.desc || '',
-      owner: s.owner || '',
+      owner: auth.username,
       ts: s.ts || Date.now(),
       scene_data: s.sceneData || null,
       status: s.status || 'pending',
@@ -586,6 +661,10 @@ app.delete('/gamesubmissions', async (req, res) => {
   try {
     const id = req.query.id as string;
     if (!id) return res.status(400).json({ error: 'ID required' });
+    const doc = await db.collection(COLLECTIONS.GAME_SUBMISSIONS).doc(id).get();
+    if (!doc.exists) return res.status(404).json({ error: 'Not found' });
+    const resourceOwner = (doc.data()?.owner as string) || '';
+    if (!requireOwnerOrAdmin(req, res, resourceOwner)) return;
     await db.collection(COLLECTIONS.GAME_SUBMISSIONS).doc(id).delete();
     res.json({ success: true });
   } catch (e) {
@@ -593,9 +672,9 @@ app.delete('/gamesubmissions', async (req, res) => {
   }
 });
 
-// Pyx content filter - calls Pyx API
+// Pyx content filter - calls Pyx API (register both /pyx/* and /api/pyx/* for Hosting rewrite)
 import { filterForDisplay, sendFeedback, checkForPublish, analyzeCodeForPublish, pyxCodeComplete } from './pyx';
-app.post('/pyx/filter', async (req, res) => {
+const pyxFilter = async (req: any, res: any) => {
   try {
     const text = typeof req.body?.text === 'string' ? req.body.text : '';
     const filtered = await filterForDisplay(text);
@@ -603,8 +682,8 @@ app.post('/pyx/filter', async (req, res) => {
   } catch (e) {
     res.status(500).json({ filtered: '', error: 'Filter failed' });
   }
-});
-app.post('/pyx/feedback', async (req, res) => {
+};
+const pyxFeedback = async (req: any, res: any) => {
   try {
     const text = typeof req.body?.text === 'string' ? req.body.text : '';
     const safe = req.body?.safe === true;
@@ -614,8 +693,8 @@ app.post('/pyx/feedback', async (req, res) => {
   } catch (e) {
     res.status(500).json({ error: 'Feedback failed' });
   }
-});
-app.post('/pyx/check', async (req, res) => {
+};
+const pyxCheck = async (req: any, res: any) => {
   try {
     const text = typeof req.body?.text === 'string' ? req.body.text : '';
     const result = await checkForPublish(text);
@@ -624,8 +703,8 @@ app.post('/pyx/check', async (req, res) => {
     console.error('[Pyx] Check route error:', e);
     res.status(500).json({ safe: false, filtered: '', connectionError: true });
   }
-});
-app.post('/pyx/analyze', async (req, res) => {
+};
+const pyxAnalyze = async (req: any, res: any) => {
   try {
     const source = typeof req.body?.source === 'string' ? req.body.source : '';
     const result = await analyzeCodeForPublish(source);
@@ -634,8 +713,8 @@ app.post('/pyx/analyze', async (req, res) => {
     console.error('[Pyx] Analyze route error:', e);
     res.status(500).json({ safe: false, connectionError: true });
   }
-});
-app.post('/pyx/code/complete', async (req, res) => {
+};
+const pyxCodeCompleteHandler = async (req: any, res: any) => {
   try {
     const prompt = typeof req.body?.prompt === 'string' ? req.body.prompt : '';
     const maxTokens = typeof req.body?.max_tokens === 'number' ? req.body.max_tokens : 256;
@@ -645,13 +724,20 @@ app.post('/pyx/code/complete', async (req, res) => {
     console.error('[Pyx] Code complete route error:', e);
     res.status(500).json({ completion: '', connectionError: true });
   }
-});
+};
+['/pyx/filter', '/api/pyx/filter'].forEach((path) => app.post(path, pyxFilter));
+['/pyx/feedback', '/api/pyx/feedback'].forEach((path) => app.post(path, pyxFeedback));
+['/pyx/check', '/api/pyx/check'].forEach((path) => app.post(path, pyxCheck));
+['/pyx/analyze', '/api/pyx/analyze'].forEach((path) => app.post(path, pyxAnalyze));
+['/pyx/code/complete', '/api/pyx/code/complete'].forEach((path) => app.post(path, pyxCodeCompleteHandler));
 
 // AI Game Generator (Groq + template fallback)
 import { handleGenerateGame } from './generate-game';
 import { handleChat } from './chat';
 app.post('/generate-game', (req, res) => handleGenerateGame(req, res));
+app.post('/api/generate-game', (req, res) => handleGenerateGame(req, res));
 app.post('/chat', (req, res) => handleChat(req, res));
+app.post('/api/chat', (req, res) => handleChat(req, res));
 
 // 404 for unknown routes
 app.use((_req, res) => res.status(404).json({ error: 'Not found' }));

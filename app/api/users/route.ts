@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDocuments, setDocument, queryDocuments, COLLECTIONS } from '@/lib/firestore';
+import { requireAuth } from '@/lib/middleware';
 import { User } from '@/types';
 
 function userFromDoc(doc: any): User {
@@ -29,9 +30,15 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
+  const authResult = requireAuth(request);
+  if (authResult.error) return authResult.error;
   try {
     const newUser: User = await request.json();
-    
+    const targetLower = (newUser.username || '').toLowerCase();
+    const selfOnly = targetLower === authResult.user.username.toLowerCase();
+    if (!selfOnly && authResult.user.role !== 'admin' && authResult.user.role !== 'head_admin') {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
     // Check if user exists (case-insensitive)
     const existingUsers = await queryDocuments(COLLECTIONS.USERS, 'username_lower', '==', newUser.username.toLowerCase());
     const existing = existingUsers.length > 0 ? existingUsers[0] : null;
@@ -107,10 +114,15 @@ export async function POST(request: NextRequest) {
 }
 
 export async function PUT(request: NextRequest) {
+  const authResult = requireAuth(request);
+  if (authResult.error) return authResult.error;
   try {
-    const db = getDb();
     const updatedUser: User = await request.json();
-    
+    const targetLower = (updatedUser.username || '').toLowerCase();
+    const selfOnly = targetLower === authResult.user.username.toLowerCase();
+    if (!selfOnly && authResult.user.role !== 'admin' && authResult.user.role !== 'head_admin') {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
     const existingUsers = await queryDocuments(COLLECTIONS.USERS, 'username_lower', '==', updatedUser.username.toLowerCase());
     if (existingUsers.length === 0) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });

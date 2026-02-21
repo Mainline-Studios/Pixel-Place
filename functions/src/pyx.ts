@@ -8,6 +8,8 @@
  * - POST /feedback — Moderator override: {text, safe}. Trains Pyx.
  */
 
+import { getAnthropicApiKey } from './config';
+
 const PYX_DEFAULT_URL = 'https://pyxaiapi-574247481583.us-central1.run.app';
 const BAN_LINE = 0.7;
 
@@ -42,7 +44,87 @@ export function censorLetters(text: string): string {
   return text.replace(/[A-Za-z]/g, '~');
 }
 
-/** POST /score — decision only, no training. Use for chat, messages. */
+async function moderateWithClaude(text: string): Promise<string> {
+  const key = getAnthropicApiKey();
+  if (!key) return censorLetters(text);
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-api-key': key, 'anthropic-version': '2023-06-01' },
+      body: JSON.stringify({
+        model: 'claude-3-5-haiku-20241022',
+        max_tokens: 256,
+        messages: [{
+          role: 'user',
+          content: `Is this text appropriate for a family-friendly game? If YES, reply with the exact same text. If NO, reply with a censored version (replace inappropriate parts with ~). Reply with ONLY the final text.\n\nText: ${text}`,
+        }],
+      }),
+    });
+    if (!res.ok) return censorLetters(text);
+    const data = await res.json();
+    const out = (data.content?.[0] as { text?: string })?.text?.trim() ?? '';
+    return out || censorLetters(text);
+  } catch (e) {
+    console.warn('[Pyx] Claude backup failed:', e);
+    return censorLetters(text);
+  }
+}
+
+async function checkWithClaude(text: string): Promise<{ safe: boolean; filtered: string }> {
+  const key = getAnthropicApiKey();
+  if (!key) return { safe: false, filtered: censorLetters(text) };
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-api-key': key, 'anthropic-version': '2023-06-01' },
+      body: JSON.stringify({
+        model: 'claude-3-5-haiku-20241022',
+        max_tokens: 256,
+        messages: [{
+          role: 'user',
+          content: `Is this text appropriate for a family-friendly game (yes/no)? If no, provide a censored version. Reply: YES or NO, then space, then the filtered text.\n\nText: ${text}`,
+        }],
+      }),
+    });
+    if (!res.ok) return { safe: false, filtered: censorLetters(text) };
+    const data = await res.json();
+    const reply = ((data.content?.[0] as { text?: string })?.text ?? '').trim();
+    const safe = reply.toUpperCase().startsWith('YES');
+    const filtered = reply.includes(' ') ? reply.replace(/^(YES|NO)\s+/i, '').trim() : text;
+    return { safe, filtered: filtered || censorLetters(text) };
+  } catch (e) {
+    console.warn('[Pyx] Claude check backup failed:', e);
+    return { safe: false, filtered: censorLetters(text) };
+  }
+}
+
+async function analyzeCodeWithClaude(source: string): Promise<{ safe: boolean }> {
+  const key = getAnthropicApiKey();
+  if (!key) return { safe: false };
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-api-key': key, 'anthropic-version': '2023-06-01' },
+      body: JSON.stringify({
+        model: 'claude-3-5-haiku-20241022',
+        max_tokens: 64,
+        messages: [{
+          role: 'user',
+          content: `Does this game code contain inappropriate content? Reply only YES or NO.\n\nCode: ${source.slice(0, 4000)}`,
+        }],
+      }),
+    });
+    if (!res.ok) return { safe: false };
+    const data = await res.json();
+    const reply = ((data.content?.[0] as { text?: string })?.text ?? '').trim().toUpperCase();
+    return { safe: reply.startsWith('NO') };
+  } catch (e) {
+    console.warn('[Pyx] Claude analyze backup failed:', e);
+    return { safe: false };
+  }
+}
+
+/** POST /score — decision only. Falls back to Claude when Pyx is down. */
 export async function filterForDisplay(text: string): Promise<string> {
   if (!text || typeof text !== 'string') return text;
   const url = getPyxBaseUrl();
@@ -51,7 +133,7 @@ export async function filterForDisplay(text: string): Promise<string> {
     return applyPyxResponse(data, text);
   } catch (e) {
     console.error('[Pyx] Call failed:', e);
-    return censorLetters(text);
+    return moderateWithClaude(text);
   }
 }
 
@@ -83,7 +165,7 @@ export async function sendFeedback(text: string, safe: boolean): Promise<void> {
   }
 }
 
-/** Check content for publish — returns { safe, filtered, connectionError? }. */
+/** Check content for publish. Uses Claude backup when Pyx is down. */
 export async function checkForPublish(text: string): Promise<{ safe: boolean; filtered: string; connectionError?: boolean }> {
   if (!text || typeof text !== 'string') return { safe: true, filtered: text };
   const url = getPyxBaseUrl();
@@ -93,18 +175,20 @@ export async function checkForPublish(text: string): Promise<{ safe: boolean; fi
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ text }),
     });
-    if (!res.ok) return { safe: false, filtered: '', connectionError: true };
-    const data = (await res.json()) as { score?: number; bad?: boolean; censored?: string };
-    const bad = data.bad === true || (typeof data.score === 'number' && data.score >= BAN_LINE);
-    const filtered = bad && typeof data.censored === 'string' ? data.censored : text;
-    return { safe: !bad, filtered };
+    if (res.ok) {
+      const data = (await res.json()) as { score?: number; bad?: boolean; censored?: string };
+      const bad = data.bad === true || (typeof data.score === 'number' && data.score >= BAN_LINE);
+      const filtered = bad && typeof data.censored === 'string' ? data.censored : text;
+      return { safe: !bad, filtered };
+    }
   } catch (e) {
     console.error('[Pyx] Check failed:', e);
-    return { safe: false, filtered: '', connectionError: true };
   }
+  const backup = await checkWithClaude(text);
+  return backup;
 }
 
-/** Analyze code for inappropriate content — returns { safe, connectionError?, flagged? }. */
+/** Analyze code for inappropriate content. Uses Claude backup when Pyx is down. */
 export async function analyzeCodeForPublish(source: string): Promise<{ safe: boolean; connectionError?: boolean; flagged?: unknown[] }> {
   if (!source || typeof source !== 'string') return { safe: true };
   const url = getPyxBaseUrl();
@@ -114,13 +198,15 @@ export async function analyzeCodeForPublish(source: string): Promise<{ safe: boo
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ source }),
     });
-    if (!res.ok) return { safe: false, connectionError: true };
-    const data = (await res.json()) as { safe?: boolean; flagged?: unknown[] };
-    return { safe: data.safe !== false, flagged: data.flagged };
+    if (res.ok) {
+      const data = (await res.json()) as { safe?: boolean; flagged?: unknown[] };
+      return { safe: data.safe !== false, flagged: data.flagged };
+    }
   } catch (e) {
     console.error('[Pyx] Analyze failed:', e);
-    return { safe: false, connectionError: true };
   }
+  const backup = await analyzeCodeWithClaude(source);
+  return backup;
 }
 
 /** Pyx Code completion — returns { completion, connectionError? }. */

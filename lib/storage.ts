@@ -184,12 +184,11 @@ export async function saveTabContent(content: TabContent): Promise<void> {
   }
 }
 
-// Draft functions - Using API (Firebase)
-export async function getDraft(username?: string): Promise<DraftGame> {
+// Draft functions — identity from token
+export async function getDraft(_username?: string): Promise<DraftGame> {
   if (typeof window === 'undefined') return { title: "", desc: "", owner: "" };
   try {
-    const path = username ? `/api/draft?username=${encodeURIComponent(username)}` : '/api/draft';
-    const response = await fetch(apiUrl(path), { cache: 'no-store' });
+    const response = await authenticatedFetch(apiUrl('/api/draft'), { cache: 'no-store' });
     if (!response.ok) throw new Error('Failed to fetch draft');
     return await response.json();
   } catch (e) {
@@ -201,7 +200,7 @@ export async function getDraft(username?: string): Promise<DraftGame> {
 export async function saveDraft(draft: DraftGame): Promise<void> {
   if (typeof window === 'undefined') return;
   try {
-    await fetch(apiUrl('/api/draft'), {
+    await authenticatedFetch(apiUrl('/api/draft'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(draft)
@@ -257,12 +256,11 @@ export async function savePublished(games: PublishedGame[]): Promise<void> {
   }
 }
 
-// Scene functions - Now using API
-export async function getSceneData(userId?: string): Promise<SceneData> {
+// Scene functions — identity from token
+export async function getSceneData(_userId?: string): Promise<SceneData> {
   if (typeof window === 'undefined') return { objects: [] };
   try {
-    const path = userId ? `/api/scene?userId=${encodeURIComponent(userId)}` : '/api/scene';
-    const response = await fetch(apiUrl(path), { cache: 'no-store' });
+    const response = await authenticatedFetch(apiUrl('/api/scene'), { cache: 'no-store' });
     if (!response.ok) throw new Error('Failed to fetch scene');
     return await response.json();
   } catch (e) {
@@ -271,11 +269,10 @@ export async function getSceneData(userId?: string): Promise<SceneData> {
   }
 }
 
-export async function saveSceneData(data: SceneData, userId?: string): Promise<void> {
+export async function saveSceneData(data: SceneData, _userId?: string): Promise<void> {
   if (typeof window === 'undefined') return;
   try {
-    const path = userId ? `/api/scene?userId=${encodeURIComponent(userId)}` : '/api/scene';
-    await fetch(apiUrl(path), {
+    await authenticatedFetch(apiUrl('/api/scene'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data)

@@ -1,11 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { analyzeCodeWithClaudeServer } from '@/lib/pyx';
 
 const PYX_DEFAULT_URL = 'https://pyxaiapi-574247481583.us-central1.run.app';
 
 /**
- * Pyx Analyze — scan code for inappropriate content (Pyx Analyze service).
- * POST { source: string } → { safe: boolean, flagged?: array }
- * Calls Pyx POST /analyze/three for Three.js/WebGL game code.
+ * Pyx Analyze — scan code for inappropriate content. Uses Claude as backup when Pyx is down.
  */
 export async function POST(request: NextRequest) {
   try {
@@ -17,21 +16,21 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ safe: true });
     }
 
-    const res = await fetch(`${url.replace(/\/$/, '')}/analyze/three`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ source }),
-    });
-
-    if (!res.ok) {
-      return NextResponse.json({ safe: false, connectionError: true });
+    try {
+      const res = await fetch(`${url.replace(/\/$/, '')}/analyze/three`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ source }),
+      });
+      if (res.ok) {
+        const data = (await res.json()) as { safe?: boolean; flagged?: unknown[] };
+        return NextResponse.json({ safe: data.safe !== false, flagged: data.flagged });
+      }
+    } catch (_) {
+      /* Pyx failed, try Claude backup */
     }
-
-    const data = (await res.json()) as { safe?: boolean; flagged?: unknown[] };
-    return NextResponse.json({
-      safe: data.safe !== false,
-      flagged: data.flagged,
-    });
+    const backup = await analyzeCodeWithClaudeServer(source);
+    return NextResponse.json(backup);
   } catch (error) {
     console.error('[Pyx] Analyze error:', error);
     return NextResponse.json({ safe: false, connectionError: true }, { status: 500 });

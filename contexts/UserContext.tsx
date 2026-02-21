@@ -6,6 +6,7 @@ import { initializeStorage, getUsers, saveUsers, ADMIN_ACCOUNTS_LIST, isUserBann
 import { subscribeToUser } from '@/lib/firestoreClient';
 import { apiUrl } from '@/lib/apiBaseUrl';
 import { containsEmoji } from '@/lib/utils';
+import { setAuthToken, removeAuthToken } from '@/lib/api';
 
 interface UserContextType {
   user: User | null;
@@ -82,17 +83,19 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     });
   }, []);
 
-  // Persist user to sessionStorage whenever it changes
+  // Persist user to sessionStorage and clear token on logout
   useEffect(() => {
     if (typeof window !== 'undefined') {
       if (user) {
         try {
           sessionStorage.setItem('pixelPlaceLoggedInUser', user.username);
         } catch (error) {
-          console.error('Error saving user session:', error);        }
+          console.error('Error saving user session:', error);
+        }
       } else {
         try {
           sessionStorage.removeItem('pixelPlaceLoggedInUser');
+          removeAuthToken();
         } catch (error) {
           console.error('Error clearing user session:', error);
         }
@@ -171,11 +174,38 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     let users: User[] = [];
     let found: User | undefined;
 
+    // When online: authenticate via backend and use token (never trust frontend identity)
     try {
-      // Try to get users from API (Firebase)
+      const authRes = await fetch(apiUrl('/api/auth'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password, action: 'login' }),
+      });
+      const authData = await authRes.json().catch(() => ({}));
+      if (authRes.ok && authData.success && authData.token && authData.user) {
+        setAuthToken(authData.token);
+        const u = authData.user as User;
+        if (!u.ownedSkins) u.ownedSkins = ['starter_classic'];
+        if (!u.ownedAccessories) u.ownedAccessories = [];
+        if (!u.equippedAccessories) u.equippedAccessories = {};
+        if (!u.ownedFaces) u.ownedFaces = [];
+        setUser(u);
+        if (typeof window !== 'undefined') {
+          sessionStorage.setItem('pixelPlaceLoggedInUser', u.username);
+          sessionStorage.removeItem('pixelPlaceOffline');
+        }
+        return { success: true, message: '' };
+      }
+      if (authRes.status === 401) {
+        return { success: false, message: authData.error || 'Invalid credentials.' };
+      }
+    } catch (_e) {
+      // Backend unreachable — fall back to offline flow below
+    }
+
+    try {
       users = await getUsers();
     } catch (error) {
-      // Fallback to localStorage if API fails
       isOffline = true;
       users = getUsersLocal();
       console.log('Using offline mode - localStorage');
@@ -308,10 +338,11 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       }
     }
 
-    // Sync safety points from backend
+    // Sync safety points from backend (token identifies user)
     if (!isOffline) {
       try {
-        const safetyResponse = await fetch(apiUrl(`/api/safety?username=${found.username}`));
+        const { authenticatedFetch } = await import('@/lib/api');
+        const safetyResponse = await authenticatedFetch(apiUrl('/api/safety'));
         if (safetyResponse.ok) {
           const safetyData = await safetyResponse.json();
           found.safetyPoints = safetyData.safetyPoints || 0;
@@ -385,14 +416,41 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       return { success: false, message: 'Password must be at least 6 characters.' };
     }
 
+    // When online: register via backend and get token
+    try {
+      const regRes = await fetch(apiUrl('/api/auth'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password, action: 'register', gender }),
+      });
+      const regData = await regRes.json().catch(() => ({}));
+      if (regRes.ok && regData.success && regData.token && regData.user) {
+        setAuthToken(regData.token);
+        const u = regData.user as User;
+        if (!u.ownedSkins) u.ownedSkins = ['starter_classic'];
+        if (!u.ownedAccessories) u.ownedAccessories = [];
+        if (!u.equippedAccessories) u.equippedAccessories = {};
+        if (!u.ownedFaces) u.ownedFaces = [];
+        setUser(u);
+        if (typeof window !== 'undefined') {
+          sessionStorage.setItem('pixelPlaceLoggedInUser', u.username);
+          sessionStorage.removeItem('pixelPlaceOffline');
+        }
+        return { success: true, message: 'Account created.' };
+      }
+      if (regRes.status === 400) {
+        return { success: false, message: regData.error || 'Registration failed.' };
+      }
+    } catch (_e) {
+      // Backend unreachable — fall back to offline flow below
+    }
+
     let isOffline = false;
     let users: User[] = [];
 
     try {
-      // Try to get users from API (Firebase)
       users = await getUsers();
     } catch (error) {
-      // Fallback to localStorage if API fails
       isOffline = true;
       users = getUsersLocal();
       console.log('Using offline mode - localStorage');

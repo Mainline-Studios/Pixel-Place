@@ -20,6 +20,8 @@ interface ChatMessage {
 export const AI_MODELS = [
   { id: 'template', name: 'Template (Smart)', cost: 0, desc: 'Free — quick template based on your description' },
   { id: 'pyx', name: 'Pyx AI Code', cost: 0, desc: 'Free — Pyx code generation' },
+  { id: 'claude-haiku', name: 'Claude Haiku', cost: 0, desc: 'Free — Claude Haiku game generation' },
+  { id: 'claude', name: 'Claude Sonnet', cost: 550, desc: '550 Pixel Coins (~$5.50) — higher quality Claude' },
   { id: 'groq-8b', name: 'Llama 3.1 8B', cost: 0, desc: 'Free — fast AI generation' },
   { id: 'groq-70b', name: 'Llama 3.3 70B', cost: 10, desc: '10 Pixel Coins — higher quality AI' },
 ] as const;
@@ -127,16 +129,22 @@ export default function AIGameGenerator({ user, onCodeGenerated, onSwitchToCodeE
     setGeneratedCode(null);
 
     try {
-      const response = await fetch(apiUrl('/api/generate-game'), {
+      const { authenticatedFetch } = await import('@/lib/api');
+      const response = await authenticatedFetch(apiUrl('/api/generate-game'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ prompt: effectivePrompt, conversation: inputMode === 'conversation' ? conversation : undefined, model: selectedModel, username: user.username }),
+        body: JSON.stringify({ prompt: effectivePrompt, conversation: inputMode === 'conversation' ? conversation : undefined, model: selectedModel }),
       });
 
       const data = await response.json();
 
+      if (response.status === 401) {
+        setIsGenerating(false);
+        alert('Please log in to use AI game generation.');
+        return;
+      }
       if (data.code) {
         const code = data.code;
         setGeneratedCode(code);

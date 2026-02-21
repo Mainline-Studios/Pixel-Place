@@ -3,13 +3,19 @@
  * Used by Cloud Functions (Next.js API routes not available with static export)
  */
 import * as admin from 'firebase-admin';
+import { getAnthropicApiKey } from './config';
+import { getAuthFromRequest } from './authMiddleware';
 
 const PYX_DEFAULT_URL = 'https://pyxaiapi-574247481583.us-central1.run.app';
 const PYX_CODE_MAX_TOKENS = 4096;
 
+const CLAUDE_SONNET_COST = 550; // $5.50 worth at ~100 coins/$0.99
+
 const AI_MODELS: Record<string, { groqModel: string; cost: number }> = {
   template: { groqModel: '', cost: 0 },
   pyx: { groqModel: '', cost: 0 },
+  'claude-haiku': { groqModel: '', cost: 0 },
+  claude: { groqModel: '', cost: CLAUDE_SONNET_COST },
   'groq-8b': { groqModel: 'llama-3.1-8b-instant', cost: 0 },
   'groq-70b': { groqModel: 'llama-3.3-70b-versatile', cost: 10 },
 };
@@ -43,12 +49,14 @@ function normalizeGameCode(code: string): string {
 }
 
 async function generateWithGroq(prompt: string, apiKey: string, groqModel?: string): Promise<string> {
+  const key = (apiKey || '').trim();
+  if (!key) throw new Error('Groq API key is missing');
   const model = groqModel || process.env.GROQ_MODEL || 'llama-3.3-70b-versatile';
   const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${apiKey}`,
+      'Authorization': `Bearer ${key}`,
     },
     body: JSON.stringify({
       model,
@@ -75,7 +83,16 @@ REQUIREMENTS:
   });
 
   if (!response.ok) {
-    throw new Error(`Groq API error: ${response.statusText}`);
+    const body = await response.text();
+    let errMsg = `Groq API error: ${response.status} ${response.statusText}`;
+    try {
+      const j = JSON.parse(body);
+      if (j.error?.message) errMsg += ` — ${j.error.message}`;
+      else if (body) errMsg += ` — ${body.slice(0, 200)}`;
+    } catch {
+      if (body) errMsg += ` — ${body.slice(0, 200)}`;
+    }
+    throw new Error(errMsg);
   }
 
   const data = await response.json();
@@ -87,6 +104,30 @@ REQUIREMENTS:
     code = `export function createGame(container: HTMLElement) {\n${code}\n}`;
   }
 
+  return code;
+}
+
+async function generateWithAnthropic(prompt: string, apiKey: string, useHaiku = false): Promise<string> {
+  const model = useHaiku ? 'claude-3-5-haiku-20241022' : 'claude-3-5-sonnet-20241022';
+  const maxTokens = useHaiku ? 16000 : 32000;
+  const systemPrompt = useHaiku
+    ? `You are an expert game developer and Three.js specialist. Generate a complete, working 3D game. REQUIREMENTS: 1) export function createGame(container: HTMLElement) 2) import * as THREE from 'three' 3) 500+ lines, lighting, materials, player controls (WASD, mouse), physics, game state, UI (HUD, start menu, game-over). Return ONLY code, NO markdown.`
+    : `You are an ELITE game developer and Three.js expert. Generate a MASSIVE, production-quality 3D game. REQUIREMENTS: 1) export function createGame(container: HTMLElement) 2) import * as THREE from 'three' 3) At least 5000 lines 4) Beautiful visuals, full mechanics, physics, controls, UI. 5) Return ONLY code, NO markdown.`;
+  const userContent = useHaiku
+    ? `Create a complete 3D game:\n\n${prompt}\n\nReturn ONLY the code.`
+    : `Create a massive, comprehensive 3D game:\n\n${prompt}\n\nReturn ONLY the code.`;
+  const response = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01' },
+    body: JSON.stringify({ model, max_tokens: maxTokens, system: systemPrompt, messages: [{ role: 'user', content: userContent }] }),
+  });
+  if (!response.ok) throw new Error(`Anthropic API error: ${response.statusText}`);
+  const data = await response.json();
+  let code = (data.content?.[0] as { text?: string })?.text || '';
+  code = code.replace(/```typescript\n?/g, '').replace(/```javascript\n?/g, '').replace(/```\n?/g, '').trim();
+  if (!code.includes('export function createGame') && !code.includes('function createGame')) {
+    code = `export function createGame(container: HTMLElement) {\n${code}\n}`;
+  }
   return code;
 }
 
@@ -502,24 +543,28 @@ export function createGame(container: HTMLElement) {
 }
 
 export async function handleGenerateGame(
-  req: { body: { prompt?: string; model?: string; username?: string } },
+  req: { body: { prompt?: string; model?: string }; headers?: { authorization?: string } },
   res: { status: (n: number) => { json: (d: object) => void } }
 ) {
   try {
     const prompt = (req.body?.prompt || '').trim();
     const modelId = req.body?.model || 'groq-8b';
-    const username = (req.body?.username || '').trim();
+    const auth = getAuthFromRequest(req as any);
+    const username = auth?.username?.trim() || '';
 
     if (!prompt) {
       return res.status(400).json({ error: 'Prompt is required' });
     }
 
     const modelConfig = AI_MODELS[modelId] || AI_MODELS['groq-8b'];
-    const groqKey = process.env.GROQ_API_KEY;
+    const groqKey = (process.env.GROQ_API_KEY || '').trim();
 
     let newCoins: number | undefined;
 
-    if (modelConfig.cost > 0 && username) {
+    if (modelConfig.cost > 0) {
+      if (!auth) {
+        return res.status(401).json({ error: 'Unauthorized' });
+      }
       const db = admin.firestore();
       const userRef = db.collection('users').doc(username.toLowerCase());
       const userSnap = await userRef.get();
@@ -548,6 +593,11 @@ export async function handleGenerateGame(
       }
       code = normalizeGameCode(pyxResult.completion);
       usedProvider = 'pyx';
+    } else if ((modelId === 'claude' || modelId === 'claude-haiku') && getAnthropicApiKey()) {
+      const useHaiku = modelId === 'claude-haiku';
+      code = await generateWithAnthropic(prompt, getAnthropicApiKey()!, useHaiku);
+      code = normalizeGameCode(code);
+      usedProvider = modelId;
     } else if (groqKey && modelConfig.groqModel) {
       code = await generateWithGroq(prompt, groqKey, modelConfig.groqModel);
       usedProvider = modelId;

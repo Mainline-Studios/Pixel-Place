@@ -43,7 +43,94 @@ async function callPyx(base: string, path: string, body: object): Promise<PyxRes
   return (await res.json()) as PyxResponse;
 }
 
-/** Server-side: POST /score — decision only, no training. Use for chat, messages. */
+/** Server-only: Claude moderation backup when Pyx is down. Returns filtered text. */
+async function moderateWithClaudeServer(text: string): Promise<string> {
+  const key = process.env.ANTHROPIC_API_KEY;
+  if (!key) return censorLetters(text);
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': key,
+        'anthropic-version': '2023-06-01',
+      },
+      body: JSON.stringify({
+        model: 'claude-3-5-haiku-20241022',
+        max_tokens: 256,
+        messages: [{
+          role: 'user',
+          content: `Is this text appropriate for a family-friendly game? If YES, reply with the exact same text. If NO, reply with a censored version (replace inappropriate parts with ~). Reply with ONLY the final text, nothing else.\n\nText: ${text}`,
+        }],
+      }),
+    });
+    if (!res.ok) return censorLetters(text);
+    const data = await res.json();
+    const out = (data.content?.[0] as { text?: string })?.text?.trim() ?? '';
+    return out || censorLetters(text);
+  } catch (e) {
+    console.warn('[Pyx] Claude backup failed:', e);
+    return censorLetters(text);
+  }
+}
+
+/** Server-only: Claude check backup for publish. Returns { safe, filtered }. */
+export async function checkWithClaudeServer(text: string): Promise<{ safe: boolean; filtered: string }> {
+  const key = process.env.ANTHROPIC_API_KEY;
+  if (!key) return { safe: false, filtered: censorLetters(text) };
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-api-key': key, 'anthropic-version': '2023-06-01' },
+      body: JSON.stringify({
+        model: 'claude-3-5-haiku-20241022',
+        max_tokens: 256,
+        messages: [{
+          role: 'user',
+          content: `Is this text appropriate for a family-friendly game (yes/no)? If no, provide a censored version. Reply on one line: YES or NO, then a space, then the filtered text (or original if YES).\n\nText: ${text}`,
+        }],
+      }),
+    });
+    if (!res.ok) return { safe: false, filtered: censorLetters(text) };
+    const data = await res.json();
+    const reply = ((data.content?.[0] as { text?: string })?.text ?? '').trim();
+    const safe = reply.toUpperCase().startsWith('YES');
+    const filtered = reply.includes(' ') ? reply.replace(/^(YES|NO)\s+/i, '').trim() : text;
+    return { safe, filtered: filtered || censorLetters(text) };
+  } catch (e) {
+    console.warn('[Pyx] Claude check backup failed:', e);
+    return { safe: false, filtered: censorLetters(text) };
+  }
+}
+
+/** Server-only: Claude code analyze backup. Returns { safe }. */
+export async function analyzeCodeWithClaudeServer(source: string): Promise<{ safe: boolean }> {
+  const key = process.env.ANTHROPIC_API_KEY;
+  if (!key) return { safe: false };
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-api-key': key, 'anthropic-version': '2023-06-01' },
+      body: JSON.stringify({
+        model: 'claude-3-5-haiku-20241022',
+        max_tokens: 64,
+        messages: [{
+          role: 'user',
+          content: `Does this game code contain inappropriate content (profanity, hate, adult content)? Reply with only YES or NO.\n\nCode (excerpt): ${source.slice(0, 4000)}`,
+        }],
+      }),
+    });
+    if (!res.ok) return { safe: false };
+    const data = await res.json();
+    const reply = ((data.content?.[0] as { text?: string })?.text ?? '').trim().toUpperCase();
+    return { safe: reply.startsWith('NO') };
+  } catch (e) {
+    console.warn('[Pyx] Claude analyze backup failed:', e);
+    return { safe: false };
+  }
+}
+
+/** Server-side: POST /score — decision only, no training. Use for chat, messages. Falls back to Claude when Pyx is down. */
 export async function filterForDisplayServer(text: string): Promise<string> {
   if (!text || typeof text !== 'string') return text;
   const url = getPyxBaseUrl();
@@ -52,7 +139,7 @@ export async function filterForDisplayServer(text: string): Promise<string> {
     return applyPyxResponse(data, text);
   } catch (e) {
     console.error('[Pyx] Call failed:', e);
-    return censorLetters(text);
+    return moderateWithClaudeServer(text);
   }
 }
 
@@ -99,47 +186,47 @@ export async function sendFeedback(text: string, safe: boolean): Promise<void> {
   }
 }
 
-/** Client: check content for publish — returns { safe, filtered, connectionError? }. Calls Pyx directly (no proxy). */
+/** Client: check content for publish — returns { safe, filtered, connectionError? }. Uses API (Pyx with Claude backup). */
 export async function checkForPublish(text: string): Promise<{ safe: boolean; filtered: string; connectionError?: boolean }> {
   if (!text || typeof text !== 'string') return { safe: true, filtered: text };
-  const url = (typeof process !== 'undefined' && (process as any).env?.NEXT_PUBLIC_PYX_SERVICE_URL) || PYX_DEFAULT_URL;
   try {
-    const res = await fetch(`${url.replace(/\/$/, '')}/score`, {
+    const { apiUrl } = await import('@/lib/apiBaseUrl');
+    const res = await fetch(apiUrl('/api/pyx/check'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ text }),
     });
-    if (!res.ok) {
+    const data = (await res.json()) as { safe?: boolean; filtered?: string; connectionError?: boolean };
+    if (!res.ok || data.connectionError) {
       return { safe: false, filtered: '', connectionError: true };
     }
-    const data = (await res.json()) as { score?: number; bad?: boolean; censored?: string };
-    const bad = data.bad === true || (typeof data.score === 'number' && data.score >= BAN_LINE);
-    const filtered = bad && typeof data.censored === 'string' ? data.censored : text;
-    return { safe: !bad, filtered };
+    const safe = data.safe !== false;
+    const filtered = typeof data.filtered === 'string' ? data.filtered : censorLetters(text);
+    return { safe, filtered };
   } catch (e) {
     console.warn('[Pyx] Check failed:', e);
     return { safe: false, filtered: '', connectionError: true };
   }
 }
 
-/** Client: Pyx Analyze — scan code for inappropriate content. Calls Pyx directly (no proxy). */
+/** Client: Pyx Analyze — scan code for inappropriate content. Uses API (Pyx with Claude backup). */
 export async function analyzeCodeForPublish(source: string): Promise<{
   safe: boolean;
   connectionError?: boolean;
   flagged?: Array<{ snippet: string; score: number; reason?: string }>;
 }> {
   if (!source || typeof source !== 'string') return { safe: true };
-  const url = (typeof process !== 'undefined' && (process as any).env?.NEXT_PUBLIC_PYX_SERVICE_URL) || PYX_DEFAULT_URL;
   try {
-    const res = await fetch(`${url.replace(/\/$/, '')}/analyze/three`, {
+    const { apiUrl } = await import('@/lib/apiBaseUrl');
+    const res = await fetch(apiUrl('/api/pyx/analyze'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ source }),
     });
-    if (!res.ok) {
+    const data = (await res.json()) as { safe?: boolean; connectionError?: boolean; flagged?: Array<{ snippet: string; score: number; reason?: string }> };
+    if (!res.ok || data.connectionError) {
       return { safe: false, connectionError: true };
     }
-    const data = (await res.json()) as { safe?: boolean; flagged?: Array<{ snippet: string; score: number; reason?: string }> };
     return { safe: data.safe !== false, flagged: data.flagged };
   } catch (e) {
     console.warn('[Pyx] Analyze failed:', e);
@@ -226,12 +313,12 @@ function startPyxRetryTimer(): void {
   }, PYX_RETRY_MS);
 }
 
-/** Client: calls Pyx /score directly. On connection failure, marks Pyx unavailable and starts hourly retry. */
+/** Client: calls API (Pyx with Claude backup). On API failure, marks Pyx unavailable and starts hourly retry. */
 export async function filterForDisplay(text: string): Promise<string> {
   if (!text || typeof text !== 'string') return text;
-  const url = (typeof process !== 'undefined' && (process as any).env?.NEXT_PUBLIC_PYX_SERVICE_URL) || PYX_DEFAULT_URL;
   try {
-    const res = await fetch(`${url.replace(/\/$/, '')}/score`, {
+    const { apiUrl } = await import('@/lib/apiBaseUrl');
+    const res = await fetch(apiUrl('/api/pyx/filter'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ text }),
@@ -241,8 +328,8 @@ export async function filterForDisplay(text: string): Promise<string> {
       startPyxRetryTimer();
       return censorLetters(text);
     }
-    const data = (await res.json()) as { score?: number; bad?: boolean; censored?: string };
-    return applyPyxResponse(data, text);
+    const data = (await res.json()) as { filtered?: string };
+    return typeof data.filtered === 'string' ? data.filtered : text;
   } catch (e) {
     console.warn('[Pyx] Filter failed:', e);
     setPyxAvailable(false);

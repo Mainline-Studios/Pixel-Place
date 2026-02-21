@@ -55,11 +55,11 @@ export class PlaytimeTracker {
     // Only update if user has been active (not idle)
     if (playtimeDelta < 5 * 60 * 1000) { // Less than 5 minutes
       try {
-        await fetch(apiUrl('/api/safety'), {
+        const { authenticatedFetch } = await import('@/lib/api');
+        await authenticatedFetch(apiUrl('/api/safety'), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            username: this.username,
             action: 'updatePlaytime',
             playtime: playtimeDelta
           })

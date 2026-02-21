@@ -1,12 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { getDocument, updateDocument, COLLECTIONS } from '@/lib/firestore';
+import { getAuthUser } from '@/lib/auth';
 
 const PYX_DEFAULT_URL = 'https://pyxaiapi-574247481583.us-central1.run.app';
+
+// $5.50 ≈ 550 coins at ~100 coins/$0.99
+const CLAUDE_SONNET_COST = 550;
 
 const AI_MODELS: Record<string, { groqModel: string; cost: number }> = {
   template: { groqModel: '', cost: 0 },
   pyx: { groqModel: '', cost: 0 },
+  'claude-haiku': { groqModel: '', cost: 0 },
+  claude: { groqModel: '', cost: CLAUDE_SONNET_COST },
   'groq-8b': { groqModel: 'llama-3.1-8b-instant', cost: 0 },
   'groq-70b': { groqModel: 'llama-3.3-70b-versatile', cost: 10 },
 };
@@ -20,7 +26,8 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     prompt = body.prompt || '';
     const modelId = body.model || 'groq-8b';
-    const username = (body.username || '').trim();
+    const authUser = getAuthUser(request);
+    const username = authUser?.username?.trim() ?? '';
 
     if (!prompt || !prompt.trim()) {
       return NextResponse.json(
@@ -32,7 +39,10 @@ export async function POST(request: NextRequest) {
     const modelConfig = AI_MODELS[modelId] || AI_MODELS['groq-8b'];
     let newCoins: number | undefined;
 
-    if (modelConfig.cost > 0 && username) {
+    if (modelConfig.cost > 0) {
+      if (!authUser) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      }
       const userDoc = await getDocument(COLLECTIONS.USERS, username.toLowerCase());
       if (!userDoc) {
         return NextResponse.json({ error: 'User not found' }, { status: 400 });
@@ -66,10 +76,15 @@ export async function POST(request: NextRequest) {
       }
       generatedCode = normalizeGameCode(pyxResult.completion);
       usedProvider = 'pyx';
-    } else if (modelConfig.groqModel && process.env.GROQ_API_KEY) {
-      generatedCode = await generateWithGroq(prompt, process.env.GROQ_API_KEY, modelConfig.groqModel);
-    } else if (process.env.GROQ_API_KEY) {
-      generatedCode = await generateWithGroq(prompt, process.env.GROQ_API_KEY, 'llama-3.1-8b-instant');
+    } else if ((modelId === 'claude' || modelId === 'claude-haiku') && process.env.ANTHROPIC_API_KEY) {
+      const useHaiku = modelId === 'claude-haiku';
+      generatedCode = await generateWithAnthropic(prompt, process.env.ANTHROPIC_API_KEY, useHaiku);
+      generatedCode = normalizeGameCode(generatedCode);
+      usedProvider = modelId;
+    } else if (modelConfig.groqModel && (process.env.GROQ_API_KEY || '').trim()) {
+      generatedCode = await generateWithGroq(prompt, (process.env.GROQ_API_KEY || '').trim(), modelConfig.groqModel);
+    } else if ((process.env.GROQ_API_KEY || '').trim()) {
+      generatedCode = await generateWithGroq(prompt, (process.env.GROQ_API_KEY || '').trim(), 'llama-3.1-8b-instant');
       usedProvider = 'groq-8b';
     } else {
       generatedCode = generateSmartTemplateCode(prompt);
@@ -198,7 +213,15 @@ The user has provided a DETAILED description. Read it CAREFULLY and implement EX
   return code;
 }
 
-async function generateWithAnthropic(prompt: string, apiKey: string): Promise<string> {
+async function generateWithAnthropic(prompt: string, apiKey: string, useHaiku = false): Promise<string> {
+  const model = useHaiku ? 'claude-3-5-haiku-20241022' : 'claude-3-5-sonnet-20241022';
+  const maxTokens = useHaiku ? 16000 : 32000;
+  const systemPrompt = useHaiku
+    ? `You are an expert game developer and Three.js specialist. Generate a complete, working 3D game. REQUIREMENTS: 1) export function createGame(container: HTMLElement) 2) import * as THREE from 'three' 3) 500+ lines, lighting, materials, player controls (WASD, mouse), physics, game state, UI (HUD, start menu, game-over). Return ONLY code, NO markdown.`
+    : `You are an ELITE game developer and Three.js expert. Generate a MASSIVE, production-quality, visually stunning 3D game that is COMPLETE, POLISHED, and WORKS PERFECTLY. CRITICAL: 1) export function createGame(container: HTMLElement) 2) import * as THREE from 'three' 3) At least 5000 lines 4) Beautiful visuals, full mechanics, physics, controls, REQUIRED UI (HUD, start menu, game-over screen). 5) Return ONLY code, NO markdown, NO code blocks.`;
+  const userContent = useHaiku
+    ? `Create a complete 3D game:\n\n${prompt}\n\nReturn ONLY the TypeScript/JavaScript code.`
+    : `User description: ${prompt}\n\nGenerate a MASSIVE, COMPREHENSIVE, BEAUTIFUL game (5000+ lines) that matches the description EXACTLY.`;
   const response = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: {
@@ -207,55 +230,11 @@ async function generateWithAnthropic(prompt: string, apiKey: string): Promise<st
       'anthropic-version': '2023-06-01'
     },
     body: JSON.stringify({
-      model: 'claude-3-5-sonnet-20241022',
-      max_tokens: 32000,
-      messages: [
-        {
-          role: 'user',
-          content: `You are an ELITE game developer and Three.js expert. Generate a MASSIVE, production-quality, visually stunning 3D game that is COMPLETE, POLISHED, and WORKS PERFECTLY.
-
-CRITICAL REQUIREMENTS - FOLLOW ALL:
-1. Export: export function createGame(container: HTMLElement)
-2. Import: import * as THREE from 'three'
-3. CODE SIZE: Generate AT LEAST 5000 lines. MANDATORY. The game must be MASSIVE and COMPREHENSIVE.
-4. VISUAL QUALITY: Create BEAUTIFUL, NOT UGLY games with:
-   - Advanced lighting (multiple lights, shadows, ambient occlusion)
-   - High-quality materials (PBR, textures, normal maps)
-   - Particle systems for effects
-   - Post-processing effects
-   - Smooth animations
-   - Professional color schemes and visual polish
-5. GAME MECHANICS: Complete systems:
-   - Full player controls (WASD, mouse, keyboard)
-   - Physics (gravity, collisions, momentum)
-   - Game state (score, health, lives, levels)
-   - Win/lose conditions with feedback
-   - Sound effects (Web Audio API)
-   - UI elements (REQUIRED): HUD with score/health display, start screen/menu, pause menu, game-over screen with restart button, on-screen instructions
-6. CODE QUALITY:
-   - Well-organized, modular structure
-   - Comprehensive comments
-   - Error handling
-   - Performance optimizations
-   - Clean, readable code
-7. FEATURES:
-   - Multiple game objects
-   - Collision detection
-   - Camera systems
-   - Animation systems
-   - Particle effects
-   - Environmental details
-   - Interactive elements
-   - Game progression
-8. CLEANUP: Return cleanup function
-9. FORMAT: ONLY code, NO explanations, NO markdown, NO code blocks
-
-User description: ${prompt}
-
-Generate a MASSIVE, COMPREHENSIVE, BEAUTIFUL game (5000+ lines) that matches the description EXACTLY.`
-        }
-      ]
-    })
+      model,
+      max_tokens: maxTokens,
+      system: systemPrompt,
+      messages: [{ role: 'user', content: userContent }],
+    }),
   });
 
   if (!response.ok) {
@@ -276,12 +255,14 @@ Generate a MASSIVE, COMPREHENSIVE, BEAUTIFUL game (5000+ lines) that matches the
 }
 
 async function generateWithGroq(prompt: string, apiKey: string, groqModel?: string): Promise<string> {
+  const key = (apiKey || '').trim();
+  if (!key) throw new Error('Groq API key is missing');
   const model = groqModel || process.env.GROQ_MODEL || 'llama-3.3-70b-versatile';
   const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${apiKey}`,
+      'Authorization': `Bearer ${key}`,
     },
     body: JSON.stringify({
       model,
@@ -308,7 +289,16 @@ REQUIREMENTS:
   });
 
   if (!response.ok) {
-    throw new Error(`Groq API error: ${response.statusText}`);
+    const body = await response.text();
+    let errMsg = `Groq API error: ${response.status} ${response.statusText}`;
+    try {
+      const j = JSON.parse(body);
+      if (j.error?.message) errMsg += ` — ${j.error.message}`;
+      else if (body) errMsg += ` — ${body.slice(0, 200)}`;
+    } catch {
+      if (body) errMsg += ` — ${body.slice(0, 200)}`;
+    }
+    throw new Error(errMsg);
   }
 
   const data = await response.json();

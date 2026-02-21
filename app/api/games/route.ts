@@ -19,15 +19,17 @@ function gameFromDoc(doc: any): UserMadeGame {
   };
 }
 
-// Get all games (public, but can filter by owner if authenticated)
+// Get all games (public). If filtering by owner, require auth and use token identity only.
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-    const owner = searchParams.get('owner');
+    const ownerParam = searchParams.get('owner');
     
     let games;
-    if (owner) {
-      games = await queryDocuments(COLLECTIONS.GAMES || 'games', 'owner', '==', owner);
+    if (ownerParam) {
+      const authResult = requireAuth(request);
+      if (authResult.error) return authResult.error;
+      games = await queryDocuments(COLLECTIONS.GAMES || 'games', 'owner', '==', authResult.user.username);
     } else {
       games = await getDocuments(COLLECTIONS.GAMES || 'games', (ref) => ref.orderBy('ts', 'desc'));
     }
@@ -52,7 +54,7 @@ export async function POST(request: NextRequest) {
       id: gameId,
       title: game.title,
       description: game.desc || '',
-      owner: game.owner || authResult.user.username,
+      owner: authResult.user.username,
       ts: game.ts || Date.now(),
       scene_data: game.sceneData || null,
       preset_messages: (game as any).presetMessages || null,

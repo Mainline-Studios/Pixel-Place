@@ -5,6 +5,8 @@
  */
 import { filterForDisplayAIDecide } from './pyx';
 async function chatWithGroq(messages: { role: string; content: string }[], apiKey: string): Promise<string> {
+  const key = (apiKey || '').trim();
+  if (!key) throw new Error('Groq API key is missing');
   const model = 'llama-3.1-8b-instant';
   const systemMsg = {
     role: 'system',
@@ -16,7 +18,7 @@ async function chatWithGroq(messages: { role: string; content: string }[], apiKe
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      Authorization: `Bearer ${apiKey}`,
+      Authorization: `Bearer ${key}`,
     },
     body: JSON.stringify({
       model,
@@ -44,7 +46,7 @@ export async function handleChat(
       return res.status(400).json({ error: 'Messages array required' });
     }
 
-    const groqKey = process.env.GROQ_API_KEY;
+    const groqKey = (process.env.GROQ_API_KEY || '').trim();
     if (!groqKey) {
       return res.status(503).json({ error: 'Chat not available (no API key configured)' });
     }
