@@ -213,20 +213,34 @@ app.post('/skins', async (req, res) => {
   }
 });
 
-/** Parse admin accounts from env (server-only). ADMIN_ACCOUNTS_JSON = [{"username":"a","password":"b"},...] */
+/** Parse admin accounts from env. Use ADMIN_ACCOUNTS_JSON or ADMIN_USERNAME + ADMIN_PASSWORD. */
 function getAdminAccountsFromEnv(): { username: string; password: string }[] {
   try {
     const raw = process.env.ADMIN_ACCOUNTS_JSON;
-    if (!raw || typeof raw !== 'string') return [];
-    const parsed = JSON.parse(raw) as unknown;
-    if (!Array.isArray(parsed)) return [];
-    return parsed.filter(
-      (a): a is { username: string; password: string } =>
-        a && typeof a === 'object' && typeof (a as any).username === 'string' && typeof (a as any).password === 'string'
-    );
+    if (raw && typeof raw === 'string') {
+      const parsed = JSON.parse(raw) as unknown;
+      if (Array.isArray(parsed)) {
+        const list = parsed.filter(
+          (a): a is { username: string; password: string } =>
+            a && typeof a === 'object' && typeof (a as any).username === 'string' && typeof (a as any).password === 'string'
+        );
+        if (list.length > 0) return list;
+      }
+    }
   } catch {
-    return [];
+    // fall through
   }
+  // Production: single admin via ADMIN_USERNAME + ADMIN_PASSWORD
+  const u = process.env.ADMIN_USERNAME;
+  const p = process.env.ADMIN_PASSWORD;
+  if (u && typeof u === 'string' && p && typeof p === 'string' && u.trim() && p.trim()) {
+    return [{ username: u.trim(), password: p }];
+  }
+  // Development-only fallback
+  if (process.env.NODE_ENV !== 'production') {
+    return [{ username: 'admin', password: 'admin' }];
+  }
+  return [];
 }
 
 // POST /auth (login, register)
