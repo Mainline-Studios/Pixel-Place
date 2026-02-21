@@ -47,7 +47,7 @@ function userFromDoc(d: { id: string } & Record<string, unknown>): User {
   const doc = d as Record<string, unknown>;
   return {
     username: (doc.username as string) || doc.id,
-    password: (doc.password_hash as string) || (doc.password as string) || '',
+    password: '',
     gender: (doc.gender as string) || '',
     role: ((doc.role as string) || 'user') as 'admin' | 'user' | 'head_admin',
     coins: (doc.coins as number) ?? 0,

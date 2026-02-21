@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { authenticateUser, createOrUpdateUser, getUserFromDb } from '@/lib/auth';
+import { getAdminAccounts, getHeadAdminUsernames } from '@/lib/adminAccounts';
 import { User } from '@/types';
 
 // Login endpoint
@@ -12,10 +13,11 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'Username and password required' }, { status: 400 });
       }
       
-      // Check if this is an admin account that needs to be created
-      const { ADMIN_ACCOUNTS_LIST, HEAD_ADMIN_USERNAMES } = await import('@/lib/storage');
-      const isAdmin = ADMIN_ACCOUNTS_LIST.some(a => a.username === username && a.password === password);
-      const isHeadAdmin = isAdmin && HEAD_ADMIN_USERNAMES.includes(username);
+      // Check if this is an admin account that needs to be created (server-only from env)
+      const adminAccounts = getAdminAccounts();
+      const headAdmins = getHeadAdminUsernames();
+      const isAdmin = adminAccounts.some(a => a.username === username && a.password === password);
+      const isHeadAdmin = isAdmin && headAdmins.includes(username);
       
       if (isAdmin) {
         const existing = await getUserFromDb(username);

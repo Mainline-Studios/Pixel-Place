@@ -1,12 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDocuments, setDocument, queryDocuments, COLLECTIONS } from '@/lib/firestore';
 import { requireAuth } from '@/lib/middleware';
+import { hashPassword } from '@/lib/auth';
 import { User } from '@/types';
 
+/** Never expose password/hash to client. */
 function userFromDoc(doc: any): User {
   return {
     username: doc.username || doc.id,
-    password: doc.password_hash || doc.password || '',
+    password: '',
     gender: doc.gender || '',
     role: (doc.role || 'user') as 'admin' | 'user' | 'head_admin',
     coins: doc.coins || 0,
@@ -20,10 +22,13 @@ function userFromDoc(doc: any): User {
     sentFriendRequests: Array.isArray(doc.sent_friend_requests) ? doc.sent_friend_requests : (typeof doc.sent_friend_requests === 'string' ? JSON.parse(doc.sent_friend_requests || '[]') : [])  };
 }
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const authResult = requireAuth(request);
+  if (authResult.error) return authResult.error;
   try {
     const users = await getDocuments(COLLECTIONS.USERS);
-    return NextResponse.json(users.map(userFromDoc));  } catch (error) {
+    return NextResponse.json(users.map(userFromDoc));
+  } catch (error) {
     console.error('Error reading users:', error);
     return NextResponse.json({ error: 'Failed to read users' }, { status: 500 });
   }
@@ -44,7 +49,7 @@ export async function POST(request: NextRequest) {
     const existing = existingUsers.length > 0 ? existingUsers[0] : null;
     
     if (existing) {
-      // Update existing user
+      // Update existing user — never store raw password; hash only when new password provided
       const existingUser = userFromDoc(existing);
       const updatedUser = {
         ...existingUser,
@@ -54,11 +59,13 @@ export async function POST(request: NextRequest) {
         ownedAccessories: newUser.ownedAccessories !== undefined ? newUser.ownedAccessories : existingUser.ownedAccessories,
         sentFriendRequests: newUser.sentFriendRequests !== undefined ? newUser.sentFriendRequests : existingUser.sentFriendRequests
       };
+      const newPasswordPlain = typeof newUser.password === 'string' && newUser.password.length > 0 ? newUser.password : null;
+      const password_hash = newPasswordPlain ? await hashPassword(newPasswordPlain) : (existing.password_hash || existing.password || '');
       
       await setDocument(COLLECTIONS.USERS, existing.id, {
         username: updatedUser.username,
         username_lower: updatedUser.username.toLowerCase(),
-        password_hash: updatedUser.password,
+        password_hash,
         gender: updatedUser.gender,
         role: updatedUser.role,
         coins: updatedUser.coins,
@@ -74,13 +81,18 @@ export async function POST(request: NextRequest) {
         updated_at: Date.now()
       });
       
-      return NextResponse.json(updatedUser);
+      const outUser = { ...updatedUser, password: '' };
+      return NextResponse.json(outUser);
     } else {
-      // Create new user
+      // Create new user — always hash password
+      if (!newUser.password || String(newUser.password).length < 6) {
+        return NextResponse.json({ error: 'Password required (min 6 characters)' }, { status: 400 });
+      }
+      const password_hash = await hashPassword(newUser.password);
       const userData = {
         username: newUser.username,
         username_lower: newUser.username.toLowerCase(),
-        password_hash: newUser.password,
+        password_hash,
         gender: newUser.gender || '',
         role: newUser.role || 'user',
         coins: newUser.coins || 0,
@@ -100,6 +112,7 @@ export async function POST(request: NextRequest) {
       await setDocument(COLLECTIONS.USERS, newUser.username.toLowerCase(), userData);      
       const createdUser = {
         ...newUser,
+        password: '',
         friends: newUser.friends || [],
         ownedSkins: newUser.ownedSkins || [],
         ownedAccessories: newUser.ownedAccessories || []
@@ -129,11 +142,13 @@ export async function PUT(request: NextRequest) {
     }
     
     const existing = existingUsers[0];
+    const newPasswordPlain = typeof updatedUser.password === 'string' && updatedUser.password.length > 0 ? updatedUser.password : null;
+    const password_hash = newPasswordPlain ? await hashPassword(newPasswordPlain) : (existing.password_hash || existing.password || '');
     
     await setDocument(COLLECTIONS.USERS, existing.id, {
       username: updatedUser.username,
       username_lower: updatedUser.username.toLowerCase(),
-      password_hash: updatedUser.password,
+      password_hash,
       gender: updatedUser.gender,
       role: updatedUser.role,
       coins: updatedUser.coins,
@@ -147,8 +162,9 @@ export async function PUT(request: NextRequest) {
       sent_friend_requests: updatedUser.sentFriendRequests || [],
       is_donor: (updatedUser.role === 'admin' || updatedUser.role === 'head_admin') ? 1 : 0,
       updated_at: Date.now()
-    });    
-    return NextResponse.json(updatedUser);
+    });
+    const outUser = { ...updatedUser, password: '' };
+    return NextResponse.json(outUser);
   } catch (error) {
     console.error('Error updating user:', error);
     return NextResponse.json({ error: 'Failed to update user' }, { status: 500 });

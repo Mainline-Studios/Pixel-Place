@@ -5,7 +5,7 @@ import { User, FriendRequest } from '@/types';
 function userFromDoc(doc: any): User {
   return {
     username: doc.username || doc.id,
-    password: doc.password_hash || doc.password || '',
+    password: '',
     gender: doc.gender || '',
     role: (doc.role || 'user') as 'admin' | 'user' | 'head_admin',
     coins: doc.coins || 0,

@@ -1,22 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDocuments, deleteDocument, COLLECTIONS } from '@/lib/firestore';
+import { getAdminAccounts } from '@/lib/adminAccounts';
 
-// Current admin accounts (must match lib/storage.ts)
-const ADMIN_ACCOUNTS_LIST = [
-  { username: "admin", password: "extra" },
-  { username: "TicTAK", password: "Thomas" },
-  { username: "IDon'tKnow", password: "Titan" },
-  { username: "6767kid", password: "67676767" },
-  { username: "Billibob", password: "Luca" },
-  { username: "Daniello1", password: "Daniel" },
-  { username: "FunBoy", password: "Simon" },
-  { username: "BelloBoy1", password: "Zac" },
-  { username: "Bob", password: "Henry" },
-  { username: "Mr.Noob", password: "Tyson" },
-  { username: "BDawgsAwesome1", password: "20Minecraft15" }
-];
-
-// Old admin accounts that should be removed (not in current ADMIN_ACCOUNTS_LIST)
+// Old admin accounts that should be removed (usernames no longer in env admin list)
 const OLD_ADMIN_ACCOUNTS = [
   'number 9',
   'number5',
@@ -30,10 +16,8 @@ const OLD_ADMIN_ACCOUNTS = [
 
 export async function POST(request: NextRequest) {
   try {
-    // Get current admin usernames (case-insensitive)
-    const currentAdminUsernames = new Set(
-      ADMIN_ACCOUNTS_LIST.map(a => a.username.toLowerCase())
-    );
+    const adminAccounts = getAdminAccounts();
+    const currentAdminUsernames = new Set(adminAccounts.map(a => a.username.toLowerCase()));
 
     // Get all users from Firestore
     const users = await getDocuments(COLLECTIONS.USERS);

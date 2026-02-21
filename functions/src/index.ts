@@ -47,12 +47,13 @@ const FALLBACK_SKINS = [
   { id: 'starter_classic', name: 'Starter Classic', price: 0, use3d: true, colors: { head: '#f4c2a1', torso: '#4d536f', arm: '#3a3f56', legs: '#3a3f56' } },
 ];
 
+/** Build user for API response. Never expose password/hash to client. */
 function userFromDoc(doc: admin.firestore.DocumentSnapshot): any {
   const d = doc.data();
   if (!d) return null;
   return {
     username: d.username || doc.id,
-    password: d.password_hash || '',
+    password: '',
     gender: d.gender || '',
     role: d.role || 'user',
     coins: d.coins || 0,
@@ -83,9 +84,11 @@ app.use((req, res, next) => {
   next();
 });
 
-// GET/POST /users
-app.get('/users', async (_req, res) => {
+// GET/POST /users — GET requires auth
+app.get('/users', async (req, res) => {
   try {
+    const auth = requireAuth(req, res);
+    if (!auth) return;
     const snap = await db.collection(COLLECTIONS.USERS).get();
     const users = snap.docs.map(userFromDoc).filter(Boolean);
     res.json(users);
@@ -104,10 +107,15 @@ app.post('/users', async (req, res) => {
     const selfOnly = id === auth.username.toLowerCase();
     if (!selfOnly && !isAdmin(auth)) return res.status(403).json({ error: 'Forbidden' });
     const existing = await db.collection(COLLECTIONS.USERS).doc(id).get();
+    const existingData = existing.exists ? existing.data() : null;
+    const plainPassword = typeof u.password === 'string' ? u.password : '';
+    const password_hash = plainPassword
+      ? await bcrypt.hash(plainPassword, 10)
+      : (existingData?.password_hash ?? '');
     const data = {
       username: u.username,
       username_lower: id,
-      password_hash: u.password || '',
+      password_hash,
       gender: u.gender || '',
       role: u.role || 'user',
       coins: u.coins ?? 10,
@@ -128,7 +136,10 @@ app.post('/users', async (req, res) => {
       (data as any).created_at = Date.now();
       await db.collection(COLLECTIONS.USERS).doc(id).set(data);
     }
-    res.json({ ...u, ...data });
+    const out = { ...u, ...data };
+    delete (out as any).password_hash;
+    (out as any).password = '';
+    res.json(out);
   } catch (e) {
     res.status(500).json({ error: 'Failed to create/update user' });
   }
@@ -146,10 +157,15 @@ app.put('/users', async (req, res) => {
     const ref = db.collection(COLLECTIONS.USERS).doc(id);
     const existing = await ref.get();
     if (!existing.exists) return res.status(404).json({ error: 'User not found' });
+    const existingData = existing.data() || {};
+    const plainPassword = typeof u.password === 'string' ? u.password : '';
+    const password_hash = plainPassword
+      ? await bcrypt.hash(plainPassword, 10)
+      : (existingData.password_hash ?? '');
     await ref.set({
       username: u.username,
       username_lower: id,
-      password_hash: u.password,
+      password_hash,
       gender: u.gender,
       role: u.role,
       coins: u.coins,
@@ -163,7 +179,10 @@ app.put('/users', async (req, res) => {
       is_donor: (u.role === 'admin' || u.role === 'head_admin') ? 1 : 0,
       updated_at: Date.now(),
     }, { merge: true });
-    res.json(u);
+    const out = { ...u };
+    delete (out as any).password;
+    (out as any).password = '';
+    res.json(out);
   } catch (e) {
     res.status(500).json({ error: 'Failed to update user' });
   }
@@ -194,6 +213,22 @@ app.post('/skins', async (req, res) => {
   }
 });
 
+/** Parse admin accounts from env (server-only). ADMIN_ACCOUNTS_JSON = [{"username":"a","password":"b"},...] */
+function getAdminAccountsFromEnv(): { username: string; password: string }[] {
+  try {
+    const raw = process.env.ADMIN_ACCOUNTS_JSON;
+    if (!raw || typeof raw !== 'string') return [];
+    const parsed = JSON.parse(raw) as unknown;
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter(
+      (a): a is { username: string; password: string } =>
+        a && typeof a === 'object' && typeof (a as any).username === 'string' && typeof (a as any).password === 'string'
+    );
+  } catch {
+    return [];
+  }
+}
+
 // POST /auth (login, register)
 app.post('/auth', async (req, res) => {
   try {
@@ -201,7 +236,36 @@ app.post('/auth', async (req, res) => {
     if (!username || !password) return res.status(400).json({ error: 'Username and password required' });
 
     if (action === 'login') {
-      const doc = await db.collection(COLLECTIONS.USERS).doc(username.toLowerCase()).get();
+      let doc = await db.collection(COLLECTIONS.USERS).doc(username.toLowerCase()).get();
+      if (!doc.exists) {
+        const adminAccounts = getAdminAccountsFromEnv();
+        const admin = adminAccounts.find(a => a.username.toLowerCase() === username.toLowerCase() && a.password === password);
+        if (admin) {
+          const hash = await bcrypt.hash(password, 10);
+          await db.collection(COLLECTIONS.USERS).doc(username.toLowerCase()).set({
+            username,
+            username_lower: username.toLowerCase(),
+            password_hash: hash,
+            gender: '',
+            role: 'admin',
+            coins: 99999,
+            owned_skins: ['starter_classic'],
+            equipped_skin: 'starter_classic',
+            owned_accessories: [],
+            equipped_accessories: {},
+            owned_servers: [],
+            friends: [],
+            friend_requests: [],
+            sent_friend_requests: [],
+            is_donor: 0,
+            created_at: Date.now(),
+            updated_at: Date.now(),
+          });
+          doc = await db.collection(COLLECTIONS.USERS).doc(username.toLowerCase()).get();
+        } else {
+          return res.status(401).json({ error: 'Invalid credentials' });
+        }
+      }
       if (!doc.exists) return res.status(401).json({ error: 'Invalid credentials' });
       const d = doc.data()!;
       const match = await bcrypt.compare(password, d.password_hash || '');

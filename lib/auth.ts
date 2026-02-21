@@ -3,8 +3,13 @@ import jwt from 'jsonwebtoken';
 import { getDocument, setDocument, queryDocuments, addDocument, COLLECTIONS } from './firestore';
 import { User } from '@/types';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
+const DEFAULT_JWT_SECRET = 'your-secret-key-change-in-production';
+const JWT_SECRET = process.env.JWT_SECRET || DEFAULT_JWT_SECRET;
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '7d';
+
+function isUnsafeJwtSecret(): boolean {
+  return !process.env.JWT_SECRET || process.env.JWT_SECRET === DEFAULT_JWT_SECRET;
+}
 
 export interface AuthUser {
   id: number;
@@ -20,10 +25,11 @@ export interface AuthUser {
   isDonor: boolean;
 }
 
+/** Build user for API/client. Never expose password or hash. */
 function userFromDoc(doc: any): User {
   return {
     username: doc.username || doc.id,
-    password: doc.password_hash || doc.password || '',
+    password: '',
     gender: doc.gender || '',
     role: (doc.role || 'user') as 'admin' | 'user' | 'head_admin',
     coins: doc.coins || 0,
@@ -64,6 +70,7 @@ export function generateToken(user: AuthUser): string {
 
 // Verify JWT token
 export function verifyToken(token: string): AuthUser | null {
+  if (process.env.NODE_ENV === 'production' && isUnsafeJwtSecret()) return null;
   try {
     const decoded = jwt.verify(token, JWT_SECRET) as any;
     return {
@@ -116,12 +123,13 @@ export async function getUserByIdFromDb(id: number | string): Promise<User | nul
 // Create or update user in Firestore
 export async function createOrUpdateUser(user: User, password?: string): Promise<number> {
   try {
-    const existing = await getUserFromDb(user.username);
     const usernameLower = user.username.toLowerCase();
+    const existingDoc = await getDocument(COLLECTIONS.USERS, usernameLower);
+    const existing = existingDoc ? userFromDoc(existingDoc) : null;
     
-    if (existing) {
-      // Update existing user
-      const passwordHash = password ? await hashPassword(password) : existing.password;
+    if (existing && existingDoc) {
+      // Update existing user — keep existing hash if no new password
+      const passwordHash = password ? await hashPassword(password) : (existingDoc.password_hash || (existingDoc as any).password || '');
       
       await setDocument(COLLECTIONS.USERS, usernameLower, {
         username: user.username,

@@ -1,14 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDb } from '@/lib/db';
 import { hashPassword } from '@/lib/auth';
-import { ADMIN_ACCOUNTS_LIST } from '@/lib/storage';
+import { getAdminAccounts } from '@/lib/adminAccounts';
 
 export async function POST(request: NextRequest) {
   try {
     const db = getDb();
     const results = [];
+    const adminAccounts = getAdminAccounts();
     
-    for (const adminAccount of ADMIN_ACCOUNTS_LIST) {
+    for (const adminAccount of adminAccounts) {
       try {
         // Check if user already exists
         const existing = db.prepare('SELECT * FROM users WHERE LOWER(username) = LOWER(?)').get(adminAccount.username);

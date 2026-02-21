@@ -3,21 +3,8 @@ import { NEW_SKINS, NEW_ACCESSORIES } from './newCatalog';
 import { apiUrl } from './apiBaseUrl';
 import { authenticatedFetch } from './api';
 
-const ADMIN_ACCOUNTS = [
-  { username: "admin", password: "extra" },
-  { username: "TicTAK", password: "Thomas" },
-  { username: "IDon'tKnow", password: "Titan" },
-  { username: "6767kid", password: "67676767" },
-  { username: "Billibob", password: "Luca" },
-  { username: "Daniello1", password: "Daniel" },
-  { username: "FunBoy", password: "Simon" },
-  { username: "BelloBoy1", password: "Zac" },
-  { username: "Bob", password: "Henry" },
-  { username: "Mr.Noob", password: "Tyson" },
-  { username: "BDawgsAwesome1", password: "20Minecraft15" }
-];
-
-export const ADMIN_ACCOUNTS_LIST = ADMIN_ACCOUNTS;
+/** Client: empty list (admin accounts are server-only via ADMIN_ACCOUNTS_JSON env). */
+export const ADMIN_ACCOUNTS_LIST: { username: string; password: string }[] = [];
 
 /** Usernames that get head_admin role (can ban anyone, including other admins) */
 export const HEAD_ADMIN_USERNAMES = ['admin'];
@@ -36,7 +23,7 @@ export function initializeStorage() {
 export async function getUsers(): Promise<User[]> {
   if (typeof window === 'undefined') return [];
   try {
-    const response = await fetch(apiUrl('/api/users'), {
+    const response = await authenticatedFetch(apiUrl('/api/users'), {
       cache: 'no-store',
       headers: {
         'Cache-Control': 'no-cache'
@@ -70,7 +57,7 @@ export async function getUsers(): Promise<User[]> {
             console.log(`Migrating ${usersToMigrate.length} users from localStorage to API`);
             // Migrate users that don't exist in API
             for (const user of usersToMigrate) {
-              await fetch(apiUrl('/api/users'), {
+              await authenticatedFetch(apiUrl('/api/users'), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(user)
@@ -79,7 +66,7 @@ export async function getUsers(): Promise<User[]> {
             // Remove from localStorage after successful migration
             localStorage.removeItem("pixelPlaceUsers");
             // Fetch updated list
-            const updatedResponse = await fetch(apiUrl('/api/users'), { cache: 'no-store' });
+            const updatedResponse = await authenticatedFetch(apiUrl('/api/users'), { cache: 'no-store' });
             if (updatedResponse.ok) {
               const updatedUsers = await updatedResponse.json();
               console.log(`getUsers: After migration, fetched ${updatedUsers.length} users`);
@@ -103,7 +90,7 @@ export async function getUsers(): Promise<User[]> {
         // Try to migrate even on error
         if (users.length > 0) {
           for (const user of users) {
-            await fetch(apiUrl('/api/users'), {
+            await authenticatedFetch(apiUrl('/api/users'), {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify(user)
@@ -122,7 +109,8 @@ export async function saveUsers(users: User[]): Promise<void> {
   try {
     // Save each user (API handles updates if user exists)
     for (const user of users) {
-      await fetch(apiUrl('/api/users'), {        method: 'POST',
+      await authenticatedFetch(apiUrl('/api/users'), {
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(user)
       }).catch(() => { });

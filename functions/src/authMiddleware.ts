@@ -4,7 +4,10 @@
 import jwt from 'jsonwebtoken';
 import { Request, Response } from 'express';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
+const DEFAULT_JWT_SECRET = 'your-secret-key-change-in-production';
+const JWT_SECRET = process.env.JWT_SECRET || DEFAULT_JWT_SECRET;
+const isUnsafeJwtSecret = (): boolean =>
+  !process.env.JWT_SECRET || process.env.JWT_SECRET === DEFAULT_JWT_SECRET;
 
 export interface AuthUser {
   username: string;
@@ -12,6 +15,7 @@ export interface AuthUser {
 }
 
 export function getAuthFromRequest(req: Request): AuthUser | null {
+  if (isUnsafeJwtSecret()) return null;
   const authHeader = req.headers.authorization;
   if (!authHeader || typeof authHeader !== 'string' || !authHeader.startsWith('Bearer ')) return null;
   const token = authHeader.slice(7).trim();
