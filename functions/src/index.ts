@@ -39,8 +39,7 @@ const COLLECTIONS = {
   GAME_SESSIONS: 'game_sessions',
 };
 
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
-import { requireAuth, requireAdmin, requireOwnerOrAdmin, getAuthFromRequest, isAdmin } from './authMiddleware';
+import { requireAuth, requireAdmin, requireOwnerOrAdmin, getAuthFromRequest, isAdmin, getJwtSecret } from './authMiddleware';
 
 // Minimal NEW_SKINS fallback (starter skins)
 const FALLBACK_SKINS = [
@@ -83,6 +82,14 @@ app.use((req, res, next) => {
   }
   next();
 });
+
+// Check if JWT_SECRET is set (env or legacy functions.config) + debug path
+const sendJwtCheck = (req: any, res: any) => {
+  const secret = getJwtSecret();
+  const set = secret !== 'your-secret-key-change-in-production';
+  res.json({ jwtSecretSet: set, path: req.path, url: req.url, originalUrl: req.originalUrl });
+};
+['/auth/check-config', '/api/auth/check-config', '/check-config', '/api/check-config'].forEach(p => app.get(p, sendJwtCheck));
 
 // GET/POST /users — GET requires auth
 app.get('/users', async (req, res) => {
@@ -230,15 +237,29 @@ function getAdminAccountsFromEnv(): { username: string; password: string }[] {
   } catch {
     // fall through
   }
-  // Production: single admin via ADMIN_USERNAME + ADMIN_PASSWORD
   const u = process.env.ADMIN_USERNAME;
   const p = process.env.ADMIN_PASSWORD;
   if (u && typeof u === 'string' && p && typeof p === 'string' && u.trim() && p.trim()) {
     return [{ username: u.trim(), password: p }];
   }
-  // Development-only fallback
   if (process.env.NODE_ENV !== 'production') {
     return [{ username: 'admin', password: 'admin' }];
+  }
+  return [];
+}
+
+/** Production fallback: read single admin from Firestore when env vars are not set (e.g. Firebase doesn't deploy .env). */
+async function getAdminAccountsFromFirestore(): Promise<{ username: string; password: string }[]> {
+  try {
+    const snap = await db.collection('config').doc('admin').get();
+    const d = snap?.data();
+    const u = d?.admin_username ?? d?.username;
+    const p = d?.admin_password ?? d?.password;
+    if (u && typeof u === 'string' && p && typeof p === 'string' && u.trim() && p.trim()) {
+      return [{ username: u.trim(), password: String(p) }];
+    }
+  } catch {
+    // ignore
   }
   return [];
 }
@@ -252,7 +273,8 @@ app.post('/auth', async (req, res) => {
     if (action === 'login') {
       let doc = await db.collection(COLLECTIONS.USERS).doc(username.toLowerCase()).get();
       if (!doc.exists) {
-        const adminAccounts = getAdminAccountsFromEnv();
+        let adminAccounts = getAdminAccountsFromEnv();
+        if (adminAccounts.length === 0) adminAccounts = await getAdminAccountsFromFirestore();
         const admin = adminAccounts.find(a => a.username.toLowerCase() === username.toLowerCase() && a.password === password);
         if (admin) {
           const hash = await bcrypt.hash(password, 10);
@@ -282,10 +304,21 @@ app.post('/auth', async (req, res) => {
       }
       if (!doc.exists) return res.status(401).json({ error: 'Invalid credentials' });
       const d = doc.data()!;
-      const match = await bcrypt.compare(password, d.password_hash || '');
+      const storedHash = (d.password_hash || '').trim();
+      let match = false;
+      if (storedHash.startsWith('$2')) {
+        match = await bcrypt.compare(password, storedHash);
+      } else if (storedHash) {
+        // Legacy: stored value is plaintext (pre-bcrypt migration). Compare and upgrade to bcrypt.
+        match = password === storedHash;
+        if (match) {
+          const hash = await bcrypt.hash(password, 10);
+          await db.collection(COLLECTIONS.USERS).doc(username.toLowerCase()).update({ password_hash: hash, updated_at: Date.now() });
+        }
+      }
       if (!match) return res.status(401).json({ error: 'Invalid credentials' });
       const user = userFromDoc(doc);
-      const token = jwt.sign({ username: user.username, role: user.role }, JWT_SECRET, { expiresIn: '7d' });
+      const token = jwt.sign({ username: user.username, role: user.role }, getJwtSecret(), { expiresIn: '7d' });
       return res.json({ success: true, user, token });
     }
 
@@ -318,7 +351,7 @@ app.post('/auth', async (req, res) => {
       };
       await db.collection(COLLECTIONS.USERS).doc(id).set(userData);
       const user = userFromDoc(await db.collection(COLLECTIONS.USERS).doc(id).get());
-      const token = jwt.sign({ username, role: user.role }, JWT_SECRET, { expiresIn: '7d' });
+      const token = jwt.sign({ username, role: user.role }, getJwtSecret(), { expiresIn: '7d' });
       return res.json({ success: true, user, token });
     }
 
@@ -817,7 +850,14 @@ app.post('/api/generate-game', (req, res) => handleGenerateGame(req, res));
 app.post('/chat', (req, res) => handleChat(req, res));
 app.post('/api/chat', (req, res) => handleChat(req, res));
 
-// 404 for unknown routes
-app.use((_req, res) => res.status(404).json({ error: 'Not found' }));
+// 404 for unknown routes (include path debug so we can see what Express received)
+app.use((req: any, res) => {
+  res.status(404).json({
+    error: 'Not found',
+    path: req.path,
+    url: req.url,
+    originalUrl: req.originalUrl,
+  });
+});
 
 export const api = functions.region('us-central1').https.onRequest(app);

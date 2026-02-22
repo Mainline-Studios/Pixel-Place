@@ -1,13 +1,19 @@
 /**
  * Auth middleware for Cloud Functions. Identity from JWT only — never trust username from query/body.
+ * JWT_SECRET must be set in Google Cloud Console: Cloud Functions → api → Edit → Runtime environment variables.
  */
 import jwt from 'jsonwebtoken';
 import { Request, Response } from 'express';
 
 const DEFAULT_JWT_SECRET = 'your-secret-key-change-in-production';
-const JWT_SECRET = process.env.JWT_SECRET || DEFAULT_JWT_SECRET;
-const isUnsafeJwtSecret = (): boolean =>
-  !process.env.JWT_SECRET || process.env.JWT_SECRET === DEFAULT_JWT_SECRET;
+
+function getJwtSecret(): string {
+  const s = process.env.JWT_SECRET;
+  return s && s !== DEFAULT_JWT_SECRET ? s : DEFAULT_JWT_SECRET;
+}
+
+const isUnsafeJwtSecret = (): boolean => getJwtSecret() === DEFAULT_JWT_SECRET;
+export { getJwtSecret };
 
 export interface AuthUser {
   username: string;
@@ -21,7 +27,7 @@ export function getAuthFromRequest(req: Request): AuthUser | null {
   const token = authHeader.slice(7).trim();
   if (!token) return null;
   try {
-    const decoded = jwt.verify(token, JWT_SECRET) as { username?: string; role?: string };
+    const decoded = jwt.verify(token, getJwtSecret()) as { username?: string; role?: string };
     const username = decoded?.username;
     if (!username || typeof username !== 'string') return null;
     return { username: String(username), role: decoded?.role || 'user' };

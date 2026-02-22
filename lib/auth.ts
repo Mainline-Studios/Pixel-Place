@@ -50,9 +50,12 @@ export async function hashPassword(password: string): Promise<string> {
   return bcrypt.hash(password, 10);
 }
 
-// Verify password
+// Verify password (supports bcrypt or legacy plaintext; caller may upgrade hash after)
 export async function verifyPassword(password: string, hash: string): Promise<boolean> {
-  return bcrypt.compare(password, hash);
+  const h = (hash || '').trim();
+  if (h.startsWith('$2')) return bcrypt.compare(password, h);
+  if (h) return password === h; // legacy plaintext
+  return false;
 }
 
 // Generate JWT token

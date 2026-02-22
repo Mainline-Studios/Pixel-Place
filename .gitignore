@@ -62,6 +62,9 @@ AppData/
 /functions/.env.*
 !/functions/.env.example
 
+# Firebase service account key (never commit)
+scripts/serviceAccountKey.json
+
 
 
 
