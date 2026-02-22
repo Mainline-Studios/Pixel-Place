@@ -25,10 +25,20 @@ function applyPyxResponse(data: PyxResponse, original: string): string {
   return score >= BAN_LINE ? censorLetters(original) : original;
 }
 
+function getPyxHeaders(): Record<string, string> {
+  const h: Record<string, string> = { 'Content-Type': 'application/json' };
+  const key = (process.env.PYX_API_KEY || '').trim();
+  if (key) {
+    h['X-API-Key'] = key;
+    h['Authorization'] = `Bearer ${key}`;
+  }
+  return h;
+}
+
 async function callPyx(base: string, path: string, body: object): Promise<PyxResponse> {
   const res = await fetch(`${base.replace(/\/$/, '')}${path}`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: getPyxHeaders(),
     body: JSON.stringify(body),
   });
   if (!res.ok) {

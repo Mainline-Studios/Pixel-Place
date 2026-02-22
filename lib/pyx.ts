@@ -313,9 +313,20 @@ function startPyxRetryTimer(): void {
   }, PYX_RETRY_MS);
 }
 
-/** Client: calls API (Pyx with Claude backup). On API failure, marks Pyx unavailable and starts hourly retry. */
+/** Client: filter text (Pyx). Uses pyx-client.js when loaded, else API. On failure, marks Pyx unavailable and retries later. */
 export async function filterForDisplay(text: string): Promise<string> {
   if (!text || typeof text !== 'string') return text;
+  try {
+    const pyx = (await import('@/lib/pyxClient')).getPyxClientIfAvailable();
+    if (pyx) {
+      const data = await pyx.score(text);
+      if (data.bad === true && typeof data.censored === 'string') return data.censored;
+      const score = typeof data.score === 'number' ? data.score : 0;
+      return score >= BAN_LINE ? censorLetters(text) : text;
+    }
+  } catch (_e) {
+    // Pyx client failed or not loaded; fall back to API
+  }
   try {
     const { apiUrl } = await import('@/lib/apiBaseUrl');
     const res = await fetch(apiUrl('/api/pyx/filter'), {
