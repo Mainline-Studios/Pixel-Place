@@ -55,9 +55,14 @@ export default function AIGameGenerator({ user, onCodeGenerated, onSwitchToCodeE
   const [generationProvider, setGenerationProvider] = useState<string>('');
   const [showPreview, setShowPreview] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
+  const chatScrollRef = useRef<HTMLDivElement>(null);
 
+  // Scroll only the conversation container to bottom when messages change (avoid scrolling the whole page)
   useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    const el = chatScrollRef.current;
+    if (el) {
+      el.scrollTop = el.scrollHeight;
+    }
   }, [conversation]);
 
   const sendChatMessage = async () => {
@@ -70,7 +75,8 @@ export default function AIGameGenerator({ user, onCodeGenerated, onSwitchToCodeE
     setConversation((prev) => [...prev, userMsg]);
     try {
       const messagesForApi = [...conversation, { role: 'user' as const, content: msg }].map((m) => ({ role: m.role, content: m.content }));
-      const response = await fetch(apiUrl('/api/chat'), {
+      const { authenticatedFetch } = await import('@/lib/api');
+      const response = await authenticatedFetch(apiUrl('/api/chat'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ messages: messagesForApi }),
@@ -142,7 +148,7 @@ export default function AIGameGenerator({ user, onCodeGenerated, onSwitchToCodeE
 
       if (response.status === 401) {
         setIsGenerating(false);
-        alert('Please log in to use AI game generation.');
+        alert('Your session may have expired or the app could not verify your login. Please log out and log in again, then try generating.');
         return;
       }
       if (data.code) {
@@ -330,18 +336,21 @@ export default function AIGameGenerator({ user, onCodeGenerated, onSwitchToCodeE
             <div className="smalltext" style={{ marginBottom: '8px', color: 'var(--text-dim)' }}>
               Discuss your game idea with the AI. The conversation will be used as context when you click Generate.
             </div>
-            <div style={{
-              minHeight: '200px',
-              maxHeight: '320px',
-              overflowY: 'auto',
-              background: '#1a1d29',
-              border: '2px solid var(--border)',
-              borderRadius: '8px',
-              padding: '12px',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '12px',
-            }}>
+            <div
+              ref={chatScrollRef}
+              style={{
+                minHeight: '200px',
+                maxHeight: '320px',
+                overflowY: 'auto',
+                background: '#1a1d29',
+                border: '2px solid var(--border)',
+                borderRadius: '8px',
+                padding: '12px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '12px',
+              }}
+            >
               {conversation.length === 0 && (
                 <div className="smalltext" style={{ color: 'var(--text-dim)', fontStyle: 'italic' }}>
                   Start the conversation — describe your game idea and the AI will help you refine it.

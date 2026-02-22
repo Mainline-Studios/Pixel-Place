@@ -108,22 +108,35 @@ REQUIREMENTS:
 }
 
 async function generateWithAnthropic(prompt: string, apiKey: string, useHaiku = false): Promise<string> {
+  const key = (apiKey || '').trim();
+  if (!key) throw new Error('Anthropic API key is missing');
   // Use current model IDs (Claude 3.5 models were retired Feb 2026)
-  const model = useHaiku ? 'claude-haiku-4-5-20251001' : 'claude-sonnet-4-6';
-  const maxTokens = useHaiku ? 16000 : 32000;
+  const model = useHaiku ? 'claude-haiku-4-5' : 'claude-sonnet-4-6';
+  // Keep within common model limits to avoid validation errors
+  const maxTokens = Math.min(useHaiku ? 8192 : 16384, 16384);
   const systemPrompt = useHaiku
     ? `You are an expert game developer and Three.js specialist. Generate a complete, working 3D game. REQUIREMENTS: 1) export function createGame(container: HTMLElement) 2) import * as THREE from 'three' 3) 500+ lines, lighting, materials, player controls (WASD, mouse), physics, game state, UI (HUD, start menu, game-over). Return ONLY code, NO markdown.`
     : `You are an ELITE game developer and Three.js expert. Generate a MASSIVE, production-quality 3D game. REQUIREMENTS: 1) export function createGame(container: HTMLElement) 2) import * as THREE from 'three' 3) At least 5000 lines 4) Beautiful visuals, full mechanics, physics, controls, UI. 5) Return ONLY code, NO markdown.`;
-  const userContent = useHaiku
+  const userText = useHaiku
     ? `Create a complete 3D game:\n\n${prompt}\n\nReturn ONLY the code.`
     : `Create a massive, comprehensive 3D game:\n\n${prompt}\n\nReturn ONLY the code.`;
+  // Use content-block array format to satisfy strict API validation (avoids "expected pattern" errors)
+  const body = {
+    model,
+    max_tokens: maxTokens,
+    system: systemPrompt,
+    messages: [{ role: 'user' as const, content: [{ type: 'text' as const, text: userText }] }],
+  };
   const response = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01' },
-    body: JSON.stringify({ model, max_tokens: maxTokens, system: systemPrompt, messages: [{ role: 'user', content: userContent }] }),
+    headers: { 'Content-Type': 'application/json', 'x-api-key': key, 'anthropic-version': '2023-06-01' },
+    body: JSON.stringify(body),
   });
-  if (!response.ok) throw new Error(`Anthropic API error: ${response.statusText}`);
-  const data = await response.json();
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const msg = (data as { error?: { message?: string } })?.error?.message || response.statusText;
+    throw new Error(`Anthropic API error: ${msg}`);
+  }
   let code = (data.content?.[0] as { text?: string })?.text || '';
   code = code.replace(/```typescript\n?/g, '').replace(/```javascript\n?/g, '').replace(/```\n?/g, '').trim();
   if (!code.includes('export function createGame') && !code.includes('function createGame')) {
@@ -235,7 +248,7 @@ export function createGame(container: HTMLElement) {
   for (let i = 0; i < 5; i++) {
     const platform = new THREE.Mesh(
       new THREE.BoxGeometry(3, 0.5, 3),
-      new THREE.MeshStandardMaterial({ color: 0x8b4513 })
+new THREE.MeshStandardMaterial({ color: 0x8b4513 })
     );
     platform.position.set((i - 2) * 4, i * 2, 0);
     scene.add(platform);

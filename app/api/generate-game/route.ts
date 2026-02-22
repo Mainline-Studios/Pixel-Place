@@ -214,35 +214,38 @@ The user has provided a DETAILED description. Read it CAREFULLY and implement EX
 }
 
 async function generateWithAnthropic(prompt: string, apiKey: string, useHaiku = false): Promise<string> {
-  const model = useHaiku ? 'claude-haiku-4-5-20251001' : 'claude-sonnet-4-6';
-  const maxTokens = useHaiku ? 16000 : 32000;
+  const key = (apiKey || '').trim();
+  if (!key) throw new Error('Anthropic API key is missing');
+  const model = useHaiku ? 'claude-haiku-4-5' : 'claude-sonnet-4-6';
+  const maxTokens = Math.min(useHaiku ? 8192 : 16384, 16384);
   const systemPrompt = useHaiku
     ? `You are an expert game developer and Three.js specialist. Generate a complete, working 3D game. REQUIREMENTS: 1) export function createGame(container: HTMLElement) 2) import * as THREE from 'three' 3) 500+ lines, lighting, materials, player controls (WASD, mouse), physics, game state, UI (HUD, start menu, game-over). Return ONLY code, NO markdown.`
     : `You are an ELITE game developer and Three.js expert. Generate a MASSIVE, production-quality, visually stunning 3D game that is COMPLETE, POLISHED, and WORKS PERFECTLY. CRITICAL: 1) export function createGame(container: HTMLElement) 2) import * as THREE from 'three' 3) At least 5000 lines 4) Beautiful visuals, full mechanics, physics, controls, REQUIRED UI (HUD, start menu, game-over screen). 5) Return ONLY code, NO markdown, NO code blocks.`;
-  const userContent = useHaiku
+  const userText = useHaiku
     ? `Create a complete 3D game:\n\n${prompt}\n\nReturn ONLY the TypeScript/JavaScript code.`
     : `User description: ${prompt}\n\nGenerate a MASSIVE, COMPREHENSIVE, BEAUTIFUL game (5000+ lines) that matches the description EXACTLY.`;
   const response = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'x-api-key': apiKey,
+      'x-api-key': key,
       'anthropic-version': '2023-06-01'
     },
     body: JSON.stringify({
       model,
       max_tokens: maxTokens,
       system: systemPrompt,
-      messages: [{ role: 'user', content: userContent }],
+      messages: [{ role: 'user', content: [{ type: 'text', text: userText }] }],
     }),
   });
 
+  const data = await response.json().catch(() => ({}));
   if (!response.ok) {
-    throw new Error(`Anthropic API error: ${response.statusText}`);
+    const msg = (data as { error?: { message?: string } })?.error?.message || response.statusText;
+    throw new Error(`Anthropic API error: ${msg}`);
   }
 
-  const data = await response.json();
-  let code = data.content[0]?.text || '';
+  let code = (data.content?.[0] as { text?: string })?.text || '';
 
   // Clean up markdown
   code = code.replace(/```typescript\n?/g, '').replace(/```javascript\n?/g, '').replace(/```\n?/g, '').trim();
