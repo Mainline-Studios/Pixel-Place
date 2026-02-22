@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getDocument, setDocument, COLLECTIONS } from '@/lib/firestore';
+import { requireAuth, requireOwnerOrAdmin } from '@/lib/middleware';
 import { DraftGame } from '@/types';
 
 function draftFromDoc(doc: any): DraftGame {
@@ -19,13 +20,20 @@ function draftFromDoc(doc: any): DraftGame {
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-    const username = searchParams.get('username') || 'default';
+    const usernameParam = searchParams.get('username') || '';
 
-    const doc = await getDocument(COLLECTIONS.DRAFTS, username);
+    const auth = usernameParam
+      ? requireOwnerOrAdmin(request, usernameParam)
+      : requireAuth(request);
+    if (auth.error) return auth.error;
+
+    const username = usernameParam || auth.user?.username || 'default';
+
+    const doc = await getDocument(COLLECTIONS.DRAFTS, username.toLowerCase());
     if (doc) {
       return NextResponse.json(draftFromDoc(doc));
     }
-    return NextResponse.json({ title: "", desc: "", owner: "" });
+    return NextResponse.json({ title: '', desc: '', owner: '' });
   } catch (error) {
     console.error('Error reading draft:', error);
     return NextResponse.json({ error: 'Failed to read draft' }, { status: 500 });
@@ -35,9 +43,12 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const draft: DraftGame = await request.json();
-    const username = draft.owner || 'default';
+    const username = (draft.owner || '').trim() || 'default';
 
-    await setDocument(COLLECTIONS.DRAFTS, username, {
+    const auth = requireOwnerOrAdmin(request, username);
+    if (auth.error) return auth.error;
+
+    await setDocument(COLLECTIONS.DRAFTS, username.toLowerCase(), {
       username: username,
       title: draft.title || '',
       desc: draft.desc || '',

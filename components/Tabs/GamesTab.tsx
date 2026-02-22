@@ -21,6 +21,7 @@ import JungleJourneySeries from '../Games/JungleJourneySeries';
 import Chess from '../Games/Chess';
 import FloorIsLava from '../Games/FloorIsLava';
 import VoidArcade from '../Games/VoidArcade';
+import EcoHero from '../Games/EcoHero';
 
 interface GamesTabProps {
   user: User;
@@ -177,6 +178,14 @@ const games: GameInfo[] = [
     category: 'Arcade',
     component: VoidArcade,
   },
+  {
+    id: 'ecoHero',
+    name: 'Eco Hero — City Cleanup',
+    description: 'Keep the city clean, complete missions, chat with AI citizens after the game!',
+    icon: '🌱',
+    category: 'Arcade',
+    component: EcoHero,
+  },
 ];
 
 export default function GamesTab({ user, editMode }: GamesTabProps) {
@@ -227,7 +236,7 @@ export default function GamesTab({ user, editMode }: GamesTabProps) {
     };
     
     // Components that support onClose prop
-    const supportsOnClose = ['gymPump', 'hypnosia', 'voidArcade'].includes(selectedGame);
+    const supportsOnClose = ['gymPump', 'hypnosia', 'voidArcade', 'ecoHero'].includes(selectedGame);
     
     // Prepare props based on game type - pass user to games that need it
     const baseProps = selectedGame === 'gymPump'
@@ -235,6 +244,8 @@ export default function GamesTab({ user, editMode }: GamesTabProps) {
       : selectedGame === 'hypnosia'
       ? { onClose: handleClose }
       : selectedGame === 'voidArcade'
+      ? { onClose: handleClose }
+      : selectedGame === 'ecoHero'
       ? { onClose: handleClose }
       : selectedGame === 'showdown'
       ? { user }

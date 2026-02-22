@@ -3,11 +3,15 @@ import { authenticateUser, createOrUpdateUser, getUserFromDb } from '@/lib/auth'
 import { getAdminAccounts, getHeadAdminUsernames } from '@/lib/adminAccounts';
 import { User } from '@/types';
 
-// Login endpoint
+// Login / Register — parse body once (AuthN)
 export async function POST(request: NextRequest) {
   try {
-    const { username, password, action } = await request.json();
-    
+    const body = await request.json().catch(() => ({}));
+    const { username, password, action, gender, role, coins } = body as {
+      username?: string; password?: string; action?: string;
+      gender?: string; role?: string; coins?: number;
+    };
+
     if (action === 'login') {
       if (!username || !password) {
         return NextResponse.json({ error: 'Username and password required' }, { status: 400 });
@@ -69,16 +73,14 @@ export async function POST(request: NextRequest) {
       if (existing) {
         return NextResponse.json({ error: 'Username already exists' }, { status: 400 });
       }
-      
-      const { gender, role, coins } = await request.json();
-      
-      // Create new user
+
+      // Create new user (AuthZ: never trust client for role — new signups are always 'user')
       const newUser: User = {
         username,
         password: '', // Will be hashed
         gender: gender || '',
-        role: role || 'user',
-        coins: coins !== undefined ? coins : ((role === 'admin' || role === 'head_admin') ? 99999 : 10),
+        role: 'user',
+        coins: 10,
         ownedSkins: ['starter_classic'],
         equippedSkin: 'starter_classic',
         ownedAccessories: [],
@@ -121,14 +123,14 @@ export async function GET(request: NextRequest) {
     }
     
     const token = authHeader.substring(7);
-    const { verifyToken, getUserByIdFromDb } = await import('@/lib/auth');
+    const { verifyToken, getUserFromDb } = await import('@/lib/auth');
     const authUser = verifyToken(token);
-    
+
     if (!authUser) {
       return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
     }
-    
-    const user = await getUserByIdFromDb(authUser.username);
+
+    const user = await getUserFromDb(authUser.username);
     if (!user) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
