@@ -32,3 +32,12 @@ So:
 4. **Do not commit `functions/.env`** (it’s in `.gitignore`). Keep a backup somewhere safe.
 
 Summary: **Edit `functions/.env` locally. Deploy pushes it to the cloud. Console edits are overwritten on every deploy.**
+
+---
+
+## Firebase Hosting + custom domain (e.g. Squarespace)
+
+If the app is on **Firebase Hosting** with a custom domain and `firebase.json` rewrites `/api/**` to the `api` function:
+
+- **Do not set** `NEXT_PUBLIC_API_URL` when building. The app will call `/api/auth`, `/api/generate-game`, etc. as same-origin; Hosting sends those to the Cloud Function.
+- **Set `JWT_SECRET`** in `functions/.env` and deploy. If `JWT_SECRET` is missing or still the default, the Cloud Function rejects all auth (login works but generate-game and other protected routes return “not logged in”). Use a long random string and keep it the same across deploys.

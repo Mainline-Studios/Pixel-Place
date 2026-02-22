@@ -110,26 +110,29 @@ REQUIREMENTS:
 async function generateWithAnthropic(prompt: string, apiKey: string, useHaiku = false): Promise<string> {
   const key = (apiKey || '').trim();
   if (!key) throw new Error('Anthropic API key is missing');
-  // Use current model IDs (Claude 3.5 models were retired Feb 2026)
-  const model = useHaiku ? 'claude-haiku-4-5' : 'claude-sonnet-4-6';
-  // Keep within common model limits to avoid validation errors
-  const maxTokens = Math.min(useHaiku ? 8192 : 16384, 16384);
+  // Use date-pinned model IDs from docs to avoid "expected pattern" validation errors
+  const model = useHaiku ? 'claude-haiku-4-5-20251001' : 'claude-sonnet-4-6';
+  const maxTokens = 8192; // Safe limit; avoid validation issues with very large values
   const systemPrompt = useHaiku
     ? `You are an expert game developer and Three.js specialist. Generate a complete, working 3D game. REQUIREMENTS: 1) export function createGame(container: HTMLElement) 2) import * as THREE from 'three' 3) 500+ lines, lighting, materials, player controls (WASD, mouse), physics, game state, UI (HUD, start menu, game-over). Return ONLY code, NO markdown.`
     : `You are an ELITE game developer and Three.js expert. Generate a MASSIVE, production-quality 3D game. REQUIREMENTS: 1) export function createGame(container: HTMLElement) 2) import * as THREE from 'three' 3) At least 5000 lines 4) Beautiful visuals, full mechanics, physics, controls, UI. 5) Return ONLY code, NO markdown.`;
   const userText = useHaiku
     ? `Create a complete 3D game:\n\n${prompt}\n\nReturn ONLY the code.`
     : `Create a massive, comprehensive 3D game:\n\n${prompt}\n\nReturn ONLY the code.`;
-  // Use content-block array format to satisfy strict API validation (avoids "expected pattern" errors)
+  // Minimal request: string content (no content blocks), integer max_tokens, exact model ID from docs
   const body = {
     model,
     max_tokens: maxTokens,
     system: systemPrompt,
-    messages: [{ role: 'user' as const, content: [{ type: 'text' as const, text: userText }] }],
+    messages: [{ role: 'user', content: userText }],
   };
   const response = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'x-api-key': key, 'anthropic-version': '2023-06-01' },
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': key,
+      'anthropic-version': '2023-06-01',
+    },
     body: JSON.stringify(body),
   });
   const data = await response.json().catch(() => ({}));

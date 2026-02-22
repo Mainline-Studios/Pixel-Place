@@ -131,11 +131,16 @@ export default function AIGameGenerator({ user, onCodeGenerated, onSwitchToCodeE
       return;
     }
 
+    const { authenticatedFetch, getAuthToken } = await import('@/lib/api');
+    if (!getAuthToken()?.trim()) {
+      alert('Your session token is missing. Please log out and log in again, then try generating.');
+      return;
+    }
+
     setIsGenerating(true);
     setGeneratedCode(null);
 
     try {
-      const { authenticatedFetch } = await import('@/lib/api');
       const response = await authenticatedFetch(apiUrl('/api/generate-game'), {
         method: 'POST',
         headers: {
@@ -148,7 +153,8 @@ export default function AIGameGenerator({ user, onCodeGenerated, onSwitchToCodeE
 
       if (response.status === 401) {
         setIsGenerating(false);
-        alert('Your session may have expired or the app could not verify your login. Please log out and log in again, then try generating.');
+        const serverMsg = (data as { error?: string })?.error ? ` ${(data as { error: string }).error}.` : '';
+        alert(`The server could not verify your login.${serverMsg} Please log out and log in again, then try generating.`);
         return;
       }
       if (data.code) {

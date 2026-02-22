@@ -1,7 +1,9 @@
 /**
- * Base URL for API calls. When using static export + Firebase Cloud Functions,
- * set NEXT_PUBLIC_API_URL to your Cloud Functions URL, e.g.:
- * https://us-central1-pixel-place-823b1.cloudfunctions.net/api
+ * Base URL for API calls.
+ * - Firebase Hosting with rewrites (e.g. custom domain): leave NEXT_PUBLIC_API_URL unset.
+ *   Requests to /api/* go same-origin and Hosting rewrites them to the Cloud Function.
+ * - If your app is on a different origin than the API: set NEXT_PUBLIC_API_URL to the
+ *   Cloud Functions URL, e.g. https://us-central1-xxx.cloudfunctions.net/api
  */
 export function getApiBaseUrl(): string {
   if (typeof window !== 'undefined') {

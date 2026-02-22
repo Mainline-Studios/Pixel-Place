@@ -20,6 +20,7 @@ import RedRover from '../Games/RedRover';
 import JungleJourneySeries from '../Games/JungleJourneySeries';
 import Chess from '../Games/Chess';
 import FloorIsLava from '../Games/FloorIsLava';
+import VoidArcade from '../Games/VoidArcade';
 
 interface GamesTabProps {
   user: User;
@@ -168,6 +169,14 @@ const games: GameInfo[] = [
     category: 'Adventure',
     component: JungleJourneySeries,
   },
+  {
+    id: 'voidArcade',
+    name: 'Void Arcade',
+    description: 'Multi-game arcade: Void Crawler, Star Fury, Crystal Keep, Neon Drift. Pick a game and play!',
+    icon: '🕹️',
+    category: 'Arcade',
+    component: VoidArcade,
+  },
 ];
 
 export default function GamesTab({ user, editMode }: GamesTabProps) {
@@ -218,12 +227,14 @@ export default function GamesTab({ user, editMode }: GamesTabProps) {
     };
     
     // Components that support onClose prop
-    const supportsOnClose = ['gymPump', 'hypnosia'].includes(selectedGame);
+    const supportsOnClose = ['gymPump', 'hypnosia', 'voidArcade'].includes(selectedGame);
     
     // Prepare props based on game type - pass user to games that need it
-    const baseProps = selectedGame === 'gymPump' 
+    const baseProps = selectedGame === 'gymPump'
       ? { user, onClose: handleClose }
       : selectedGame === 'hypnosia'
+      ? { onClose: handleClose }
+      : selectedGame === 'voidArcade'
       ? { onClose: handleClose }
       : selectedGame === 'showdown'
       ? { user }

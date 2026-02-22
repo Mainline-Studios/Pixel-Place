@@ -216,8 +216,8 @@ The user has provided a DETAILED description. Read it CAREFULLY and implement EX
 async function generateWithAnthropic(prompt: string, apiKey: string, useHaiku = false): Promise<string> {
   const key = (apiKey || '').trim();
   if (!key) throw new Error('Anthropic API key is missing');
-  const model = useHaiku ? 'claude-haiku-4-5' : 'claude-sonnet-4-6';
-  const maxTokens = Math.min(useHaiku ? 8192 : 16384, 16384);
+  const model = useHaiku ? 'claude-haiku-4-5-20251001' : 'claude-sonnet-4-6';
+  const maxTokens = 8192;
   const systemPrompt = useHaiku
     ? `You are an expert game developer and Three.js specialist. Generate a complete, working 3D game. REQUIREMENTS: 1) export function createGame(container: HTMLElement) 2) import * as THREE from 'three' 3) 500+ lines, lighting, materials, player controls (WASD, mouse), physics, game state, UI (HUD, start menu, game-over). Return ONLY code, NO markdown.`
     : `You are an ELITE game developer and Three.js expert. Generate a MASSIVE, production-quality, visually stunning 3D game that is COMPLETE, POLISHED, and WORKS PERFECTLY. CRITICAL: 1) export function createGame(container: HTMLElement) 2) import * as THREE from 'three' 3) At least 5000 lines 4) Beautiful visuals, full mechanics, physics, controls, REQUIRED UI (HUD, start menu, game-over screen). 5) Return ONLY code, NO markdown, NO code blocks.`;
@@ -235,7 +235,7 @@ async function generateWithAnthropic(prompt: string, apiKey: string, useHaiku = 
       model,
       max_tokens: maxTokens,
       system: systemPrompt,
-      messages: [{ role: 'user', content: [{ type: 'text', text: userText }] }],
+      messages: [{ role: 'user', content: userText }],
     }),
   });
 
