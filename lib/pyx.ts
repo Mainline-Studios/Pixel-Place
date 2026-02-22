@@ -56,7 +56,7 @@ async function moderateWithClaudeServer(text: string): Promise<string> {
         'anthropic-version': '2023-06-01',
       },
       body: JSON.stringify({
-        model: 'claude-3-5-haiku-20241022',
+        model: 'claude-haiku-4-5-20251001',
         max_tokens: 256,
         messages: [{
           role: 'user',
@@ -83,7 +83,7 @@ export async function checkWithClaudeServer(text: string): Promise<{ safe: boole
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-api-key': key, 'anthropic-version': '2023-06-01' },
       body: JSON.stringify({
-        model: 'claude-3-5-haiku-20241022',
+        model: 'claude-haiku-4-5-20251001',
         max_tokens: 256,
         messages: [{
           role: 'user',
@@ -112,7 +112,7 @@ export async function analyzeCodeWithClaudeServer(source: string): Promise<{ saf
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-api-key': key, 'anthropic-version': '2023-06-01' },
       body: JSON.stringify({
-        model: 'claude-3-5-haiku-20241022',
+        model: 'claude-haiku-4-5-20251001',
         max_tokens: 64,
         messages: [{
           role: 'user',

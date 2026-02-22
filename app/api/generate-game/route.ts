@@ -214,7 +214,7 @@ The user has provided a DETAILED description. Read it CAREFULLY and implement EX
 }
 
 async function generateWithAnthropic(prompt: string, apiKey: string, useHaiku = false): Promise<string> {
-  const model = useHaiku ? 'claude-3-5-haiku-20241022' : 'claude-3-5-sonnet-20241022';
+  const model = useHaiku ? 'claude-haiku-4-5-20251001' : 'claude-sonnet-4-6';
   const maxTokens = useHaiku ? 16000 : 32000;
   const systemPrompt = useHaiku
     ? `You are an expert game developer and Three.js specialist. Generate a complete, working 3D game. REQUIREMENTS: 1) export function createGame(container: HTMLElement) 2) import * as THREE from 'three' 3) 500+ lines, lighting, materials, player controls (WASD, mouse), physics, game state, UI (HUD, start menu, game-over). Return ONLY code, NO markdown.`
