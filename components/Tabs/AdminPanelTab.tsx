@@ -2,8 +2,8 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { User, Report, Ban, GameSubmission, UserMadeGame, DeviceRecord, HardwareBan, AppealMessage } from '@/types';
-import { getBannedUsers, getReports, banUser, unbanUser, updateReportStatus, saveBannedUsers, saveUsers, ADMIN_ACCOUNTS_LIST, getBanAppeals, updateBanAppealStatus, getMessagesAPI, sendMessage, getGameSubmissions, saveUserMadeGame, deleteGameSubmission, getHardwareBans, addHardwareBan as addHardwareBanApi, removeHardwareBan, getDevicesForUser, getAppealMessagesAdmin } from '@/lib/storage';
-import { subscribeToUsers } from '@/lib/firestoreClient';
+import { getReports, banUser, unbanUser, updateReportStatus, saveBannedUsers, saveUsers, ADMIN_ACCOUNTS_LIST, getBanAppeals, updateBanAppealStatus, getMessagesAPI, sendMessage, getGameSubmissions, saveUserMadeGame, deleteGameSubmission, getHardwareBans, addHardwareBan as addHardwareBanApi, removeHardwareBan, getDevicesForUser, getAppealMessagesAdmin } from '@/lib/storage';
+import { subscribeToUsers, subscribeToBans } from '@/lib/firestoreClient';
 import { FilteredUsername } from '@/components/FilteredText';
 
 interface AdminPanelTabProps {
@@ -40,7 +40,29 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const unsub = subscribeToUsers((firestoreUsers) => {
-      processUsersFromFirestore(firestoreUsers);    });
+      processUsersFromFirestore(firestoreUsers);
+    });
+    return () => unsub();
+  }, []);
+
+  // Real-time bans from Firestore so Bans tab shows data even when API is static/export
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const unsub = subscribeToBans((firestoreBans) => {
+      const now = Date.now();
+      const mapped: Ban[] = firestoreBans
+        .map((d: any) => ({
+          username: d.username || d.id || '',
+          reason: d.reason || '',
+          bannedBy: d.banned_by || '',
+          timestamp: d.banned_at ?? d.timestamp ?? now,
+          expiresAt: d.expires_at,
+          permanent: d.permanent === true,
+          hardwareBanDeviceId: d.hardware_ban_device_id,
+        }))
+        .filter((b: Ban) => b.permanent || (b.expiresAt != null && b.expiresAt > now));
+      setBans(mapped);
+    });
     return () => unsub();
   }, []);
 
@@ -128,18 +150,18 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
 
   const loadOtherData = async () => {
     try {
-      const [appealsData, bansData, reportsData, submissionsData] = await Promise.all([
+      const [appealsData, reportsData, submissionsData] = await Promise.all([
         getBanAppeals(),
-        getBannedUsers(),
         getReports(),
         getGameSubmissions()
       ]);
       setAppeals(appealsData);
       setGameSubmissions(submissionsData);
-      setBans(bansData);
       setReports(reportsData);
+      // Bans come from subscribeToBans (Firestore) so they show even with static export
     } catch (error) {
-      console.error('Error in loadOtherData:', error);    }
+      console.error('Error in loadOtherData:', error);
+    }
   };
 
   const loadData = async () => {
@@ -214,22 +236,12 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
     const success = await banUser(usernameToBanFinal, user.username, banReason.trim(), banPermanent, days, canBanAdmins);
 
     if (success) {
-      // Verify the ban was actually saved
-      const updatedBans = await getBannedUsers();
-      const banExists = updatedBans.some(b => b.username.toLowerCase() === usernameToBanFinal.toLowerCase());
-
-      if (banExists) {
-        setBanUsername('');
-        setBanReason('');
-        setBanPermanent(true);
-        await loadData();
-        // Silent success - no alert
-      } else {
-        // Silent error - no alert
-        console.error('Error: Ban was not saved properly.');
-      }
+      // Firestore subscription will update bans list; clear form
+      setBanUsername('');
+      setBanReason('');
+      setBanPermanent(true);
+      await loadData();
     } else {
-      // Silent error - no alert
       console.error('Cannot ban administrators. Admins are protected from bans.');
     }
   };

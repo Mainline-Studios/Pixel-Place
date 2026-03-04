@@ -504,7 +504,7 @@ export async function removeHardwareBan(deviceId: string): Promise<{ unbannedUse
 export async function getDevicesForUser(username: string): Promise<DeviceRecord[]> {
   if (typeof window === 'undefined') return [];
   try {
-    const res = await authenticatedFetch(apiUrl(`/api/users/${encodeURIComponent(username)}/devices`));
+    const res = await authenticatedFetch(apiUrl(`/api/users/devices?username=${encodeURIComponent(username)}`));
     if (!res.ok) return [];
     return await res.json();
   } catch (e) {
