@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { User, Report, Ban, GameSubmission, UserMadeGame, DeviceRecord, HardwareBan, AppealMessage } from '@/types';
-import { getReports, banUser, unbanUser, updateReportStatus, saveBannedUsers, saveUsers, ADMIN_ACCOUNTS_LIST, getBanAppeals, updateBanAppealStatus, getMessagesAPI, sendMessage, getGameSubmissions, saveUserMadeGame, deleteGameSubmission, getHardwareBans, addHardwareBan as addHardwareBanApi, removeHardwareBan, getDevicesForUser, getAppealMessagesAdmin } from '@/lib/storage';
+import { getUsers, getReports, banUser, unbanUser, updateReportStatus, saveBannedUsers, saveUsers, ADMIN_ACCOUNTS_LIST, getBanAppeals, updateBanAppealStatus, getMessagesAPI, sendMessage, getGameSubmissions, saveUserMadeGame, deleteGameSubmission, getHardwareBans, addHardwareBan as addHardwareBanApi, removeHardwareBan, getDevicesForUser, getAppealMessagesAdmin } from '@/lib/storage';
 import { subscribeToUsers, subscribeToBans } from '@/lib/firestoreClient';
 import { FilteredUsername } from '@/components/FilteredText';
 
@@ -40,7 +40,7 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const unsub = subscribeToUsers((firestoreUsers) => {
-      processUsersFromFirestore(firestoreUsers);
+      setAllUsers(processUsersFromFirestore(firestoreUsers));
     });
     return () => unsub();
   }, []);
@@ -70,6 +70,19 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
     if (typeof window === 'undefined') return;
     loadOtherData().catch((e) => console.error('Error loading admin data:', e));
   }, []);
+
+  // Fallback: when Firestore returns 0 users (e.g. rules block client read), load from API (Cloud Function has access)
+  useEffect(() => {
+    if (typeof window === 'undefined' || (user.role !== 'admin' && user.role !== 'head_admin')) return;
+    const timer = setTimeout(() => {
+      getUsers()
+        .then((apiUsers) => {
+          setAllUsers((prev) => (prev.length === 0 && apiUsers.length > 0 ? processUsersFromFirestore(apiUsers) : prev));
+        })
+        .catch(() => {});
+    }, 1800);
+    return () => clearTimeout(timer);
+  }, [user.role]);
 
   useEffect(() => {
     if (activeTab === 'hardwarebans') {
@@ -145,7 +158,7 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
         return a.username.localeCompare(b.username);
       });
 
-    setAllUsers(uniqueUsers);
+    return uniqueUsers;
   };
 
   const loadOtherData = async () => {
