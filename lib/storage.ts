@@ -1,4 +1,4 @@
-import { User, Skin, PublishedGame, DraftGame, SceneData, TabContent, GameServer, ServerPlan, FriendRequest, Message, Accessory, PrebuiltGame, Ban, BanAppeal, UserMadeGame, GameSubmission, Report } from '@/types';
+import { User, Skin, PublishedGame, DraftGame, SceneData, TabContent, GameServer, ServerPlan, FriendRequest, Message, Accessory, PrebuiltGame, Ban, BanAppeal, UserMadeGame, GameSubmission, Report, DeviceRecord, HardwareBan, AppealMessage } from '@/types';
 import { NEW_SKINS, NEW_ACCESSORIES } from './newCatalog';
 import { apiUrl } from './apiBaseUrl';
 import { authenticatedFetch } from './api';
@@ -468,6 +468,51 @@ export async function unbanUser(username: string): Promise<void> {
   }
 }
 
+// Hardware (device) bans — admin only, use authenticatedFetch
+export async function getHardwareBans(): Promise<HardwareBan[]> {
+  if (typeof window === 'undefined') return [];
+  try {
+    const res = await authenticatedFetch(apiUrl('/api/hardware-bans'));
+    if (!res.ok) throw new Error('Failed to fetch hardware bans');
+    return await res.json();
+  } catch (e) {
+    console.error('Error fetching hardware bans:', e);
+    return [];
+  }
+}
+
+export async function addHardwareBan(deviceId: string, reason?: string): Promise<{ bannedUsernames: string[] }> {
+  if (typeof window === 'undefined') return { bannedUsernames: [] };
+  const res = await authenticatedFetch(apiUrl('/api/hardware-bans'), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ deviceId, reason }),
+  });
+  if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || 'Failed to add hardware ban');
+  return await res.json();
+}
+
+export async function removeHardwareBan(deviceId: string): Promise<{ unbannedUsernames: string[] }> {
+  if (typeof window === 'undefined') return { unbannedUsernames: [] };
+  const res = await authenticatedFetch(apiUrl(`/api/hardware-bans?deviceId=${encodeURIComponent(deviceId)}`), {
+    method: 'DELETE',
+  });
+  if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || 'Failed to remove hardware ban');
+  return await res.json();
+}
+
+export async function getDevicesForUser(username: string): Promise<DeviceRecord[]> {
+  if (typeof window === 'undefined') return [];
+  try {
+    const res = await authenticatedFetch(apiUrl(`/api/users/${encodeURIComponent(username)}/devices`));
+    if (!res.ok) return [];
+    return await res.json();
+  } catch (e) {
+    console.error('Error fetching user devices:', e);
+    return [];
+  }
+}
+
 // Report functions - Now using API
 export async function getReports(): Promise<Report[]> {
   if (typeof window === 'undefined') return [];
@@ -600,6 +645,58 @@ export async function updateBanAppealStatus(appealId: string, status: BanAppeal[
   } catch (e) {
     console.error('Error updating appeal:', e);
   }
+}
+
+/** Get the appeal thread for a user (their own appeal by username). */
+export async function getMyAppeal(username: string): Promise<BanAppeal | null> {
+  if (typeof window === 'undefined') return null;
+  try {
+    const res = await fetch(apiUrl(`/api/appeals?username=${encodeURIComponent(username)}`));
+    if (!res.ok) return null;
+    const list: BanAppeal[] = await res.json();
+    return list.find((a) => a.status === 'pending') || list[0] || null;
+  } catch (e) {
+    console.error('Error fetching my appeal:', e);
+    return null;
+  }
+}
+
+/** Get messages for an appeal thread (appeal owner: pass username). */
+export async function getAppealMessages(appealId: string, username: string): Promise<AppealMessage[]> {
+  if (typeof window === 'undefined') return [];
+  try {
+    const res = await fetch(apiUrl(`/api/appeals/messages?appealId=${encodeURIComponent(appealId)}&username=${encodeURIComponent(username)}`));
+    if (!res.ok) return [];
+    return await res.json();
+  } catch (e) {
+    console.error('Error fetching appeal messages:', e);
+    return [];
+  }
+}
+
+/** Get appeal thread as admin (uses auth token). */
+export async function getAppealMessagesAdmin(appealId: string): Promise<AppealMessage[]> {
+  if (typeof window === 'undefined') return [];
+  try {
+    const res = await authenticatedFetch(apiUrl(`/api/appeals/messages?appealId=${encodeURIComponent(appealId)}`));
+    if (!res.ok) return [];
+    return await res.json();
+  } catch (e) {
+    console.error('Error fetching appeal messages (admin):', e);
+    return [];
+  }
+}
+
+/** Send a message in an appeal thread; returns updated messages (including AI reply). */
+export async function sendAppealMessage(appealId: string, username: string, message: string): Promise<AppealMessage[]> {
+  if (typeof window === 'undefined') return [];
+  const res = await fetch(apiUrl('/api/appeals/messages'), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ appealId, username, message: message.trim() }),
+  });
+  if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || 'Failed to send message');
+  return await res.json();
 }
 
 // Server functions

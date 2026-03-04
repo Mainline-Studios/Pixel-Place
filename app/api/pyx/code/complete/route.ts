@@ -1,3 +1,5 @@
+export const dynamic = 'force-static';
+
 import { NextRequest, NextResponse } from 'next/server';
 
 const PYX_DEFAULT_URL = 'https://pyxaiapi-574247481583.us-central1.run.app';

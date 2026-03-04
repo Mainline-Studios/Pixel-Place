@@ -1,20 +1,30 @@
+export const dynamic = 'force-static';
+
 import { NextRequest, NextResponse } from 'next/server';
 import { authenticateUser, createOrUpdateUser, getUserFromDb } from '@/lib/auth';
 import { getAdminAccounts, getHeadAdminUsernames } from '@/lib/adminAccounts';
+import { isDeviceBanned, recordDevice } from '@/lib/hardwareBans';
 import { User } from '@/types';
 
 // Login / Register — parse body once (AuthN)
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json().catch(() => ({}));
-    const { username, password, action, gender, role, coins } = body as {
+    const { username, password, action, gender, role, coins, deviceId, deviceLabel } = body as {
       username?: string; password?: string; action?: string;
       gender?: string; role?: string; coins?: number;
+      deviceId?: string; deviceLabel?: string;
     };
 
     if (action === 'login') {
       if (!username || !password) {
         return NextResponse.json({ error: 'Username and password required' }, { status: 400 });
+      }
+      if (deviceId && (await isDeviceBanned(deviceId))) {
+        return NextResponse.json(
+          { error: 'This device is banned. You cannot sign in.' },
+          { status: 401 }
+        );
       }
       
       // Check if this is an admin account that needs to be created (server-only from env)
@@ -52,7 +62,9 @@ export async function POST(request: NextRequest) {
       if (!result) {
         return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });
       }
-      
+      if (deviceId) {
+        await recordDevice(username, deviceId, deviceLabel || 'Unknown');
+      }
       return NextResponse.json({
         success: true,
         user: result.user,
@@ -66,6 +78,12 @@ export async function POST(request: NextRequest) {
       }
       if (String(password).length < 6) {
         return NextResponse.json({ error: 'Password must be at least 6 characters' }, { status: 400 });
+      }
+      if (deviceId && (await isDeviceBanned(deviceId))) {
+        return NextResponse.json(
+          { error: 'This device is banned. You cannot create new accounts from this device.' },
+          { status: 400 }
+        );
       }
       
       // Check if user exists
@@ -99,7 +117,9 @@ export async function POST(request: NextRequest) {
       if (!result) {
         return NextResponse.json({ error: 'Registration failed' }, { status: 500 });
       }
-      
+      if (deviceId) {
+        await recordDevice(username, deviceId, deviceLabel || 'Unknown');
+      }
       return NextResponse.json({
         success: true,
         user: result.user,

@@ -1,3 +1,5 @@
+export const dynamic = 'force-static';
+
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAdmin } from '@/lib/middleware';
 import { setDocument, deleteDocument, getDocuments, COLLECTIONS } from '@/lib/firestore';import { PublishedGame } from '@/types';

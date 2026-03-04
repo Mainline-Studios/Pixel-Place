@@ -7,6 +7,7 @@ import { subscribeToUser } from '@/lib/firestoreClient';
 import { apiUrl } from '@/lib/apiBaseUrl';
 import { containsEmoji } from '@/lib/utils';
 import { setAuthToken, removeAuthToken } from '@/lib/api';
+import { getDeviceFingerprint } from '@/lib/deviceFingerprint';
 
 interface UserContextType {
   user: User | null;
@@ -172,10 +173,19 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
 
     // Authenticate via backend only (no offline password check — secure)
     try {
+      const fingerprint = typeof getDeviceFingerprint === 'function'
+        ? getDeviceFingerprint()
+        : { deviceId: '', label: '' };
       const authRes = await fetch(apiUrl('/api/auth'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password, action: 'login' }),
+        body: JSON.stringify({
+          username,
+          password,
+          action: 'login',
+          deviceId: fingerprint.deviceId || undefined,
+          deviceLabel: fingerprint.label || undefined,
+        }),
       });
       const authData = await authRes.json().catch(() => ({}));
       if (authRes.ok && authData.success && authData.token && authData.user) {
@@ -242,10 +252,20 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
 
     // When online: register via backend and get token
     try {
+      const fingerprint = typeof getDeviceFingerprint === 'function'
+        ? getDeviceFingerprint()
+        : { deviceId: '', label: '' };
       const regRes = await fetch(apiUrl('/api/auth'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password, action: 'register', gender }),
+        body: JSON.stringify({
+          username,
+          password,
+          action: 'register',
+          gender,
+          deviceId: fingerprint.deviceId || undefined,
+          deviceLabel: fingerprint.label || undefined,
+        }),
       });
       const regData = await regRes.json().catch(() => ({}));
       if (regRes.ok && regData.success && regData.token && regData.user) {

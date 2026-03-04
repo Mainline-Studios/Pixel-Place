@@ -1,3 +1,5 @@
+export const dynamic = 'force-static';
+
 import { NextRequest, NextResponse } from 'next/server';
 import { getDocuments, setDocument, deleteDocument, queryDocuments, COLLECTIONS } from '@/lib/firestore';
 import { Ban } from '@/types';
@@ -9,7 +11,9 @@ function banFromDoc(doc: any): Ban {
     bannedBy: doc.banned_by || '',
     timestamp: doc.banned_at || doc.timestamp || Date.now(),
     expiresAt: doc.expires_at,
-    permanent: doc.permanent === true  };
+    permanent: doc.permanent === true,
+    hardwareBanDeviceId: doc.hardware_ban_device_id,
+  };
 }
 
 export async function GET() {

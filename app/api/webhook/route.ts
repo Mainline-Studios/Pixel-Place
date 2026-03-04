@@ -1,3 +1,5 @@
+export const dynamic = 'force-static';
+
 import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { getUsers, saveUsers } from '@/lib/storage';

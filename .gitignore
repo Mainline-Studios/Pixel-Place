@@ -65,6 +65,9 @@ AppData/
 # Firebase service account key (never commit)
 scripts/serviceAccountKey.json
 
+# Eco Hero game (contains Anthropic API key for in-game AI citizens)
+public/games/eco-hero.html
+
 
 
 

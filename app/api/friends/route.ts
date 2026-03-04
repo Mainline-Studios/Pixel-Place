@@ -1,3 +1,5 @@
+export const dynamic = 'force-static';
+
 import { NextRequest, NextResponse } from 'next/server';
 import { getDocument, setDocument, queryDocuments, getDocuments, COLLECTIONS, getFirestoreInstance } from '@/lib/firestore';
 import { User, FriendRequest } from '@/types';

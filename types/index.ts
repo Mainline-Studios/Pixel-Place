@@ -295,6 +295,26 @@ export interface Ban {
   timestamp: number;
   permanent: boolean;
   expiresAt?: number;
+  /** If set, this account ban was caused by a hardware ban; unbanning the device will remove it */
+  hardwareBanDeviceId?: string;
+}
+
+/** Device seen on a user account (OS / environment label for display) */
+export interface DeviceRecord {
+  deviceId: string;
+  label: string;
+  firstSeen: number;
+  lastSeen: number;
+}
+
+/** A banned device — blocks login/register from this device and bans all linked accounts */
+export interface HardwareBan {
+  deviceId: string;
+  bannedAt: number;
+  bannedBy: string;
+  reason?: string;
+  /** Usernames that were banned because of this device (for display) */
+  linkedUsernames?: string[];
 }
 
 export interface BanAppeal {
@@ -302,10 +322,21 @@ export interface BanAppeal {
   username: string;
   ban: Ban;
   appealMessage: string;
+  appealText?: string; // alias for appealMessage (API uses appeal_text)
   timestamp: number;
   status: 'pending' | 'approved' | 'rejected';
   reviewedBy?: string;
   adminNotes?: string;
+  reviewedAt?: number;
+}
+
+/** One message in an appeal thread (user or appeal_bot). Visible to admins. */
+export interface AppealMessage {
+  id: string;
+  appealId: string;
+  fromUsername: string; // username or 'appeal_bot'
+  message: string;
+  timestamp: number;
 }
 
 export interface Report {

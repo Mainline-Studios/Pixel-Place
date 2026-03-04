@@ -1,3 +1,5 @@
+export const dynamic = 'force-static';
+
 import { NextRequest, NextResponse } from 'next/server';
 import { getDocuments, deleteDocument, COLLECTIONS } from '@/lib/firestore';
 import { getAdminAccounts } from '@/lib/adminAccounts';
