@@ -33,6 +33,21 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
   const [deviceBanReason, setDeviceBanReason] = useState('');
   const [userDevices, setUserDevices] = useState<Record<string, DeviceRecord[]>>({});
   const [loadingDevicesFor, setLoadingDevicesFor] = useState<string | null>(null);
+  const [devicesLoadError, setDevicesLoadError] = useState<Record<string, string>>({});
+
+  const copyDeviceId = (deviceId: string) => {
+    try {
+      navigator.clipboard.writeText(deviceId);
+      // Optional: brief toast; for now just copy
+    } catch (_) {}
+  };
+
+  const formatDeviceOS = (label: string) => {
+    const l = (label || '').trim();
+    if (!l || l === 'Unknown') return 'OS: Unknown';
+    if (/^(Windows|Mac OS|Linux|Android|iOS|Chrome OS)$/i.test(l)) return `OS: ${l}`;
+    return `OS: ${l}`;
+  };
   const [appealThreads, setAppealThreads] = useState<Record<string, AppealMessage[]>>({});
   const [loadingThreadFor, setLoadingThreadFor] = useState<string | null>(null);
 
@@ -424,7 +439,7 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
                       <div className="smalltext">
                         Role: {u.role} • Coins: {u.coins} • Gender: Boy
                         {(userDevices[u.username]?.length ?? 0) > 0 && (
-                          <> • Devices: {userDevices[u.username].map((d) => d.label).join(', ')}</>
+                          <> • Devices: {userDevices[u.username].map((d) => formatDeviceOS(d.label)).join(', ')}</>
                         )}
                       </div>
                       {loadingDevicesFor === u.username ? (
@@ -436,12 +451,17 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
                           onClick={async () => {
                             if (userDevices[u.username]) {
                               setUserDevices((prev) => ({ ...prev, [u.username]: [] }));
+                              setDevicesLoadError((prev) => ({ ...prev, [u.username]: '' }));
                               return;
                             }
                             setLoadingDevicesFor(u.username);
+                            setDevicesLoadError((prev) => ({ ...prev, [u.username]: '' }));
                             try {
                               const devs = await getDevicesForUser(u.username);
                               setUserDevices((prev) => ({ ...prev, [u.username]: devs }));
+                            } catch (err) {
+                              setDevicesLoadError((prev) => ({ ...prev, [u.username]: 'Could not load devices.' }));
+                              setUserDevices((prev) => ({ ...prev, [u.username]: [] }));
                             } finally {
                               setLoadingDevicesFor(null);
                             }
@@ -509,36 +529,73 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
                       )}
                     </div>
                   </div>
-                  {userDevices[u.username]?.length ? (
+                  {devicesLoadError[u.username] ? (
+                    <div style={{ marginTop: '4px', padding: '8px 12px', background: 'var(--panel)', borderRadius: '6px', border: '1px solid var(--border)', fontSize: '12px', color: 'var(--danger)' }}>
+                      {devicesLoadError[u.username]}
+                    </div>
+                  ) : userDevices[u.username]?.length ? (
                     <div style={{
                       marginTop: '4px',
-                      padding: '8px 12px',
+                      padding: '12px',
                       background: 'var(--panel)',
                       borderRadius: '6px',
                       border: '1px solid var(--border)',
                       fontSize: '12px'
                     }}>
-                      <div style={{ fontWeight: 600, marginBottom: '6px' }}>Devices for {u.username}:</div>
+                      <div style={{ fontWeight: 600, marginBottom: '8px' }}>Devices for {u.username}</div>
                       {userDevices[u.username].map((d) => (
-                        <div key={d.deviceId} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-                          <span>{d.label} <code style={{ fontSize: '10px', opacity: 0.8 }}>{d.deviceId.slice(0, 12)}…</code></span>
-                          <button
-                            className="btn"
-                            style={{ padding: '2px 8px', fontSize: '10px', background: '#ff4d4d' }}
-                            onClick={async () => {
-                              if (!confirm(`Ban this device? All accounts that used it will be banned.`)) return;
-                              try {
-                                await addHardwareBanApi(d.deviceId, `From admin panel (user ${u.username})`);
-                                setHardwareBans(await getHardwareBans());
-                                await loadOtherData();
-                                setUserDevices((prev) => ({ ...prev, [u.username]: [] }));
-                              } catch (e: any) {
-                                alert(e?.message || 'Failed');
-                              }
-                            }}
-                          >
-                            Ban this device
-                          </button>
+                        <div
+                          key={d.deviceId}
+                          style={{
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            flexWrap: 'wrap',
+                            gap: '8px',
+                            marginBottom: '10px',
+                            paddingBottom: '10px',
+                            borderBottom: '1px solid var(--border)'
+                          }}
+                        >
+                          <div style={{ flex: '1 1 200px', minWidth: 0 }}>
+                            <div style={{ fontWeight: 600, marginBottom: '2px' }}>{formatDeviceOS(d.label)}</div>
+                            <div style={{ fontFamily: 'monospace', fontSize: '11px', color: 'var(--text-dim)', wordBreak: 'break-all' }}>
+                              ID: {d.deviceId || '—'}
+                            </div>
+                            {typeof d.firstSeen === 'number' && (
+                              <div className="smalltext" style={{ marginTop: '2px' }}>
+                                First seen: {new Date(d.firstSeen).toLocaleDateString()}
+                                {typeof d.lastSeen === 'number' && <> • Last seen: {new Date(d.lastSeen).toLocaleDateString()}</>}
+                              </div>
+                            )}
+                          </div>
+                          <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                            <button
+                              type="button"
+                              className="btn"
+                              style={{ padding: '4px 8px', fontSize: '11px' }}
+                              onClick={() => copyDeviceId(d.deviceId)}
+                            >
+                              Copy ID
+                            </button>
+                            <button
+                              className="btn"
+                              style={{ padding: '4px 8px', fontSize: '11px', background: '#ff4d4d' }}
+                              onClick={async () => {
+                                if (!confirm(`Ban this device? All accounts that used it will be banned.`)) return;
+                                try {
+                                  await addHardwareBanApi(d.deviceId, `From admin panel (user ${u.username})`);
+                                  setHardwareBans(await getHardwareBans());
+                                  await loadOtherData();
+                                  setUserDevices((prev) => ({ ...prev, [u.username]: [] }));
+                                } catch (e: any) {
+                                  alert(e?.message || 'Failed');
+                                }
+                              }}
+                            >
+                              Ban this device
+                            </button>
+                          </div>
                         </div>
                       ))}
                     </div>
@@ -873,9 +930,9 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
                         gap: '8px'
                       }}
                     >
-                      <div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ fontFamily: 'monospace', fontSize: '12px', marginBottom: '4px', wordBreak: 'break-all' }}>
-                          {hb.deviceId}
+                          {hb.deviceId || '—'}
                         </div>
                         <div className="smalltext">
                           Banned by: {hb.bannedBy} • {new Date(hb.bannedAt).toLocaleString()}
@@ -885,6 +942,14 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
                           ) : null}
                         </div>
                       </div>
+                      <button
+                        type="button"
+                        className="btn"
+                        style={{ padding: '4px 8px', fontSize: '11px' }}
+                        onClick={() => { try { navigator.clipboard.writeText(hb.deviceId); } catch (_) {} }}
+                      >
+                        Copy ID
+                      </button>
                       <button
                         className="btn"
                         style={{ background: 'var(--accent)' }}

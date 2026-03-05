@@ -6,6 +6,20 @@ import { requireAuth } from '@/lib/middleware';
 import { hashPassword } from '@/lib/auth';
 import { User } from '@/types';
 
+/** Normalize equipped_accessories from Firestore (can be object or array). */
+function normalizeEquippedAccessories(val: unknown): string[] | Record<string, string> {
+  if (val == null) return {};
+  if (Array.isArray(val)) return val;
+  if (typeof val === 'object') return val as Record<string, string>;
+  if (typeof val === 'string') {
+    try {
+      const parsed = JSON.parse(val);
+      return Array.isArray(parsed) ? parsed : (parsed && typeof parsed === 'object' ? parsed : {});
+    } catch { return {}; }
+  }
+  return {};
+}
+
 /** Never expose password/hash to client. */
 function userFromDoc(doc: any): User {
   return {
@@ -17,11 +31,12 @@ function userFromDoc(doc: any): User {
     ownedSkins: Array.isArray(doc.owned_skins) ? doc.owned_skins : (typeof doc.owned_skins === 'string' ? JSON.parse(doc.owned_skins || '[]') : []),
     equippedSkin: doc.equipped_skin || '',
     ownedAccessories: Array.isArray(doc.owned_accessories) ? doc.owned_accessories : (typeof doc.owned_accessories === 'string' ? JSON.parse(doc.owned_accessories || '[]') : []),
-    equippedAccessories: Array.isArray(doc.equipped_accessories) ? doc.equipped_accessories : (typeof doc.equipped_accessories === 'string' ? JSON.parse(doc.equipped_accessories || '[]') : []),
+    equippedAccessories: normalizeEquippedAccessories(doc.equipped_accessories),
     ownedServers: Array.isArray(doc.owned_servers) ? doc.owned_servers : (typeof doc.owned_servers === 'string' ? JSON.parse(doc.owned_servers || '[]') : []),
     friends: Array.isArray(doc.friends) ? doc.friends : (typeof doc.friends === 'string' ? JSON.parse(doc.friends || '[]') : []),
     friendRequests: Array.isArray(doc.friend_requests) ? doc.friend_requests : (typeof doc.friend_requests === 'string' ? JSON.parse(doc.friend_requests || '[]') : []),
-    sentFriendRequests: Array.isArray(doc.sent_friend_requests) ? doc.sent_friend_requests : (typeof doc.sent_friend_requests === 'string' ? JSON.parse(doc.sent_friend_requests || '[]') : [])  };
+    sentFriendRequests: Array.isArray(doc.sent_friend_requests) ? doc.sent_friend_requests : (typeof doc.sent_friend_requests === 'string' ? JSON.parse(doc.sent_friend_requests || '[]') : []),
+  };
 }
 
 export async function GET(request: NextRequest) {

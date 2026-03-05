@@ -30,11 +30,13 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
         const users = await getUsers();
         const found = users.find(u => u.username === savedUsername);
         if (found) {
-          // Ensure arrays exist
+          // Ensure arrays and equipped state exist so avatar/clothes persist after reload
           if (!found.ownedSkins) found.ownedSkins = ['starter_classic'];
           if (!found.ownedAccessories) found.ownedAccessories = [];
           if (!found.equippedAccessories) found.equippedAccessories = {};
           if (!found.ownedFaces) found.ownedFaces = [];
+          if (!found.equippedSkin && found.ownedSkins.length) found.equippedSkin = found.ownedSkins[0];
+          if (!found.equippedSkin) found.equippedSkin = 'starter_classic';
           
           // Special coins for 6767kid - massive amount
           if (found.username === '6767kid') {
@@ -111,7 +113,16 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       if (firestoreUser) {
         setUser((prev) => {
           if (!prev) return firestoreUser;
-          return { ...firestoreUser, ownedSkins: firestoreUser.ownedSkins || prev.ownedSkins, ownedAccessories: firestoreUser.ownedAccessories || prev.ownedAccessories, equippedAccessories: firestoreUser.equippedAccessories || prev.equippedAccessories };
+          const eqAcc = firestoreUser.equippedAccessories;
+          const hasEquippedAcc = eqAcc && (Array.isArray(eqAcc) ? eqAcc.length > 0 : Object.keys(eqAcc as object).length > 0);
+          return {
+            ...firestoreUser,
+            ownedSkins: firestoreUser.ownedSkins?.length ? firestoreUser.ownedSkins : prev.ownedSkins,
+            ownedAccessories: firestoreUser.ownedAccessories?.length ? firestoreUser.ownedAccessories : prev.ownedAccessories,
+            equippedSkin: firestoreUser.equippedSkin || prev.equippedSkin,
+            equippedAccessories: hasEquippedAcc ? eqAcc : (prev.equippedAccessories ?? {}),
+            equippedFace: firestoreUser.equippedFace || prev.equippedFace,
+          };
         });
       }
     });

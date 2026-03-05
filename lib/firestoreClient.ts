@@ -42,6 +42,20 @@ function getDb() {
   }
 }
 
+/** Normalize equipped_accessories from Firestore (can be object or array). */
+function normalizeEquippedAccessories(val: unknown): string[] | Record<string, string> {
+  if (val == null) return {};
+  if (Array.isArray(val)) return val as string[];
+  if (typeof val === 'object') return val as Record<string, string>;
+  if (typeof val === 'string') {
+    try {
+      const parsed = JSON.parse(val);
+      return Array.isArray(parsed) ? parsed : (parsed && typeof parsed === 'object' ? parsed : {});
+    } catch { return {}; }
+  }
+  return {};
+}
+
 /** Convert Firestore user doc to User type */
 function userFromDoc(d: { id: string } & Record<string, unknown>): User {
   const doc = d as Record<string, unknown>;
@@ -54,13 +68,13 @@ function userFromDoc(d: { id: string } & Record<string, unknown>): User {
     ownedSkins: Array.isArray(doc.owned_skins) ? doc.owned_skins as string[] : [],
     equippedSkin: (doc.equipped_skin as string) || '',
     ownedAccessories: Array.isArray(doc.owned_accessories) ? doc.owned_accessories as string[] : [],
-    equippedAccessories: Array.isArray(doc.equipped_accessories) ? doc.equipped_accessories as string[] : [],
+    equippedAccessories: normalizeEquippedAccessories(doc.equipped_accessories),
     ownedServers: Array.isArray(doc.owned_servers) ? doc.owned_servers as string[] : [],
     friends: Array.isArray(doc.friends) ? doc.friends as string[] : [],
     friendRequests: Array.isArray(doc.friend_requests) ? doc.friend_requests as any[] : [],
     sentFriendRequests: Array.isArray(doc.sent_friend_requests) ? doc.sent_friend_requests as string[] : [],
     ownedFaces: Array.isArray(doc.owned_faces) ? doc.owned_faces as string[] : undefined,
-    equippedFace: doc.equipped_face as string | undefined,
+    equippedFace: (doc.equipped_face as string) || undefined,
     safetyPoints: typeof doc.safety_points === 'number' ? doc.safety_points : undefined,
   };
 }
