@@ -561,18 +561,12 @@ export async function saveBanAppeals(appeals: BanAppeal[]): Promise<void> {
   // Appeals are managed individually via API
 }
 
-export async function createBanAppeal(username: string, ban: Ban, appealMessage: string): Promise<string> {
+export async function createBanAppeal(username: string, ban: Ban, appealMessage: string, deviceId?: string): Promise<string> {
   if (typeof window === 'undefined') return '';
 
-  // Check if user already has a pending appeal
-  const existingAppeals = await getBanAppeals();
-  const existingAppeal = existingAppeals.find(
-    a => a.username.toLowerCase() === username.toLowerCase() &&
-      a.status === 'pending' &&
-      a.ban.username.toLowerCase() === ban.username.toLowerCase()
-  );
-
-  if (existingAppeal) {
+  // Check if user/device already has a pending appeal
+  const existingAppeal = await getMyAppeal(username, deviceId);
+  if (existingAppeal && existingAppeal.status === 'pending') {
     return existingAppeal.id;
   }
 
@@ -586,18 +580,26 @@ export async function createBanAppeal(username: string, ban: Ban, appealMessage:
   };
 
   try {
-    const response = await fetch(apiUrl('/api/appeals'), {      method: 'POST',
+    const body: Record<string, unknown> = {
+      ...newAppeal,
+      appealText: appealMessage,
+    };
+    if (deviceId) body.deviceId = deviceId;
+    const response = await fetch(apiUrl('/api/appeals'), {
+      method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(newAppeal)
+      body: JSON.stringify(body)
     });
     if (response.ok) {
       const saved = await response.json();
       return saved.id;
     }
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || 'Failed to create appeal');
   } catch (e) {
     console.error('Error creating appeal:', e);
+    throw e;
   }
-  return newAppeal.id;
 }
 
 export async function updateBanAppealStatus(appealId: string, status: BanAppeal['status'], adminUsername: string, notes?: string, shouldUnban?: boolean): Promise<void> {
@@ -612,11 +614,13 @@ export async function updateBanAppealStatus(appealId: string, status: BanAppeal[
   }
 }
 
-/** Get the appeal thread for a user (their own appeal by username). */
-export async function getMyAppeal(username: string): Promise<BanAppeal | null> {
+/** Get the appeal thread for a user (by username, or by deviceId for "This device"). */
+export async function getMyAppeal(username: string, deviceId?: string): Promise<BanAppeal | null> {
   if (typeof window === 'undefined') return null;
   try {
-    const res = await fetch(apiUrl(`/api/appeals?username=${encodeURIComponent(username)}`));
+    let url = `/api/appeals?username=${encodeURIComponent(username)}`;
+    if (deviceId) url += `&deviceId=${encodeURIComponent(deviceId)}`;
+    const res = await fetch(apiUrl(url));
     if (!res.ok) return null;
     const list: BanAppeal[] = await res.json();
     return list.find((a) => a.status === 'pending') || list[0] || null;
@@ -626,11 +630,13 @@ export async function getMyAppeal(username: string): Promise<BanAppeal | null> {
   }
 }
 
-/** Get messages for an appeal thread (appeal owner: pass username). */
-export async function getAppealMessages(appealId: string, username: string): Promise<AppealMessage[]> {
+/** Get messages for an appeal thread (appeal owner: pass username; for device ban pass deviceId). */
+export async function getAppealMessages(appealId: string, username: string, deviceId?: string): Promise<AppealMessage[]> {
   if (typeof window === 'undefined') return [];
   try {
-    const res = await fetch(apiUrl(`/api/appeals/messages?appealId=${encodeURIComponent(appealId)}&username=${encodeURIComponent(username)}`));
+    let url = `/api/appeals/messages?appealId=${encodeURIComponent(appealId)}&username=${encodeURIComponent(username)}`;
+    if (deviceId) url += `&deviceId=${encodeURIComponent(deviceId)}`;
+    const res = await fetch(apiUrl(url));
     if (!res.ok) return [];
     return await res.json();
   } catch (e) {

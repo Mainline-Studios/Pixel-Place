@@ -17,7 +17,7 @@ function banFromDoc(doc: any): Ban {
   };
 }
 
-function appealFromDoc(doc: any, ban?: Ban | null): BanAppeal {
+function appealFromDoc(doc: any, ban?: Ban | null): BanAppeal & { device_id?: string } {
   return {
     id: doc.id,
     username: doc.username,
@@ -29,6 +29,7 @@ function appealFromDoc(doc: any, ban?: Ban | null): BanAppeal {
     adminNotes: doc.admin_notes || undefined,
     reviewedAt: doc.reviewed_at,
     ban: ban || undefined as any,
+    device_id: doc.device_id,
   };
 }
 
@@ -36,12 +37,16 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const usernameParam = searchParams.get('username');
+    const deviceIdParam = searchParams.get('deviceId');
     const appeals = await getDocuments(COLLECTIONS.BAN_APPEALS, (ref) => ref.orderBy('created_at', 'desc'));
     let result = await Promise.all(appeals.map(async (a) => {
       const banDoc = a.ban_id ? await getDocument(COLLECTIONS.BANS, a.ban_id) : null;
       const ban = banDoc ? banFromDoc({ ...banDoc, id: a.ban_id }) : null;
       return appealFromDoc(a, ban);
     }));
+    if (deviceIdParam) {
+      result = result.filter((a) => (a as any).device_id === deviceIdParam);
+    }
     if (usernameParam) {
       const u = usernameParam.toLowerCase();
       result = result.filter((a) => a.username.toLowerCase() === u);
@@ -58,25 +63,51 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const username = body.username;
     const appealMessage = (body.appealMessage || body.appealText || '').trim();
+    const deviceId = body.deviceId || null;
     if (!username || !appealMessage) {
       return NextResponse.json({ error: 'Username and appeal message required' }, { status: 400 });
     }
 
-    const bans = await queryDocuments(COLLECTIONS.BANS, 'username_lower', '==', username.toLowerCase());
-    if (bans.length === 0) {
-      return NextResponse.json({ error: 'No ban found for this user' }, { status: 404 });
+    const isDeviceBan = username.toLowerCase() === 'this device';
+    let banReason = 'Not specified';
+    let bannedBy = 'System';
+    let banId: string | null = null;
+    let banForResponse: Ban | null = null;
+
+    if (isDeviceBan) {
+      if (!deviceId) {
+        return NextResponse.json({ error: 'Device ID required for device ban appeals' }, { status: 400 });
+      }
+      banReason = (body.ban && body.ban.reason) || 'This device is banned.';
+      bannedBy = (body.ban && body.ban.bannedBy) || body.ban?.banned_by || 'Administrator';
+      banForResponse = body.ban && typeof body.ban === 'object'
+        ? {
+            username: 'This device',
+            reason: body.ban.reason || banReason,
+            bannedBy: body.ban.bannedBy || body.ban.banned_by || bannedBy,
+            timestamp: body.ban.timestamp || body.ban.banned_at || Date.now(),
+            permanent: true,
+          }
+        : { username: 'This device', reason: banReason, bannedBy, timestamp: Date.now(), permanent: true };
+    } else {
+      const bans = await queryDocuments(COLLECTIONS.BANS, 'username_lower', '==', username.toLowerCase());
+      if (bans.length === 0) {
+        return NextResponse.json({ error: 'No ban found for this user' }, { status: 404 });
+      }
+      const ban = bans[0];
+      banId = ban.id;
+      banReason = ban.reason || 'Not specified';
+      bannedBy = ban.banned_by || 'System';
+      banForResponse = banFromDoc(ban);
     }
 
-    const ban = bans[0];
-    const banReason = ban.reason || 'Not specified';
-    const bannedBy = ban.banned_by || 'System';
-
     const appealId = await addDocument(COLLECTIONS.BAN_APPEALS, {
-      ban_id: ban.id,
+      ban_id: banId,
       username,
       appeal_text: appealMessage,
       status: 'pending',
       created_at: Date.now(),
+      ...(isDeviceBan && deviceId && { device_id: deviceId }),
     });
 
     const now = Date.now();
@@ -97,7 +128,6 @@ export async function POST(request: NextRequest) {
       created_at: now + 1,
     });
 
-    const banForResponse = banFromDoc(ban);
     const createdAppeal: BanAppeal = {
       id: appealId,
       username,
@@ -105,7 +135,7 @@ export async function POST(request: NextRequest) {
       appealText: appealMessage,
       timestamp: now,
       status: 'pending',
-      ban: banForResponse,
+      ban: banForResponse || undefined as any,
     };
     return NextResponse.json(createdAppeal);
   } catch (error) {
@@ -132,11 +162,16 @@ export async function PUT(request: NextRequest) {
       ...(adminNotes !== undefined && { admin_notes: adminNotes }),
     });
     
-    // If approved and should unban, also unban the user
+    // If approved and should unban: remove account ban and/or hardware ban
     if (status === 'approved' && shouldUnban) {
-      const bans = await queryDocuments(COLLECTIONS.BANS, 'username_lower', '==', appeal.username.toLowerCase());
-      for (const ban of bans) {
-        await deleteDocument(COLLECTIONS.BANS, ban.id);
+      if (appeal.device_id) {
+        await deleteDocument(COLLECTIONS.HARDWARE_BANS, appeal.device_id);
+      }
+      if (appeal.username.toLowerCase() !== 'this device') {
+        const bans = await queryDocuments(COLLECTIONS.BANS, 'username_lower', '==', appeal.username.toLowerCase());
+        for (const ban of bans) {
+          await deleteDocument(COLLECTIONS.BANS, ban.id);
+        }
       }
     }
     

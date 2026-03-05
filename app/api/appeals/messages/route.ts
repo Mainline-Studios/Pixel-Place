@@ -22,6 +22,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const appealId = searchParams.get('appealId');
     const username = searchParams.get('username');
+    const deviceId = searchParams.get('deviceId');
     if (!appealId) {
       return NextResponse.json({ error: 'appealId required' }, { status: 400 });
     }
@@ -33,7 +34,9 @@ export async function GET(request: NextRequest) {
 
     const auth = requireAdmin(request);
     const isAdmin = !auth.error && !!auth.user;
-    const isOwner = username && appealDoc.username.toLowerCase() === username.toLowerCase();
+    const isOwnerByUsername = username && appealDoc.username.toLowerCase() === username.toLowerCase();
+    const isOwnerByDevice = deviceId && appealDoc.device_id === deviceId;
+    const isOwner = isOwnerByUsername || isOwnerByDevice;
     if (!isAdmin && !isOwner) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }

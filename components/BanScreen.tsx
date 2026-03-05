@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Ban } from '@/types';
 import { createBanAppeal, getMyAppeal, getAppealMessages, sendAppealMessage } from '@/lib/storage';
+import { getDeviceFingerprint } from '@/lib/deviceFingerprint';
 import type { BanAppeal, AppealMessage } from '@/types';
 
 interface BanScreenProps {
@@ -15,26 +16,43 @@ export default function BanScreen({ ban, username, onAppealSubmitted }: BanScree
   const [appeal, setAppeal] = useState<BanAppeal | null>(null);
   const [appealMessage, setAppealMessage] = useState('');
   const [messages, setMessages] = useState<AppealMessage[]>([]);
+  const [messagesLoaded, setMessagesLoaded] = useState(false);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [threadInput, setThreadInput] = useState('');
   const [sendingMessage, setSendingMessage] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
+  const deviceId = username.toLowerCase() === 'this device' ? (typeof getDeviceFingerprint === 'function' ? getDeviceFingerprint()?.deviceId : undefined) : undefined;
+
   useEffect(() => {
     let cancelled = false;
-    getMyAppeal(username).then((a) => {
+    setMessagesLoaded(false);
+    getMyAppeal(username, deviceId).then((a) => {
       if (!cancelled) {
         setAppeal(a || null);
-        if (a) loadMessages(a.id);
+        if (a) {
+          getAppealMessages(a.id, username, deviceId).then((msgs) => {
+            if (!cancelled) {
+              setMessages(msgs);
+              setMessagesLoaded(true);
+            }
+          });
+        } else {
+          setMessagesLoaded(true);
+        }
       }
       if (!cancelled) setLoading(false);
     });
     return () => { cancelled = true; };
-  }, [username]);
+  }, [username, deviceId]);
 
   const loadMessages = (appealId: string) => {
-    getAppealMessages(appealId, username).then(setMessages);
+    setMessagesLoaded(false);
+    getAppealMessages(appealId, username, deviceId).then((msgs) => {
+      setMessages(msgs);
+      setMessagesLoaded(true);
+    });
   };
 
   useEffect(() => {
@@ -50,9 +68,9 @@ export default function BanScreen({ ban, username, onAppealSubmitted }: BanScree
     }
     setSubmitting(true);
     try {
-      const id = await createBanAppeal(username, ban, appealMessage.trim());
+      await createBanAppeal(username, ban, appealMessage.trim(), deviceId);
       onAppealSubmitted();
-      const a = await getMyAppeal(username);
+      const a = await getMyAppeal(username, deviceId);
       if (a) {
         setAppeal(a);
         loadMessages(a.id);
@@ -199,9 +217,13 @@ export default function BanScreen({ ban, username, onAppealSubmitted }: BanScree
               borderRadius: '8px',
               marginBottom: '12px'
             }}>
-              {messages.length === 0 ? (
+              {!messagesLoaded ? (
                 <div style={{ textAlign: 'center', color: 'var(--text-dim)', padding: '20px', fontSize: '14px' }}>
                   Loading conversation…
+                </div>
+              ) : messages.length === 0 ? (
+                <div style={{ textAlign: 'center', color: 'var(--text-dim)', padding: '20px', fontSize: '14px' }}>
+                  No messages in this thread.
                 </div>
               ) : (
                 messages.map((msg) => (
@@ -261,8 +283,24 @@ export default function BanScreen({ ban, username, onAppealSubmitted }: BanScree
               </div>
             )}
             {appeal.status !== 'pending' && (
-              <div style={{ fontSize: '13px', color: 'var(--text-dim)', textAlign: 'center', padding: '8px' }}>
-                This appeal has been {appeal.status}. You can no longer send messages.
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', alignItems: 'center', padding: '8px' }}>
+                <div style={{ fontSize: '13px', color: 'var(--text-dim)', textAlign: 'center' }}>
+                  This appeal has been {appeal.status}. You can no longer send messages.
+                </div>
+                {appeal.status === 'approved' && (
+                  <div style={{ fontSize: '14px', color: 'var(--text)', textAlign: 'center' }}>
+                    Refresh the page to continue.
+                    <br />
+                    <button
+                      type="button"
+                      className="btn"
+                      onClick={() => window.location.reload()}
+                      style={{ marginTop: '8px', padding: '10px 20px', fontWeight: 600 }}
+                    >
+                      Refresh page
+                    </button>
+                  </div>
+                )}
               </div>
             )}
           </div>
