@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { User, Report, Ban, GameSubmission, UserMadeGame, DeviceRecord, HardwareBan, AppealMessage } from '@/types';
 import { getUsers, getReports, banUser, unbanUser, updateReportStatus, saveBannedUsers, saveUsers, ADMIN_ACCOUNTS_LIST, getBanAppeals, updateBanAppealStatus, getMessagesAPI, sendMessage, getGameSubmissions, saveUserMadeGame, deleteGameSubmission, getHardwareBans, addHardwareBan as addHardwareBanApi, removeHardwareBan, getDevicesForUser, getAppealMessagesAdmin } from '@/lib/storage';
 import { subscribeToUsers, subscribeToBans } from '@/lib/firestoreClient';
@@ -552,13 +553,13 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
         </div>
       )}
 
-      {/* Devices popup modal */}
-      {devicesModalUser && (
+      {/* Devices popup modal — portaled to body so it always appears on top */}
+      {typeof document !== 'undefined' && devicesModalUser && createPortal(
         <div
           style={{
             position: 'fixed',
             inset: 0,
-            zIndex: 9999,
+            zIndex: 99999,
             background: 'rgba(0,0,0,0.6)',
             display: 'flex',
             alignItems: 'center',
@@ -661,7 +662,8 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
               )}
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {activeTab === 'bans' && (

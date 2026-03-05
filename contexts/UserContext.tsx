@@ -80,14 +80,19 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
   const [gettingReady, setGettingReady] = useState(false);
   const [userAcceptedReady, setUserAcceptedReady] = useState(false);
   const firstSyncDone = useRef(false);
+  const readyStartTime = useRef<number>(0);
+
+  const MIN_READY_WAIT_MS = 6000;  // show loading at least 6 seconds so Firebase/API can load
+  const MAX_READY_WAIT_MS = 12000;  // stop waiting after 12 seconds at most
 
   useEffect(() => {
     initializeStorage();
     getInitialUser().then(restoredUser => {
       if (restoredUser) {
         setUser(restoredUser);
-        setGettingReady(true);
         firstSyncDone.current = false;
+        readyStartTime.current = Date.now();
+        setGettingReady(true);
       }
       setIsRestoring(false);
     }).catch(() => {
@@ -122,10 +127,23 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
   // Real-time Firestore sync: when admin changes role/coins/etc in Firestore, user sees it instantly
   useEffect(() => {
     if (!user?.username) return;
-    const unsub = subscribeToUser(user.username, (firestoreUser) => {
+    let minWaitTimer: ReturnType<typeof setTimeout> | null = null;
+
+    const tryFinishReady = () => {
       if (!firstSyncDone.current) {
         firstSyncDone.current = true;
         setGettingReady(false);
+      }
+    };
+
+    const unsub = subscribeToUser(user.username, (firestoreUser) => {
+      if (!firstSyncDone.current) {
+        const elapsed = Date.now() - readyStartTime.current;
+        if (elapsed >= MIN_READY_WAIT_MS) {
+          tryFinishReady();
+        } else {
+          minWaitTimer = setTimeout(tryFinishReady, MIN_READY_WAIT_MS - elapsed);
+        }
       }
       if (firestoreUser) {
         setUser((prev) => {
@@ -143,15 +161,16 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
         });
       }
     });
-    const t = setTimeout(() => {
-      if (!firstSyncDone.current) {
-        firstSyncDone.current = true;
-        setGettingReady(false);
-      }
-    }, 5000);
+
+    const maxTimer = setTimeout(() => {
+      if (minWaitTimer) clearTimeout(minWaitTimer);
+      tryFinishReady();
+    }, MAX_READY_WAIT_MS);
+
     return () => {
       unsub();
-      clearTimeout(t);
+      if (minWaitTimer) clearTimeout(minWaitTimer);
+      clearTimeout(maxTimer);
     };
   }, [user?.username]);
 
@@ -213,6 +232,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
         if (!u.equippedAccessories) u.equippedAccessories = {};
         if (!u.ownedFaces) u.ownedFaces = [];
         firstSyncDone.current = false;
+        readyStartTime.current = Date.now();
         setGettingReady(true);
         setUser(u);
         if (typeof window !== 'undefined') {
@@ -249,6 +269,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     if (!googleUser.equippedAccessories) googleUser.equippedAccessories = {};
 
     firstSyncDone.current = false;
+    readyStartTime.current = Date.now();
     setGettingReady(true);
     setUser(googleUser);
 
@@ -296,6 +317,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
         if (!u.ownedAccessories) u.ownedAccessories = [];
         if (!u.equippedAccessories) u.equippedAccessories = {};
         firstSyncDone.current = false;
+        readyStartTime.current = Date.now();
         setGettingReady(true);
         if (!u.ownedFaces) u.ownedFaces = [];
         setUser(u);
