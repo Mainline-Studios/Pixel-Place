@@ -36,8 +36,22 @@ jobs:
         if: ${{ env.FIREBASE_TOKEN == '' }}
         run: echo "FIREBASE_TOKEN is not configured; skipping Firebase deploy."
 
+      # Firebase CLI sometimes exits 1 even when deploy succeeds (warnings/deprecations).
+      # Capture log and verify success from output so the job doesn't fail incorrectly.
       - name: Deploy to Firebase
         if: ${{ env.FIREBASE_TOKEN != '' }}
-        run: firebase deploy --token "$FIREBASE_TOKEN"
+        run: |
+          firebase deploy --token "$FIREBASE_TOKEN" --non-interactive 2>&1 | tee deploy.log || true
         env:
           CI: true
+
+      - name: Verify deploy succeeded
+        if: ${{ env.FIREBASE_TOKEN != '' }}
+        run: |
+          if grep -q "Deploy complete!" deploy.log; then
+            echo "Deploy completed successfully (verified from log)."
+            exit 0
+          fi
+          echo "Deploy did not complete. Last 30 lines of log:"
+          tail -30 deploy.log
+          exit 1

@@ -20,6 +20,7 @@ admin.initializeApp();
 const db = admin.firestore();
 const COLLECTIONS = {
   USERS: 'users',
+  USER_DEVICES: 'user_devices',
   SKINS_CATALOG: 'skins_catalog',
   USER_SAFETY: 'user_safety',
   PUBLISHED_GAMES: 'published_games',
@@ -90,6 +91,21 @@ const sendJwtCheck = (req: any, res: any) => {
   res.json({ jwtSecretSet: set, path: req.path, url: req.url, originalUrl: req.originalUrl });
 };
 ['/auth/check-config', '/api/auth/check-config', '/check-config', '/api/check-config'].forEach(p => app.get(p, sendJwtCheck));
+
+// GET /users/devices — admin only, returns devices for a user (deviceId, label, firstSeen, lastSeen)
+app.get('/users/devices', async (req, res) => {
+  try {
+    const auth = requireAdmin(req, res);
+    if (!auth) return;
+    const username = (req.query.username as string) || '';
+    if (!username.trim()) return res.status(400).json({ error: 'username required' });
+    const doc = await db.collection(COLLECTIONS.USER_DEVICES).doc(username.trim().toLowerCase()).get();
+    const devices = Array.isArray(doc.exists && doc.data()?.devices) ? doc.data()!.devices : [];
+    res.json(devices);
+  } catch (e) {
+    res.status(500).json({ error: 'Failed to get devices' });
+  }
+});
 
 // GET/POST /users — GET requires auth
 app.get('/users', async (req, res) => {
