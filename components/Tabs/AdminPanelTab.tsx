@@ -406,7 +406,7 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
           className={`btn ${activeTab === 'appeals' ? 'active' : ''}`}
           onClick={() => setActiveTab('appeals')}
         >
-          Ban Appeals ({appeals.filter(a => a.status === 'pending').length} pending)
+          Moderator messages ({appeals.filter(a => a.status === 'pending').length} pending)
         </button>
         <button
           className={`btn ${activeTab === 'gamesubmissions' ? 'active' : ''}`}
@@ -1167,11 +1167,11 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
       {activeTab === 'appeals' && (
         <div className="ai-box" style={{ marginBottom: 0 }}>
           <div className="ai-label">
-            Ban Appeals ({appeals.filter(a => a.status === 'pending').length} pending, {appeals.length} total)
+            Moderator messages ({appeals.filter(a => a.status === 'pending').length} pending, {appeals.length} total)
           </div>
           <div className="ai-output" style={{ maxHeight: '500px', overflowY: 'auto' }}>
             {appeals.length === 0 ? (
-              <div className="smalltext">No ban appeals.</div>
+              <div className="smalltext">No moderator messages yet.</div>
             ) : (
               <div style={{ display: 'grid', gap: '12px' }}>
                 {appeals
@@ -1194,7 +1194,7 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '12px' }}>
                         <div>
                           <div style={{ fontWeight: 600, marginBottom: '4px' }}>
-                            Appeal from: <span style={{ color: '#ff4d4d' }}>{appeal.username}</span>
+                            Message from: <span style={{ color: '#ff4d4d' }}>{appeal.username}</span>
                           </div>
                           <div className="smalltext">
                             Original Ban Reason: {appeal.ban?.reason ?? '—'}
@@ -1253,7 +1253,7 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
                         borderRadius: '4px',
                         marginTop: '8px'
                       }}>
-                        <div className="smalltext" style={{ fontWeight: 600, marginBottom: '4px' }}>Appeal message (first message):</div>
+                        <div className="smalltext" style={{ fontWeight: 600, marginBottom: '4px' }}>First message:</div>
                         <div className="smalltext">{appeal.appealMessage || appeal.appealText || 'No message provided.'}</div>
                         {appeal.adminNotes && (
                           <>
@@ -1280,7 +1280,7 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
                             }
                           }}
                         >
-                          {loadingThreadFor === appeal.id ? 'Loading…' : appealThreads[appeal.id] ? 'Hide conversation' : 'View full conversation (user + AI)'}
+                          {loadingThreadFor === appeal.id ? 'Loading…' : appealThreads[appeal.id] ? 'Hide chat' : 'View chat (user + assistant)'}
                         </button>
                         {appealThreads[appeal.id]?.length > 0 && (
                           <div style={{
@@ -1292,7 +1292,7 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
                             maxHeight: '280px',
                             overflowY: 'auto'
                           }}>
-                            <div className="smalltext" style={{ fontWeight: 600, marginBottom: '8px', color: 'var(--text-dim)' }}>Full thread (visible to admins):</div>
+                            <div className="smalltext" style={{ fontWeight: 600, marginBottom: '8px', color: 'var(--text-dim)' }}>Chat (user + assistant):</div>
                             {appealThreads[appeal.id].map((msg) => (
                               <div
                                 key={msg.id}
@@ -1304,7 +1304,7 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
                                   fontSize: '12px'
                                 }}
                               >
-                                <span style={{ fontWeight: 600, color: 'var(--text-dim)' }}>{msg.fromUsername === 'appeal_bot' ? 'Appeal assistant' : msg.fromUsername}</span>
+                                <span style={{ fontWeight: 600, color: 'var(--text-dim)' }}>{msg.fromUsername === 'appeal_bot' ? 'Assistant' : msg.fromUsername}</span>
                                 {' • '}
                                 <span className="smalltext">{new Date(msg.timestamp).toLocaleString()}</span>
                                 <div style={{ marginTop: '4px' }}>{msg.message}</div>

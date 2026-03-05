@@ -30,6 +30,7 @@ const COLLECTIONS = {
   BANS: 'bans',
   REPORTS: 'reports',
   APPEALS: 'ban_appeals',
+  APPEAL_MESSAGES: 'appeal_messages',
   MESSAGES: 'messages',
   FRIENDS: 'friends',
   ACCESSORIES_CATALOG: 'accessories_catalog',
@@ -927,7 +928,71 @@ app.get('/tabcontent', async (_req, res) => { try { res.json((await db.collectio
 app.get('/accessories', async (_req, res) => { try { res.json((await db.collection(COLLECTIONS.ACCESSORIES_CATALOG).doc('catalog').get()).data()?.accessories || []); } catch (e) { res.status(500).json({ error: 'Failed' }); } });
 app.get('/bans', async (_req, res) => { try { res.json((await db.collection(COLLECTIONS.BANS).get()).docs.map(d => ({ id: d.id, ...d.data() }))); } catch (e) { res.status(500).json({ error: 'Failed' }); } });
 app.get('/reports', async (_req, res) => { try { res.json((await db.collection(COLLECTIONS.REPORTS).get()).docs.map(d => ({ id: d.id, ...d.data() }))); } catch (e) { res.status(500).json({ error: 'Failed' }); } });
-app.get('/appeals', async (_req, res) => { try { res.json((await db.collection(COLLECTIONS.APPEALS).get()).docs.map(d => ({ id: d.id, ...d.data() }))); } catch (e) { res.status(500).json({ error: 'Failed' }); } });
+app.get('/appeals', async (_req, res) => {
+  try {
+    const snap = await db.collection(COLLECTIONS.APPEALS).orderBy('created_at', 'desc').get();
+    const appeals = await Promise.all(snap.docs.map(async (d) => {
+      const data = d.data();
+      const banId = data.ban_id;
+      let ban: { reason?: string; bannedBy?: string; timestamp?: number } | null = null;
+      if (banId) {
+        const banDoc = await db.collection(COLLECTIONS.BANS).doc(banId).get();
+        if (banDoc.exists) {
+          const b = banDoc.data();
+          ban = { reason: b?.reason, bannedBy: b?.banned_by, timestamp: b?.banned_at ?? b?.timestamp };
+        }
+      }
+      return {
+        id: d.id,
+        username: data.username,
+        appealText: data.appeal_text,
+        appealMessage: data.appeal_text,
+        timestamp: data.created_at ?? Date.now(),
+        status: data.status || 'pending',
+        reviewedBy: data.reviewed_by,
+        adminNotes: data.admin_notes,
+        reviewedAt: data.reviewed_at,
+        device_id: data.device_id,
+        ban_id: data.ban_id,
+        ban,
+      };
+    }));
+    res.json(appeals);
+  } catch (e) {
+    res.status(500).json({ error: 'Failed to read appeals' });
+  }
+});
+
+// GET appeal messages (admin only) - for moderator chat in admin panel
+app.get('/appeals/messages', async (req, res) => {
+  const auth = requireAdmin(req, res);
+  if (!auth) return;
+  const appealId = req.query.appealId as string;
+  if (!appealId) {
+    res.status(400).json({ error: 'appealId required' });
+    return;
+  }
+  try {
+    const snap = await db.collection(COLLECTIONS.APPEAL_MESSAGES)
+      .where('appeal_id', '==', appealId)
+      .get();
+    const messages = snap.docs
+      .map(d => {
+        const data = d.data();
+        return {
+          id: d.id,
+          appealId: data.appeal_id,
+          fromUsername: data.from_username,
+          message: data.message,
+          timestamp: data.created_at ?? data.timestamp ?? 0,
+        };
+      })
+      .sort((a, b) => (a.timestamp as number) - (b.timestamp as number));
+    res.json(messages);
+  } catch (e) {
+    res.status(500).json({ error: 'Failed to get messages' });
+  }
+});
 
 // Game submissions: GET all, POST to submit for evaluation, DELETE
 app.get('/gamesubmissions', async (req, res) => {
