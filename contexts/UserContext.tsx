@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { User, Ban } from '@/types';
 import { initializeStorage, getUsers, saveUsers, ADMIN_ACCOUNTS_LIST, isUserBanned, getBanForUser } from '@/lib/storage';
 import { subscribeToUser } from '@/lib/firestoreClient';
@@ -8,6 +8,7 @@ import { apiUrl } from '@/lib/apiBaseUrl';
 import { containsEmoji } from '@/lib/utils';
 import { setAuthToken, removeAuthToken } from '@/lib/api';
 import { getDeviceFingerprint } from '@/lib/deviceFingerprint';
+import LoadingScreenWithGame from '@/components/LoadingScreenWithGame';
 
 interface UserContextType {
   user: User | null;
@@ -16,6 +17,9 @@ interface UserContextType {
   loginWithGoogle: (googleUser: User) => Promise<void>;
   createAccount: (username: string, password: string, gender: string) => Promise<{ success: boolean; message: string }>;
   updateUser: (updates: Partial<User>) => void;
+  gettingReady: boolean;
+  userAcceptedReady: boolean;
+  setUserAcceptedReady: (v: boolean) => void;
 }
 
 const UserContext = createContext<UserContextType | undefined>(undefined);
@@ -73,12 +77,17 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
 
   const [user, setUser] = useState<User | null>(null);
   const [isRestoring, setIsRestoring] = useState(true);
+  const [gettingReady, setGettingReady] = useState(false);
+  const [userAcceptedReady, setUserAcceptedReady] = useState(false);
+  const firstSyncDone = useRef(false);
 
   useEffect(() => {
     initializeStorage();
     getInitialUser().then(restoredUser => {
       if (restoredUser) {
         setUser(restoredUser);
+        setGettingReady(true);
+        firstSyncDone.current = false;
       }
       setIsRestoring(false);
     }).catch(() => {
@@ -86,8 +95,12 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     });
   }, []);
 
-  // Persist user to sessionStorage and clear token on logout
+  // Persist user to sessionStorage and clear token on logout; reset ready screen when logging out
   useEffect(() => {
+    if (!user) {
+      setUserAcceptedReady(false);
+      firstSyncDone.current = false;
+    }
     if (typeof window !== 'undefined') {
       if (user) {
         try {
@@ -110,6 +123,10 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!user?.username) return;
     const unsub = subscribeToUser(user.username, (firestoreUser) => {
+      if (!firstSyncDone.current) {
+        firstSyncDone.current = true;
+        setGettingReady(false);
+      }
       if (firestoreUser) {
         setUser((prev) => {
           if (!prev) return firestoreUser;
@@ -126,7 +143,16 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
         });
       }
     });
-    return () => unsub();
+    const t = setTimeout(() => {
+      if (!firstSyncDone.current) {
+        firstSyncDone.current = true;
+        setGettingReady(false);
+      }
+    }, 5000);
+    return () => {
+      unsub();
+      clearTimeout(t);
+    };
   }, [user?.username]);
 
   // Sync safety points from backend (Firebase)
@@ -186,6 +212,8 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
         if (!u.ownedAccessories) u.ownedAccessories = [];
         if (!u.equippedAccessories) u.equippedAccessories = {};
         if (!u.ownedFaces) u.ownedFaces = [];
+        firstSyncDone.current = false;
+        setGettingReady(true);
         setUser(u);
         if (typeof window !== 'undefined') {
           sessionStorage.setItem('pixelPlaceLoggedInUser', u.username);
@@ -220,8 +248,10 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     if (!googleUser.ownedAccessories) googleUser.ownedAccessories = [];
     if (!googleUser.equippedAccessories) googleUser.equippedAccessories = {};
 
+    firstSyncDone.current = false;
+    setGettingReady(true);
     setUser(googleUser);
-    
+
     // Persist to sessionStorage
     if (typeof window !== 'undefined') {
       try {
@@ -265,6 +295,8 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
         if (!u.ownedSkins) u.ownedSkins = ['starter_classic'];
         if (!u.ownedAccessories) u.ownedAccessories = [];
         if (!u.equippedAccessories) u.equippedAccessories = {};
+        firstSyncDone.current = false;
+        setGettingReady(true);
         if (!u.ownedFaces) u.ownedFaces = [];
         setUser(u);
         if (typeof window !== 'undefined') {
@@ -424,8 +456,11 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <UserContext.Provider value={{ user, setUser, login, loginWithGoogle, createAccount, updateUser }}>
+    <UserContext.Provider value={{ user, setUser, login, loginWithGoogle, createAccount, updateUser, gettingReady, userAcceptedReady, setUserAcceptedReady }}>
       {children}
+      {user && !userAcceptedReady ? (
+        <LoadingScreenWithGame gettingReady={gettingReady} onGoToApp={() => setUserAcceptedReady(true)} />
+      ) : null}
     </UserContext.Provider>
   );
 }

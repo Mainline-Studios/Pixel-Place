@@ -31,10 +31,11 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
   const [hardwareBans, setHardwareBans] = useState<HardwareBan[]>([]);
   const [deviceBanId, setDeviceBanId] = useState('');
   const [deviceBanReason, setDeviceBanReason] = useState('');
-  const [userDevices, setUserDevices] = useState<Record<string, DeviceRecord[]>>({});
-  const [loadingDevicesFor, setLoadingDevicesFor] = useState<string | null>(null);
-  const [devicesLoadError, setDevicesLoadError] = useState<Record<string, string>>({});
   const [usersLoadError, setUsersLoadError] = useState<string | null>(null);
+  const [devicesModalUser, setDevicesModalUser] = useState<string | null>(null);
+  const [devicesModalList, setDevicesModalList] = useState<DeviceRecord[]>([]);
+  const [devicesModalLoading, setDevicesModalLoading] = useState(false);
+  const [devicesModalError, setDevicesModalError] = useState<string | null>(null);
 
   const copyDeviceId = (deviceId: string) => {
     try {
@@ -111,6 +112,23 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
       getHardwareBans().then(setHardwareBans).catch(() => setHardwareBans([]));
     }
   }, [activeTab]);
+
+  useEffect(() => {
+    if (!devicesModalUser) return;
+    setDevicesModalLoading(true);
+    setDevicesModalError(null);
+    setDevicesModalList([]);
+    getDevicesForUser(devicesModalUser)
+      .then((devs) => {
+        setDevicesModalList(devs);
+        setDevicesModalError(null);
+      })
+      .catch((err: any) => {
+        setDevicesModalError(err?.message || 'Could not load devices.');
+        setDevicesModalList([]);
+      })
+      .finally(() => setDevicesModalLoading(false));
+  }, [devicesModalUser]);
 
   const processUsersFromFirestore = (storedUsers: User[]) => {
     // Old admin accounts that should be filtered out (not in current ADMIN_ACCOUNTS_LIST)
@@ -458,39 +476,15 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
                       </div>
                       <div className="smalltext">
                         Role: {u.role} • Coins: {u.coins} • Gender: Boy
-                        {(userDevices[u.username]?.length ?? 0) > 0 && (
-                          <> • Devices: {userDevices[u.username].map((d) => formatDeviceOS(d.label)).join(', ')}</>
-                        )}
                       </div>
-                      {loadingDevicesFor === u.username ? (
-                        <span className="smalltext">Loading devices…</span>
-                      ) : (
-                        <button
-                          className="btn"
-                          style={{ padding: '4px 8px', fontSize: '11px' }}
-                          onClick={async () => {
-                            if (userDevices[u.username]) {
-                              setUserDevices((prev) => ({ ...prev, [u.username]: [] }));
-                              setDevicesLoadError((prev) => ({ ...prev, [u.username]: '' }));
-                              return;
-                            }
-                            setLoadingDevicesFor(u.username);
-                            setDevicesLoadError((prev) => ({ ...prev, [u.username]: '' }));
-                            try {
-                              const devs = await getDevicesForUser(u.username);
-                              setUserDevices((prev) => ({ ...prev, [u.username]: devs }));
-                            } catch (err: any) {
-                              const msg = err?.message || 'Could not load devices.';
-                              setDevicesLoadError((prev) => ({ ...prev, [u.username]: msg }));
-                              setUserDevices((prev) => ({ ...prev, [u.username]: [] }));
-                            } finally {
-                              setLoadingDevicesFor(null);
-                            }
-                          }}
-                        >
-                          {userDevices[u.username] ? 'Hide devices' : 'Show devices'}
-                        </button>
-                      )}
+                      <button
+                        type="button"
+                        className="btn"
+                        style={{ padding: '4px 8px', fontSize: '11px' }}
+                        onClick={() => setDevicesModalUser(u.username)}
+                      >
+                        Show devices
+                      </button>
                     </div>
                     <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                       {u.role !== 'admin' && u.role !== 'head_admin' ? (
@@ -550,81 +544,122 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
                       )}
                     </div>
                   </div>
-                  {devicesLoadError[u.username] ? (
-                    <div style={{ marginTop: '4px', padding: '8px 12px', background: 'var(--panel)', borderRadius: '6px', border: '1px solid var(--border)', fontSize: '12px', color: 'var(--danger)' }}>
-                      {devicesLoadError[u.username]}
-                    </div>
-                  ) : userDevices[u.username]?.length ? (
-                    <div style={{
-                      marginTop: '4px',
-                      padding: '12px',
-                      background: 'var(--panel)',
-                      borderRadius: '6px',
-                      border: '1px solid var(--border)',
-                      fontSize: '12px'
-                    }}>
-                      <div style={{ fontWeight: 600, marginBottom: '8px' }}>Devices for {u.username}</div>
-                      {userDevices[u.username].map((d) => (
-                        <div
-                          key={d.deviceId}
-                          style={{
-                            display: 'flex',
-                            justifyContent: 'space-between',
-                            alignItems: 'center',
-                            flexWrap: 'wrap',
-                            gap: '8px',
-                            marginBottom: '10px',
-                            paddingBottom: '10px',
-                            borderBottom: '1px solid var(--border)'
-                          }}
-                        >
-                          <div style={{ flex: '1 1 200px', minWidth: 0 }}>
-                            <div style={{ fontWeight: 600, marginBottom: '2px' }}>{formatDeviceOS(d.label)}</div>
-                            <div style={{ fontFamily: 'monospace', fontSize: '11px', color: 'var(--text-dim)', wordBreak: 'break-all' }}>
-                              ID: {d.deviceId || '—'}
-                            </div>
-                            {typeof d.firstSeen === 'number' && (
-                              <div className="smalltext" style={{ marginTop: '2px' }}>
-                                First seen: {new Date(d.firstSeen).toLocaleDateString()}
-                                {typeof d.lastSeen === 'number' && <> • Last seen: {new Date(d.lastSeen).toLocaleDateString()}</>}
-                              </div>
-                            )}
-                          </div>
-                          <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-                            <button
-                              type="button"
-                              className="btn"
-                              style={{ padding: '4px 8px', fontSize: '11px' }}
-                              onClick={() => copyDeviceId(d.deviceId)}
-                            >
-                              Copy ID
-                            </button>
-                            <button
-                              className="btn"
-                              style={{ padding: '4px 8px', fontSize: '11px', background: '#ff4d4d' }}
-                              onClick={async () => {
-                                if (!confirm(`Ban this device? All accounts that used it will be banned.`)) return;
-                                try {
-                                  await addHardwareBanApi(d.deviceId, `From admin panel (user ${u.username})`);
-                                  setHardwareBans(await getHardwareBans());
-                                  await loadOtherData();
-                                  setUserDevices((prev) => ({ ...prev, [u.username]: [] }));
-                                } catch (e: any) {
-                                  alert(e?.message || 'Failed');
-                                }
-                              }}
-                            >
-                              Ban this device
-                            </button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  ) : null}
                   </div>
                 ))}
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Devices popup modal */}
+      {devicesModalUser && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 9999,
+            background: 'rgba(0,0,0,0.6)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '20px',
+          }}
+          onClick={() => setDevicesModalUser(null)}
+        >
+          <div
+            style={{
+              background: 'var(--panel)',
+              borderRadius: '12px',
+              border: '1px solid var(--border)',
+              maxWidth: '480px',
+              width: '100%',
+              maxHeight: '85vh',
+              overflow: 'hidden',
+              display: 'flex',
+              flexDirection: 'column',
+              boxShadow: '0 20px 40px rgba(0,0,0,0.3)',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <h3 style={{ margin: 0, fontSize: '18px', color: 'var(--text)' }}>Devices for {devicesModalUser}</h3>
+              <button type="button" className="btn" style={{ padding: '6px 12px' }} onClick={() => setDevicesModalUser(null)}>Close</button>
+            </div>
+            <div style={{ padding: '20px', overflowY: 'auto', flex: 1 }}>
+              {devicesModalLoading && (
+                <div style={{ textAlign: 'center', padding: '24px', color: 'var(--text-dim)' }}>Loading devices…</div>
+              )}
+              {!devicesModalLoading && devicesModalError && (
+                <div style={{ padding: '12px', background: 'rgba(255,77,77,0.1)', borderRadius: '8px', border: '1px solid var(--danger)', color: 'var(--text)', fontSize: '14px' }}>
+                  {devicesModalError}
+                </div>
+              )}
+              {!devicesModalLoading && !devicesModalError && devicesModalList.length === 0 && (
+                <div style={{ textAlign: 'center', padding: '24px', color: 'var(--text-dim)', fontSize: '14px' }}>
+                  No devices recorded for this user. Devices appear after they sign in or register.
+                </div>
+              )}
+              {!devicesModalLoading && !devicesModalError && devicesModalList.length > 0 && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  {devicesModalList.map((d) => (
+                    <div
+                      key={d.deviceId}
+                      style={{
+                        padding: '14px',
+                        background: 'var(--panel-soft)',
+                        borderRadius: '10px',
+                        border: '1px solid var(--border)',
+                      }}
+                    >
+                      <div style={{ fontWeight: 600, marginBottom: '6px', color: 'var(--text)' }}>{formatDeviceOS(d.label)}</div>
+                      <div style={{
+                        fontFamily: 'monospace',
+                        fontSize: '13px',
+                        color: 'var(--text-dim)',
+                        wordBreak: 'break-all',
+                        padding: '8px 10px',
+                        background: 'var(--panel)',
+                        borderRadius: '6px',
+                        border: '1px solid var(--border)',
+                        marginBottom: '10px',
+                      }}>
+                        {d.deviceId || '—'}
+                      </div>
+                      {(typeof d.firstSeen === 'number' || typeof d.lastSeen === 'number') && (
+                        <div className="smalltext" style={{ marginBottom: '10px' }}>
+                          {typeof d.firstSeen === 'number' && <>First seen: {new Date(d.firstSeen).toLocaleString()}</>}
+                          {typeof d.firstSeen === 'number' && typeof d.lastSeen === 'number' && ' · '}
+                          {typeof d.lastSeen === 'number' && <>Last seen: {new Date(d.lastSeen).toLocaleString()}</>}
+                        </div>
+                      )}
+                      <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                        <button type="button" className="btn" style={{ padding: '6px 12px', fontSize: '12px' }} onClick={() => copyDeviceId(d.deviceId)}>
+                          Copy ID
+                        </button>
+                        <button
+                          type="button"
+                          className="btn"
+                          style={{ padding: '6px 12px', fontSize: '12px', background: '#ff4d4d' }}
+                          onClick={async () => {
+                            if (!confirm('Ban this device? All accounts that used it will be blocked from signing in.')) return;
+                            try {
+                              await addHardwareBanApi(d.deviceId, `From admin panel (user ${devicesModalUser})`);
+                              setHardwareBans(await getHardwareBans());
+                              setDevicesModalList((prev) => prev.filter((x) => x.deviceId !== d.deviceId));
+                            } catch (e: any) {
+                              alert(e?.message || 'Failed');
+                            }
+                          }}
+                        >
+                          Ban this device
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}
