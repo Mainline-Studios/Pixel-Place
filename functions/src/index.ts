@@ -170,8 +170,8 @@ app.get('/auth/check-device', async (req, res) => {
   }
 });
 
-// GET /users/devices — admin only, returns devices for a user (deviceId, label, firstSeen, lastSeen)
-app.get('/users/devices', async (req, res) => {
+// GET /users/devices — admin only, returns devices for a user (deviceId, label, firstSeen, lastSeen). Also /api/users/devices for Hosting rewrite.
+const getUsersDevicesHandler = async (req: any, res: any) => {
   try {
     const auth = requireAdmin(req, res);
     if (!auth) return;
@@ -187,10 +187,12 @@ app.get('/users/devices', async (req, res) => {
   } catch (e) {
     res.status(500).json({ error: 'Failed to get devices' });
   }
-});
+};
+app.get('/users/devices', getUsersDevicesHandler);
+app.get('/api/users/devices', getUsersDevicesHandler);
 
-// GET/POST /users — GET requires auth
-app.get('/users', async (req, res) => {
+// GET /users — requires auth
+const getUsersHandler = async (req: any, res: any) => {
   try {
     const auth = requireAuth(req, res);
     if (!auth) return;
@@ -200,7 +202,9 @@ app.get('/users', async (req, res) => {
   } catch (e) {
     res.status(500).json({ error: 'Failed to read users' });
   }
-});
+};
+app.get('/users', getUsersHandler);
+app.get('/api/users', getUsersHandler);
 
 app.post('/users', async (req, res) => {
   try {
@@ -927,6 +931,28 @@ app.delete('/hardware-bans', async (req, res) => {
 app.get('/tabcontent', async (_req, res) => { try { res.json((await db.collection(COLLECTIONS.TAB_CONTENT).doc('content').get()).data() || {}); } catch (e) { res.status(500).json({ error: 'Failed' }); } });
 app.get('/accessories', async (_req, res) => { try { res.json((await db.collection(COLLECTIONS.ACCESSORIES_CATALOG).doc('catalog').get()).data()?.accessories || []); } catch (e) { res.status(500).json({ error: 'Failed' }); } });
 app.get('/bans', async (_req, res) => { try { res.json((await db.collection(COLLECTIONS.BANS).get()).docs.map(d => ({ id: d.id, ...d.data() }))); } catch (e) { res.status(500).json({ error: 'Failed' }); } });
+// DELETE /bans?username=xxx — admin only, unban user
+const deleteBansHandler = async (req: any, res: any) => {
+  const auth = requireAdmin(req, res);
+  if (!auth) return;
+  let username = (req.query.username as string) || '';
+  if (!username.trim() && typeof req.originalUrl === 'string') {
+    const match = req.originalUrl.match(/[?&]username=([^&]+)/);
+    if (match) username = decodeURIComponent(match[1]);
+  }
+  if (!username.trim()) return res.status(400).json({ error: 'username required' });
+  try {
+    const snap = await db.collection(COLLECTIONS.BANS).where('username_lower', '==', username.trim().toLowerCase()).get();
+    const batch = db.batch();
+    snap.docs.forEach((d) => batch.delete(d.ref));
+    await batch.commit();
+    res.json({ success: true });
+  } catch (e) {
+    res.status(500).json({ error: 'Failed to unban' });
+  }
+};
+app.delete('/bans', deleteBansHandler);
+app.delete('/api/bans', deleteBansHandler);
 app.get('/reports', async (_req, res) => { try { res.json((await db.collection(COLLECTIONS.REPORTS).get()).docs.map(d => ({ id: d.id, ...d.data() }))); } catch (e) { res.status(500).json({ error: 'Failed' }); } });
 app.get('/appeals', async (_req, res) => {
   try {

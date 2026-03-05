@@ -75,6 +75,12 @@ const POWER_COOLDOWN: Record<Power, number> = {
 
 const ARENA_W = 900;
 const ARENA_H = 580;
+// Inset from each edge — playable area is inside this; rivals and player are clamped here. Draw a clear border in this zone.
+const BORDER_INSET = 16;
+const PLAY_LEFT = BORDER_INSET;
+const PLAY_RIGHT = ARENA_W - BORDER_INSET;
+const PLAY_TOP = BORDER_INSET;
+const PLAY_BOTTOM = ARENA_H - BORDER_INSET;
 
 const WALLS = [
   { x: 220, y: 100, w: 18, h: 200 },
@@ -193,7 +199,7 @@ export default function Showdown({ user }: ShowdownProps): JSX.Element {
     const local: Player = {
       id: 'you',
       name: 'You',
-      pos: { x: ARENA_W / 2 - 80, y: ARENA_H / 2 },
+      pos: { x: (PLAY_LEFT + PLAY_RIGHT) / 2 - 80, y: (PLAY_TOP + PLAY_BOTTOM) / 2 },
       vel: { x: 0, y: 0 },
       color: '#00d4ff',
       radius: 20,
@@ -210,7 +216,7 @@ export default function Showdown({ user }: ShowdownProps): JSX.Element {
       bots.push({
         id: `bot_${i}`,
         name: `Rival ${i + 1}`,
-        pos: { x: rand(80, ARENA_W - 80), y: rand(80, ARENA_H - 80) },
+        pos: { x: rand(PLAY_LEFT + 60, PLAY_RIGHT - 60), y: rand(PLAY_TOP + 60, PLAY_BOTTOM - 60) },
         vel: { x: 0, y: 0 },
         color: botColors[i],
         radius: 18,
@@ -372,7 +378,7 @@ export default function Showdown({ user }: ShowdownProps): JSX.Element {
   function spawnPickup() {
     const now = Date.now();
     const type = rand() < 0.6 ? 'pc' : 'power';
-    const pos = { x: rand(60, ARENA_W - 60), y: rand(60, ARENA_H - 60) };
+    const pos = { x: rand(PLAY_LEFT + 50, PLAY_RIGHT - 50), y: rand(PLAY_TOP + 50, PLAY_BOTTOM - 50) };
     if (type === 'pc') {
       pickupsRef.current.push({
         id: `pc-${now}`,
@@ -463,8 +469,8 @@ export default function Showdown({ user }: ShowdownProps): JSX.Element {
               local.pos.y -= local.vel.y * 0.1;
             }
           }
-          local.pos.x = clamp(local.radius, local.pos.x, ARENA_W - local.radius);
-          local.pos.y = clamp(local.radius, local.pos.y, ARENA_H - local.radius);
+          local.pos.x = clamp(PLAY_LEFT + local.radius, local.pos.x, PLAY_RIGHT - local.radius);
+          local.pos.y = clamp(PLAY_TOP + local.radius, local.pos.y, PLAY_BOTTOM - local.radius);
         }
 
         // Bot AI — only move/shoot if alive and not eliminated
@@ -481,17 +487,17 @@ export default function Showdown({ user }: ShowdownProps): JSX.Element {
 
           const nearWall = WALLS.some((w) => circleRectCollision(b.pos.x, b.pos.y, b.radius + 4, w));
           const nearEdge =
-            b.pos.x <= b.radius + 25 || b.pos.x >= ARENA_W - b.radius - 25 ||
-            b.pos.y <= b.radius + 25 || b.pos.y >= ARENA_H - b.radius - 25;
+            b.pos.x <= PLAY_LEFT + b.radius + 20 || b.pos.x >= PLAY_RIGHT - b.radius - 20 ||
+            b.pos.y <= PLAY_TOP + b.radius + 20 || b.pos.y >= PLAY_BOTTOM - b.radius - 20;
           const movedLastFrame = dist(stuckState.lastPos, startPos);
           const wasStuck = movedLastFrame < 5 && (nearWall || nearEdge);
           let stuckFrames = wasStuck ? stuckState.stuckFrames + 1 : 0;
           const escapeMode = stuckFrames >= 12;
 
           if (escapeMode) {
-            // Get out of corner: move toward arena center + small random so they don't all stack
-            const cx = ARENA_W / 2;
-            const cy = ARENA_H / 2;
+            // Get out of corner: move toward playable area center + small random so they don't all stack
+            const cx = (PLAY_LEFT + PLAY_RIGHT) / 2;
+            const cy = (PLAY_TOP + PLAY_BOTTOM) / 2;
             const jitter = (Math.random() - 0.5) * 0.4;
             const ax = cx - b.pos.x + (Math.random() - 0.5) * 80;
             const ay = cy - b.pos.y + (Math.random() - 0.5) * 80;
@@ -524,8 +530,9 @@ export default function Showdown({ user }: ShowdownProps): JSX.Element {
               b.pos.y += (outY / outD) * 4;
             }
           }
-          b.pos.x = clamp(b.radius, b.pos.x, ARENA_W - b.radius);
-          b.pos.y = clamp(b.radius, b.pos.y, ARENA_H - b.radius);
+          // Hard clamp to playable area so rivals never leave the map
+          b.pos.x = clamp(PLAY_LEFT + b.radius, b.pos.x, PLAY_RIGHT - b.radius);
+          b.pos.y = clamp(PLAY_TOP + b.radius, b.pos.y, PLAY_BOTTOM - b.radius);
 
           const movedThisFrame = dist(startPos, b.pos);
           if (movedThisFrame < 5 && (nearWall || nearEdge)) {
@@ -631,7 +638,7 @@ export default function Showdown({ user }: ShowdownProps): JSX.Element {
             return {
               ...p,
               hp: p.maxHp,
-              pos: { x: rand(80, ARENA_W - 80), y: rand(80, ARENA_H - 80) },
+              pos: { x: rand(PLAY_LEFT + 60, PLAY_RIGHT - 60), y: rand(PLAY_TOP + 60, PLAY_BOTTOM - 60) },
               vel: { x: 0, y: 0 },
               lastDeadAt: undefined,
             };
@@ -680,13 +687,19 @@ export default function Showdown({ user }: ShowdownProps): JSX.Element {
         ctx.stroke();
       }
 
-      // Arena border glow
-      ctx.strokeStyle = 'rgba(0, 212, 255, 0.4)';
+      // Defined arena border — thick inner barrier so play area is clear; rivals stay inside
+      const borderThick = BORDER_INSET;
+      ctx.fillStyle = 'rgba(0, 212, 255, 0.12)';
+      ctx.fillRect(0, 0, ARENA_W, borderThick);
+      ctx.fillRect(0, ARENA_H - borderThick, ARENA_W, borderThick);
+      ctx.fillRect(0, 0, borderThick, ARENA_H);
+      ctx.fillRect(ARENA_W - borderThick, 0, borderThick, ARENA_H);
+      ctx.strokeStyle = 'rgba(0, 212, 255, 0.7)';
       ctx.lineWidth = 3;
-      ctx.strokeRect(2, 2, ARENA_W - 4, ARENA_H - 4);
-      ctx.strokeStyle = 'rgba(0, 212, 255, 0.15)';
+      ctx.strokeRect(borderThick / 2, borderThick / 2, ARENA_W - borderThick, ARENA_H - borderThick);
+      ctx.strokeStyle = 'rgba(0, 212, 255, 0.35)';
       ctx.lineWidth = 1;
-      ctx.strokeRect(4, 4, ARENA_W - 8, ARENA_H - 8);
+      ctx.strokeRect(2, 2, ARENA_W - 4, ARENA_H - 4);
 
       // Walls — sleek dark with neon edge
       for (const w of WALLS) {
@@ -882,7 +895,7 @@ export default function Showdown({ user }: ShowdownProps): JSX.Element {
       const localP: Player = {
         id: 'you',
         name: 'You',
-        pos: { x: ARENA_W / 2 - 80, y: ARENA_H / 2 },
+        pos: { x: (PLAY_LEFT + PLAY_RIGHT) / 2 - 80, y: (PLAY_TOP + PLAY_BOTTOM) / 2 },
         vel: { x: 0, y: 0 },
         color: '#00d4ff',
         radius: 20,
@@ -899,7 +912,7 @@ export default function Showdown({ user }: ShowdownProps): JSX.Element {
         bots.push({
           id: `bot_${i}`,
           name: `Rival ${i + 1}`,
-          pos: { x: rand(80, ARENA_W - 80), y: rand(80, ARENA_H - 80) },
+          pos: { x: rand(PLAY_LEFT + 60, PLAY_RIGHT - 60), y: rand(PLAY_TOP + 60, PLAY_BOTTOM - 60) },
           vel: { x: 0, y: 0 },
           color: botColors[i],
           radius: 18,
