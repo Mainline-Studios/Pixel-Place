@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { User, Ban } from '@/types';
-import { initializeStorage, getUsers, saveUsers, ADMIN_ACCOUNTS_LIST, isUserBanned, getBanForUser, getBannedUsersSync } from '@/lib/storage';
+import { initializeStorage, getUsers, saveUsers, ADMIN_ACCOUNTS_LIST, isUserBanned, getBanForUser } from '@/lib/storage';
 import { subscribeToUser } from '@/lib/firestoreClient';
 import { apiUrl } from '@/lib/apiBaseUrl';
 import { containsEmoji } from '@/lib/utils';
@@ -146,26 +146,6 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     };
   }, [user?.username]);
 
-  // Helper function to get users from localStorage (offline mode)
-  const getUsersLocal = (): User[] => {
-    if (typeof window === 'undefined') return [];
-    try {
-      const data = localStorage.getItem('pixelPlaceUsers');
-      return data ? JSON.parse(data) : [];
-    } catch {
-      return [];
-    }
-  };
-
-  // Helper function to save users to localStorage (offline mode)
-  const saveUsersLocal = (users: User[]): void => {
-    if (typeof window === 'undefined') return;
-    try {
-      localStorage.setItem('pixelPlaceUsers', JSON.stringify(users));
-    } catch (error) {
-      console.error('Error saving users to localStorage:', error);
-    }
-  };
   const login = async (username: string, password: string): Promise<{ success: boolean; message: string; ban?: any }> => {
     if (!username || !password) {
       return { success: false, message: 'Enter username and password.' };
@@ -289,42 +269,21 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       // Backend unreachable — fall back to offline flow below
     }
 
-    let isOffline = false;
     let users: User[] = [];
-
     try {
       users = await getUsers();
-    } catch (error) {
-      isOffline = true;
-      users = getUsersLocal();
-      console.log('Using offline mode - localStorage');
+    } catch {
+      return { success: false, message: 'Could not reach server. Try again when online.' };
     }
 
-    // Check if username is banned (try online first, then offline fallback)
+    // Check if username is banned (Firebase only)
     try {
       const isBanned = await isUserBanned(username);
       if (isBanned) {
         return { success: false, message: 'This username is banned and cannot be used.' };
       }
-    } catch (error) {
-      // If online ban check fails, try offline fallback
-      if (!isOffline) {
-        try {
-          const localBans = getBannedUsersSync();
-          const now = Date.now();
-          const localBan = localBans.find((b: Ban) => {
-            if (b.username.toLowerCase() !== username.toLowerCase()) return false;
-            if (b.permanent) return true;
-            if (b.expiresAt && b.expiresAt > now) return true;
-            return false;
-          });
-          if (localBan) {
-            return { success: false, message: 'This username is banned and cannot be used.' };
-          }
-        } catch {
-          // If offline check also fails, continue anyway (don't block account creation)
-        }
-      }
+    } catch {
+      return { success: false, message: 'Could not verify ban status. Try again when online.' };
     }
     if (users.find(x => x.username === username)) {
       return { success: false, message: 'Username already exists.' };

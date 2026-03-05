@@ -8,6 +8,7 @@ import TopBar from './TopBar';
 import Sidebar from './Sidebar';
 import FloatingParticles from '../FloatingParticles';
 import ScrollToTop from '../ScrollToTop';
+import { useSecretTheme } from '@/contexts/SecretThemeContext';
 import GamesTab from '../Tabs/GamesTab';
 import CreateTab from '../Tabs/CreateTab';
 import AvatarShopTab from '../Tabs/AvatarShopTab';
@@ -21,6 +22,7 @@ interface DashboardProps {
 
 export default function Dashboard({ user }: DashboardProps) {
   const { playTabSwitch } = useSound();
+  const { secretTheme } = useSecretTheme();
   const [currentTab, setCurrentTab] = useState<TabType>('games');
   const [editMode, setEditMode] = useState(false);
 
@@ -100,7 +102,26 @@ export default function Dashboard({ user }: DashboardProps) {
       <div className="body-row">
         <div className="body-inner">
           <Sidebar user={user} />
-          <section className="main-card">{renderTabContent()}</section>
+          <section className="main-card">
+            <div
+              className="ixel-ace-brand"
+              style={{
+                textAlign: 'center',
+                padding: '10px 16px',
+                marginBottom: '12px',
+                background: 'linear-gradient(90deg, rgba(255,60,60,0.2), rgba(255,80,80,0.15))',
+                border: '1px solid var(--border)',
+                borderRadius: 'var(--panel-radius)',
+                fontSize: '20px',
+                fontWeight: 700,
+                color: '#ff9090',
+                letterSpacing: '0.1em',
+              }}
+            >
+              ixel ace
+            </div>
+            {renderTabContent()}
+          </section>
         </div>
       </div>
       <footer style={{

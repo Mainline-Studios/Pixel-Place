@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { User, UserMadeGame } from '@/types';
 import { getUserMadeGames, deleteUserMadeGame } from '@/lib/storage';
 import { subscribeToUserMadeGames } from '@/lib/firestoreClient';
+import { useSecretTheme } from '@/contexts/SecretThemeContext';
 import UserMadeGamePlayer from '../Games/UserMadeGamePlayer';
 import FilteredText, { FilteredUsername } from '../FilteredText';
 import GameErrorBoundary from '../GameErrorBoundary';
@@ -22,6 +23,8 @@ import Chess from '../Games/Chess';
 import FloorIsLava from '../Games/FloorIsLava';
 import VoidArcade from '../Games/VoidArcade';
 import EcoHero from '../Games/EcoHero';
+import SquishBubbles from '../Games/SquishBubbles';
+import SquishSlime from '../Games/SquishSlime';
 
 interface GamesTabProps {
   user: User;
@@ -188,10 +191,34 @@ const games: GameInfo[] = [
   },
 ];
 
+const SECRET_GAMES_IXEL_ACE: GameInfo[] = [
+  {
+    id: 'squishBubbles',
+    name: 'Squish Bubbles',
+    description: 'Pop the bubbles! Simple 2D click game.',
+    icon: '🫧',
+    category: '2D',
+    is3D: false,
+    component: SquishBubbles,
+  },
+  {
+    id: 'squishSlime',
+    name: 'Squish Slime',
+    description: 'Squish the slime with your cursor!',
+    icon: '🟢',
+    category: '2D',
+    is3D: false,
+    component: SquishSlime,
+  },
+];
+
 export default function GamesTab({ user, editMode }: GamesTabProps) {
+  const { secretTheme } = useSecretTheme();
   const [selectedGame, setSelectedGame] = useState<string | null>(null);
   const [selectedUserGame, setSelectedUserGame] = useState<UserMadeGame | null>(null);
   const [userMadeGames, setUserMadeGames] = useState<UserMadeGame[]>([]);
+
+  const gamesList = secretTheme === 'ixelace' ? [...games, ...SECRET_GAMES_IXEL_ACE] : games;
 
   // Real-time games from Firestore (instant updates when games are added/edited in Firebase Console)
   useEffect(() => {
@@ -216,7 +243,7 @@ export default function GamesTab({ user, editMode }: GamesTabProps) {
     alert(`Game "${gameTitle}" has been deleted.`);
   };
 
-  const selectedGameInfo = games.find(g => g.id === selectedGame);
+  const selectedGameInfo = gamesList.find(g => g.id === selectedGame);
   const GameComponent = selectedGameInfo?.component;
 
   if (selectedUserGame) {
@@ -236,7 +263,7 @@ export default function GamesTab({ user, editMode }: GamesTabProps) {
     };
     
     // Components that support onClose prop
-    const supportsOnClose = ['gymPump', 'hypnosia', 'voidArcade', 'ecoHero'].includes(selectedGame);
+    const supportsOnClose = ['gymPump', 'hypnosia', 'voidArcade', 'ecoHero', 'squishBubbles', 'squishSlime'].includes(selectedGame);
     
     // Prepare props based on game type - pass user to games that need it
     const baseProps = selectedGame === 'gymPump'
@@ -246,6 +273,8 @@ export default function GamesTab({ user, editMode }: GamesTabProps) {
       : selectedGame === 'voidArcade'
       ? { onClose: handleClose }
       : selectedGame === 'ecoHero'
+      ? { onClose: handleClose }
+      : selectedGame === 'squishBubbles' || selectedGame === 'squishSlime'
       ? { onClose: handleClose }
       : selectedGame === 'showdown'
       ? { user }
@@ -296,7 +325,7 @@ export default function GamesTab({ user, editMode }: GamesTabProps) {
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '20px', marginTop: '20px' }}>
-        {games.map((game) => (
+        {gamesList.map((game) => (
           <div
             key={game.id}
             className="game-card-enhanced"

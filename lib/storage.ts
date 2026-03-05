@@ -19,87 +19,26 @@ export function initializeStorage() {
   console.log('Storage initialized - all data stored in Firebase cloud');
 }
 
-// User functions - Now using API
+// User functions - Firebase only (API reads from Firestore)
 export async function getUsers(): Promise<User[]> {
   if (typeof window === 'undefined') return [];
   try {
     const response = await authenticatedFetch(apiUrl('/api/users'), {
       cache: 'no-store',
-      headers: {
-        'Cache-Control': 'no-cache'
-      }
+      headers: { 'Cache-Control': 'no-cache' },
     });
     if (!response.ok) {
       console.error('Failed to fetch users:', response.status, response.statusText);
       throw new Error('Failed to fetch users');
     }
     const apiUsers = await response.json();
-
-    // Ensure we got an array
     if (!Array.isArray(apiUsers)) {
       console.error('API returned non-array:', apiUsers);
       return [];
     }
-
-    console.log(`getUsers: Fetched ${apiUsers.length} users from API`);
-
-    // Migration: Move localStorage data to API if it exists
-    try {
-      const localData = localStorage.getItem("pixelPlaceUsers");
-      if (localData) {
-        const localUsers: User[] = JSON.parse(localData);
-        if (localUsers.length > 0) {
-          // Check if users need to be migrated
-          const apiUsernames = new Set(apiUsers.map((u: User) => u.username.toLowerCase()));
-          const usersToMigrate = localUsers.filter(u => !apiUsernames.has(u.username.toLowerCase()));
-
-          if (usersToMigrate.length > 0) {
-            console.log(`Migrating ${usersToMigrate.length} users from localStorage to API`);
-            // Migrate users that don't exist in API
-            for (const user of usersToMigrate) {
-              await authenticatedFetch(apiUrl('/api/users'), {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(user)
-              }).catch(() => { });
-            }
-            // Remove from localStorage after successful migration
-            localStorage.removeItem("pixelPlaceUsers");
-            // Fetch updated list
-            const updatedResponse = await authenticatedFetch(apiUrl('/api/users'), { cache: 'no-store' });
-            if (updatedResponse.ok) {
-              const updatedUsers = await updatedResponse.json();
-              console.log(`getUsers: After migration, fetched ${updatedUsers.length} users`);
-              return Array.isArray(updatedUsers) ? updatedUsers : [];
-            }
-          }
-        }
-      }
-    } catch (migrationError) {
-      console.error('Error migrating users:', migrationError);
-    }
-
     return apiUsers;
   } catch (e) {
-    console.error('Error reading users from API:', e);
-    // Fallback to localStorage
-    try {
-      const data = localStorage.getItem("pixelPlaceUsers");
-      if (data) {
-        const users = JSON.parse(data);
-        // Try to migrate even on error
-        if (users.length > 0) {
-          for (const user of users) {
-            await authenticatedFetch(apiUrl('/api/users'), {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(user)
-            }).catch(() => { });
-          }
-        }
-        return Array.isArray(users) ? users : [];
-      }
-    } catch { }
+    console.error('Error reading users from Firebase API:', e);
     return [];
   }
 }

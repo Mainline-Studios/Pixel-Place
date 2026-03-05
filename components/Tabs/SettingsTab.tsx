@@ -9,6 +9,7 @@ import { FilteredUsername } from '@/components/FilteredText';
 import { useUser } from '@/contexts/UserContext';
 import { useStyle } from '@/components/StyleProvider';
 import { useSound } from '@/contexts/SoundContext';
+import { useSecretTheme } from '@/contexts/SecretThemeContext';
 import { STYLE_OPTIONS } from '@/lib/styleTheme';
 
 interface SettingsTabProps {
@@ -21,9 +22,25 @@ export default function SettingsTab({ user, editMode, onToggleEditMode }: Settin
   const { updateUser } = useUser();
   const { style, setStyle } = useStyle();
   const { soundsEnabled, setSoundsEnabled } = useSound();
+  const { secretTheme, unlockSecretTheme, clearSecretTheme } = useSecretTheme();
   const [skins, setSkins] = useState<Skin[]>([]);
   const [tabContent, setTabContent] = useState<TabContent | null>(null);
+  const [secretPasswordModal, setSecretPasswordModal] = useState(false);
+  const [secretPasswordInput, setSecretPasswordInput] = useState('');
+  const [secretPasswordError, setSecretPasswordError] = useState('');
   const coins = user.coins || 0;
+
+  const handleSecretPasswordSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setSecretPasswordError('');
+    const ok = unlockSecretTheme(secretPasswordInput);
+    if (ok) {
+      setSecretPasswordModal(false);
+      setSecretPasswordInput('');
+    } else {
+      setSecretPasswordError('Wrong password.');
+    }
+  };
 
   useEffect(() => {
     const load = async () => {
@@ -111,7 +128,84 @@ export default function SettingsTab({ user, editMode, onToggleEditMode }: Settin
             </button>
           ))}
         </div>
+        <div style={{ marginTop: '14px' }}>
+          <button
+            type="button"
+            className="btn"
+            onClick={() => {
+              setSecretPasswordModal(true);
+              setSecretPasswordError('');
+              setSecretPasswordInput('');
+            }}
+          >
+            Secret password themes
+          </button>
+          {secretTheme === 'ixelace' && (
+            <span style={{ marginLeft: '10px' }}>
+              <span style={{ color: 'var(--text-dim)' }}>Ixel Ace active</span>
+              <button type="button" className="btn" style={{ marginLeft: '8px' }} onClick={clearSecretTheme}>
+                Turn off
+              </button>
+            </span>
+          )}
+        </div>
       </div>
+
+      {secretPasswordModal && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0,0,0,0.7)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 9999,
+          }}
+          onClick={() => setSecretPasswordModal(false)}
+        >
+          <div
+            className="ai-box"
+            style={{ minWidth: '280px', maxWidth: '90%' }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="ai-label">Secret password themes</div>
+            <div className="ai-output">
+              <form onSubmit={handleSecretPasswordSubmit}>
+                <input
+                  type="text"
+                  value={secretPasswordInput}
+                  onChange={(e) => setSecretPasswordInput(e.target.value)}
+                  placeholder="Enter password"
+                  autoFocus
+                  style={{
+                    width: '100%',
+                    padding: '10px 12px',
+                    borderRadius: '8px',
+                    border: '1px solid var(--border)',
+                    background: 'var(--panel-soft)',
+                    color: 'var(--text-main)',
+                    marginBottom: '10px',
+                  }}
+                />
+                {secretPasswordError && (
+                  <div style={{ color: 'var(--danger)', fontSize: '13px', marginBottom: '8px' }}>
+                    {secretPasswordError}
+                  </div>
+                )}
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <button type="submit" className="btn">
+                    Unlock
+                  </button>
+                  <button type="button" className="btn" onClick={() => setSecretPasswordModal(false)}>
+                    Cancel
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="ai-box">
         <div className="ai-label">Pyx status checker</div>

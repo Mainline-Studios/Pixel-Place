@@ -3,6 +3,7 @@ import "./globals.css";
 import Script from "next/script";
 import { UserProvider } from "@/contexts/UserContext";
 import { StyleProvider } from "@/components/StyleProvider";
+import { SecretThemeProvider } from "@/contexts/SecretThemeContext";
 import { SoundProvider } from "@/contexts/SoundContext";
 import SoundEffects from "@/components/SoundEffects";
 
@@ -33,12 +34,14 @@ export default function RootLayout({
       </head>
       <body>
         <StyleProvider>
-          <SoundProvider>
-            <UserProvider>
+          <SecretThemeProvider>
+            <SoundProvider>
+              <UserProvider>
               <SoundEffects />
               {children}
-            </UserProvider>
-          </SoundProvider>
+              </UserProvider>
+            </SoundProvider>
+          </SecretThemeProvider>
         </StyleProvider>
       </body>
     </html>
