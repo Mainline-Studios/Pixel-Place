@@ -442,14 +442,12 @@ export async function removeHardwareBan(deviceId: string): Promise<{ unbannedUse
 
 export async function getDevicesForUser(username: string): Promise<DeviceRecord[]> {
   if (typeof window === 'undefined') return [];
-  try {
-    const res = await authenticatedFetch(apiUrl(`/api/users/devices?username=${encodeURIComponent(username)}`));
-    if (!res.ok) return [];
-    return await res.json();
-  } catch (e) {
-    console.error('Error fetching user devices:', e);
-    return [];
+  const res = await authenticatedFetch(apiUrl(`/api/users/devices?username=${encodeURIComponent(username)}`));
+  if (!res.ok) {
+    const err = (await res.json().catch(() => ({}))) as { error?: string };
+    throw new Error(err?.error || `Failed to load devices (${res.status})`);
   }
+  return await res.json();
 }
 
 // Report functions - Now using API

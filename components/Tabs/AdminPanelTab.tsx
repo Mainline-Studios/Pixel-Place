@@ -34,6 +34,7 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
   const [userDevices, setUserDevices] = useState<Record<string, DeviceRecord[]>>({});
   const [loadingDevicesFor, setLoadingDevicesFor] = useState<string | null>(null);
   const [devicesLoadError, setDevicesLoadError] = useState<Record<string, string>>({});
+  const [usersLoadError, setUsersLoadError] = useState<string | null>(null);
 
   const copyDeviceId = (deviceId: string) => {
     try {
@@ -86,16 +87,22 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
     loadOtherData().catch((e) => console.error('Error loading admin data:', e));
   }, []);
 
-  // Fallback: when Firestore returns 0 users (e.g. rules block client read), load from API (Cloud Function has access)
+  // Load users from API for admins: immediate + delayed fallback (Firestore may return 0 if rules block client read)
+  const fetchUsersFromApi = () => {
+    setUsersLoadError(null);
+    getUsers()
+      .then((apiUsers) => {
+        setAllUsers((prev) => (prev.length === 0 ? processUsersFromFirestore(apiUsers) : prev));
+      })
+      .catch(() => {
+        setUsersLoadError('Could not load users from server. Check you\'re logged in and try Refresh.');
+      });
+  };
+
   useEffect(() => {
     if (typeof window === 'undefined' || (user.role !== 'admin' && user.role !== 'head_admin')) return;
-    const timer = setTimeout(() => {
-      getUsers()
-        .then((apiUsers) => {
-          setAllUsers((prev) => (prev.length === 0 && apiUsers.length > 0 ? processUsersFromFirestore(apiUsers) : prev));
-        })
-        .catch(() => {});
-    }, 1800);
+    fetchUsersFromApi();
+    const timer = setTimeout(fetchUsersFromApi, 1800);
     return () => clearTimeout(timer);
   }, [user.role]);
 
@@ -289,7 +296,7 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
   };
 
   const loadChatMessages = async (bannedUsername: string) => {
-    const messages = await getMessages(user.username, bannedUsername);
+    const messages = await getMessagesAPI(user.username, bannedUsername);
     setChatMessages(messages);
   };
 
@@ -409,12 +416,25 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
 
       {activeTab === 'users' && (
         <div className="ai-box" style={{ marginBottom: 0 }}>
-          <div className="ai-label">
-            All Users ({filteredUsers.length} of {allUsers.length} total)
+          <div className="ai-label" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+            <span>All Users ({filteredUsers.length} of {allUsers.length} total)</span>
+            <button
+              type="button"
+              className="btn"
+              onClick={() => fetchUsersFromApi()}
+              style={{ padding: '6px 12px', fontSize: '12px' }}
+            >
+              Refresh from server
+            </button>
           </div>
+          {usersLoadError && (
+            <div style={{ padding: '10px 12px', background: 'rgba(255, 77, 77, 0.1)', border: '1px solid var(--danger, #ff4d4d)', borderRadius: '8px', marginBottom: '12px', fontSize: '13px', color: 'var(--text)' }}>
+              {usersLoadError}
+            </div>
+          )}
           <div className="ai-output" style={{ maxHeight: '500px', overflowY: 'auto' }}>
             {filteredUsers.length === 0 ? (
-              <div className="smalltext">No users found. {allUsers.length === 0 ? 'No users in system.' : `Try a different search term.`}</div>
+              <div className="smalltext">No users found. {allUsers.length === 0 ? 'No users in system. Use “Refresh from server” if you expect to see users.' : `Try a different search term.`}</div>
             ) : (
               <div style={{ display: 'grid', gap: '12px' }}>
                 {filteredUsers.map((u) => (
@@ -459,8 +479,9 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
                             try {
                               const devs = await getDevicesForUser(u.username);
                               setUserDevices((prev) => ({ ...prev, [u.username]: devs }));
-                            } catch (err) {
-                              setDevicesLoadError((prev) => ({ ...prev, [u.username]: 'Could not load devices.' }));
+                            } catch (err: any) {
+                              const msg = err?.message || 'Could not load devices.';
+                              setDevicesLoadError((prev) => ({ ...prev, [u.username]: msg }));
                               setUserDevices((prev) => ({ ...prev, [u.username]: [] }));
                             } finally {
                               setLoadingDevicesFor(null);

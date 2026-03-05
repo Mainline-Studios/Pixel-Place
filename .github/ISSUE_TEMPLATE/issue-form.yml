@@ -1,0 +1,62 @@
+name: Issue
+description: Report a bug, request a feature, or ask a question
+title: "[Issue]: "
+labels: []
+assignees: []
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to open an issue. Please fill out the form below.
+
+  - type: dropdown
+    id: kind
+    attributes:
+      label: What is this about?
+      description: Choose the category that best fits
+      options:
+        - Bug report
+        - Feature request
+        - Question / help
+        - Other
+    validations:
+      required: true
+
+  - type: input
+    id: summary
+    attributes:
+      label: Short summary
+      description: A brief one-line description
+      placeholder: e.g. Avatar clothes reset after page reload
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: Provide details. For bugs: what happened, what you expected, steps to reproduce.
+      placeholder: |
+        What happened?
+        What did you expect?
+        Steps to reproduce (if applicable):
+    validations:
+      required: true
+
+  - type: input
+    id: environment
+    attributes:
+      label: Environment (optional)
+      description: OS, browser, device if relevant
+      placeholder: e.g. Chrome on macOS, Safari on iOS
+
+  - type: checkboxes
+    id: checked
+    attributes:
+      label: Checklist
+      description: Optional quick checks
+      options:
+        - label: I have searched existing issues and PRs for duplicates
+          required: false
+        - label: I have read the relevant documentation (if applicable)
+          required: false
