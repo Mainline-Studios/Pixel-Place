@@ -4,16 +4,27 @@ import { useState, useEffect } from 'react';
 import { User, UserMadeGame } from '@/types';
 import { getUserMadeGames, deleteUserMadeGame } from '@/lib/storage';
 import { subscribeToUserMadeGames } from '@/lib/firestoreClient';
+import { useSecretTheme } from '@/contexts/SecretThemeContext';
 import UserMadeGamePlayer from '../Games/UserMadeGamePlayer';
+import FilteredText, { FilteredUsername } from '../FilteredText';
 import GameErrorBoundary from '../GameErrorBoundary';
 import GymPumpEngine from '../Games/GymPumpEngine';
 import Hypnosia from '../Games/Hypnosia';
 import UnderwaterOddyseySeries from '../Games/UnderwaterOddyseySeries';
 import Showdown from '../Games/Showdown';
+import SuperShowdown from '../Games/SuperShowdown';
+import SuperShowdown2 from '../Games/SuperShowdown2';
+import SuperShowdown2D from '../Games/SuperShowdown2D';
+import InsaneShowdown from '../Games/InsaneShowdown';
+import CelestialSeriesExploration from '../Games/CelestialSeriesExploration';
 import RedRover from '../Games/RedRover';
 import JungleJourneySeries from '../Games/JungleJourneySeries';
 import Chess from '../Games/Chess';
 import FloorIsLava from '../Games/FloorIsLava';
+import VoidArcade from '../Games/VoidArcade';
+import EcoHero from '../Games/EcoHero';
+import SquishBubbles from '../Games/SquishBubbles';
+import SquishSlime from '../Games/SquishSlime';
 
 interface GamesTabProps {
   user: User;
@@ -81,6 +92,52 @@ const games: GameInfo[] = [
     component: Showdown,
   },
   {
+    id: 'superShowdown',
+    name: 'Super Showdown',
+    description: '3D arena combat with original powers and entities!',
+    icon: '⚔️',
+    thumbnail: '/images/games/showdown.svg',
+    category: 'Action',
+    component: SuperShowdown,
+  },
+  {
+    id: 'superShowdown2',
+    name: 'Super Showdown 2',
+    description: 'New powers: mud, parasite, harmony, regen, hex, lunar, soleil, doppelganger!',
+    icon: '⚔️',
+    thumbnail: '/images/games/showdown.svg',
+    category: 'Action',
+    component: SuperShowdown2,
+  },
+  {
+    id: 'superShowdown2D',
+    name: 'Super Showdown 2D',
+    description: '2D arena combat — fast-paced pixel brawling!',
+    icon: '⚔️',
+    thumbnail: '/images/games/showdown.svg',
+    category: 'Action',
+    is3D: false,
+    component: SuperShowdown2D,
+  },
+  {
+    id: 'insaneShowdown',
+    name: 'Insane Showdown',
+    description: 'Combined arena — all powers, whirlpools, black holes, doppelgangers!',
+    icon: '⚔️',
+    thumbnail: '/images/games/showdown.svg',
+    category: 'Action',
+    component: InsaneShowdown,
+  },
+  {
+    id: 'celestialSeries',
+    name: 'Celestial Series',
+    description: 'Explore the Solar System — dock at Earth, Moon, Mars, and beyond!',
+    icon: '🪐',
+    thumbnail: '/images/games/hypnosia.svg',
+    category: 'Adventure',
+    component: CelestialSeriesExploration,
+  },
+  {
     id: 'redRover',
     name: 'Red Rover',
     description: 'Classic team-based multiplayer game!',
@@ -98,12 +155,70 @@ const games: GameInfo[] = [
     category: 'Strategy',
     component: Chess,
   },
+  {
+    id: 'floorIsLava',
+    name: 'Floor Is Lava',
+    description: 'Platformer where the floor is lava! Vote for maps and survive.',
+    icon: '🔥',
+    thumbnail: '/images/games/floor-is-lava.svg',
+    category: 'Action',
+    component: FloorIsLava,
+  },
+  {
+    id: 'jungleJourney',
+    name: 'Jungle Journey',
+    description: 'Explore a dense jungle with trees, swamps, animals, and mysterious fruits!',
+    icon: '🌴',
+    thumbnail: '/images/games/jungle-journey.svg',
+    category: 'Adventure',
+    component: JungleJourneySeries,
+  },
+  {
+    id: 'voidArcade',
+    name: 'Void Arcade',
+    description: 'Multi-game arcade: Void Crawler, Star Fury, Crystal Keep, Neon Drift. Pick a game and play!',
+    icon: '🕹️',
+    category: 'Arcade',
+    component: VoidArcade,
+  },
+  {
+    id: 'ecoHero',
+    name: 'Eco Hero — City Cleanup',
+    description: 'Keep the city clean, complete missions, chat with AI citizens after the game!',
+    icon: '🌱',
+    category: 'Arcade',
+    component: EcoHero,
+  },
+];
+
+const SECRET_GAMES_IXEL_ACE: GameInfo[] = [
+  {
+    id: 'squishBubbles',
+    name: 'Squish Bubbles',
+    description: 'Pop the bubbles! Simple 2D click game.',
+    icon: '🫧',
+    category: '2D',
+    is3D: false,
+    component: SquishBubbles,
+  },
+  {
+    id: 'squishSlime',
+    name: 'Squish Slime',
+    description: 'Squish the slime with your cursor!',
+    icon: '🟢',
+    category: '2D',
+    is3D: false,
+    component: SquishSlime,
+  },
 ];
 
 export default function GamesTab({ user, editMode }: GamesTabProps) {
+  const { secretTheme } = useSecretTheme();
   const [selectedGame, setSelectedGame] = useState<string | null>(null);
   const [selectedUserGame, setSelectedUserGame] = useState<UserMadeGame | null>(null);
   const [userMadeGames, setUserMadeGames] = useState<UserMadeGame[]>([]);
+
+  const gamesList = secretTheme === 'ixelace' ? [...games, ...SECRET_GAMES_IXEL_ACE] : games;
 
   // Real-time games from Firestore (instant updates when games are added/edited in Firebase Console)
   useEffect(() => {
@@ -128,7 +243,7 @@ export default function GamesTab({ user, editMode }: GamesTabProps) {
     alert(`Game "${gameTitle}" has been deleted.`);
   };
 
-  const selectedGameInfo = games.find(g => g.id === selectedGame);
+  const selectedGameInfo = gamesList.find(g => g.id === selectedGame);
   const GameComponent = selectedGameInfo?.component;
 
   if (selectedUserGame) {
@@ -148,12 +263,18 @@ export default function GamesTab({ user, editMode }: GamesTabProps) {
     };
     
     // Components that support onClose prop
-    const supportsOnClose = ['gymPump', 'hypnosia'].includes(selectedGame);
+    const supportsOnClose = ['gymPump', 'hypnosia', 'voidArcade', 'ecoHero', 'squishBubbles', 'squishSlime'].includes(selectedGame);
     
     // Prepare props based on game type - pass user to games that need it
-    const baseProps = selectedGame === 'gymPump' 
+    const baseProps = selectedGame === 'gymPump'
       ? { user, onClose: handleClose }
       : selectedGame === 'hypnosia'
+      ? { onClose: handleClose }
+      : selectedGame === 'voidArcade'
+      ? { onClose: handleClose }
+      : selectedGame === 'ecoHero'
+      ? { onClose: handleClose }
+      : selectedGame === 'squishBubbles' || selectedGame === 'squishSlime'
       ? { onClose: handleClose }
       : selectedGame === 'showdown'
       ? { user }
@@ -204,7 +325,7 @@ export default function GamesTab({ user, editMode }: GamesTabProps) {
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '20px', marginTop: '20px' }}>
-        {games.map((game) => (
+        {gamesList.map((game) => (
           <div
             key={game.id}
             className="game-card-enhanced"
@@ -350,7 +471,7 @@ export default function GamesTab({ user, editMode }: GamesTabProps) {
                   marginBottom: '8px',
                   textAlign: 'center'
                 }}>
-                  {game.title}
+                  <FilteredText text={game.title} />
                 </div>
                 <div style={{
                   fontSize: '12px',
@@ -367,7 +488,7 @@ export default function GamesTab({ user, editMode }: GamesTabProps) {
                   lineHeight: '1.6',
                   marginBottom: '16px'
                 }}>
-                  {game.desc}
+                  <FilteredText text={game.desc || ''} />
                 </div>
                 <div style={{
                   fontSize: '11px',
@@ -375,13 +496,13 @@ export default function GamesTab({ user, editMode }: GamesTabProps) {
                   textAlign: 'center',
                   marginBottom: '16px'
                 }}>
-                  By: {game.owner}
+                  By: <FilteredUsername username={game.owner || ''} currentUsername={user.username || ''} />
                 </div>
                 <div style={{ display: 'flex', gap: '8px' }}>
                   <button className="btn" style={{ flex: 1 }} onClick={(e) => { e.stopPropagation(); setSelectedUserGame(game); }}>
                     Play Now
                   </button>
-                  {user.role === 'admin' && (
+                  {(user.role === 'admin' || user.role === 'head_admin') && (
                     <button 
                       className="btn" 
                       style={{ 

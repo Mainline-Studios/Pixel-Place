@@ -1,3 +1,5 @@
+export const dynamic = 'force-static';
+
 import { NextRequest, NextResponse } from 'next/server';
 import { getDocuments, setDocument, COLLECTIONS } from '@/lib/firestore';import { TabContent } from '@/types';
 

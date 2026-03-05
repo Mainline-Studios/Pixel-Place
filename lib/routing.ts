@@ -7,6 +7,7 @@ const PATH_TO_TAB: Record<string, string> = {
   '/coins': 'coins',
   '/friends': 'friends',
   '/settings': 'settings',
+  '/studio': 'studio',
   '/donation': 'donation',
 };
 
@@ -16,6 +17,7 @@ const TAB_TO_PATH: Record<string, string> = {
   coins: '/coins',
   friends: '/friends',
   settings: '/settings',
+  studio: '/studio',
   donation: '/donation',
 };
 

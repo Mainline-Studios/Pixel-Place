@@ -1,3 +1,5 @@
+export const dynamic = 'force-static';
+
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/middleware';
 import { getDocuments, setDocument, deleteDocument, queryDocuments, COLLECTIONS } from '@/lib/firestore';
@@ -14,19 +16,22 @@ function gameFromDoc(doc: any): UserMadeGame {
     publishedBy: doc.published_by,
     gameType: doc.game_type,
     fileContent: doc.file_content,
-    fileType: doc.file_type
+    fileType: doc.file_type,
+    gameCode: doc.game_code || undefined
   };
 }
 
-// Get all games (public, but can filter by owner if authenticated)
+// Get all games (public). If filtering by owner, require auth and use token identity only.
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-    const owner = searchParams.get('owner');
+    const ownerParam = searchParams.get('owner');
     
     let games;
-    if (owner) {
-      games = await queryDocuments(COLLECTIONS.GAMES || 'games', 'owner', '==', owner);
+    if (ownerParam) {
+      const authResult = requireAuth(request);
+      if (authResult.error) return authResult.error;
+      games = await queryDocuments(COLLECTIONS.GAMES || 'games', 'owner', '==', authResult.user.username);
     } else {
       games = await getDocuments(COLLECTIONS.GAMES || 'games', (ref) => ref.orderBy('ts', 'desc'));
     }
@@ -51,7 +56,7 @@ export async function POST(request: NextRequest) {
       id: gameId,
       title: game.title,
       description: game.desc || '',
-      owner: game.owner || authResult.user.username,
+      owner: authResult.user.username,
       ts: game.ts || Date.now(),
       scene_data: game.sceneData || null,
       preset_messages: (game as any).presetMessages || null,
@@ -60,6 +65,7 @@ export async function POST(request: NextRequest) {
       game_type: game.gameType || null,
       file_content: game.fileContent || null,
       file_type: game.fileType || null,
+      game_code: game.gameCode || null,
       created_at: Date.now(),
       updated_at: Date.now()
     });
@@ -93,7 +99,7 @@ export async function PUT(request: NextRequest) {
     const existingGames = await getDocuments(COLLECTIONS.GAMES || 'games');
     const existing = existingGames.find(g => g.id === game.id);
     
-    if (existing && existing.owner !== authResult.user.username && authResult.user.role !== 'admin') {
+    if (existing && existing.owner !== authResult.user.username && authResult.user.role !== 'admin' && authResult.user.role !== 'head_admin') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
     
@@ -131,7 +137,7 @@ export async function DELETE(request: NextRequest) {
     const existingGames = await getDocuments(COLLECTIONS.GAMES || 'games');
     const existing = existingGames.find(g => g.id === gameId);
     
-    if (existing && existing.owner !== authResult.user.username && authResult.user.role !== 'admin') {
+    if (existing && existing.owner !== authResult.user.username && authResult.user.role !== 'admin' && authResult.user.role !== 'head_admin') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
     

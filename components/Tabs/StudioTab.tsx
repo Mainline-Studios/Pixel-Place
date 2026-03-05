@@ -6,6 +6,7 @@ import { getDraft, saveDraft, saveGameSubmission } from '@/lib/storage';
 import { apiUrl } from '@/lib/apiBaseUrl';
 import { useUser } from '@/contexts/UserContext';
 import { toast } from '@/lib/toast';
+import PyxCheckingPopup from '@/components/PyxCheckingPopup';
 
 interface StudioTabProps {
   user: User;
@@ -56,6 +57,7 @@ export default function StudioTab({ user, editMode }: StudioTabProps) {
   const [selectedPresetMessages, setSelectedPresetMessages] = useState<string[]>([]);
   const [controlScheme, setControlScheme] = useState(CONTROL_SCHEMES[0]);
   const [customControls, setCustomControls] = useState(CONTROL_SCHEMES[0].keys);
+  const [showPyxCheck, setShowPyxCheck] = useState(false);
 
   const rendererRef = useRef<any>(null);
   const sceneRef = useRef<any>(null);
@@ -452,7 +454,7 @@ export default function StudioTab({ user, editMode }: StudioTabProps) {
     }
   };
 
-  const publishForEvaluation = async () => {
+  const publishForEvaluation = () => {
     if (!draft.title) {
       toast.error('Save draft first with a title');
       return;
@@ -461,6 +463,10 @@ export default function StudioTab({ user, editMode }: StudioTabProps) {
       toast.error('Add at least one object to your scene');
       return;
     }
+    setShowPyxCheck(true);
+  };
+
+  const doPublishForEvaluationAfterCheck = async () => {
     try {
       const sceneData = await buildSceneData();
       const submission: GameSubmission = {
@@ -510,8 +516,35 @@ export default function StudioTab({ user, editMode }: StudioTabProps) {
 
   const selectedObject = sceneObjects.find(o => o.id === selectedObjectId);
 
+  const handlePyxCheckComplete = (result: { safe: boolean; usernameBlocked?: boolean; titleBlocked?: boolean; descBlocked?: boolean; codeBlocked?: boolean; connectionError?: boolean }) => {
+    setShowPyxCheck(false);
+    if (!result.safe) {
+      if (result.connectionError) {
+        toast.error("Couldn't connect to Pyx AI. Your game was not published.");
+        return;
+      }
+      const parts: string[] = [];
+      if (result.usernameBlocked) parts.push('username');
+      if (result.titleBlocked) parts.push('title');
+      if (result.descBlocked) parts.push('description');
+      if (result.codeBlocked) parts.push('game code');
+      toast.error(`Content safety check failed. Please revise the ${parts.join(' and ')}.`);
+      return;
+    }
+    doPublishForEvaluationAfterCheck();
+  };
+
   return (
     <>
+      {showPyxCheck && (
+        <PyxCheckingPopup
+          open={showPyxCheck}
+          username={draft.owner || user.username || ''}
+          title={draft.title || ''}
+          desc={draft.desc || ''}
+          onComplete={handlePyxCheckComplete}
+        />
+      )}
       <h2 className="section-title">🎨 Studio</h2>
       
       <div className="studio-toolbar" style={{ 

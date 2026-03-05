@@ -1,3 +1,5 @@
+export const dynamic = 'force-static';
+
 import { NextRequest, NextResponse } from 'next/server';
 import { getDocument, setDocument, queryDocuments, getDocuments, COLLECTIONS, getFirestoreInstance } from '@/lib/firestore';
 import { User, FriendRequest } from '@/types';
@@ -5,9 +7,9 @@ import { User, FriendRequest } from '@/types';
 function userFromDoc(doc: any): User {
   return {
     username: doc.username || doc.id,
-    password: doc.password_hash || doc.password || '',
+    password: '',
     gender: doc.gender || '',
-    role: (doc.role || 'user') as 'admin' | 'user',
+    role: (doc.role || 'user') as 'admin' | 'user' | 'head_admin',
     coins: doc.coins || 0,
     ownedSkins: Array.isArray(doc.owned_skins) ? doc.owned_skins : (typeof doc.owned_skins === 'string' ? JSON.parse(doc.owned_skins || '[]') : []),
     equippedSkin: doc.equipped_skin || '',

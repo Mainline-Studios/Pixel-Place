@@ -5,7 +5,6 @@ const nextConfig = {
     unoptimized: true
   },
   reactStrictMode: true,
-  swcMinify: true,
   eslint: {
     ignoreDuringBuilds: true,
   },

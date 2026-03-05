@@ -1,0 +1,870 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no"/>
+  <title>Eco Hero — City Cleanup</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,600;0,9..40,700;1,9..40,400&family=Poppins:wght@400;600;700&display=swap" rel="stylesheet"/>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background: #0f172a;
+      color: #e2e8f0;
+      overflow: hidden;
+      touch-action: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+    #wrap {
+      position: relative;
+      width: 100vw;
+      height: 100vh;
+      max-width: 100%;
+      max-height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(180deg, #0c4a6e 0%, #0f172a 50%);
+    }
+    #gameCanvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      background: #0f172a;
+    }
+    .glass {
+      background: rgba(15, 23, 42, 0.75);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(148, 163, 184, 0.2);
+      border-radius: 16px;
+    }
+    .pill {
+      border-radius: 50px;
+      padding: 8px 16px;
+      font-family: 'Poppins', sans-serif;
+      font-weight: 600;
+      font-size: 14px;
+    }
+    #hud {
+      position: absolute;
+      top: 12px;
+      left: 12px;
+      right: 12px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+      justify-content: space-between;
+      z-index: 10;
+      pointer-events: none;
+    }
+    #hud > * { pointer-events: auto; }
+    .hud-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      color: #e2e8f0;
+      background: rgba(15, 23, 42, 0.75);
+      backdrop-filter: blur(12px);
+      border-radius: 50px;
+      padding: 8px 16px;
+      font-family: 'Poppins', sans-serif;
+      font-weight: 600;
+      font-size: 14px;
+      border: 1px solid rgba(148, 163, 184, 0.2);
+    }
+    #scorePill { background: rgba(0, 184, 148, 0.25); border-color: rgba(0, 184, 148, 0.4); }
+    #timePill { background: rgba(9, 132, 227, 0.25); border-color: rgba(9, 132, 227, 0.4); }
+    #levelPill { background: rgba(156, 39, 176, 0.25); border-color: rgba(156, 39, 176, 0.4); }
+    #cleanBarWrap {
+      position: absolute;
+      bottom: 12px;
+      left: 12px;
+      right: 12px;
+      height: 24px;
+      border-radius: 50px;
+      background: rgba(15, 23, 42, 0.8);
+      border: 1px solid rgba(148, 163, 184, 0.2);
+      overflow: hidden;
+      z-index: 10;
+    }
+    #cleanBarFill {
+      height: 100%;
+      width: 100%;
+      background: linear-gradient(90deg, #00b894, #55efc4);
+      border-radius: 50px;
+      transition: width 0.2s ease;
+    }
+    #cleanBarLabel {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 11px;
+      font-weight: 700;
+      color: #0f172a;
+      text-shadow: 0 0 2px #fff;
+      z-index: 11;
+      pointer-events: none;
+    }
+    #missionsPanel {
+      position: absolute;
+      top: 56px;
+      right: 12px;
+      width: 180px;
+      max-height: 200px;
+      padding: 10px 12px;
+      z-index: 10;
+      overflow-y: auto;
+    }
+    #missionsPanel h3 {
+      font-size: 12px;
+      font-weight: 700;
+      color: #94a3b8;
+      margin-bottom: 6px;
+      font-family: 'Poppins', sans-serif;
+    }
+    .mission-item {
+      font-size: 11px;
+      padding: 4px 0;
+      border-bottom: 1px solid rgba(148, 163, 184, 0.15);
+      color: #cbd5e1;
+    }
+    .mission-item.done { color: #55efc4; text-decoration: line-through; }
+    #moodBarWrap {
+      position: absolute;
+      bottom: 44px;
+      left: 12px;
+      right: 12px;
+      height: 8px;
+      border-radius: 50px;
+      background: rgba(15, 23, 42, 0.8);
+      border: 1px solid rgba(148, 163, 184, 0.2);
+      overflow: hidden;
+      z-index: 10;
+    }
+    #moodBarFill {
+      height: 100%;
+      width: 80%;
+      background: linear-gradient(90deg, #fdcb6e, #f9ca24);
+      border-radius: 50px;
+      transition: width 0.2s ease;
+    }
+    #dpad {
+      position: absolute;
+      bottom: 80px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 140px;
+      height: 140px;
+      z-index: 20;
+      display: none;
+      touch-action: none;
+    }
+    #dpad.show { display: block; }
+    .dpad-btn {
+      position: absolute;
+      width: 44px;
+      height: 44px;
+      background: rgba(0, 184, 148, 0.4);
+      border: 2px solid rgba(255,255,255,0.5);
+      border-radius: 10px;
+      color: #fff;
+      font-size: 18px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      user-select: none;
+      -webkit-user-select: none;
+      transition: background 0.1s;
+    }
+    .dpad-btn:active { background: rgba(0, 184, 148, 0.8); }
+    #dpadUp { top: 0; left: 50%; transform: translateX(-50%); }
+    #dpadDown { bottom: 0; left: 50%; transform: translateX(-50%); }
+    #dpadLeft { left: 0; top: 50%; transform: translateY(-50%); }
+    #dpadRight { right: 0; top: 50%; transform: translateY(-50%); }
+    #startScreen, #endScreen {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+      padding: 24px;
+      text-align: center;
+    }
+    #startScreen h1, #endScreen h1 {
+      font-family: 'Poppins', sans-serif;
+      font-size: clamp(24px, 6vw, 36px);
+      color: #00b894;
+      margin-bottom: 12px;
+      text-shadow: 0 0 20px rgba(0, 184, 148, 0.4);
+    }
+    #startScreen p, #endScreen p {
+      color: #94a3b8;
+      max-width: 400px;
+      margin-bottom: 24px;
+      line-height: 1.5;
+    }
+    .btn-primary {
+      font-family: 'Poppins', sans-serif;
+      font-weight: 700;
+      padding: 14px 32px;
+      border-radius: 50px;
+      border: none;
+      background: linear-gradient(135deg, #00b894, #0984e3);
+      color: #fff;
+      cursor: pointer;
+      font-size: 16px;
+      box-shadow: 0 4px 20px rgba(0, 184, 148, 0.35);
+    }
+    .btn-primary:hover { opacity: 0.95; transform: scale(1.02); }
+    #chatModal {
+      position: absolute;
+      inset: 20px;
+      max-width: 420px;
+      max-height: 360px;
+      margin: auto;
+      padding: 20px;
+      z-index: 200;
+      display: none;
+      flex-direction: column;
+    }
+    #chatModal.show { display: flex; }
+    #chatModal h2 { font-size: 18px; margin-bottom: 12px; color: #00b894; font-family: 'Poppins', sans-serif; }
+    #chatMessages { flex: 1; overflow-y: auto; font-size: 14px; line-height: 1.5; margin-bottom: 12px; }
+    #chatInputWrap { display: flex; gap: 8px; }
+    #chatInput { flex: 1; padding: 10px 14px; border-radius: 50px; border: 1px solid rgba(148,163,184,0.3); background: rgba(15,23,42,0.9); color: #e2e8f0; font-family: inherit; }
+    #chatSend { padding: 10px 20px; border-radius: 50px; border: none; background: #00b894; color: #fff; font-weight: 600; cursor: pointer; }
+  </style>
+</head>
+<body>
+  <div id="wrap">
+    <canvas id="gameCanvas"></canvas>
+    <div id="hud" class="glass pill" style="display: none;">
+      <span id="scorePill" class="hud-pill">🌟 <span id="scoreVal">0</span></span>
+      <span id="timePill" class="hud-pill">⏱ <span id="timeVal">0:00</span></span>
+      <span id="levelPill" class="hud-pill">Lv <span id="levelVal">1</span></span>
+    </div>
+    <div id="cleanBarWrap" style="display: none;">
+      <div id="cleanBarFill"></div>
+      <span id="cleanBarLabel">Cleanliness</span>
+    </div>
+    <div id="moodBarWrap" style="display: none;">
+      <div id="moodBarFill"></div>
+    </div>
+    <div id="missionsPanel" class="glass" style="display: none;">
+      <h3>📋 Missions</h3>
+      <div id="missionList"></div>
+    </div>
+    <div id="dpad">
+      <button type="button" class="dpad-btn" id="dpadUp" aria-label="Up">▲</button>
+      <button type="button" class="dpad-btn" id="dpadDown" aria-label="Down">▼</button>
+      <button type="button" class="dpad-btn" id="dpadLeft" aria-label="Left">◀</button>
+      <button type="button" class="dpad-btn" id="dpadRight" aria-label="Right">▶</button>
+    </div>
+    <div id="startScreen" class="glass">
+      <h1>🌱 Eco Hero — City Cleanup</h1>
+      <p>Clean the city! Pick up trash, recyclables, and bottles. Avoid toxic waste. Complete missions and keep citizens happy. Use WASD or arrow keys (or the D-pad on touch).</p>
+      <button type="button" class="btn-primary" id="startBtn">Start Game</button>
+    </div>
+    <div id="endScreen" class="glass" style="display: none;">
+      <h1>Game Over</h1>
+      <p id="endMessage">Great job cleaning the city!</p>
+      <p id="endScore"></p>
+      <button type="button" class="btn-primary" id="chatBtn">Chat with citizens</button>
+      <button type="button" class="btn-primary" id="replayBtn" style="margin-top: 10px; background: rgba(148,163,184,0.3);">Play Again</button>
+    </div>
+    <div id="chatModal" class="glass">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+        <h2 style="margin:0;">💬 Chat with the city</h2>
+        <button type="button" id="chatClose" style="background:transparent;border:none;color:#94a3b8;cursor:pointer;font-size:20px;">×</button>
+      </div>
+      <div id="chatMessages"></div>
+      <div id="chatInputWrap">
+        <input type="text" id="chatInput" placeholder="Say something..." maxlength="200"/>
+        <button type="button" id="chatSend">Send</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+(function() {
+  'use strict';
+
+  const aiOn = true;
+
+  async function callClaude(sys, msgs) {
+    try {
+      const res = await fetch('/api/eco-hero/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ system: sys, messages: msgs, max_tokens: 120 }),
+      });
+      if (!res.ok) return null;
+      const d = await res.json();
+      return d.text || null;
+    } catch (e) { return null; }
+  }
+
+  const PERSONALITIES = [
+    'You are a cheerful city resident. Reply in one short, friendly sentence. You love a clean neighborhood.',
+    'You are a grumpy but caring citizen. Reply in one short sentence. You complain a bit but appreciate cleanup efforts.',
+    'You are an enthusiastic eco-activist. Reply in one short, energetic sentence about the environment.',
+    'You are a shy neighbor. Reply in one very short, kind sentence.',
+    'You are a kid who loves nature. Reply in one short, excited sentence.',
+  ];
+
+  const FALLBACKS = [
+    'The city looks better already!',
+    'Thanks for picking that up!',
+    'Keep it up, eco hero!',
+    'We need more people like you.',
+    'Nice work out there!',
+  ];
+
+  const MISSION_POOL = [
+    { id: 'trash5', name: 'Collect 5 trash', target: 5, type: 'trash' },
+    { id: 'recycle3', name: 'Collect 3 recyclables', target: 3, type: 'recyclable' },
+    { id: 'bottle2', name: 'Collect 2 bottles', target: 2, type: 'bottle' },
+    { id: 'combo3', name: 'Get a 3x combo', target: 1, type: 'combo' },
+    { id: 'clean80', name: 'Reach 80% cleanliness', target: 80, type: 'cleanliness' },
+  ];
+
+  const DEFS = {
+    CANVAS_WIDTH: 800,
+    CANVAS_HEIGHT: 600,
+    TILE: 32,
+    PLAYER_SPEED: 4,
+    GROUND_Y: 520,
+    SKY_TOP: 0,
+    SKY_BOTTOM: 400,
+    CLEAN_MAX: 100,
+    CLEAN_START: 50,
+    ITEM_RADIUS: 14,
+    CITIZEN_RADIUS: 18,
+    COMBO_TIMEOUT_MS: 2000,
+    LEVEL_DURATION_SEC: 60,
+    MOOD_MAX: 100,
+    MOOD_START: 70,
+  };
+
+  const canvas = document.getElementById('gameCanvas');
+  const ctx = canvas.getContext('2d');
+  let cw, ch, scale, offsetX, offsetY;
+
+  function resize() {
+    cw = canvas.clientWidth;
+    ch = canvas.clientHeight;
+    canvas.width = cw;
+    canvas.height = ch;
+    scale = Math.min(cw / DEFS.CANVAS_WIDTH, ch / DEFS.CANVAS_HEIGHT);
+    offsetX = (cw - DEFS.CANVAS_WIDTH * scale) / 2;
+    offsetY = (ch - DEFS.CANVAS_HEIGHT * scale) / 2;
+  }
+  window.addEventListener('resize', resize);
+  resize();
+
+  function tx(x) { return offsetX + x * scale; }
+  function ty(y) { return offsetY + y * scale; }
+
+  let state = {
+    running: false,
+    score: 0,
+    cleanliness: DEFS.CLEAN_START,
+    mood: DEFS.MOOD_START,
+    level: 1,
+    timeLeft: DEFS.LEVEL_DURATION_SEC,
+    combo: 0,
+    comboUntil: 0,
+    player: { x: 400, y: DEFS.GROUND_Y - 24, vx: 0, vy: 0 },
+    items: [],
+    citizens: [],
+    missions: [],
+    missionCounts: {},
+    clouds: [],
+    lastSpawn: 0,
+    speechBubbles: [],
+    gameOver: false,
+    win: false,
+  };
+
+  function drawSky() {
+    const g = ctx.createLinearGradient(0, ty(0), 0, ty(DEFS.SKY_BOTTOM));
+    g.addColorStop(0, '#0c4a6e');
+    g.addColorStop(0.6, '#075985');
+    g.addColorStop(1, '#0f172a');
+    ctx.fillStyle = g;
+    ctx.fillRect(tx(0), ty(0), DEFS.CANVAS_WIDTH * scale, (DEFS.SKY_BOTTOM + 120) * scale);
+  }
+
+  function drawClouds() {
+    state.clouds.forEach(function(c) {
+      ctx.fillStyle = 'rgba(255,255,255,0.35)';
+      ctx.beginPath();
+      ctx.arc(tx(c.x), ty(c.y), 28 * scale, 0, Math.PI * 2);
+      ctx.arc(tx(c.x + 24), ty(c.y - 6), 22 * scale, 0, Math.PI * 2);
+      ctx.arc(tx(c.x + 44), ty(c.y), 26 * scale, 0, Math.PI * 2);
+      ctx.fill();
+    });
+  }
+
+  function drawBuildings() {
+    const heights = [120, 180, 100, 200, 90, 160];
+    const colors = ['#1e3a5f', '#162a45', '#1e4976', '#0f3460', '#1a365d', '#0c4a6e'];
+    for (let i = 0; i < 6; i++) {
+      const x = 80 + i * 130;
+      const h = heights[i];
+      ctx.fillStyle = colors[i];
+      ctx.fillRect(tx(x), ty(DEFS.SKY_BOTTOM - h), 100 * scale, h * scale);
+      ctx.fillStyle = 'rgba(148,163,184,0.2)';
+      for (let r = 0; r < 4; r++) {
+        for (let c = 0; c < 3; c++) {
+          ctx.fillRect(tx(x + 12 + c * 28), ty(DEFS.SKY_BOTTOM - h + 20 + r * 24), 18 * scale, 14 * scale);
+        }
+      }
+    }
+  }
+
+  function drawGround() {
+    ctx.fillStyle = '#334155';
+    ctx.fillRect(tx(0), ty(DEFS.GROUND_Y), DEFS.CANVAS_WIDTH * scale, (DEFS.CANVAS_HEIGHT - DEFS.GROUND_Y) * scale);
+    ctx.fillStyle = '#475569';
+    for (let i = 0; i < 30; i++) {
+      ctx.fillRect(tx(i * 28), ty(DEFS.GROUND_Y + 4), 24 * scale, 8 * scale);
+    }
+  }
+
+  function drawTrees() {
+    const trees = [
+      { x: 50, y: DEFS.GROUND_Y - 60 },
+      { x: 720, y: DEFS.GROUND_Y - 50 },
+      { x: 350, y: DEFS.GROUND_Y - 70 },
+    ];
+    trees.forEach(function(t) {
+      ctx.fillStyle = '#15803d';
+      ctx.beginPath();
+      ctx.moveTo(tx(t.x), ty(t.y + 20));
+      ctx.lineTo(tx(t.x - 25), ty(t.y + 50));
+      ctx.lineTo(tx(t.x + 25), ty(t.y + 50));
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle = '#422006';
+      ctx.fillRect(tx(t.x - 6), ty(t.y + 50), 12 * scale, 20 * scale);
+    });
+  }
+
+  function drawCitizens() {
+    state.citizens.forEach(function(c) {
+      ctx.fillStyle = c.color || '#64748b';
+      ctx.beginPath();
+      ctx.arc(tx(c.x), ty(c.y), DEFS.CITIZEN_RADIUS * scale, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(255,255,255,0.3)';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      if (c.speech && c.speechUntil > Date.now()) {
+        ctx.font = '12px "DM Sans", sans-serif';
+        const tw = Math.min(ctx.measureText(c.speech).width, 120);
+        const th = 28;
+        const bx = c.x - tw / 2 - 8;
+        const by = c.y - 50;
+        ctx.fillStyle = 'rgba(15,23,42,0.9)';
+        ctx.strokeStyle = 'rgba(148,163,184,0.3)';
+        roundRect(ctx, tx(bx), ty(by), (tw + 16) * scale, th * scale, 8);
+        ctx.fill();
+        ctx.stroke();
+        ctx.fillStyle = '#e2e8f0';
+        ctx.fillText(c.speech.length > 22 ? c.speech.slice(0, 22) + '…' : c.speech, tx(bx + 8), ty(by + 18));
+      }
+    });
+  }
+
+  function roundRect(ctx, x, y, w, h, r) {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.lineTo(x + w - r, y);
+    ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+    ctx.lineTo(x + w, y + h - r);
+    ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+    ctx.lineTo(x + r, y + h);
+    ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+    ctx.lineTo(x, y + r);
+    ctx.quadraticCurveTo(x, y, x + r, y);
+    ctx.closePath();
+  }
+
+  const ITEM_COLORS = { trash: '#94a3b8', recyclable: '#22c55e', bottle: '#0ea5e9', toxic: '#ef4444', powerup: '#f59e0b' };
+  const ITEM_LABELS = { trash: '🗑', recyclable: '♻', bottle: '🍾', toxic: '☠', powerup: '⚡' };
+
+  function drawItems() {
+    state.items.forEach(function(it) {
+      ctx.fillStyle = ITEM_COLORS[it.type] || '#94a3b8';
+      ctx.beginPath();
+      ctx.arc(tx(it.x), ty(it.y), DEFS.ITEM_RADIUS * scale, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(255,255,255,0.4)';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      ctx.font = '14px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillStyle = '#fff';
+      ctx.fillText(ITEM_LABELS[it.type] || '?', tx(it.x), ty(it.y));
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'alphabetic';
+    });
+  }
+
+  function drawPlayer() {
+    const p = state.player;
+    ctx.fillStyle = '#00b894';
+    ctx.beginPath();
+    ctx.arc(tx(p.x), ty(p.y), 20 * scale, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = '#55efc4';
+    ctx.lineWidth = 3;
+    ctx.stroke();
+    ctx.font = '16px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = '#fff';
+    ctx.fillText('🌱', tx(p.x), ty(p.y - 2));
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'alphabetic';
+  }
+
+  function spawnItem() {
+    const types = ['trash', 'trash', 'recyclable', 'bottle', 'toxic', 'powerup'];
+    const type = types[Math.floor(Math.random() * types.length)];
+    state.items.push({
+      id: Date.now() + Math.random(),
+      x: 80 + Math.random() * (DEFS.CANVAS_WIDTH - 160),
+      y: 200 + Math.random() * (DEFS.GROUND_Y - 220),
+      type,
+    });
+  }
+
+  function spawnCitizen() {
+    const personalities = PERSONALITIES;
+    state.citizens.push({
+      id: Date.now() + Math.random(),
+      x: 100 + Math.random() * (DEFS.CANVAS_WIDTH - 200),
+      y: DEFS.GROUND_Y - 40,
+      color: ['#64748b', '#94a3b8', '#475569'][Math.floor(Math.random() * 3)],
+      personality: personalities[Math.floor(Math.random() * personalities.length)],
+      speech: null,
+      speechUntil: 0,
+    });
+  }
+
+  function pickMission() {
+    const m = MISSION_POOL[Math.floor(Math.random() * MISSION_POOL.length)];
+    state.missions.push({ ...m, progress: 0 });
+    state.missionCounts[m.type] = (state.missionCounts[m.type] || 0) + 0;
+  }
+
+  function updateMission(type, amount) {
+    state.missions.forEach(function(m) {
+      if (m.type !== type) return;
+      if (type === 'cleanliness') {
+        if (state.cleanliness >= m.target) m.progress = m.target;
+      } else if (type === 'combo') {
+        if (amount >= m.target) m.progress = m.target;
+      } else {
+        m.progress = Math.min((m.progress || 0) + amount, m.target);
+      }
+    });
+  }
+
+  function tickClouds() {
+    state.clouds.forEach(function(c) {
+      c.x += 0.3;
+      if (c.x > DEFS.CANVAS_WIDTH + 40) c.x = -40;
+    });
+  }
+
+  function gameUpdate(now) {
+    if (!state.running || state.gameOver) return;
+    const dt = 0.016;
+    state.timeLeft = Math.max(0, state.timeLeft - dt);
+    if (state.timeLeft <= 0) {
+      state.gameOver = true;
+      state.win = state.cleanliness >= 70;
+      showEndScreen();
+      return;
+    }
+
+    const p = state.player;
+    p.x += p.vx;
+    p.y += p.vy;
+    p.x = Math.max(24, Math.min(DEFS.CANVAS_WIDTH - 24, p.x));
+    p.y = Math.max(24, Math.min(DEFS.GROUND_Y - 24, p.y));
+    p.vx *= 0.85;
+    p.vy *= 0.85;
+
+    if (now - state.lastSpawn > 2) {
+      state.lastSpawn = now;
+      spawnItem();
+      if (state.citizens.length < 5) spawnCitizen();
+    }
+
+    state.items = state.items.filter(function(it) {
+      const dx = it.x - p.x, dy = it.y - p.y;
+      const dist = Math.hypot(dx, dy);
+      if (dist < 36) {
+        var triggerMsg = 'Someone is cleaning the street near you.';
+        if (it.type === 'toxic') {
+          state.cleanliness = Math.max(0, state.cleanliness - 8);
+          state.mood = Math.max(0, state.mood - 5);
+          triggerMsg = 'Someone just touched toxic waste nearby!';
+        } else if (it.type === 'powerup') {
+          state.cleanliness = Math.min(DEFS.CLEAN_MAX, state.cleanliness + 10);
+          state.mood = Math.min(DEFS.MOOD_MAX, state.mood + 10);
+          state.score += 50;
+          triggerMsg = 'An eco hero just used a power-up!';
+        } else {
+          state.cleanliness = Math.min(DEFS.CLEAN_MAX, state.cleanliness + 3);
+          state.mood = Math.min(DEFS.MOOD_MAX, state.mood + 2);
+          state.score += it.type === 'recyclable' ? 15 : it.type === 'bottle' ? 12 : 10;
+          state.combo++;
+          state.comboUntil = Date.now() + DEFS.COMBO_TIMEOUT_MS;
+          updateMission(it.type, 1);
+          triggerMsg = 'A hero just picked up ' + it.type + ' nearby!';
+        }
+        var near = state.citizens.filter(function(c) {
+          return Math.hypot(c.x - p.x, c.y - p.y) < 120;
+        });
+        if (near.length) speak(near[Math.floor(Math.random() * near.length)], triggerMsg);
+        if (state.combo >= 3) {
+          state.score += 20;
+          updateMission('combo', state.combo);
+        }
+        return false;
+      }
+      return true;
+    });
+
+    if (Date.now() > state.comboUntil) state.combo = 0;
+    if (state.cleanliness >= 80) updateMission('cleanliness', 0);
+    tickClouds();
+  }
+
+  function draw() {
+    ctx.save();
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.fillStyle = '#0f172a';
+    ctx.fillRect(0, 0, cw, ch);
+    ctx.restore();
+
+    ctx.save();
+    ctx.setTransform(scale, 0, 0, scale, offsetX, offsetY);
+
+    drawSky();
+    drawClouds();
+    drawBuildings();
+    drawGround();
+    drawTrees();
+    drawItems();
+    drawCitizens();
+    drawPlayer();
+
+    ctx.restore();
+
+    if (state.running && !state.gameOver) {
+      document.getElementById('scoreVal').textContent = state.score;
+      document.getElementById('timeVal').textContent = Math.floor(state.timeLeft / 60) + ':' + String(Math.floor(state.timeLeft % 60)).padStart(2, '0');
+      document.getElementById('levelVal').textContent = state.level;
+      document.getElementById('cleanBarFill').style.width = state.cleanliness + '%';
+      document.getElementById('moodBarFill').style.width = state.mood + '%';
+    }
+  }
+
+  function showEndScreen() {
+    document.getElementById('hud').style.display = 'none';
+    document.getElementById('cleanBarWrap').style.display = 'none';
+    document.getElementById('moodBarWrap').style.display = 'none';
+    document.getElementById('missionsPanel').style.display = 'none';
+    document.getElementById('dpad').classList.remove('show');
+    const end = document.getElementById('endScreen');
+    document.getElementById('endMessage').textContent = state.win ? 'You kept the city clean! Well done!' : 'Time\'s up! The city needs more heroes like you.';
+    document.getElementById('endScore').textContent = 'Final score: ' + state.score;
+    end.style.display = 'flex';
+  }
+
+  function loop(now) {
+    gameUpdate(now);
+    draw();
+    requestAnimationFrame(loop);
+  }
+
+  document.getElementById('startBtn').addEventListener('click', function() {
+    state = {
+      running: true,
+      score: 0,
+      cleanliness: DEFS.CLEAN_START,
+      mood: DEFS.MOOD_START,
+      level: 1,
+      timeLeft: DEFS.LEVEL_DURATION_SEC,
+      combo: 0,
+      comboUntil: 0,
+      player: { x: 400, y: DEFS.GROUND_Y - 24, vx: 0, vy: 0 },
+      items: [],
+      citizens: [],
+      missions: [],
+      missionCounts: {},
+      clouds: [
+        { x: 100, y: 80 }, { x: 350, y: 120 }, { x: 600, y: 60 },
+      ],
+      lastSpawn: 0,
+      speechBubbles: [],
+      gameOver: false,
+      win: false,
+    };
+    pickMission();
+    pickMission();
+    document.getElementById('startScreen').style.display = 'none';
+    document.getElementById('hud').style.display = 'flex';
+    document.getElementById('cleanBarWrap').style.display = 'block';
+    document.getElementById('moodBarWrap').style.display = 'block';
+    document.getElementById('missionsPanel').style.display = 'block';
+    document.getElementById('missionList').innerHTML = state.missions.map(function(m) {
+      return '<div class="mission-item" data-id="' + m.id + '">' + m.name + ' (0/' + m.target + ')</div>';
+    }).join('');
+    if ('ontouchstart' in window) document.getElementById('dpad').classList.add('show');
+  });
+
+  document.getElementById('replayBtn').addEventListener('click', function() {
+    document.getElementById('endScreen').style.display = 'none';
+    document.getElementById('chatModal').classList.remove('show');
+    document.getElementById('startBtn').click();
+  });
+
+  document.getElementById('chatBtn').addEventListener('click', function() {
+    document.getElementById('chatModal').classList.add('show');
+    document.getElementById('chatMessages').innerHTML = '<p>Say hi to the city! Citizens will reply via the backend.</p>';
+  });
+
+  document.getElementById('chatSend').addEventListener('click', sendChat);
+  document.getElementById('chatInput').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') sendChat();
+  });
+  document.getElementById('chatClose').addEventListener('click', function() {
+    document.getElementById('chatModal').classList.remove('show');
+  });
+
+  let chatHistory = [];
+
+  async function sendChat() {
+    const input = document.getElementById('chatInput');
+    const msg = (input.value || '').trim();
+    if (!msg) return;
+    const messagesEl = document.getElementById('chatMessages');
+    messagesEl.innerHTML += '<p><strong>You:</strong> ' + escapeHtml(msg) + '</p>';
+    input.value = '';
+    chatHistory.push({ role: 'user', content: msg });
+    const sys = 'You are a friendly city resident in the Eco Hero game. Reply in one or two short sentences. Keep it cheerful and about the city or the environment.';
+    let reply = null;
+    if (aiOn) reply = await callClaude(sys, chatHistory);
+    if (reply == null) reply = FALLBACKS[Math.floor(Math.random() * FALLBACKS.length)];
+    chatHistory.push({ role: 'assistant', content: reply });
+    messagesEl.innerHTML += '<p><strong>Citizen:</strong> ' + escapeHtml(reply) + '</p>';
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+  }
+
+  function escapeHtml(s) {
+    const div = document.createElement('div');
+    div.textContent = s;
+    return div.innerHTML;
+  }
+
+  function speak(citizen, trigger) {
+    if (!citizen.speechUntil || citizen.speechUntil < Date.now()) {
+      const sys = citizen.personality;
+      const msgs = [{ role: 'user', content: trigger || 'Someone is cleaning the street near you.' }];
+      if (aiOn) {
+        callClaude(sys, msgs).then(function(text) {
+          if (text) {
+            citizen.speech = text.slice(0, 80);
+            citizen.speechUntil = Date.now() + 4000;
+          } else {
+            citizen.speech = FALLBACKS[Math.floor(Math.random() * FALLBACKS.length)];
+            citizen.speechUntil = Date.now() + 3000;
+          }
+        });
+      } else {
+        citizen.speech = FALLBACKS[Math.floor(Math.random() * FALLBACKS.length)];
+        citizen.speechUntil = Date.now() + 3000;
+      }
+    }
+  }
+
+  document.addEventListener('keydown', function(e) {
+    if (!state.running || state.gameOver) return;
+    const k = e.key;
+    if (k === 'ArrowLeft' || k === 'a') state.player.vx = -DEFS.PLAYER_SPEED;
+    if (k === 'ArrowRight' || k === 'd') state.player.vx = DEFS.PLAYER_SPEED;
+    if (k === 'ArrowUp' || k === 'w') state.player.vy = -DEFS.PLAYER_SPEED;
+    if (k === 'ArrowDown' || k === 's') state.player.vy = DEFS.PLAYER_SPEED;
+    if (['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','a','s','d','w'].indexOf(k) >= 0) e.preventDefault();
+  });
+  document.addEventListener('keyup', function(e) {
+    const k = e.key;
+    if (k === 'ArrowLeft' || k === 'a') state.player.vx = 0;
+    if (k === 'ArrowRight' || k === 'd') state.player.vx = 0;
+    if (k === 'ArrowUp' || k === 'w') state.player.vy = 0;
+    if (k === 'ArrowDown' || k === 's') state.player.vy = 0;
+  });
+
+  function dpad(dir) {
+    if (!state.running || state.gameOver) return;
+    if (dir === 'up') state.player.vy = -DEFS.PLAYER_SPEED;
+    if (dir === 'down') state.player.vy = DEFS.PLAYER_SPEED;
+    if (dir === 'left') state.player.vx = -DEFS.PLAYER_SPEED;
+    if (dir === 'right') state.player.vx = DEFS.PLAYER_SPEED;
+  }
+  function dpadEnd(dir) {
+    if (dir === 'up' || dir === 'down') state.player.vy = 0;
+    if (dir === 'left' || dir === 'right') state.player.vx = 0;
+  }
+  document.getElementById('dpadUp').addEventListener('mousedown', function() { dpad('up'); });
+  document.getElementById('dpadUp').addEventListener('mouseup', function() { dpadEnd('up'); });
+  document.getElementById('dpadUp').addEventListener('mouseleave', function() { dpadEnd('up'); });
+  document.getElementById('dpadDown').addEventListener('mousedown', function() { dpad('down'); });
+  document.getElementById('dpadDown').addEventListener('mouseup', function() { dpadEnd('down'); });
+  document.getElementById('dpadDown').addEventListener('mouseleave', function() { dpadEnd('down'); });
+  document.getElementById('dpadLeft').addEventListener('mousedown', function() { dpad('left'); });
+  document.getElementById('dpadLeft').addEventListener('mouseup', function() { dpadEnd('left'); });
+  document.getElementById('dpadLeft').addEventListener('mouseleave', function() { dpadEnd('left'); });
+  document.getElementById('dpadRight').addEventListener('mousedown', function() { dpad('right'); });
+  document.getElementById('dpadRight').addEventListener('mouseup', function() { dpadEnd('right'); });
+  document.getElementById('dpadRight').addEventListener('mouseleave', function() { dpadEnd('right'); });
+  ['touchstart','touchend','touchcancel'].forEach(function(ev) {
+    document.getElementById('dpadUp').addEventListener(ev, function(e) { e.preventDefault(); if (ev === 'touchstart') dpad('up'); else dpadEnd('up'); });
+    document.getElementById('dpadDown').addEventListener(ev, function(e) { e.preventDefault(); if (ev === 'touchstart') dpad('down'); else dpadEnd('down'); });
+    document.getElementById('dpadLeft').addEventListener(ev, function(e) { e.preventDefault(); if (ev === 'touchstart') dpad('left'); else dpadEnd('left'); });
+    document.getElementById('dpadRight').addEventListener(ev, function(e) { e.preventDefault(); if (ev === 'touchstart') dpad('right'); else dpadEnd('right'); });
+  });
+
+  setInterval(function() {
+    if (!state.running || state.gameOver) return;
+    state.missions.forEach(function(m) {
+      const el = document.querySelector('.mission-item[data-id="' + m.id + '"]');
+      if (el) {
+        el.textContent = m.name + ' (' + (m.progress || 0) + '/' + m.target + ')';
+        el.classList.toggle('done', (m.progress || 0) >= m.target);
+      }
+    });
+  }, 500);
+
+  requestAnimationFrame(loop);
+})();
+  </script>
+</body>
+</html>

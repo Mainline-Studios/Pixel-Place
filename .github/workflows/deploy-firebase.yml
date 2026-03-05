@@ -7,13 +7,15 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    env:
+      FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
     steps:
       - uses: actions/checkout@v4
 
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
           cache: 'npm'
 
       - name: Install root deps & build app
@@ -30,7 +32,12 @@ jobs:
           npm ci
           npm run build
 
+      - name: Skip deploy when token is missing
+        if: ${{ env.FIREBASE_TOKEN == '' }}
+        run: echo "FIREBASE_TOKEN is not configured; skipping Firebase deploy."
+
       - name: Deploy to Firebase
-        run: firebase deploy --token "${{ secrets.FIREBASE_TOKEN }}"
+        if: ${{ env.FIREBASE_TOKEN != '' }}
+        run: firebase deploy --token "$FIREBASE_TOKEN"
         env:
           CI: true

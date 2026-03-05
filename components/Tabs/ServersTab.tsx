@@ -108,7 +108,7 @@ export default function ServersTab({ user, editMode }: ServersTabProps) {
   };
 
   const handleDeleteServer = (server: GameServer) => {
-    if (server.purchasedBy !== user.username && user.role !== 'admin') {
+    if (server.purchasedBy !== user.username && user.role !== 'admin' && user.role !== 'head_admin') {
       alert('You can only delete your own servers');
       return;
     }

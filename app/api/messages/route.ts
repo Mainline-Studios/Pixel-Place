@@ -1,5 +1,8 @@
+export const dynamic = 'force-static';
+
 import { NextRequest, NextResponse } from 'next/server';
 import { getDocuments, addDocument, updateDocument, queryDocuments, COLLECTIONS, getFirestoreInstance } from '@/lib/firestore';
+import { filterForDisplayServer } from '@/lib/pyx';
 import { Message } from '@/types';
 import { moderateContent } from '@/lib/moderateContent';
 
@@ -46,7 +49,11 @@ export async function GET(request: NextRequest) {
         ...receivedSnapshot.docs.map(doc => messageFromDoc({ id: doc.id, ...doc.data() }))
       ];
       messages.sort((a, b) => a.timestamp - b.timestamp);
-      return NextResponse.json(messages);
+      const filtered = await Promise.all(messages.map(async (m) => ({
+        ...m,
+        message: await filterForDisplayServer(m.message),
+      })));
+      return NextResponse.json(filtered);
     } else {
       // Get all messages for the user
       query = db.collection(COLLECTIONS.MESSAGES)
@@ -55,7 +62,7 @@ export async function GET(request: NextRequest) {
     }
 
     const snapshot = await query.get();
-    const messages = snapshot.docs.map(doc => messageFromDoc({ id: doc.id, ...doc.data() }));
+    let messages = snapshot.docs.map(doc => messageFromDoc({ id: doc.id, ...doc.data() }));
     
     // If no withUsername, also get messages where user is recipient
     if (!withUsername) {
@@ -68,7 +75,11 @@ export async function GET(request: NextRequest) {
       messages.sort((a, b) => a.timestamp - b.timestamp);
     }
 
-    return NextResponse.json(messages);
+    const filtered = await Promise.all(messages.map(async (m) => ({
+      ...m,
+      message: await filterForDisplayServer(m.message),
+    })));
+    return NextResponse.json(filtered);
   } catch (error) {
     console.error('Error getting messages:', error);
     return NextResponse.json({ error: 'Failed to get messages' }, { status: 500 });

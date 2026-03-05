@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useUser } from '@/contexts/UserContext';
+import { useSound } from '@/contexts/SoundContext';
 import BanScreen from './BanScreen';
 
 export default function Login() {
@@ -22,25 +23,23 @@ export default function Login() {
   const [showTerms, setShowTerms] = useState(false);
   const [showPrivacy, setShowPrivacy] = useState(false);
   const { login, createAccount } = useUser();
+  const { playSuccess, playError } = useSound();
 
   const handleSignIn = async () => {
     if (!username || !password) {
       setMessage('Enter both username and password.');
       return;
     }
-    if (password.length < 6) {
-      setMessage('Password must be at least 6 characters.');
-      return;
-    }
     const result = await login(username, password);
     if (result.ban) {
       setBanInfo(result.ban);
+      playError();
     } else {
-      // Only show error messages, not success messages
       if (!result.success) {
         setMessage(result.message);
+        playError();
       } else {
-        // Clear message immediately on successful login - no popup
+        playSuccess();
         setMessage('');
         setUsername('');
         setPassword('');
@@ -65,16 +64,17 @@ export default function Login() {
       setMessage('Username and password are required.');
       return;
     }
-    if (password.length < 8) {
-      setMessage('Password must be at least 8 characters.');
+    if (password.length < 6) {
+      setMessage('Password must be at least 6 characters.');
       return;
     }
     const result = await createAccount(username, password, gender);
-    // Only show error messages, not success messages
     if (!result.success) {
       setMessage(result.message);
+      playError();
     } else {
-      setMessage(''); // Clear message on successful sign up
+      playSuccess();
+      setMessage('');
     }
     setBanInfo(null);
     if (result.success) {

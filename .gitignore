@@ -57,6 +57,17 @@ AppData/
 /functions/lib/
 /functions/node_modules/
 
+# Firebase Functions env (contains API keys - GitHub blocks pushes with secrets)
+/functions/.env
+/functions/.env.*
+!/functions/.env.example
+
+# Firebase service account key (never commit)
+scripts/serviceAccountKey.json
+
+# Eco Hero game (contains Anthropic API key for in-game AI citizens)
+public/games/eco-hero.html
+
 
 
 

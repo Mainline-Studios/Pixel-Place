@@ -2,6 +2,8 @@
 
 import { useState, useEffect, ReactNode } from 'react';
 import { useUser } from '@/contexts/UserContext';
+import { filterForDisplay } from '@/lib/pyx';
+import { FilteredUsername } from '@/components/FilteredText';
 
 interface FullScreenGameWrapperProps {
   children: ReactNode;
@@ -43,16 +45,16 @@ export default function FullScreenGameWrapper({
     };
   }, []);
 
-  const handleSendMessage = () => {
-    if (chatInput.trim() && user) {
-      const newMessage = {
-        username: user.username,
-        message: chatInput.trim(),
-        timestamp: Date.now()
-      };
-      setChatMessages(prev => [...prev, newMessage]);
-      setChatInput('');
-    }
+  const handleSendMessage = async () => {
+    if (!chatInput.trim() || !user) return;
+    const raw = chatInput.trim();
+    setChatInput('');
+    const filtered = await filterForDisplay(raw);
+    setChatMessages(prev => [...prev, {
+      username: user.username,
+      message: filtered,
+      timestamp: Date.now()
+    }]);
   };
 
   const handleInviteFriends = () => {
@@ -86,6 +88,7 @@ export default function FullScreenGameWrapper({
         flexDirection: 'column',
         overflow: 'hidden'
       }}
+    >
       {/* Options Button - Small button at top */}
       <button
         onClick={() => setShowOptions(!showOptions)}
@@ -348,7 +351,7 @@ export default function FullScreenGameWrapper({
                 >
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
                     <span style={{ color: '#00a2ff', fontSize: '13px', fontWeight: '600' }}>
-                      {msg.username}
+                      <FilteredUsername username={msg.username || ''} currentUsername={user?.username || ''} />
                     </span>
                     <span style={{ color: '#666', fontSize: '11px' }}>
                       {new Date(msg.timestamp).toLocaleTimeString()}

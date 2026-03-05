@@ -1,3 +1,5 @@
+export const dynamic = 'force-static';
+
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuth } from 'firebase-admin/auth';
 import { initializeApp, getApps, cert } from 'firebase-admin/app';
@@ -53,7 +55,7 @@ export async function POST(request: NextRequest) {
         username: existing.username,
         password: '', // No password for Google users
         gender: existing.gender || '',
-        role: (existing.role || 'user') as 'admin' | 'user',
+        role: (existing.role || 'user') as 'admin' | 'user' | 'head_admin',
         coins: existing.coins || 0,
         ownedSkins: Array.isArray(existing.owned_skins) ? existing.owned_skins : [],
         equippedSkin: existing.equipped_skin || 'starter_classic',

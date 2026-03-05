@@ -2,10 +2,12 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { User, Ban } from '@/types';
-import { initializeStorage, getUsers, saveUsers, ADMIN_ACCOUNTS_LIST, isUserBanned, getBanForUser, getBannedUsersSync } from '@/lib/storage';
+import { initializeStorage, getUsers, saveUsers, ADMIN_ACCOUNTS_LIST, isUserBanned, getBanForUser } from '@/lib/storage';
 import { subscribeToUser } from '@/lib/firestoreClient';
 import { apiUrl } from '@/lib/apiBaseUrl';
 import { containsEmoji } from '@/lib/utils';
+import { setAuthToken, removeAuthToken } from '@/lib/api';
+import { getDeviceFingerprint } from '@/lib/deviceFingerprint';
 
 interface UserContextType {
   user: User | null;
@@ -28,11 +30,13 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
         const users = await getUsers();
         const found = users.find(u => u.username === savedUsername);
         if (found) {
-          // Ensure arrays exist
+          // Ensure arrays and equipped state exist so avatar/clothes persist after reload
           if (!found.ownedSkins) found.ownedSkins = ['starter_classic'];
           if (!found.ownedAccessories) found.ownedAccessories = [];
           if (!found.equippedAccessories) found.equippedAccessories = {};
           if (!found.ownedFaces) found.ownedFaces = [];
+          if (!found.equippedSkin && found.ownedSkins.length) found.equippedSkin = found.ownedSkins[0];
+          if (!found.equippedSkin) found.equippedSkin = 'starter_classic';
           
           // Special coins for 6767kid - massive amount
           if (found.username === '6767kid') {
@@ -82,17 +86,19 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     });
   }, []);
 
-  // Persist user to sessionStorage whenever it changes
+  // Persist user to sessionStorage and clear token on logout
   useEffect(() => {
     if (typeof window !== 'undefined') {
       if (user) {
         try {
           sessionStorage.setItem('pixelPlaceLoggedInUser', user.username);
         } catch (error) {
-          console.error('Error saving user session:', error);        }
+          console.error('Error saving user session:', error);
+        }
       } else {
         try {
           sessionStorage.removeItem('pixelPlaceLoggedInUser');
+          removeAuthToken();
         } catch (error) {
           console.error('Error clearing user session:', error);
         }
@@ -107,7 +113,16 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       if (firestoreUser) {
         setUser((prev) => {
           if (!prev) return firestoreUser;
-          return { ...firestoreUser, ownedSkins: firestoreUser.ownedSkins || prev.ownedSkins, ownedAccessories: firestoreUser.ownedAccessories || prev.ownedAccessories, equippedAccessories: firestoreUser.equippedAccessories || prev.equippedAccessories };
+          const eqAcc = firestoreUser.equippedAccessories;
+          const hasEquippedAcc = eqAcc && (Array.isArray(eqAcc) ? eqAcc.length > 0 : Object.keys(eqAcc as object).length > 0);
+          return {
+            ...firestoreUser,
+            ownedSkins: firestoreUser.ownedSkins?.length ? firestoreUser.ownedSkins : prev.ownedSkins,
+            ownedAccessories: firestoreUser.ownedAccessories?.length ? firestoreUser.ownedAccessories : prev.ownedAccessories,
+            equippedSkin: firestoreUser.equippedSkin || prev.equippedSkin,
+            equippedAccessories: hasEquippedAcc ? eqAcc : (prev.equippedAccessories ?? {}),
+            equippedFace: firestoreUser.equippedFace || prev.equippedFace,
+          };
         });
       }
     });
@@ -142,200 +157,48 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     };
   }, [user?.username]);
 
-  // Helper function to get users from localStorage (offline mode)
-  const getUsersLocal = (): User[] => {
-    if (typeof window === 'undefined') return [];
-    try {
-      const data = localStorage.getItem('pixelPlaceUsers');
-      return data ? JSON.parse(data) : [];
-    } catch {
-      return [];
-    }
-  };
-
-  // Helper function to save users to localStorage (offline mode)
-  const saveUsersLocal = (users: User[]): void => {
-    if (typeof window === 'undefined') return;
-    try {
-      localStorage.setItem('pixelPlaceUsers', JSON.stringify(users));
-    } catch (error) {
-      console.error('Error saving users to localStorage:', error);
-    }
-  };
   const login = async (username: string, password: string): Promise<{ success: boolean; message: string; ban?: any }> => {
     if (!username || !password) {
       return { success: false, message: 'Enter username and password.' };
     }
 
-    let isOffline = false;
-    let users: User[] = [];
-    let found: User | undefined;
-
+    // Authenticate via backend only (no offline password check — secure)
     try {
-      // Try to get users from API (Firebase)
-      users = await getUsers();
-    } catch (error) {
-      // Fallback to localStorage if API fails
-      isOffline = true;
-      users = getUsersLocal();
-      console.log('Using offline mode - localStorage');
-    }
-
-    // Check if user is banned (try online first, then offline fallback)
-    try {
-      const isBanned = await isUserBanned(username);
-      if (isBanned) {
-        const ban = await getBanForUser(username);
-        if (ban) {
-          return { success: false, message: 'This account has been banned. Please contact an administrator.', ban };
-        }
-      }
-    } catch (error) {
-      // If online ban check fails, try offline fallback
-      if (!isOffline) {
-        try {
-          const localBans = getBannedUsersSync();
-          const now = Date.now();
-          const localBan = localBans.find((b: Ban) => {
-            if (b.username.toLowerCase() !== username.toLowerCase()) return false;
-            if (b.permanent) return true;
-            if (b.expiresAt && b.expiresAt > now) return true;
-            return false;
-          });
-          if (localBan) {
-            return { success: false, message: 'This account has been banned. Please contact an administrator.', ban: localBan };
-          }
-        } catch {
-          // If offline check also fails, continue anyway (don't block login)
-        }
-      }
-    }
-
-    found = users.find(x => x.username === username);
-
-    // Auto-create admin if not found but matches admin list
-    if (!found) {
-      const isAdmin = ADMIN_ACCOUNTS_LIST.some(a => a.username === username && a.password === password);
-      if (isAdmin) {
-        // Special coins for 6767kid - massive amount (2e268 × 2e203 = 4e471)
-        // Special coins for daniello1 - massive amount
-        let coins = 99999;
-        if (username === '6767kid') {
-          coins = 4e471;
-        } else if (username.toLowerCase() === 'daniello1') {
-          coins = 5.534e200;
-        }
-        found = {
+      const fingerprint = typeof getDeviceFingerprint === 'function'
+        ? getDeviceFingerprint()
+        : { deviceId: '', label: '' };
+      const authRes = await fetch(apiUrl('/api/auth'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
           username,
           password,
-          gender: 'N/A',
-          role: 'admin',
-          coins,
-          ownedSkins: ['starter_classic'],
-          equippedSkin: 'starter_classic',
-          isDonor: false,
-          ownedAccessories: [],
-          equippedAccessories: {}
-        };
-        users.push(found);
-        if (isOffline) {
-          saveUsersLocal(users);
-        } else {
-          try {
-            await saveUsers(users);
-          } catch {
-            // Fallback to localStorage if save fails
-            saveUsersLocal(users);
-            isOffline = true;
-          }
-        }
-      }
-    }
-
-    if (!found) {
-      return { success: false, message: 'Account not found. Please create one first.' };
-    }
-
-    if (found.password !== password) {
-      return { success: false, message: 'Incorrect password.' };
-    }
-
-    // Ensure ownedSkins and ownedAccessories arrays exist
-    if (!found.ownedSkins) found.ownedSkins = ['starter_classic'];
-    if (!found.ownedAccessories) found.ownedAccessories = [];
-    if (!found.equippedAccessories) found.equippedAccessories = {};
-
-    // Special coins for 6767kid - massive amount
-    if (found.username === '6767kid') {
-      // 2e268 × 2e203 = 4e471 coins (4 followed by 471 zeros)
-      found.coins = 4e471;
-      // Update in storage
-      const userIndex = users.findIndex(u => u.username === '6767kid');
-      if (userIndex !== -1) {
-        users[userIndex].coins = 4e471;
-        if (isOffline) {
-          saveUsersLocal(users);
-        } else {
-          try {
-            await saveUsers(users);
-          } catch {
-            saveUsersLocal(users);
-            isOffline = true;
-          }
-        }
-      }
-    }
-    
-    // Special coins for daniello1 - massive amount
-    if (found.username.toLowerCase() === 'daniello1') {
-      // Massive coin amount for daniello1
-      found.coins = 5.534e200;
-      // Update in storage
-      const userIndex = users.findIndex(u => u.username.toLowerCase() === 'daniello1');
-      if (userIndex !== -1) {
-        users[userIndex].coins = 5.534e200;
-        if (isOffline) {
-          saveUsersLocal(users);
-        } else {
-          try {
-            await saveUsers(users);
-          } catch {
-            saveUsersLocal(users);
-            isOffline = true;
-          }
-        }
-      }
-    }
-
-    // Sync safety points from backend
-    if (!isOffline) {
-      try {
-        const safetyResponse = await fetch(apiUrl(`/api/safety?username=${found.username}`));
-        if (safetyResponse.ok) {
-          const safetyData = await safetyResponse.json();
-          found.safetyPoints = safetyData.safetyPoints || 0;
-        }
-      } catch (error) {
-        console.warn('Failed to fetch safety points:', error);
-      }
-    }
-
-    setUser(found);
-    // Persist to sessionStorage
-    if (typeof window !== 'undefined') {
-      try {
-        sessionStorage.setItem('pixelPlaceLoggedInUser', found.username);
-        // Mark as offline in sessionStorage
-        if (isOffline) {
-          sessionStorage.setItem('pixelPlaceOffline', 'true');
-        } else {
+          action: 'login',
+          deviceId: fingerprint.deviceId || undefined,
+          deviceLabel: fingerprint.label || undefined,
+        }),
+      });
+      const authData = await authRes.json().catch(() => ({}));
+      if (authRes.ok && authData.success && authData.token && authData.user) {
+        setAuthToken(authData.token);
+        const u = authData.user as User;
+        if (!u.ownedSkins) u.ownedSkins = ['starter_classic'];
+        if (!u.ownedAccessories) u.ownedAccessories = [];
+        if (!u.equippedAccessories) u.equippedAccessories = {};
+        if (!u.ownedFaces) u.ownedFaces = [];
+        setUser(u);
+        if (typeof window !== 'undefined') {
+          sessionStorage.setItem('pixelPlaceLoggedInUser', u.username);
           sessionStorage.removeItem('pixelPlaceOffline');
         }
-      } catch (error) {
-        console.error('Error saving user session:', error);
+        return { success: true, message: '' };
       }
+      if (authRes.status === 401) {
+        return { success: false, message: authData.error || 'Invalid credentials.' };
+      }
+    } catch (_e) {
+      return { success: false, message: 'Could not reach server. Try again when online.' };
     }
-    return { success: true, message: isOffline ? 'Signed in offline. Data stored locally.' : '', offline: isOffline };
   };
 
   const loginWithGoogle = async (googleUser: User): Promise<void> => {
@@ -374,64 +237,84 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     if (!username || !password) {
       return { success: false, message: 'Username and password are required.' };
     }
-
-    let isOffline = false;
-    let users: User[] = [];
-
-    try {
-      // Try to get users from API (Firebase)
-      users = await getUsers();
-    } catch (error) {
-      // Fallback to localStorage if API fails
-      isOffline = true;
-      users = getUsersLocal();
-      console.log('Using offline mode - localStorage');
+    if (password.length < 6) {
+      return { success: false, message: 'Password must be at least 6 characters.' };
     }
 
-    // Check if username is banned (try online first, then offline fallback)
+    // When online: register via backend and get token
+    try {
+      const fingerprint = typeof getDeviceFingerprint === 'function'
+        ? getDeviceFingerprint()
+        : { deviceId: '', label: '' };
+      const regRes = await fetch(apiUrl('/api/auth'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          username,
+          password,
+          action: 'register',
+          gender,
+          deviceId: fingerprint.deviceId || undefined,
+          deviceLabel: fingerprint.label || undefined,
+        }),
+      });
+      const regData = await regRes.json().catch(() => ({}));
+      if (regRes.ok && regData.success && regData.token && regData.user) {
+        setAuthToken(regData.token);
+        const u = regData.user as User;
+        if (!u.ownedSkins) u.ownedSkins = ['starter_classic'];
+        if (!u.ownedAccessories) u.ownedAccessories = [];
+        if (!u.equippedAccessories) u.equippedAccessories = {};
+        if (!u.ownedFaces) u.ownedFaces = [];
+        setUser(u);
+        if (typeof window !== 'undefined') {
+          sessionStorage.setItem('pixelPlaceLoggedInUser', u.username);
+          sessionStorage.removeItem('pixelPlaceOffline');
+        }
+        return { success: true, message: 'Account created.' };
+      }
+      if (regRes.status === 400) {
+        return { success: false, message: regData.error || 'Registration failed.' };
+      }
+    } catch (_e) {
+      // Backend unreachable — fall back to offline flow below
+    }
+
+    let users: User[] = [];
+    try {
+      users = await getUsers();
+    } catch {
+      return { success: false, message: 'Could not reach server. Try again when online.' };
+    }
+
+    // Check if username is banned (Firebase only)
     try {
       const isBanned = await isUserBanned(username);
       if (isBanned) {
         return { success: false, message: 'This username is banned and cannot be used.' };
       }
-    } catch (error) {
-      // If online ban check fails, try offline fallback
-      if (!isOffline) {
-        try {
-          const localBans = getBannedUsersSync();
-          const now = Date.now();
-          const localBan = localBans.find((b: Ban) => {
-            if (b.username.toLowerCase() !== username.toLowerCase()) return false;
-            if (b.permanent) return true;
-            if (b.expiresAt && b.expiresAt > now) return true;
-            return false;
-          });
-          if (localBan) {
-            return { success: false, message: 'This username is banned and cannot be used.' };
-          }
-        } catch {
-          // If offline check also fails, continue anyway (don't block account creation)
-        }
-      }
+    } catch {
+      return { success: false, message: 'Could not verify ban status. Try again when online.' };
     }
     if (users.find(x => x.username === username)) {
       return { success: false, message: 'Username already exists.' };
     }
 
     const isAdmin = ADMIN_ACCOUNTS_LIST.some(a => a.username === username && a.password === password);
-    const role = isAdmin ? 'admin' : 'user';
+    const isHeadAdmin = isAdmin && (await import('@/lib/storage')).HEAD_ADMIN_USERNAMES.includes(username);
+    const role = isHeadAdmin ? 'head_admin' : isAdmin ? 'admin' : 'user';
 
     // Check for emojis in username - only allow for admins
-    if (containsEmoji(username) && role !== 'admin') {
+    if (containsEmoji(username) && role !== 'admin' && role !== 'head_admin') {
       return { success: false, message: 'Emojis are only allowed in usernames for admin accounts.' };
     }
 
     // Check for emojis in password - only allow for admins
-    if (containsEmoji(password) && role !== 'admin') {
+    if (containsEmoji(password) && role !== 'admin' && role !== 'head_admin') {
       return { success: false, message: 'Emojis are only allowed in passwords for admin accounts.' };
     }
-    // Special coins for 6767kid and daniello1 - massive amounts
-    let coins = role === 'admin' ? 99999 : 10;
+    // Special coins for admins and head_admins
+    let coins = (role === 'admin' || role === 'head_admin') ? 99999 : 10;
     if (username === '6767kid') {
       coins = 4e471;
     } else if (username.toLowerCase() === 'daniello1') {

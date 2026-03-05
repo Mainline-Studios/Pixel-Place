@@ -3,6 +3,9 @@ import "./globals.css";
 import Script from "next/script";
 import { UserProvider } from "@/contexts/UserContext";
 import { StyleProvider } from "@/components/StyleProvider";
+import { SecretThemeProvider } from "@/contexts/SecretThemeContext";
+import { SoundProvider } from "@/contexts/SoundContext";
+import SoundEffects from "@/components/SoundEffects";
 
 export const metadata: Metadata = {
   title: "Pixel Place",
@@ -23,6 +26,7 @@ export default function RootLayout({
           }}
         />
         <link rel="icon" href="/logo.png" type="image/png" />
+        <Script src="/pyx-client.js" strategy="beforeInteractive" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes" />
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -30,9 +34,14 @@ export default function RootLayout({
       </head>
       <body>
         <StyleProvider>
-          <UserProvider>
-            {children}
-          </UserProvider>
+          <SecretThemeProvider>
+            <SoundProvider>
+              <UserProvider>
+              <SoundEffects />
+              {children}
+              </UserProvider>
+            </SoundProvider>
+          </SecretThemeProvider>
         </StyleProvider>
       </body>
     </html>

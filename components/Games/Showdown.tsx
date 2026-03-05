@@ -156,6 +156,7 @@ export default function Showdown({ user }: ShowdownProps): JSX.Element {
   const mouseRef = useRef({ x: ARENA_W / 2, y: ARENA_H / 2, down: false });
   const keysRef = useRef<Record<string, boolean>>({});
   const screenShakeRef = useRef(0);
+  const botStuckRef = useRef<Record<string, { lastPos: Vec; stuckFrames: number }>>({});
 
   const [pixelcoins, setPixelcoins] = useState(() => {
     try {
@@ -468,23 +469,71 @@ export default function Showdown({ user }: ShowdownProps): JSX.Element {
 
         // Bot AI — only move/shoot if alive and not eliminated
         for (const b of copy.filter((x) => x.isBot && x.hp > 0 && (x.lives ?? LIVES_PER_PLAYER) > 0)) {
-          const target = copy.find((p) => p.id === 'you' && p.hp > 0 && (p.lives ?? LIVES_PER_PLAYER) > 0) ?? copy.find((p) => p.id !== b.id && p.hp > 0 && (p.lives ?? LIVES_PER_PLAYER) > 0);
-          const dx = target ? target.pos.x - b.pos.x : 0;
-          const dy = target ? target.pos.y - b.pos.y : 0;
-          const d = Math.hypot(dx, dy) || 1;
-          const speed = 130;
-          b.vel.x = (dx / d) * speed;
-          b.vel.y = (dy / d) * speed;
+          const enemies = copy.filter(
+            (p) => p.id !== b.id && p.hp > 0 && (p.lives ?? LIVES_PER_PLAYER) > 0
+          );
+          // Target closest alive enemy (player or other bot) so NPCs go after each other too
+          const target = enemies.length > 0
+            ? enemies.reduce((best, p) => (dist(b.pos, p.pos) < dist(b.pos, best.pos) ? p : best))
+            : null;
+          const stuckState = botStuckRef.current[b.id] ?? { lastPos: { ...b.pos }, stuckFrames: 0 };
+          const startPos = { x: b.pos.x, y: b.pos.y };
+
+          const nearWall = WALLS.some((w) => circleRectCollision(b.pos.x, b.pos.y, b.radius + 4, w));
+          const nearEdge =
+            b.pos.x <= b.radius + 25 || b.pos.x >= ARENA_W - b.radius - 25 ||
+            b.pos.y <= b.radius + 25 || b.pos.y >= ARENA_H - b.radius - 25;
+          const movedLastFrame = dist(stuckState.lastPos, startPos);
+          const wasStuck = movedLastFrame < 5 && (nearWall || nearEdge);
+          let stuckFrames = wasStuck ? stuckState.stuckFrames + 1 : 0;
+          const escapeMode = stuckFrames >= 12;
+
+          if (escapeMode) {
+            // Get out of corner: move toward arena center + small random so they don't all stack
+            const cx = ARENA_W / 2;
+            const cy = ARENA_H / 2;
+            const jitter = (Math.random() - 0.5) * 0.4;
+            const ax = cx - b.pos.x + (Math.random() - 0.5) * 80;
+            const ay = cy - b.pos.y + (Math.random() - 0.5) * 80;
+            const ad = Math.hypot(ax, ay) || 1;
+            const speed = 180;
+            b.vel.x = (ax / ad) * speed + Math.cos(jitter) * 30;
+            b.vel.y = (ay / ad) * speed + Math.sin(jitter) * 30;
+          } else {
+            const dx = target ? target.pos.x - b.pos.x : 0;
+            const dy = target ? target.pos.y - b.pos.y : 0;
+            const d = Math.hypot(dx, dy) || 1;
+            const speed = 130;
+            b.vel.x = (dx / d) * speed;
+            b.vel.y = (dy / d) * speed;
+          }
+
           b.pos.x += b.vel.x * dt;
           b.pos.y += b.vel.y * dt;
           for (const w of WALLS) {
             if (circleRectCollision(b.pos.x, b.pos.y, b.radius, w)) {
-              b.pos.x -= b.vel.x * 0.1;
-              b.pos.y -= b.vel.y * 0.1;
+              b.pos.x -= b.vel.x * 0.15;
+              b.pos.y -= b.vel.y * 0.15;
+              // Push further out of wall to avoid repeated stick
+              const wx = w.x + w.w / 2;
+              const wy = w.y + w.h / 2;
+              const outX = b.pos.x - wx;
+              const outY = b.pos.y - wy;
+              const outD = Math.hypot(outX, outY) || 1;
+              b.pos.x += (outX / outD) * 4;
+              b.pos.y += (outY / outD) * 4;
             }
           }
           b.pos.x = clamp(b.radius, b.pos.x, ARENA_W - b.radius);
           b.pos.y = clamp(b.radius, b.pos.y, ARENA_H - b.radius);
+
+          const movedThisFrame = dist(startPos, b.pos);
+          if (movedThisFrame < 5 && (nearWall || nearEdge)) {
+            // Still stuck this frame; keep counter (already incremented above)
+          } else {
+            stuckFrames = 0;
+          }
+          botStuckRef.current[b.id] = { lastPos: { ...b.pos }, stuckFrames };
 
           const cooldown = POWER_COOLDOWN[b.power] ?? 150;
           if (target && Math.random() < 0.015 && Date.now() - b.lastShot > cooldown) {

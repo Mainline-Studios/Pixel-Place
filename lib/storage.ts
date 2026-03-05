@@ -1,22 +1,13 @@
-import { User, Skin, PublishedGame, DraftGame, SceneData, TabContent, GameServer, ServerPlan, FriendRequest, Message, Accessory, PrebuiltGame, Ban, BanAppeal, UserMadeGame, GameSubmission, Report } from '@/types';
+import { User, Skin, PublishedGame, DraftGame, SceneData, TabContent, GameServer, ServerPlan, FriendRequest, Message, Accessory, PrebuiltGame, Ban, BanAppeal, UserMadeGame, GameSubmission, Report, DeviceRecord, HardwareBan, AppealMessage } from '@/types';
 import { NEW_SKINS, NEW_ACCESSORIES } from './newCatalog';
 import { apiUrl } from './apiBaseUrl';
+import { authenticatedFetch } from './api';
 
-const ADMIN_ACCOUNTS = [
-  { username: "admin", password: "extra" },
-  { username: "TicTAK", password: "Thomas" },
-  { username: "IDon'tKnow", password: "Titan" },
-  { username: "6767kid", password: "67676767" },
-  { username: "Billibob", password: "Luca" },
-  { username: "Daniello1", password: "Daniel" },
-  { username: "FunBoy", password: "Simon" },
-  { username: "BelloBoy1", password: "Zac" },
-  { username: "Bob", password: "Henry" },
-  { username: "Mr.Noob", password: "Tyson" },
-  { username: "BDawgsAwesome1", password: "20Minecraft15" }
-];
+/** Client: empty list (admin accounts are server-only via ADMIN_ACCOUNTS_JSON env). */
+export const ADMIN_ACCOUNTS_LIST: { username: string; password: string }[] = [];
 
-export const ADMIN_ACCOUNTS_LIST = ADMIN_ACCOUNTS;
+/** Usernames that get head_admin role (can ban anyone, including other admins) */
+export const HEAD_ADMIN_USERNAMES = ['admin'];
 
 // Initialize storage - All data now in Firebase cloud
 // This function is kept for backward compatibility but doesn't use localStorage
@@ -28,87 +19,26 @@ export function initializeStorage() {
   console.log('Storage initialized - all data stored in Firebase cloud');
 }
 
-// User functions - Now using API
+// User functions - Firebase only (API reads from Firestore)
 export async function getUsers(): Promise<User[]> {
   if (typeof window === 'undefined') return [];
   try {
-    const response = await fetch(apiUrl('/api/users'), {
+    const response = await authenticatedFetch(apiUrl('/api/users'), {
       cache: 'no-store',
-      headers: {
-        'Cache-Control': 'no-cache'
-      }
+      headers: { 'Cache-Control': 'no-cache' },
     });
     if (!response.ok) {
       console.error('Failed to fetch users:', response.status, response.statusText);
       throw new Error('Failed to fetch users');
     }
     const apiUsers = await response.json();
-
-    // Ensure we got an array
     if (!Array.isArray(apiUsers)) {
       console.error('API returned non-array:', apiUsers);
       return [];
     }
-
-    console.log(`getUsers: Fetched ${apiUsers.length} users from API`);
-
-    // Migration: Move localStorage data to API if it exists
-    try {
-      const localData = localStorage.getItem("pixelPlaceUsers");
-      if (localData) {
-        const localUsers: User[] = JSON.parse(localData);
-        if (localUsers.length > 0) {
-          // Check if users need to be migrated
-          const apiUsernames = new Set(apiUsers.map((u: User) => u.username.toLowerCase()));
-          const usersToMigrate = localUsers.filter(u => !apiUsernames.has(u.username.toLowerCase()));
-
-          if (usersToMigrate.length > 0) {
-            console.log(`Migrating ${usersToMigrate.length} users from localStorage to API`);
-            // Migrate users that don't exist in API
-            for (const user of usersToMigrate) {
-              await fetch(apiUrl('/api/users'), {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(user)
-              }).catch(() => { });
-            }
-            // Remove from localStorage after successful migration
-            localStorage.removeItem("pixelPlaceUsers");
-            // Fetch updated list
-            const updatedResponse = await fetch(apiUrl('/api/users'), { cache: 'no-store' });
-            if (updatedResponse.ok) {
-              const updatedUsers = await updatedResponse.json();
-              console.log(`getUsers: After migration, fetched ${updatedUsers.length} users`);
-              return Array.isArray(updatedUsers) ? updatedUsers : [];
-            }
-          }
-        }
-      }
-    } catch (migrationError) {
-      console.error('Error migrating users:', migrationError);
-    }
-
     return apiUsers;
   } catch (e) {
-    console.error('Error reading users from API:', e);
-    // Fallback to localStorage
-    try {
-      const data = localStorage.getItem("pixelPlaceUsers");
-      if (data) {
-        const users = JSON.parse(data);
-        // Try to migrate even on error
-        if (users.length > 0) {
-          for (const user of users) {
-            await fetch(apiUrl('/api/users'), {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(user)
-            }).catch(() => { });
-          }
-        }
-        return Array.isArray(users) ? users : [];
-      }
-    } catch { }
+    console.error('Error reading users from Firebase API:', e);
     return [];
   }
 }
@@ -118,7 +48,8 @@ export async function saveUsers(users: User[]): Promise<void> {
   try {
     // Save each user (API handles updates if user exists)
     for (const user of users) {
-      await fetch(apiUrl('/api/users'), {        method: 'POST',
+      await authenticatedFetch(apiUrl('/api/users'), {
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(user)
       }).catch(() => { });
@@ -180,12 +111,11 @@ export async function saveTabContent(content: TabContent): Promise<void> {
   }
 }
 
-// Draft functions - Using API (Firebase)
-export async function getDraft(username?: string): Promise<DraftGame> {
+// Draft functions — identity from token
+export async function getDraft(_username?: string): Promise<DraftGame> {
   if (typeof window === 'undefined') return { title: "", desc: "", owner: "" };
   try {
-    const path = username ? `/api/draft?username=${encodeURIComponent(username)}` : '/api/draft';
-    const response = await fetch(apiUrl(path), { cache: 'no-store' });
+    const response = await authenticatedFetch(apiUrl('/api/draft'), { cache: 'no-store' });
     if (!response.ok) throw new Error('Failed to fetch draft');
     return await response.json();
   } catch (e) {
@@ -197,7 +127,7 @@ export async function getDraft(username?: string): Promise<DraftGame> {
 export async function saveDraft(draft: DraftGame): Promise<void> {
   if (typeof window === 'undefined') return;
   try {
-    await fetch(apiUrl('/api/draft'), {
+    await authenticatedFetch(apiUrl('/api/draft'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(draft)
@@ -253,12 +183,11 @@ export async function savePublished(games: PublishedGame[]): Promise<void> {
   }
 }
 
-// Scene functions - Now using API
-export async function getSceneData(userId?: string): Promise<SceneData> {
+// Scene functions — identity from token
+export async function getSceneData(_userId?: string): Promise<SceneData> {
   if (typeof window === 'undefined') return { objects: [] };
   try {
-    const path = userId ? `/api/scene?userId=${encodeURIComponent(userId)}` : '/api/scene';
-    const response = await fetch(apiUrl(path), { cache: 'no-store' });
+    const response = await authenticatedFetch(apiUrl('/api/scene'), { cache: 'no-store' });
     if (!response.ok) throw new Error('Failed to fetch scene');
     return await response.json();
   } catch (e) {
@@ -267,11 +196,10 @@ export async function getSceneData(userId?: string): Promise<SceneData> {
   }
 }
 
-export async function saveSceneData(data: SceneData, userId?: string): Promise<void> {
+export async function saveSceneData(data: SceneData, _userId?: string): Promise<void> {
   if (typeof window === 'undefined') return;
   try {
-    const path = userId ? `/api/scene?userId=${encodeURIComponent(userId)}` : '/api/scene';
-    await fetch(apiUrl(path), {
+    await authenticatedFetch(apiUrl('/api/scene'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data)
@@ -424,21 +352,28 @@ export function getBannedUsersSync(): Ban[] {
   }
 }
 
-export async function banUser(username: string, bannedBy: string, reason: string, permanent: boolean = true, days?: number): Promise<boolean> {
+export async function banUser(username: string, bannedBy: string, reason: string, permanent: boolean = true, days?: number, canBanAdmins = false): Promise<boolean> {
   if (typeof window === 'undefined') return false;
 
   const usernameLower = username.trim().toLowerCase();
 
-  // Check if trying to ban an admin
-  const users = await getUsers();
-  const targetUser = users.find(u => u.username.toLowerCase() === usernameLower);
-  if (targetUser && targetUser.role === 'admin') {
+  // Cannot ban yourself
+  if (usernameLower === bannedBy.trim().toLowerCase()) {
     return false;
   }
 
-  const isAdminAccount = ADMIN_ACCOUNTS_LIST.some(a => a.username.toLowerCase() === usernameLower);
-  if (isAdminAccount) {
-    return false;
+  // Check if trying to ban an admin (head_admin can bypass this)
+  if (!canBanAdmins) {
+    const users = await getUsers();
+    const targetUser = users.find(u => u.username.toLowerCase() === usernameLower);
+    if (targetUser && (targetUser.role === 'admin' || targetUser.role === 'head_admin')) {
+      return false;
+    }
+
+    const isAdminAccount = ADMIN_ACCOUNTS_LIST.some(a => a.username.toLowerCase() === usernameLower);
+    if (isAdminAccount) {
+      return false;
+    }
   }
 
   const newBan: Ban = {
@@ -469,6 +404,51 @@ export async function unbanUser(username: string): Promise<void> {
     });
   } catch (e) {
     console.error('Error unbanning user:', e);
+  }
+}
+
+// Hardware (device) bans — admin only, use authenticatedFetch
+export async function getHardwareBans(): Promise<HardwareBan[]> {
+  if (typeof window === 'undefined') return [];
+  try {
+    const res = await authenticatedFetch(apiUrl('/api/hardware-bans'));
+    if (!res.ok) throw new Error('Failed to fetch hardware bans');
+    return await res.json();
+  } catch (e) {
+    console.error('Error fetching hardware bans:', e);
+    return [];
+  }
+}
+
+export async function addHardwareBan(deviceId: string, reason?: string): Promise<{ bannedUsernames: string[] }> {
+  if (typeof window === 'undefined') return { bannedUsernames: [] };
+  const res = await authenticatedFetch(apiUrl('/api/hardware-bans'), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ deviceId, reason }),
+  });
+  if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || 'Failed to add hardware ban');
+  return await res.json();
+}
+
+export async function removeHardwareBan(deviceId: string): Promise<{ unbannedUsernames: string[] }> {
+  if (typeof window === 'undefined') return { unbannedUsernames: [] };
+  const res = await authenticatedFetch(apiUrl(`/api/hardware-bans?deviceId=${encodeURIComponent(deviceId)}`), {
+    method: 'DELETE',
+  });
+  if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || 'Failed to remove hardware ban');
+  return await res.json();
+}
+
+export async function getDevicesForUser(username: string): Promise<DeviceRecord[]> {
+  if (typeof window === 'undefined') return [];
+  try {
+    const res = await authenticatedFetch(apiUrl(`/api/users/devices?username=${encodeURIComponent(username)}`));
+    if (!res.ok) return [];
+    return await res.json();
+  } catch (e) {
+    console.error('Error fetching user devices:', e);
+    return [];
   }
 }
 
@@ -606,6 +586,58 @@ export async function updateBanAppealStatus(appealId: string, status: BanAppeal[
   }
 }
 
+/** Get the appeal thread for a user (their own appeal by username). */
+export async function getMyAppeal(username: string): Promise<BanAppeal | null> {
+  if (typeof window === 'undefined') return null;
+  try {
+    const res = await fetch(apiUrl(`/api/appeals?username=${encodeURIComponent(username)}`));
+    if (!res.ok) return null;
+    const list: BanAppeal[] = await res.json();
+    return list.find((a) => a.status === 'pending') || list[0] || null;
+  } catch (e) {
+    console.error('Error fetching my appeal:', e);
+    return null;
+  }
+}
+
+/** Get messages for an appeal thread (appeal owner: pass username). */
+export async function getAppealMessages(appealId: string, username: string): Promise<AppealMessage[]> {
+  if (typeof window === 'undefined') return [];
+  try {
+    const res = await fetch(apiUrl(`/api/appeals/messages?appealId=${encodeURIComponent(appealId)}&username=${encodeURIComponent(username)}`));
+    if (!res.ok) return [];
+    return await res.json();
+  } catch (e) {
+    console.error('Error fetching appeal messages:', e);
+    return [];
+  }
+}
+
+/** Get appeal thread as admin (uses auth token). */
+export async function getAppealMessagesAdmin(appealId: string): Promise<AppealMessage[]> {
+  if (typeof window === 'undefined') return [];
+  try {
+    const res = await authenticatedFetch(apiUrl(`/api/appeals/messages?appealId=${encodeURIComponent(appealId)}`));
+    if (!res.ok) return [];
+    return await res.json();
+  } catch (e) {
+    console.error('Error fetching appeal messages (admin):', e);
+    return [];
+  }
+}
+
+/** Send a message in an appeal thread; returns updated messages (including AI reply). */
+export async function sendAppealMessage(appealId: string, username: string, message: string): Promise<AppealMessage[]> {
+  if (typeof window === 'undefined') return [];
+  const res = await fetch(apiUrl('/api/appeals/messages'), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ appealId, username, message: message.trim() }),
+  });
+  if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || 'Failed to send message');
+  return await res.json();
+}
+
 // Server functions
 export function getServers(): GameServer[] {
   if (typeof window === 'undefined') return [];
@@ -720,19 +752,26 @@ export async function getUserMadeGames(): Promise<UserMadeGame[]> {
 export async function saveUserMadeGame(game: UserMadeGame): Promise<void> {
   if (typeof window === 'undefined') return;
   try {
-    await fetch(apiUrl('/api/games'), {      method: 'POST',
+    const res = await authenticatedFetch(apiUrl('/api/games'), {
+      method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(game)
     });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || `Failed to save game: ${res.status}`);
+    }
   } catch (e) {
     console.error('Error saving user-made game to API:', e);
+    throw e;
   }
 }
 
 export async function deleteUserMadeGame(gameId: string): Promise<void> {
   if (typeof window === 'undefined') return;
   try {
-    await fetch(apiUrl(`/api/games?id=${encodeURIComponent(gameId)}`), {      method: 'DELETE'
+    await authenticatedFetch(apiUrl(`/api/games?id=${encodeURIComponent(gameId)}`), {
+      method: 'DELETE'
     });
   } catch (e) {
     console.error('Error deleting user-made game:', e);

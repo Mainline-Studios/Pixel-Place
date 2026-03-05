@@ -61,6 +61,7 @@ export const COLLECTIONS = {
   SCENES: 'scenes',
   BANS: 'bans',
   BAN_APPEALS: 'ban_appeals',
+  APPEAL_MESSAGES: 'appeal_messages',
   REPORTS: 'reports',
   FRIEND_REQUESTS: 'friend_requests',
   MESSAGES: 'messages',
@@ -89,7 +90,10 @@ export const COLLECTIONS = {
   CHALLENGES_MASTER: 'challenges_master', // Master list of challenges
   ACTIVITY_FEED: 'activity_feed', // User activity feed
   NOTIFICATIONS: 'notifications', // User notifications
-  USER_SAFETY: 'user_safety' // User safety points and break tracking
+  USER_SAFETY: 'user_safety', // User safety points and break tracking
+  USER_DEVICES: 'user_devices', // per-user list of devices (deviceId + label)
+  DEVICE_USERS: 'device_users', // per-device list of usernames that used it
+  HARDWARE_BANS: 'hardware_bans' // banned deviceIds (reversible)
 };
 
 // Helper functions for Firestore operations

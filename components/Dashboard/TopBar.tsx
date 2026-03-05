@@ -15,7 +15,8 @@ interface TopBarProps {
 
 const TABS: { key: TabType; label: string; shortcut?: string; adminOnly?: boolean }[] = [
   { key: 'games', label: 'Games', shortcut: 'G' },
-  { key: 'avatarShop', label: 'Avatar Shop', shortcut: 'C' },
+  { key: 'studio', label: 'Game Studio', shortcut: 'C' },
+  { key: 'avatarShop', label: 'Avatar Shop', shortcut: 'V' },
   { key: 'coins', label: 'Pixel Coins', shortcut: 'P' },
   { key: 'friends', label: 'Friends', shortcut: 'F' },
   { key: 'settings', label: 'Settings', shortcut: 'O' },
@@ -84,7 +85,7 @@ export default function TopBar({ currentTab, onTabChange, user }: TopBarProps) {
         </div>
         <div className="header-nav">
           {TABS
-            .filter(tab => !tab.adminOnly || user.role === 'admin')
+            .filter(tab => !tab.adminOnly || user.role === 'admin' || user.role === 'head_admin')
             .map((tab) => (
               <button
                 key={tab.key}

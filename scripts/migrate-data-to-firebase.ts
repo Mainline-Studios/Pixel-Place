@@ -34,6 +34,7 @@ if (fs.existsSync(envPath)) {
 }
 
 import { getFirestoreInstance, COLLECTIONS, setDocument, addDocument, getDocuments, deleteDocument } from '../lib/firestore';
+import { hashPassword } from '../lib/auth';
 
 // Initialize Firebase
 const db = getFirestoreInstance();
@@ -114,10 +115,13 @@ async function migrateUsers() {
 
   for (const user of users) {
     try {
+      const password_hash = (user.password && typeof user.password === 'string')
+        ? await hashPassword(user.password)
+        : '';
       const userData = {
         username: user.username,
         username_lower: user.username.toLowerCase(),
-        password_hash: user.password,
+        password_hash,
         gender: user.gender || '',
         role: user.role || 'user',
         coins: user.coins || 0,

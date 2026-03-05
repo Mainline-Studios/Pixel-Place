@@ -2,12 +2,15 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { TabType, User } from '@/types';
+import { useSound } from '@/contexts/SoundContext';
 import { pathToTab, tabToPath } from '@/lib/routing';
 import TopBar from './TopBar';
 import Sidebar from './Sidebar';
 import FloatingParticles from '../FloatingParticles';
 import ScrollToTop from '../ScrollToTop';
+import { useSecretTheme } from '@/contexts/SecretThemeContext';
 import GamesTab from '../Tabs/GamesTab';
+import CreateTab from '../Tabs/CreateTab';
 import AvatarShopTab from '../Tabs/AvatarShopTab';
 import CoinsTab from '../Tabs/CoinsTab';
 import FriendsTab from '../Tabs/FriendsTab';
@@ -18,6 +21,8 @@ interface DashboardProps {
 }
 
 export default function Dashboard({ user }: DashboardProps) {
+  const { playTabSwitch } = useSound();
+  const { secretTheme } = useSecretTheme();
   const [currentTab, setCurrentTab] = useState<TabType>('games');
   const [editMode, setEditMode] = useState(false);
 
@@ -26,7 +31,7 @@ export default function Dashboard({ user }: DashboardProps) {
     if (typeof window === 'undefined') return;
     const sync = () => {
       const tab = pathToTab(window.location.pathname) as TabType;
-      if (['games', 'avatarShop', 'coins', 'friends', 'settings', 'donation'].includes(tab)) {
+      if (['games', 'avatarShop', 'coins', 'friends', 'settings', 'studio', 'donation'].includes(tab)) {
         setCurrentTab(tab);
       }
     };
@@ -36,6 +41,7 @@ export default function Dashboard({ user }: DashboardProps) {
   }, []);
 
   const handleTabChange = useCallback((tab: TabType) => {
+    playTabSwitch();
     setCurrentTab(tab);
     if (typeof window !== 'undefined') {
       const path = tabToPath(tab);
@@ -43,14 +49,14 @@ export default function Dashboard({ user }: DashboardProps) {
         window.history.replaceState({}, '', path);
       }
     }
-  }, []);
+  }, [playTabSwitch]);
 
-  // Keyboard shortcuts: G=Games, C=Avatar Shop, P=Coins, F=Friends, O=Settings (avoid WASD)
+  // Keyboard shortcuts: G=Games, C=Studio, V=Avatar Shop, P=Coins, F=Friends, O=Settings (avoid WASD/B/A)
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (e.ctrlKey || e.metaKey || e.altKey || e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
       const key = e.key.toLowerCase();
-      const map: Record<string, TabType> = { g: 'games', c: 'avatarShop', p: 'coins', f: 'friends', o: 'settings' };
+      const map: Record<string, TabType> = { g: 'games', c: 'studio', v: 'avatarShop', p: 'coins', f: 'friends', o: 'settings' };
       if (map[key]) {
         e.preventDefault();
         handleTabChange(map[key]);
@@ -64,6 +70,8 @@ export default function Dashboard({ user }: DashboardProps) {
     switch (currentTab) {
       case 'games':
         return <GamesTab user={user} editMode={editMode} />;
+      case 'studio':
+        return <CreateTab user={user} editMode={editMode} />;
       case 'avatarShop':
         return <AvatarShopTab user={user} editMode={editMode} />;
       case 'coins':
@@ -94,7 +102,26 @@ export default function Dashboard({ user }: DashboardProps) {
       <div className="body-row">
         <div className="body-inner">
           <Sidebar user={user} />
-          <section className="main-card">{renderTabContent()}</section>
+          <section className="main-card">
+            <div
+              className="ixel-ace-brand"
+              style={{
+                textAlign: 'center',
+                padding: '10px 16px',
+                marginBottom: '12px',
+                background: 'linear-gradient(90deg, rgba(255,60,60,0.2), rgba(255,80,80,0.15))',
+                border: '1px solid var(--border)',
+                borderRadius: 'var(--panel-radius)',
+                fontSize: '20px',
+                fontWeight: 700,
+                color: '#ff9090',
+                letterSpacing: '0.1em',
+              }}
+            >
+              ixel ace
+            </div>
+            {renderTabContent()}
+          </section>
         </div>
       </div>
       <footer style={{
@@ -110,7 +137,7 @@ export default function Dashboard({ user }: DashboardProps) {
         <span style={{ margin: '0 12px', opacity: 0.5 }}>•</span>
         <span>Play. Create. Share.</span>
         <span style={{ margin: '0 12px', opacity: 0.5 }}>•</span>
-        <span>Press G, C, P, F, or O to switch tabs</span>
+        <span>Press G, S, C, P, F, or O to switch tabs</span>
       </footer>
       <ScrollToTop />
     </div>

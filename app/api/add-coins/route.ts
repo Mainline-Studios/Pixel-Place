@@ -1,13 +1,17 @@
+export const dynamic = 'force-static';
+
 import { NextRequest, NextResponse } from 'next/server';
 import { getDocument, setDocument, queryDocuments, COLLECTIONS } from '@/lib/firestore';
+import { hashPassword } from '@/lib/auth';
+import { getAdminAccounts } from '@/lib/adminAccounts';
 import { User } from '@/types';
 
 function userFromDoc(doc: any): User {
   return {
     username: doc.username || doc.id,
-    password: doc.password_hash || doc.password || '',
+    password: '',
     gender: doc.gender || '',
-    role: (doc.role || 'user') as 'admin' | 'user',
+    role: (doc.role || 'user') as 'admin' | 'user' | 'head_admin',
     coins: doc.coins || 0,
     ownedSkins: Array.isArray(doc.owned_skins) ? doc.owned_skins : (typeof doc.owned_skins === 'string' ? JSON.parse(doc.owned_skins || '[]') : []),
     equippedSkin: doc.equipped_skin || '',
@@ -45,30 +49,18 @@ export async function POST(request: NextRequest) {
     let userDoc = existingUsers.length > 0 ? existingUsers[0] : null;
 
     if (!userDoc) {
-      // User doesn't exist yet - create them (for admin accounts that auto-create on login)
-      const ADMIN_ACCOUNTS = [
-        { username: "admin", password: "extra" },
-        { username: "TicTAK", password: "Thomas" },
-        { username: "IDon'tKnow", password: "Titan" },
-        { username: "6767kid", password: "67676767" },
-        { username: "Billibob", password: "Luca" },
-        { username: "Daniello1", password: "Daniel" },
-        { username: "FunBoy", password: "Simon" },
-        { username: "BelloBoy1", password: "Zac" },
-        { username: "Bob", password: "Henry" },
-        { username: "Mr.Noob", password: "Tyson" },
-        { username: "BDawgsAwesome1", password: "20Minecraft15" }
-      ];
-
-      const adminAccount = ADMIN_ACCOUNTS.find(a => a.username.toLowerCase() === userId.toLowerCase());
+      // User doesn't exist yet - create them (admin list from env only)
+      const adminAccounts = getAdminAccounts();
+      const adminAccount = adminAccounts.find(a => a.username.toLowerCase() === userId.toLowerCase());
       
       if (adminAccount) {
-        // Create the admin user in Firestore
+        // Create the admin user in Firestore — never store raw password
         const initialCoins = setAmount !== undefined ? setAmount : (coins || 0);
+        const password_hash = await hashPassword(adminAccount.password);
         const newUserData = {
           username: adminAccount.username,
           username_lower: adminAccount.username.toLowerCase(),
-          password_hash: adminAccount.password,
+          password_hash,
           gender: 'N/A',
           role: 'admin',
           coins: initialCoins,

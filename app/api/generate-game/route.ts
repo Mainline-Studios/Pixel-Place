@@ -1,13 +1,35 @@
+export const dynamic = 'force-static';
+
 import { NextRequest, NextResponse } from 'next/server';
+import { GoogleGenerativeAI } from '@google/generative-ai';
+import { getDocument, updateDocument, COLLECTIONS } from '@/lib/firestore';
+import { getAuthUser } from '@/lib/auth';
+
+const PYX_DEFAULT_URL = 'https://pyxaiapi-574247481583.us-central1.run.app';
+
+// $5.50 ≈ 550 coins at ~100 coins/$0.99
+const CLAUDE_SONNET_COST = 550;
+
+const AI_MODELS: Record<string, { groqModel: string; cost: number }> = {
+  template: { groqModel: '', cost: 0 },
+  pyx: { groqModel: '', cost: 0 },
+  'claude-haiku': { groqModel: '', cost: 0 },
+  claude: { groqModel: '', cost: CLAUDE_SONNET_COST },
+  'groq-8b': { groqModel: 'llama-3.1-8b-instant', cost: 0 },
+  'groq-70b': { groqModel: 'llama-3.3-70b-versatile', cost: 10 },
+};
 
 // AI Game Generation API
-// Supports OpenAI, Anthropic Claude, or other LLM providers
+// Supports model selection; some models cost Pixel Coins
 export async function POST(request: NextRequest) {
   let prompt = '';
 
   try {
     const body = await request.json();
     prompt = body.prompt || '';
+    const modelId = body.model || 'groq-8b';
+    const authUser = getAuthUser(request);
+    const username = authUser?.username?.trim() ?? '';
 
     if (!prompt || !prompt.trim()) {
       return NextResponse.json(
@@ -16,40 +38,101 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check which LLM provider to use (default to OpenAI)
-    const provider = process.env.AI_PROVIDER || 'openai';
-    const apiKey = process.env.OPENAI_API_KEY || process.env.ANTHROPIC_API_KEY;
+    const modelConfig = AI_MODELS[modelId] || AI_MODELS['groq-8b'];
+    let newCoins: number | undefined;
 
-    if (!apiKey) {
-      // Fallback to a smart template-based generator if no API key
-      return NextResponse.json({
-        code: generateSmartTemplateCode(prompt),
-        provider: 'template'
+    if (modelConfig.cost > 0) {
+      if (!authUser) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      }
+      const userDoc = await getDocument(COLLECTIONS.USERS, username.toLowerCase());
+      if (!userDoc) {
+        return NextResponse.json({ error: 'User not found' }, { status: 400 });
+      }
+      const currentCoins = (userDoc.coins ?? 0) as number;
+      if (currentCoins < modelConfig.cost) {
+        return NextResponse.json(
+          { error: `Not enough Pixel Coins. Need ${modelConfig.cost}, you have ${currentCoins}.` },
+          { status: 400 }
+        );
+      }
+      newCoins = currentCoins - modelConfig.cost;
+      await updateDocument(COLLECTIONS.USERS, username.toLowerCase(), {
+        coins: newCoins,
+        updated_at: Date.now(),
       });
     }
 
     let generatedCode = '';
+    let usedProvider = modelId;
 
-    if (provider === 'openai' && process.env.OPENAI_API_KEY) {
-      generatedCode = await generateWithOpenAI(prompt, process.env.OPENAI_API_KEY);
-    } else if (provider === 'anthropic' && process.env.ANTHROPIC_API_KEY) {
-      generatedCode = await generateWithAnthropic(prompt, process.env.ANTHROPIC_API_KEY);
-    } else {
-      // Fallback to smart template
+    if (modelId === 'template') {
       generatedCode = generateSmartTemplateCode(prompt);
+    } else if (modelId === 'pyx') {
+      const pyxResult = await generateWithPyx(prompt);
+      if (pyxResult.connectionError || !pyxResult.completion?.trim()) {
+        return NextResponse.json(
+          { error: "Couldn't connect to Pyx AI Code. Please try again or use another model." },
+          { status: 503 }
+        );
+      }
+      generatedCode = normalizeGameCode(pyxResult.completion);
+      usedProvider = 'pyx';
+    } else if ((modelId === 'claude' || modelId === 'claude-haiku') && process.env.ANTHROPIC_API_KEY) {
+      const useHaiku = modelId === 'claude-haiku';
+      generatedCode = await generateWithAnthropic(prompt, process.env.ANTHROPIC_API_KEY, useHaiku);
+      generatedCode = normalizeGameCode(generatedCode);
+      usedProvider = modelId;
+    } else if (modelConfig.groqModel && (process.env.GROQ_API_KEY || '').trim()) {
+      generatedCode = await generateWithGroq(prompt, (process.env.GROQ_API_KEY || '').trim(), modelConfig.groqModel);
+    } else if ((process.env.GROQ_API_KEY || '').trim()) {
+      generatedCode = await generateWithGroq(prompt, (process.env.GROQ_API_KEY || '').trim(), 'llama-3.1-8b-instant');
+      usedProvider = 'groq-8b';
+    } else {
+      generatedCode = generateSmartTemplateCode(prompt);
+      usedProvider = 'template';
     }
 
-    return NextResponse.json({ code: generatedCode, provider });
+    const response: { code: string; provider: string; newCoins?: number } = { code: generatedCode, provider: usedProvider };
+    if (newCoins !== undefined) response.newCoins = newCoins;
+    return NextResponse.json(response);
   } catch (error: any) {
     console.error('AI generation error:', error);
-    // Fallback to template-based generation on error
-    const fallbackPrompt = prompt && prompt.trim() ? prompt : 'creative sandbox game';
-    return NextResponse.json({
-      code: generateSmartTemplateCode(fallbackPrompt),
-      provider: 'template-fallback',
-      error: error.message
-    });
+    return NextResponse.json(
+      { error: error.message || 'AI generation failed' },
+      { status: 500 }
+    );
   }
+}
+
+const PYX_CODE_MAX_TOKENS = 4096;
+
+async function generateWithPyx(prompt: string): Promise<{ completion: string; connectionError?: boolean }> {
+  const url = process.env.PYX_SERVICE_URL || PYX_DEFAULT_URL;
+  const gamePrompt = `Create a complete Three.js game. Export: export function createGame(container: HTMLElement). Import: import * as THREE from 'three'. Include lighting, player controls (WASD, mouse), and a simple playable scene. Return ONLY the TypeScript/JavaScript code, no markdown or explanation.
+
+User request: ${prompt}`;
+  try {
+    const res = await fetch(`${url.replace(/\/$/, '')}/code/complete`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prompt: gamePrompt, max_tokens: PYX_CODE_MAX_TOKENS }),
+    });
+    if (!res.ok) return { completion: '', connectionError: true };
+    const data = (await res.json()) as { completion?: string };
+    return { completion: typeof data.completion === 'string' ? data.completion : '' };
+  } catch (e) {
+    console.error('[Pyx] Code complete error:', e);
+    return { completion: '', connectionError: true };
+  }
+}
+
+function normalizeGameCode(code: string): string {
+  let out = (code || '').replace(/```typescript\n?/g, '').replace(/```javascript\n?/g, '').replace(/```\n?/g, '').trim();
+  if (!out.includes('export function createGame') && !out.includes('function createGame')) {
+    out = `export function createGame(container: HTMLElement) {\n${out}\n}`;
+  }
+  return out;
 }
 
 async function generateWithOpenAI(prompt: string, apiKey: string): Promise<string> {
@@ -83,7 +166,7 @@ CRITICAL REQUIREMENTS - YOU MUST FOLLOW ALL OF THESE:
    - Game state management (score, health, lives, levels)
    - Win/lose conditions with proper feedback
    - Sound effects (using Web Audio API or similar)
-   - UI elements (HUD, menus, score displays)
+   - UI elements (REQUIRED): HUD with score/health display, start screen/menu, pause menu, game-over screen with restart button, on-screen instructions
 6. CODE QUALITY:
    - Well-organized, modular code structure
    - Comprehensive comments explaining complex logic
@@ -132,74 +215,129 @@ The user has provided a DETAILED description. Read it CAREFULLY and implement EX
   return code;
 }
 
-async function generateWithAnthropic(prompt: string, apiKey: string): Promise<string> {
+async function generateWithAnthropic(prompt: string, apiKey: string, useHaiku = false): Promise<string> {
+  const key = (apiKey || '').trim();
+  if (!key) throw new Error('Anthropic API key is missing');
+  const model = useHaiku ? 'claude-haiku-4-5-20251001' : 'claude-sonnet-4-6';
+  const maxTokens = 8192;
+  const systemPrompt = useHaiku
+    ? `You are an expert game developer and Three.js specialist. Generate a complete, working 3D game. REQUIREMENTS: 1) export function createGame(container: HTMLElement) 2) import * as THREE from 'three' 3) 500+ lines, lighting, materials, player controls (WASD, mouse), physics, game state, UI (HUD, start menu, game-over). Return ONLY code, NO markdown.`
+    : `You are an ELITE game developer and Three.js expert. Generate a MASSIVE, production-quality, visually stunning 3D game that is COMPLETE, POLISHED, and WORKS PERFECTLY. CRITICAL: 1) export function createGame(container: HTMLElement) 2) import * as THREE from 'three' 3) At least 5000 lines 4) Beautiful visuals, full mechanics, physics, controls, REQUIRED UI (HUD, start menu, game-over screen). 5) Return ONLY code, NO markdown, NO code blocks.`;
+  const userText = useHaiku
+    ? `Create a complete 3D game:\n\n${prompt}\n\nReturn ONLY the TypeScript/JavaScript code.`
+    : `User description: ${prompt}\n\nGenerate a MASSIVE, COMPREHENSIVE, BEAUTIFUL game (5000+ lines) that matches the description EXACTLY.`;
   const response = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'x-api-key': apiKey,
+      'x-api-key': key,
       'anthropic-version': '2023-06-01'
     },
     body: JSON.stringify({
-      model: 'claude-3-5-sonnet-20241022',
-      max_tokens: 32000,
+      model,
+      max_tokens: maxTokens,
+      system: systemPrompt,
+      messages: [{ role: 'user', content: userText }],
+    }),
+  });
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const msg = (data as { error?: { message?: string } })?.error?.message || response.statusText;
+    throw new Error(`Anthropic API error: ${msg}`);
+  }
+
+  let code = (data.content?.[0] as { text?: string })?.text || '';
+
+  // Clean up markdown
+  code = code.replace(/```typescript\n?/g, '').replace(/```javascript\n?/g, '').replace(/```\n?/g, '').trim();
+
+  if (!code.includes('export function createGame') && !code.includes('function createGame')) {
+    code = `export function createGame(container: HTMLElement) {\n${code}\n}`;
+  }
+
+  return code;
+}
+
+async function generateWithGroq(prompt: string, apiKey: string, groqModel?: string): Promise<string> {
+  const key = (apiKey || '').trim();
+  if (!key) throw new Error('Groq API key is missing');
+  const model = groqModel || process.env.GROQ_MODEL || 'llama-3.3-70b-versatile';
+  const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${key}`,
+    },
+    body: JSON.stringify({
+      model,
       messages: [
         {
-          role: 'user',
-          content: `You are an ELITE game developer and Three.js expert. Generate a MASSIVE, production-quality, visually stunning 3D game that is COMPLETE, POLISHED, and WORKS PERFECTLY.
+          role: 'system',
+          content: `You are an expert game developer and Three.js specialist. Generate complete, working 3D games.
 
-CRITICAL REQUIREMENTS - FOLLOW ALL:
+REQUIREMENTS:
 1. Export: export function createGame(container: HTMLElement)
 2. Import: import * as THREE from 'three'
-3. CODE SIZE: Generate AT LEAST 5000 lines. MANDATORY. The game must be MASSIVE and COMPREHENSIVE.
-4. VISUAL QUALITY: Create BEAUTIFUL, NOT UGLY games with:
-   - Advanced lighting (multiple lights, shadows, ambient occlusion)
-   - High-quality materials (PBR, textures, normal maps)
-   - Particle systems for effects
-   - Post-processing effects
-   - Smooth animations
-   - Professional color schemes and visual polish
-5. GAME MECHANICS: Complete systems:
-   - Full player controls (WASD, mouse, keyboard)
-   - Physics (gravity, collisions, momentum)
-   - Game state (score, health, lives, levels)
-   - Win/lose conditions with feedback
-   - Sound effects (Web Audio API)
-   - UI elements (HUD, menus, score displays)
-6. CODE QUALITY:
-   - Well-organized, modular structure
-   - Comprehensive comments
-   - Error handling
-   - Performance optimizations
-   - Clean, readable code
-7. FEATURES:
-   - Multiple game objects
-   - Collision detection
-   - Camera systems
-   - Animation systems
-   - Particle effects
-   - Environmental details
-   - Interactive elements
-   - Game progression
-8. CLEANUP: Return cleanup function
-9. FORMAT: ONLY code, NO explanations, NO markdown, NO code blocks
-
-User description: ${prompt}
-
-Generate a MASSIVE, COMPREHENSIVE, BEAUTIFUL game (5000+ lines) that matches the description EXACTLY.`
-        }
-      ]
-    })
+3. Create a COMPLETE, playable game (aim for 500+ lines minimum)
+4. Include: lighting, materials, player controls (WASD, mouse), physics, game state (score, health), REQUIRED UI (HUD, score/health display, start menu, game-over screen), win/lose conditions
+5. Return ONLY the TypeScript/JavaScript code. NO markdown, NO code blocks, NO backticks, NO explanations.`,
+        },
+        {
+          role: 'user',
+          content: `Create a complete, working 3D game based on this description:\n\n${prompt}\n\nGenerate production-ready Three.js code with full gameplay, controls, and visuals. Return ONLY the code.`,
+        },
+      ],
+      temperature: 0.8,
+      max_tokens: 16000,
+    }),
   });
 
   if (!response.ok) {
-    throw new Error(`Anthropic API error: ${response.statusText}`);
+    const body = await response.text();
+    let errMsg = `Groq API error: ${response.status} ${response.statusText}`;
+    try {
+      const j = JSON.parse(body);
+      if (j.error?.message) errMsg += ` — ${j.error.message}`;
+      else if (body) errMsg += ` — ${body.slice(0, 200)}`;
+    } catch {
+      if (body) errMsg += ` — ${body.slice(0, 200)}`;
+    }
+    throw new Error(errMsg);
   }
 
   const data = await response.json();
-  let code = data.content[0]?.text || '';
+  let code = data.choices?.[0]?.message?.content || '';
 
-  // Clean up markdown
+  code = code.replace(/```typescript\n?/g, '').replace(/```javascript\n?/g, '').replace(/```\n?/g, '').trim();
+
+  if (!code.includes('export function createGame') && !code.includes('function createGame')) {
+    code = `export function createGame(container: HTMLElement) {\n${code}\n}`;
+  }
+
+  return code;
+}
+
+async function generateWithGemini(prompt: string, apiKey: string): Promise<string> {
+  const genAI = new GoogleGenerativeAI(apiKey);
+  const model = genAI.getGenerativeModel({
+    model: process.env.GEMINI_MODEL || 'gemini-1.5-flash',
+    systemInstruction: `You are an ELITE game developer and Three.js expert. Generate MASSIVE, production-quality 3D games. CRITICAL: 1) export function createGame(container: HTMLElement) 2) import * as THREE from 'three' 3) At least 5000 lines 4) Beautiful visuals, full mechanics, physics, controls (WASD, mouse), REQUIRED UI (HUD, score/health display, start menu, game-over screen), sound. 5) Return ONLY code, NO markdown, NO backticks, NO explanations.`,
+    generationConfig: {
+      temperature: 0.8,
+      maxOutputTokens: 32000,
+    },
+  });
+
+  const userPrompt = `Create a massive, comprehensive, production-quality 3D game based on this description:\n\n${prompt}\n\nGenerate at least 5000 lines with beautiful visuals, complete game mechanics, and professional polish. Return ONLY the TypeScript/JavaScript code.`;
+  const result = await model.generateContent(userPrompt);
+  const response = result.response;
+  if (!response || !response.text) {
+    throw new Error('Gemini API returned no content');
+  }
+
+  let code = response.text().trim();
+
   code = code.replace(/```typescript\n?/g, '').replace(/```javascript\n?/g, '').replace(/```\n?/g, '').trim();
 
   if (!code.includes('export function createGame') && !code.includes('function createGame')) {

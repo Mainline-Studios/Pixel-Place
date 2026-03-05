@@ -18,6 +18,8 @@
       {"source": "/coins", "destination": "/index.html"},
       {"source": "/friends", "destination": "/index.html"},
       {"source": "/settings", "destination": "/index.html"},
+      {"source": "/studio", "destination": "/index.html"},
+      {"source": "/studio/**", "destination": "/index.html"},
       {"source": "/donation", "destination": "/index.html"}
     ],
     "headers": [
@@ -25,5 +27,5 @@
       {"source": "robots.txt", "headers": [{"key": "Content-Type", "value": "text/plain"}, {"key": "Cache-Control", "value": "public, max-age=3600"}]}
     ]
   },
-  "functions": {"source": "functions"}
+  "functions": {"source": "functions", "predeploy": ["npm --prefix \"$RESOURCE_DIR\" run build"]}
 }

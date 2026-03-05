@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { Ban } from '@/types';
-import { createBanAppeal, getMessagesAPI, sendMessage } from '@/lib/storage';
+import { createBanAppeal, getMyAppeal, getAppealMessages, sendAppealMessage } from '@/lib/storage';
+import type { BanAppeal, AppealMessage } from '@/types';
 
 interface BanScreenProps {
   ban: Ban;
@@ -11,61 +12,52 @@ interface BanScreenProps {
 }
 
 export default function BanScreen({ ban, username, onAppealSubmitted }: BanScreenProps) {
+  const [appeal, setAppeal] = useState<BanAppeal | null>(null);
   const [appealMessage, setAppealMessage] = useState('');
-  const [appealSubmitted, setAppealSubmitted] = useState(false);
+  const [messages, setMessages] = useState<AppealMessage[]>([]);
+  const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-  const [showChat, setShowChat] = useState(false);
-  const [chatMessages, setChatMessages] = useState<any[]>([]);
-  const [newMessage, setNewMessage] = useState('');
+  const [threadInput, setThreadInput] = useState('');
   const [sendingMessage, setSendingMessage] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const loadMessages = async () => {
-    const messages = await getMessagesAPI(username, ban.bannedBy);
-    setChatMessages(messages);
+  useEffect(() => {
+    let cancelled = false;
+    getMyAppeal(username).then((a) => {
+      if (!cancelled) {
+        setAppeal(a || null);
+        if (a) loadMessages(a.id);
+      }
+      if (!cancelled) setLoading(false);
+    });
+    return () => { cancelled = true; };
+  }, [username]);
+
+  const loadMessages = (appealId: string) => {
+    getAppealMessages(appealId, username).then(setMessages);
   };
 
   useEffect(() => {
-    if (showChat) {
-      loadMessages();
-      const interval = setInterval(loadMessages, 2000);
-      return () => clearInterval(interval);
-    }
-  }, [showChat, username, ban.bannedBy]);
-
-  useEffect(() => {
-    if (messagesEndRef.current) {
+    if (appeal && messages.length > 0 && messagesEndRef.current) {
       messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
     }
-  }, [chatMessages]);
+  }, [appeal, messages]);
 
-  const handleSendMessage = async () => {
-    if (!newMessage.trim()) return;
-    setSendingMessage(true);
-    try {
-      await sendMessage(username, ban.bannedBy, newMessage.trim());
-      setNewMessage('');
-      await loadMessages();
-    } catch (error) {
-      console.error('Error sending message:', error);
-      alert('Error sending message. Please try again.');
-    } finally {
-      setSendingMessage(false);
-    }
-  };
-
-  const handleAppeal = async () => {
+  const handleStartAppeal = async () => {
     if (!appealMessage.trim()) {
       alert('Please enter a reason for your appeal.');
       return;
     }
-
     setSubmitting(true);
     try {
-      await createBanAppeal(username, ban, appealMessage.trim());
-      setAppealSubmitted(true);
+      const id = await createBanAppeal(username, ban, appealMessage.trim());
       onAppealSubmitted();
-      alert('Your appeal has been submitted. An administrator will review it.');
+      const a = await getMyAppeal(username);
+      if (a) {
+        setAppeal(a);
+        loadMessages(a.id);
+      }
+      setAppealMessage('');
     } catch (error) {
       console.error('Error submitting appeal:', error);
       alert('Error submitting appeal. Please try again.');
@@ -73,6 +65,29 @@ export default function BanScreen({ ban, username, onAppealSubmitted }: BanScree
       setSubmitting(false);
     }
   };
+
+  const handleSendMessage = async () => {
+    if (!threadInput.trim() || !appeal) return;
+    setSendingMessage(true);
+    try {
+      const updated = await sendAppealMessage(appeal.id, username, threadInput.trim());
+      setThreadInput('');
+      setMessages(updated);
+    } catch (error: any) {
+      console.error('Error sending message:', error);
+      alert(error?.message || 'Failed to send. Try again.');
+    } finally {
+      setSendingMessage(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div style={{ position: 'fixed', inset: 0, background: 'linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10000 }}>
+        <div style={{ color: 'var(--text)', fontSize: '18px' }}>Loading…</div>
+      </div>
+    );
+  }
 
   return (
     <div style={{
@@ -91,216 +106,139 @@ export default function BanScreen({ ban, username, onAppealSubmitted }: BanScree
       <div style={{
         background: 'var(--panel)',
         borderRadius: '16px',
-        padding: '40px',
-        maxWidth: '500px',
+        padding: '24px',
+        maxWidth: '520px',
         width: '100%',
         border: '2px solid #ff4d4d',
         boxShadow: '0 20px 60px rgba(255, 77, 77, 0.3)',
-        textAlign: 'center'
+        display: 'flex',
+        flexDirection: 'column',
+        maxHeight: '90vh'
       }}>
-        {/* Ban Icon/Image */}
-        <div style={{
-          fontSize: '80px',
-          marginBottom: '20px',
-          filter: 'drop-shadow(0 0 20px rgba(255, 77, 77, 0.5))'
-        }}>
-          🚫
-        </div>
-
-        <h1 style={{
-          fontSize: '32px',
-          fontWeight: 700,
-          color: '#ff4d4d',
-          marginBottom: '16px',
-          textShadow: '0 0 20px rgba(255, 77, 77, 0.5)'
-        }}>
-          Account Banned
-        </h1>
-
-        <div style={{
-          fontSize: '18px',
-          color: 'var(--text)',
-          marginBottom: '24px',
-          lineHeight: '1.6'
-        }}>
-          Your account <strong style={{ color: '#ff4d4d' }}>{username}</strong> has been banned.
+        <div style={{ textAlign: 'center', marginBottom: '16px' }}>
+          <div style={{ fontSize: '48px', marginBottom: '8px' }}>🚫</div>
+          <h1 style={{ fontSize: '24px', fontWeight: 700, color: '#ff4d4d', marginBottom: '8px' }}>Account Banned</h1>
+          <div style={{ fontSize: '14px', color: 'var(--text)' }}>
+            Your account <strong style={{ color: '#ff4d4d' }}>{username}</strong> has been banned.
+          </div>
         </div>
 
         <div style={{
           background: 'var(--panel-soft)',
           borderRadius: '8px',
-          padding: '16px',
-          marginBottom: '24px',
-          textAlign: 'left'
+          padding: '12px',
+          marginBottom: '16px',
+          fontSize: '13px',
+          color: 'var(--text-dim)'
         }}>
-          <div style={{ fontSize: '14px', color: 'var(--text-dim)', marginBottom: '8px' }}>
-            <strong>Ban Reason:</strong>
-          </div>
-          <div style={{ fontSize: '16px', color: 'var(--text)' }}>
-            {ban.reason}
-          </div>
-          <div style={{ fontSize: '12px', color: 'var(--text-dim)', marginTop: '12px' }}>
-            Banned by: {ban.bannedBy}
-            <br />
-            Date: {new Date(ban.timestamp).toLocaleString()}
-            <br />
-            Type: {ban.permanent ? 'Permanent Ban' : `Temporary Ban (expires ${ban.expiresAt ? new Date(ban.expiresAt).toLocaleString() : 'N/A'})`}
-          </div>
+          <strong>Ban reason:</strong> {ban.reason}
+          <br />
+          Banned by: {ban.bannedBy} • {new Date(ban.timestamp).toLocaleString()}
         </div>
 
-        {!appealSubmitted ? (
+        {!appeal ? (
           <div>
-            <div style={{
-              fontSize: '16px',
-              color: 'var(--text)',
-              marginBottom: '16px',
-              fontWeight: 600
-            }}>
-              Submit an Appeal
+            <div style={{ fontSize: '14px', fontWeight: 600, marginBottom: '10px', color: 'var(--text)' }}>
+              Submit an appeal
             </div>
             <textarea
               value={appealMessage}
               onChange={(e) => setAppealMessage(e.target.value)}
-              placeholder="Explain why you believe this ban was issued in error..."
-              rows={5}
+              placeholder="Explain why you believe this ban was issued in error. You can then chat with the appeal assistant."
+              rows={4}
               style={{
                 width: '100%',
                 padding: '12px',
                 borderRadius: '8px',
                 border: '1px solid var(--border)',
-                background: 'var(--panel-soft)',
+                background: 'var(--panel)',
                 color: 'var(--text)',
                 fontSize: '14px',
                 resize: 'vertical',
-                marginBottom: '16px',
+                marginBottom: '12px',
                 fontFamily: 'inherit'
               }}
             />
             <button
               className="btn"
-              onClick={handleAppeal}
+              onClick={handleStartAppeal}
               disabled={submitting || !appealMessage.trim()}
               style={{
-                padding: '12px 32px',
-                fontSize: '16px',
+                width: '100%',
+                padding: '12px',
+                fontSize: '15px',
                 fontWeight: 600,
                 background: 'var(--accent)',
                 opacity: (submitting || !appealMessage.trim()) ? 0.5 : 1,
                 cursor: (submitting || !appealMessage.trim()) ? 'not-allowed' : 'pointer'
               }}
             >
-              {submitting ? 'Submitting...' : 'Submit Appeal'}
+              {submitting ? 'Submitting…' : 'Submit appeal & chat with assistant'}
             </button>
           </div>
         ) : (
-          <div style={{
-            padding: '20px',
-            background: 'rgba(46, 204, 113, 0.1)',
-            borderRadius: '8px',
-            border: '1px solid #2ecc71',
-            color: '#2ecc71',
-            fontSize: '16px',
-            fontWeight: 600
-          }}>
-            ✓ Appeal submitted successfully! An administrator will review your appeal.
-          </div>
-        )}
-
-        <div style={{
-          marginTop: '24px',
-          fontSize: '12px',
-          color: 'var(--text-dim)',
-          lineHeight: '1.6'
-        }}>
-          If you believe this ban was issued in error, you can submit an appeal above.
-          <br />
-          Appeals are reviewed by administrators and may take time to process.
-        </div>
-
-        <div style={{ marginTop: '24px', borderTop: '1px solid var(--border)', paddingTop: '24px' }}>
-          <button
-            className="btn"
-            onClick={() => setShowChat(!showChat)}
-            style={{
-              width: '100%',
-              padding: '12px',
-              fontSize: '16px',
-              background: showChat ? 'var(--accent)' : 'var(--panel-soft)',
-              marginBottom: showChat ? '16px' : '0'
-            }}
-          >
-            {showChat ? 'Hide Chat' : '💬 Chat with Administrator'}
-          </button>
-
-          {showChat && (
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
             <div style={{
-              marginTop: '16px',
+              fontSize: '11px',
+              color: 'var(--text-dim)',
+              marginBottom: '8px',
+              padding: '6px 10px',
+              background: 'rgba(255, 193, 7, 0.15)',
+              borderRadius: '6px',
+              border: '1px solid rgba(255, 193, 7, 0.3)'
+            }}>
+              This conversation is visible to administrators. The assistant can only discuss your ban and the appeal process.
+            </div>
+            <div style={{
+              flex: 1,
+              overflowY: 'auto',
+              minHeight: '200px',
+              maxHeight: '320px',
+              padding: '8px',
               background: 'var(--panel-soft)',
               borderRadius: '8px',
-              padding: '16px',
-              maxHeight: '400px',
-              display: 'flex',
-              flexDirection: 'column'
+              marginBottom: '12px'
             }}>
-              <div style={{
-                fontSize: '14px',
-                fontWeight: 600,
-                marginBottom: '12px',
-                color: 'var(--text)'
-              }}>
-                Chat with {ban.bannedBy}
-              </div>
-              
-              <div style={{
-                flex: 1,
-                overflowY: 'auto',
-                marginBottom: '12px',
-                minHeight: '200px',
-                maxHeight: '300px',
-                padding: '8px',
-                background: 'var(--panel)',
-                borderRadius: '4px'
-              }}>
-                {chatMessages.length === 0 ? (
-                  <div style={{ textAlign: 'center', color: 'var(--text-dim)', padding: '20px' }}>
-                    No messages yet. Start the conversation!
-                  </div>
-                ) : (
-                  chatMessages.map((msg) => (
-                    <div
-                      key={msg.id}
-                      style={{
-                        marginBottom: '12px',
-                        padding: '8px 12px',
-                        borderRadius: '8px',
-                        background: msg.fromUsername === username ? 'rgba(46, 204, 113, 0.2)' : 'rgba(100, 100, 100, 0.2)',
-                        textAlign: msg.fromUsername === username ? 'right' : 'left',
-                        alignSelf: msg.fromUsername === username ? 'flex-end' : 'flex-start',
-                        maxWidth: '80%'
-                      }}
-                    >
-                      <div style={{ fontSize: '12px', color: 'var(--text-dim)', marginBottom: '4px' }}>
-                        {msg.fromUsername === username ? 'You' : ban.bannedBy} • {new Date(msg.timestamp).toLocaleTimeString()}
-                      </div>
-                      <div style={{ fontSize: '14px', color: 'var(--text)' }}>
-                        {msg.message}
-                      </div>
+              {messages.length === 0 ? (
+                <div style={{ textAlign: 'center', color: 'var(--text-dim)', padding: '20px', fontSize: '14px' }}>
+                  Loading conversation…
+                </div>
+              ) : (
+                messages.map((msg) => (
+                  <div
+                    key={msg.id}
+                    style={{
+                      marginBottom: '10px',
+                      padding: '10px 12px',
+                      borderRadius: '10px',
+                      background: msg.fromUsername === username ? 'rgba(46, 204, 113, 0.2)' : msg.fromUsername === 'appeal_bot' ? 'rgba(100, 149, 237, 0.15)' : 'rgba(100, 100, 100, 0.2)',
+                      textAlign: msg.fromUsername === username ? 'right' : 'left',
+                      marginLeft: msg.fromUsername === username ? '20%' : 0,
+                      marginRight: msg.fromUsername === username ? 0 : '20%'
+                    }}
+                  >
+                    <div style={{ fontSize: '11px', color: 'var(--text-dim)', marginBottom: '4px' }}>
+                      {msg.fromUsername === username ? 'You' : msg.fromUsername === 'appeal_bot' ? 'Appeal assistant' : msg.fromUsername} • {new Date(msg.timestamp).toLocaleTimeString()}
                     </div>
-                  ))
-                )}
-                <div ref={messagesEndRef} />
-              </div>
-
+                    <div style={{ fontSize: '14px', color: 'var(--text)', whiteSpace: 'pre-wrap' }}>
+                      {msg.message}
+                    </div>
+                  </div>
+                ))
+              )}
+              <div ref={messagesEndRef} />
+            </div>
+            {appeal.status === 'pending' && (
               <div style={{ display: 'flex', gap: '8px' }}>
                 <input
                   type="text"
-                  value={newMessage}
-                  onChange={(e) => setNewMessage(e.target.value)}
-                  onKeyPress={(e) => e.key === 'Enter' && !sendingMessage && handleSendMessage()}
-                  placeholder="Type your message..."
+                  value={threadInput}
+                  onChange={(e) => setThreadInput(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && handleSendMessage()}
+                  placeholder="Ask about your ban or appeal…"
                   style={{
                     flex: 1,
-                    padding: '10px',
+                    padding: '10px 14px',
                     borderRadius: '8px',
                     border: '1px solid var(--border)',
                     background: 'var(--panel)',
@@ -311,19 +249,24 @@ export default function BanScreen({ ban, username, onAppealSubmitted }: BanScree
                 <button
                   className="btn"
                   onClick={handleSendMessage}
-                  disabled={sendingMessage || !newMessage.trim()}
+                  disabled={sendingMessage || !threadInput.trim()}
                   style={{
                     padding: '10px 20px',
-                    opacity: (sendingMessage || !newMessage.trim()) ? 0.5 : 1,
-                    cursor: (sendingMessage || !newMessage.trim()) ? 'not-allowed' : 'pointer'
+                    opacity: (sendingMessage || !threadInput.trim()) ? 0.5 : 1,
+                    cursor: (sendingMessage || !threadInput.trim()) ? 'not-allowed' : 'pointer'
                   }}
                 >
-                  {sendingMessage ? 'Sending...' : 'Send'}
+                  {sendingMessage ? 'Sending…' : 'Send'}
                 </button>
               </div>
-            </div>
-          )}
-        </div>
+            )}
+            {appeal.status !== 'pending' && (
+              <div style={{ fontSize: '13px', color: 'var(--text-dim)', textAlign: 'center', padding: '8px' }}>
+                This appeal has been {appeal.status}. You can no longer send messages.
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
