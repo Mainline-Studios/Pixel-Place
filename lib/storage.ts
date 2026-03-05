@@ -2,6 +2,7 @@ import { User, Skin, PublishedGame, DraftGame, SceneData, TabContent, GameServer
 import { NEW_SKINS, NEW_ACCESSORIES } from './newCatalog';
 import { apiUrl } from './apiBaseUrl';
 import { authenticatedFetch } from './api';
+import { getDeviceFingerprint } from './deviceFingerprint';
 
 /** Client: empty list (admin accounts are server-only via ADMIN_ACCOUNTS_JSON env). */
 export const ADMIN_ACCOUNTS_LIST: { username: string; password: string }[] = [];
@@ -448,6 +449,33 @@ export async function getDevicesForUser(username: string): Promise<DeviceRecord[
     throw new Error(err?.error || `Failed to load devices (${res.status})`);
   }
   return await res.json();
+}
+
+/** Check if current device is hardware-banned (for app-open check, no auth). */
+export async function checkDeviceBanStatus(): Promise<{ banned: boolean; ban?: Ban }> {
+  if (typeof window === 'undefined') return { banned: false };
+  try {
+    const { deviceId } = typeof getDeviceFingerprint === 'function' ? getDeviceFingerprint() : { deviceId: '' };
+    if (!deviceId) return { banned: false };
+    const res = await fetch(apiUrl(`/api/auth/check-device?deviceId=${encodeURIComponent(deviceId)}`), { cache: 'no-store' });
+    const data = await res.json().catch(() => ({}));
+    if (data.banned && data.ban) {
+      const b = data.ban as Record<string, unknown>;
+      return {
+        banned: true,
+        ban: {
+          username: (b.username as string) || 'This device',
+          reason: (b.reason as string) || '',
+          bannedBy: (b.bannedBy as string) ?? (b.banned_by as string) ?? 'Administrator',
+          timestamp: (b.timestamp as number) ?? (b.banned_at as number) ?? Date.now(),
+          permanent: (b.permanent as boolean) ?? true,
+        },
+      };
+    }
+    return { banned: false };
+  } catch {
+    return { banned: false };
+  }
 }
 
 // Report functions - Now using API

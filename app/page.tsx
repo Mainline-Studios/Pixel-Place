@@ -7,6 +7,7 @@ import Login from '@/components/Login';
 import Dashboard from '@/components/Dashboard/Dashboard';
 import SplashScreen from '@/components/SplashScreen';
 import BreakReminder from '@/components/BreakReminder';
+import BanScreen from '@/components/BanScreen';
 import { getPlaytimeTracker } from '@/lib/playtimeTracker';
 import { User } from '@/types';
 import ErrorBoundary from '@/components/ErrorBoundary';
@@ -14,7 +15,7 @@ import KonamiCodeEasterEgg from '@/components/KonamiCodeEasterEgg';
 
 
 function AppContent() {
-  const { user } = useUser();
+  const { user, bannedSession, clearBannedSession, deviceBannedSession, clearDeviceBannedSession, isRestoring } = useUser();
   const [showSplash, setShowSplash] = useState(() => {
     if (typeof window === 'undefined') return true;
     try {
@@ -56,6 +57,22 @@ function AppContent() {
     <>
       {showSplash ? (
         <SplashScreen onComplete={() => setShowSplash(false)} />
+      ) : bannedSession ? (
+        <BanScreen
+          ban={bannedSession.ban}
+          username={bannedSession.username}
+          onAppealSubmitted={clearBannedSession}
+        />
+      ) : deviceBannedSession ? (
+        <BanScreen
+          ban={deviceBannedSession.ban}
+          username={deviceBannedSession.username}
+          onAppealSubmitted={clearDeviceBannedSession}
+        />
+      ) : !user && isRestoring ? (
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', color: 'var(--text)', fontSize: '18px' }}>
+          Loading…
+        </div>
       ) : !user ? (
         <>
           <Login />

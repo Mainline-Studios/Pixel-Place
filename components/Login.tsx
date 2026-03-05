@@ -19,7 +19,7 @@ export default function Login() {
   useEffect(() => {
     setMessage('');
   }, []);
-  const [banInfo, setBanInfo] = useState<any>(null);
+  const [banInfo, setBanInfo] = useState<{ ban: any; deviceBanned?: boolean } | null>(null);
   const [showTerms, setShowTerms] = useState(false);
   const [showPrivacy, setShowPrivacy] = useState(false);
   const { login, createAccount } = useUser();
@@ -32,7 +32,7 @@ export default function Login() {
     }
     const result = await login(username, password);
     if (result.ban) {
-      setBanInfo(result.ban);
+      setBanInfo({ ban: result.ban, deviceBanned: 'deviceBanned' in result ? !!result.deviceBanned : false });
       playError();
     } else {
       if (!result.success) {
@@ -69,14 +69,18 @@ export default function Login() {
       return;
     }
     const result = await createAccount(username, password, gender);
-    if (!result.success) {
+    if (result.ban) {
+      setBanInfo({ ban: result.ban, deviceBanned: 'deviceBanned' in result ? !!result.deviceBanned : false });
+      playError();
+    } else if (!result.success) {
       setMessage(result.message);
       playError();
+      setBanInfo(null);
     } else {
       playSuccess();
       setMessage('');
+      setBanInfo(null);
     }
-    setBanInfo(null);
     if (result.success) {
       // Auto sign in after successful sign up
       await handleSignIn();
@@ -90,7 +94,15 @@ export default function Login() {
   };
 
   if (banInfo) {
-    return <BanScreen ban={banInfo} username={username} onAppealSubmitted={handleAppealSubmitted} />;
+    const displayName = banInfo.deviceBanned ? 'This device' : username;
+    const ban = banInfo.ban && typeof banInfo.ban === 'object'
+      ? {
+          ...banInfo.ban,
+          bannedBy: banInfo.ban.bannedBy ?? banInfo.ban.banned_by ?? 'Administrator',
+          timestamp: banInfo.ban.timestamp ?? banInfo.ban.banned_at ?? Date.now(),
+        }
+      : banInfo.ban;
+    return <BanScreen ban={ban} username={displayName} onAppealSubmitted={handleAppealSubmitted} />;
   }
 
   return (

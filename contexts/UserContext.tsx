@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { User, Ban } from '@/types';
-import { initializeStorage, getUsers, saveUsers, ADMIN_ACCOUNTS_LIST, isUserBanned, getBanForUser } from '@/lib/storage';
+import { initializeStorage, getUsers, saveUsers, ADMIN_ACCOUNTS_LIST, isUserBanned, getBanForUser, checkDeviceBanStatus } from '@/lib/storage';
 import { subscribeToUser } from '@/lib/firestoreClient';
 import { apiUrl } from '@/lib/apiBaseUrl';
 import { containsEmoji } from '@/lib/utils';
@@ -10,16 +10,26 @@ import { setAuthToken, removeAuthToken } from '@/lib/api';
 import { getDeviceFingerprint } from '@/lib/deviceFingerprint';
 import LoadingScreenWithGame from '@/components/LoadingScreenWithGame';
 
+export interface BannedSession {
+  username: string;
+  ban: Ban;
+}
+
 interface UserContextType {
   user: User | null;
   setUser: (user: User | null) => void;
-  login: (username: string, password: string) => Promise<{ success: boolean; message: string; ban?: any }>;
+  login: (username: string, password: string) => Promise<{ success: boolean; message: string; ban?: any; deviceBanned?: boolean }>;
   loginWithGoogle: (googleUser: User) => Promise<void>;
-  createAccount: (username: string, password: string, gender: string) => Promise<{ success: boolean; message: string }>;
+  createAccount: (username: string, password: string, gender: string) => Promise<{ success: boolean; message: string; ban?: any; deviceBanned?: boolean }>;
   updateUser: (updates: Partial<User>) => void;
   gettingReady: boolean;
   userAcceptedReady: boolean;
   setUserAcceptedReady: (v: boolean) => void;
+  bannedSession: BannedSession | null;
+  clearBannedSession: () => void;
+  deviceBannedSession: BannedSession | null;
+  clearDeviceBannedSession: () => void;
+  isRestoring: boolean;
 }
 
 const UserContext = createContext<UserContextType | undefined>(undefined);
@@ -79,6 +89,8 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
   const [isRestoring, setIsRestoring] = useState(true);
   const [gettingReady, setGettingReady] = useState(false);
   const [userAcceptedReady, setUserAcceptedReady] = useState(false);
+  const [bannedSession, setBannedSession] = useState<BannedSession | null>(null);
+  const [deviceBannedSession, setDeviceBannedSession] = useState<BannedSession | null>(null);
   const firstSyncDone = useRef(false);
   const readyStartTime = useRef<number>(0);
 
@@ -87,12 +99,43 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     initializeStorage();
-    getInitialUser().then(restoredUser => {
+    getInitialUser().then(async (restoredUser) => {
       if (restoredUser) {
-        setUser(restoredUser);
-        firstSyncDone.current = false;
-        readyStartTime.current = Date.now();
-        setGettingReady(true);
+        const banned = await isUserBanned(restoredUser.username);
+        if (banned) {
+          const rawBan = await getBanForUser(restoredUser.username);
+          if (rawBan) {
+            const ban: Ban = {
+              username: rawBan.username,
+              reason: rawBan.reason ?? '',
+              bannedBy: (rawBan as any).bannedBy ?? (rawBan as any).banned_by ?? '',
+              timestamp: (rawBan as any).timestamp ?? (rawBan as any).banned_at ?? Date.now(),
+              permanent: rawBan.permanent ?? true,
+              expiresAt: rawBan.expiresAt,
+            };
+            setBannedSession({ username: restoredUser.username, ban });
+            if (typeof window !== 'undefined') {
+              sessionStorage.removeItem('pixelPlaceLoggedInUser');
+              removeAuthToken();
+            }
+          } else {
+            setUser(restoredUser);
+            firstSyncDone.current = false;
+            readyStartTime.current = Date.now();
+            setGettingReady(true);
+          }
+        } else {
+          setUser(restoredUser);
+          firstSyncDone.current = false;
+          readyStartTime.current = Date.now();
+          setGettingReady(true);
+        }
+      } else {
+        // No saved user — check if device is banned so we show ban screen on open instead of login
+        const deviceCheck = await checkDeviceBanStatus();
+        if (deviceCheck.banned && deviceCheck.ban) {
+          setDeviceBannedSession({ username: 'This device', ban: deviceCheck.ban });
+        }
       }
       setIsRestoring(false);
     }).catch(() => {
@@ -202,7 +245,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     };
   }, [user?.username]);
 
-  const login = async (username: string, password: string): Promise<{ success: boolean; message: string; ban?: any }> => {
+  const login = async (username: string, password: string): Promise<{ success: boolean; message: string; ban?: any; deviceBanned?: boolean }> => {
     if (!username || !password) {
       return { success: false, message: 'Enter username and password.' };
     }
@@ -242,7 +285,10 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
         return { success: true, message: '' };
       }
       if (authRes.status === 401) {
-        return { success: false, message: authData.error || 'Invalid credentials.' };
+        if (authData.deviceBanned && authData.ban) {
+          return { success: false, message: authData.error || 'This device is banned.', ban: authData.ban, deviceBanned: true };
+        }
+        return { success: false, message: authData.error || 'Invalid credentials.', ban: authData.ban };
       }
     } catch (_e) {
       return { success: false, message: 'Could not reach server. Try again when online.' };
@@ -328,6 +374,9 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
         return { success: true, message: 'Account created.' };
       }
       if (regRes.status === 400) {
+        if (regData.deviceBanned && regData.ban) {
+          return { success: false, message: regData.error || 'This device is banned.', ban: regData.ban, deviceBanned: true };
+        }
         return { success: false, message: regData.error || 'Registration failed.' };
       }
     } catch (_e) {
@@ -478,7 +527,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <UserContext.Provider value={{ user, setUser, login, loginWithGoogle, createAccount, updateUser, gettingReady, userAcceptedReady, setUserAcceptedReady }}>
+    <UserContext.Provider value={{ user, setUser, login, loginWithGoogle, createAccount, updateUser, gettingReady, userAcceptedReady, setUserAcceptedReady, bannedSession, clearBannedSession: () => setBannedSession(null), deviceBannedSession, clearDeviceBannedSession: () => setDeviceBannedSession(null), isRestoring }}>
       {children}
       {user && !userAcceptedReady ? (
         <LoadingScreenWithGame gettingReady={gettingReady} onGoToApp={() => setUserAcceptedReady(true)} />

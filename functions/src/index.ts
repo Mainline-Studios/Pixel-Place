@@ -58,6 +58,20 @@ async function isDeviceBanned(deviceId: string): Promise<boolean> {
   return doc.exists;
 }
 
+/** Get hardware ban details for showing the ban screen (reason, banned_by, banned_at). */
+async function getHardwareBanDetails(deviceId: string): Promise<{ reason: string; bannedBy: string; bannedAt: number } | null> {
+  const id = sanitizeDeviceId(deviceId);
+  if (!id) return null;
+  const doc = await db.collection(COLLECTIONS.HARDWARE_BANS).doc(id).get();
+  if (!doc.exists) return null;
+  const d = doc.data()!;
+  return {
+    reason: d.reason || 'This device is banned.',
+    bannedBy: d.banned_by || 'Administrator',
+    bannedAt: d.banned_at || Date.now(),
+  };
+}
+
 async function recordDevice(username: string, deviceId: string, label: string): Promise<void> {
   const id = sanitizeDeviceId(deviceId);
   const safeLabel = String(label).slice(0, LABEL_MAX) || 'Unknown';
@@ -136,6 +150,24 @@ const sendJwtCheck = (req: any, res: any) => {
   res.json({ jwtSecretSet: set, path: req.path, url: req.url, originalUrl: req.originalUrl });
 };
 ['/auth/check-config', '/api/auth/check-config', '/check-config', '/api/check-config'].forEach(p => app.get(p, sendJwtCheck));
+
+// GET /auth/check-device?deviceId=xxx — no auth; for app-open check so ban screen can show before login
+app.get('/auth/check-device', async (req, res) => {
+  try {
+    const deviceId = (req.query.deviceId as string) || '';
+    const id = sanitizeDeviceId(deviceId);
+    if (!id) return res.json({ banned: false });
+    const banned = await isDeviceBanned(deviceId);
+    if (!banned) return res.json({ banned: false });
+    const details = await getHardwareBanDetails(deviceId);
+    const ban = details
+      ? { username: 'This device', reason: details.reason, bannedBy: details.bannedBy, timestamp: details.bannedAt, permanent: true }
+      : { username: 'This device', reason: 'This device is banned.', bannedBy: 'Administrator', timestamp: Date.now(), permanent: true };
+    return res.json({ banned: true, ban });
+  } catch (e) {
+    res.json({ banned: false });
+  }
+});
 
 // GET /users/devices — admin only, returns devices for a user (deviceId, label, firstSeen, lastSeen)
 app.get('/users/devices', async (req, res) => {
@@ -337,7 +369,17 @@ app.post('/auth', async (req, res) => {
 
     if (action === 'login') {
       if (deviceId && (await isDeviceBanned(deviceId))) {
-        return res.status(401).json({ error: 'This device is banned. You cannot sign in.' });
+        const details = await getHardwareBanDetails(deviceId);
+        const ban = details
+          ? {
+              username: 'This device',
+              reason: details.reason,
+              bannedBy: details.bannedBy,
+              timestamp: details.bannedAt,
+              permanent: true,
+            }
+          : { username: 'This device', reason: 'This device is banned.', bannedBy: 'Administrator', timestamp: Date.now(), permanent: true };
+        return res.status(401).json({ error: 'This device is banned. You cannot sign in.', deviceBanned: true, ban });
       }
       let doc = await db.collection(COLLECTIONS.USERS).doc(username.toLowerCase()).get();
       if (!doc.exists) {
@@ -396,7 +438,17 @@ app.post('/auth', async (req, res) => {
         return res.status(400).json({ error: 'Password must be at least 6 characters' });
       }
       if (deviceId && (await isDeviceBanned(deviceId))) {
-        return res.status(400).json({ error: 'This device is banned. You cannot create new accounts from this device.' });
+        const details = await getHardwareBanDetails(deviceId);
+        const ban = details
+          ? {
+              username: 'This device',
+              reason: details.reason,
+              bannedBy: details.bannedBy,
+              timestamp: details.bannedAt,
+              permanent: true,
+            }
+          : { username: 'This device', reason: 'This device is banned.', bannedBy: 'Administrator', timestamp: Date.now(), permanent: true };
+        return res.status(400).json({ error: 'This device is banned. You cannot create new accounts from this device.', deviceBanned: true, ban });
       }
       const id = username.toLowerCase();
       const existing = await db.collection(COLLECTIONS.USERS).doc(id).get();
@@ -781,6 +833,92 @@ app.post('/prebuilt', async (req, res) => {
     res.json(games);
   } catch (e) {
     res.status(500).json({ error: 'Failed to save prebuilt games' });
+  }
+});
+
+// Hardware bans — GET list, POST add (deviceId + reason), DELETE remove (query deviceId)
+app.get('/hardware-bans', async (req, res) => {
+  try {
+    const auth = requireAdmin(req, res);
+    if (!auth) return;
+    const snap = await db.collection(COLLECTIONS.HARDWARE_BANS).get();
+    const list = snap.docs.map((d) => {
+      const data = d.data();
+      return {
+        deviceId: data.deviceId || d.id,
+        bannedAt: data.banned_at || 0,
+        bannedBy: data.banned_by || '',
+        reason: data.reason,
+        linkedUsernames: Array.isArray(data.linked_usernames) ? data.linked_usernames : [],
+      };
+    });
+    res.json(list);
+  } catch (e) {
+    res.status(500).json({ error: 'Failed to list hardware bans' });
+  }
+});
+app.post('/hardware-bans', async (req, res) => {
+  try {
+    const auth = requireAdmin(req, res);
+    if (!auth) return;
+    const { deviceId: rawId, reason } = req.body || {};
+    const id = sanitizeDeviceId(typeof rawId === 'string' ? rawId : '');
+    if (!id) return res.status(400).json({ error: 'deviceId required' });
+    const usernames: string[] = [];
+    const deviceUsersSnap = await db.collection(COLLECTIONS.DEVICE_USERS).doc(id).get();
+    if (deviceUsersSnap.exists && Array.isArray(deviceUsersSnap.data()?.usernames)) {
+      usernames.push(...deviceUsersSnap.data()!.usernames);
+    }
+    const now = Date.now();
+    await db.collection(COLLECTIONS.HARDWARE_BANS).doc(id).set({
+      deviceId: id,
+      banned_at: now,
+      banned_by: auth.username,
+      reason: reason || '',
+      linked_usernames: usernames,
+      created_at: now,
+    });
+    const bannedUsernames: string[] = [];
+    for (const un of usernames) {
+      const banRef = db.collection(COLLECTIONS.BANS).doc(un);
+      const banSnap = await banRef.get();
+      if (banSnap.exists) continue;
+      await banRef.set({
+        username: un,
+        username_lower: un,
+        reason: reason || `Hardware ban (device ${id.slice(0, 8)}…)`,
+        banned_by: auth.username,
+        banned_at: now,
+        expires_at: null,
+        permanent: true,
+        hardware_ban_device_id: id,
+        created_at: now,
+      });
+      bannedUsernames.push(un);
+    }
+    res.json({ success: true, bannedUsernames });
+  } catch (e) {
+    res.status(500).json({ error: 'Failed to add hardware ban' });
+  }
+});
+app.delete('/hardware-bans', async (req, res) => {
+  try {
+    const auth = requireAdmin(req, res);
+    if (!auth) return;
+    const deviceId = (req.query.deviceId as string) || '';
+    const id = sanitizeDeviceId(deviceId);
+    if (!id) return res.status(400).json({ error: 'deviceId required' });
+    await db.collection(COLLECTIONS.HARDWARE_BANS).doc(id).delete();
+    const bansSnap = await db.collection(COLLECTIONS.BANS).where('hardware_ban_device_id', '==', id).get();
+    const unbannedUsernames: string[] = [];
+    for (const d of bansSnap.docs) {
+      const un = d.data()?.username_lower || d.id;
+      unbannedUsernames.push(un);
+      await d.ref.delete();
+    }
+    res.json({ success: true, unbannedUsernames });
+  } catch (e) {
+    res.status(500).json({ error: 'Failed to remove hardware ban' });
   }
 });
 
