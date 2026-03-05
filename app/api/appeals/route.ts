@@ -38,6 +38,10 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const usernameParam = searchParams.get('username');
     const deviceIdParam = searchParams.get('deviceId');
+    // For "This device" we must have deviceId so we only return this device's appeal, not another device's
+    if (usernameParam && usernameParam.toLowerCase() === 'this device' && !deviceIdParam) {
+      return NextResponse.json([]);
+    }
     const appeals = await getDocuments(COLLECTIONS.BAN_APPEALS, (ref) => ref.orderBy('created_at', 'desc'));
     let result = await Promise.all(appeals.map(async (a) => {
       const banDoc = a.ban_id ? await getDocument(COLLECTIONS.BANS, a.ban_id) : null;

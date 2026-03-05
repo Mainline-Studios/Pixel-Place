@@ -614,9 +614,10 @@ export async function updateBanAppealStatus(appealId: string, status: BanAppeal[
   }
 }
 
-/** Get the appeal thread for a user (by username, or by deviceId for "This device"). */
+/** Get the appeal thread for a user (by username, or by deviceId for "This device"). For "This device", only returns an appeal when deviceId is provided so we never show another device's appeal. */
 export async function getMyAppeal(username: string, deviceId?: string): Promise<BanAppeal | null> {
   if (typeof window === 'undefined') return null;
+  if (username.toLowerCase() === 'this device' && !deviceId) return null;
   try {
     let url = `/api/appeals?username=${encodeURIComponent(username)}`;
     if (deviceId) url += `&deviceId=${encodeURIComponent(deviceId)}`;
