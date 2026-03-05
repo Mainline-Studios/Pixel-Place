@@ -13,24 +13,23 @@ interface BanScreenProps {
 }
 
 export default function BanScreen({ ban, username, onAppealSubmitted }: BanScreenProps) {
-  const [appeal, setAppeal] = useState<BanAppeal | null>(null);
-  const [appealMessage, setAppealMessage] = useState('');
+  const [thread, setThread] = useState<BanAppeal | null>(null);
   const [messages, setMessages] = useState<AppealMessage[]>([]);
   const [messagesLoaded, setMessagesLoaded] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [submitting, setSubmitting] = useState(false);
-  const [threadInput, setThreadInput] = useState('');
-  const [sendingMessage, setSendingMessage] = useState(false);
+  const [input, setInput] = useState('');
+  const [sending, setSending] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const deviceId = username.toLowerCase() === 'this device' ? (typeof getDeviceFingerprint === 'function' ? getDeviceFingerprint()?.deviceId : undefined) : undefined;
+  const canSend = !thread || thread.status === 'pending';
 
   useEffect(() => {
     let cancelled = false;
     setMessagesLoaded(false);
     getMyAppeal(username, deviceId).then((a) => {
       if (!cancelled) {
-        setAppeal(a || null);
+        setThread(a || null);
         if (a) {
           getAppealMessages(a.id, username, deviceId).then((msgs) => {
             if (!cancelled) {
@@ -47,57 +46,47 @@ export default function BanScreen({ ban, username, onAppealSubmitted }: BanScree
     return () => { cancelled = true; };
   }, [username, deviceId]);
 
-  const loadMessages = (appealId: string) => {
+  const loadMessages = (threadId: string) => {
     setMessagesLoaded(false);
-    getAppealMessages(appealId, username, deviceId).then((msgs) => {
+    getAppealMessages(threadId, username, deviceId).then((msgs) => {
       setMessages(msgs);
       setMessagesLoaded(true);
     });
   };
 
   useEffect(() => {
-    if (appeal && messages.length > 0 && messagesEndRef.current) {
+    if (messages.length > 0 && messagesEndRef.current) {
       messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
     }
-  }, [appeal, messages]);
+  }, [messages]);
 
-  const handleStartAppeal = async () => {
-    if (!appealMessage.trim()) {
-      alert('Please enter a reason for your appeal.');
-      return;
-    }
-    setSubmitting(true);
+  const sendMessage = async (text: string) => {
+    const trimmed = text.trim();
+    if (!trimmed) return;
+
+    setSending(true);
     try {
-      await createBanAppeal(username, ban, appealMessage.trim(), deviceId);
-      onAppealSubmitted();
-      const a = await getMyAppeal(username, deviceId);
-      if (a) {
-        setAppeal(a);
-        loadMessages(a.id);
+      if (!thread) {
+        await createBanAppeal(username, ban, trimmed, deviceId);
+        const a = await getMyAppeal(username, deviceId);
+        if (a) {
+          setThread(a);
+          loadMessages(a.id);
+        }
+      } else if (canSend) {
+        const updated = await sendAppealMessage(thread.id, username, trimmed);
+        setMessages(updated);
       }
-      setAppealMessage('');
-    } catch (error) {
-      console.error('Error submitting appeal:', error);
-      alert('Error submitting appeal. Please try again.');
+      setInput('');
+    } catch (err: any) {
+      console.error('Error sending message:', err);
+      alert(err?.message || 'Failed to send. Try again.');
     } finally {
-      setSubmitting(false);
+      setSending(false);
     }
   };
 
-  const handleSendMessage = async () => {
-    if (!threadInput.trim() || !appeal) return;
-    setSendingMessage(true);
-    try {
-      const updated = await sendAppealMessage(appeal.id, username, threadInput.trim());
-      setThreadInput('');
-      setMessages(updated);
-    } catch (error: any) {
-      console.error('Error sending message:', error);
-      alert(error?.message || 'Failed to send. Try again.');
-    } finally {
-      setSendingMessage(false);
-    }
-  };
+  const handleSend = () => sendMessage(input);
 
   if (loading) {
     return (
@@ -154,157 +143,106 @@ export default function BanScreen({ ban, username, onAppealSubmitted }: BanScree
           Banned by: {ban.bannedBy} • {new Date(ban.timestamp).toLocaleString()}
         </div>
 
-        {!appeal ? (
-          <div>
-            <div style={{ fontSize: '14px', fontWeight: 600, marginBottom: '10px', color: 'var(--text)' }}>
-              Submit an appeal
-            </div>
-            <textarea
-              value={appealMessage}
-              onChange={(e) => setAppealMessage(e.target.value)}
-              placeholder="Explain why you believe this ban was issued in error. You can then chat with the appeal assistant."
-              rows={4}
-              style={{
-                width: '100%',
-                padding: '12px',
-                borderRadius: '8px',
-                border: '1px solid var(--border)',
-                background: 'var(--panel)',
-                color: 'var(--text)',
-                fontSize: '14px',
-                resize: 'vertical',
-                marginBottom: '12px',
-                fontFamily: 'inherit'
-              }}
-            />
-            <button
-              className="btn"
-              onClick={handleStartAppeal}
-              disabled={submitting || !appealMessage.trim()}
-              style={{
-                width: '100%',
-                padding: '12px',
-                fontSize: '15px',
-                fontWeight: 600,
-                background: 'var(--accent)',
-                opacity: (submitting || !appealMessage.trim()) ? 0.5 : 1,
-                cursor: (submitting || !appealMessage.trim()) ? 'not-allowed' : 'pointer'
-              }}
-            >
-              {submitting ? 'Submitting…' : 'Submit appeal & chat with assistant'}
-            </button>
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+          <div style={{
+            fontSize: '11px',
+            color: 'var(--text-dim)',
+            marginBottom: '8px',
+            padding: '6px 10px',
+            background: 'rgba(255, 193, 7, 0.15)',
+            borderRadius: '6px',
+            border: '1px solid rgba(255, 193, 7, 0.3)'
+          }}>
+            Message moderators. This conversation is visible to moderators. The assistant can answer questions about your ban.
           </div>
-        ) : (
-          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
-            <div style={{
-              fontSize: '11px',
-              color: 'var(--text-dim)',
-              marginBottom: '8px',
-              padding: '6px 10px',
-              background: 'rgba(255, 193, 7, 0.15)',
-              borderRadius: '6px',
-              border: '1px solid rgba(255, 193, 7, 0.3)'
-            }}>
-              This conversation is visible to administrators. The assistant can only discuss your ban and the appeal process.
-            </div>
-            <div style={{
-              flex: 1,
-              overflowY: 'auto',
-              minHeight: '200px',
-              maxHeight: '320px',
-              padding: '8px',
-              background: 'var(--panel-soft)',
-              borderRadius: '8px',
-              marginBottom: '12px'
-            }}>
-              {!messagesLoaded ? (
-                <div style={{ textAlign: 'center', color: 'var(--text-dim)', padding: '20px', fontSize: '14px' }}>
-                  Loading conversation…
-                </div>
-              ) : messages.length === 0 ? (
-                <div style={{ textAlign: 'center', color: 'var(--text-dim)', padding: '20px', fontSize: '14px' }}>
-                  No messages in this thread.
-                </div>
-              ) : (
-                messages.map((msg) => (
-                  <div
-                    key={msg.id}
-                    style={{
-                      marginBottom: '10px',
-                      padding: '10px 12px',
-                      borderRadius: '10px',
-                      background: msg.fromUsername === username ? 'rgba(46, 204, 113, 0.2)' : msg.fromUsername === 'appeal_bot' ? 'rgba(100, 149, 237, 0.15)' : 'rgba(100, 100, 100, 0.2)',
-                      textAlign: msg.fromUsername === username ? 'right' : 'left',
-                      marginLeft: msg.fromUsername === username ? '20%' : 0,
-                      marginRight: msg.fromUsername === username ? 0 : '20%'
-                    }}
-                  >
-                    <div style={{ fontSize: '11px', color: 'var(--text-dim)', marginBottom: '4px' }}>
-                      {msg.fromUsername === username ? 'You' : msg.fromUsername === 'appeal_bot' ? 'Appeal assistant' : msg.fromUsername} • {new Date(msg.timestamp).toLocaleTimeString()}
-                    </div>
-                    <div style={{ fontSize: '14px', color: 'var(--text)', whiteSpace: 'pre-wrap' }}>
-                      {msg.message}
-                    </div>
-                  </div>
-                ))
-              )}
-              <div ref={messagesEndRef} />
-            </div>
-            {appeal.status === 'pending' && (
-              <div style={{ display: 'flex', gap: '8px' }}>
-                <input
-                  type="text"
-                  value={threadInput}
-                  onChange={(e) => setThreadInput(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && handleSendMessage()}
-                  placeholder="Ask about your ban or appeal…"
+
+          <div style={{
+            flex: 1,
+            overflowY: 'auto',
+            minHeight: '200px',
+            maxHeight: '320px',
+            padding: '8px',
+            background: 'var(--panel-soft)',
+            borderRadius: '8px',
+            marginBottom: '12px'
+          }}>
+            {!thread ? (
+              <div style={{ textAlign: 'center', color: 'var(--text-dim)', padding: '20px', fontSize: '14px' }}>
+                Send a message below to contact moderators. An assistant will reply and moderators can see the conversation.
+              </div>
+            ) : !messagesLoaded ? (
+              <div style={{ textAlign: 'center', color: 'var(--text-dim)', padding: '20px', fontSize: '14px' }}>
+                Loading…
+              </div>
+            ) : messages.length === 0 ? (
+              <div style={{ textAlign: 'center', color: 'var(--text-dim)', padding: '20px', fontSize: '14px' }}>
+                No messages yet. Send one below.
+              </div>
+            ) : (
+              messages.map((msg) => (
+                <div
+                  key={msg.id}
                   style={{
-                    flex: 1,
-                    padding: '10px 14px',
-                    borderRadius: '8px',
-                    border: '1px solid var(--border)',
-                    background: 'var(--panel)',
-                    color: 'var(--text)',
-                    fontSize: '14px'
-                  }}
-                />
-                <button
-                  className="btn"
-                  onClick={handleSendMessage}
-                  disabled={sendingMessage || !threadInput.trim()}
-                  style={{
-                    padding: '10px 20px',
-                    opacity: (sendingMessage || !threadInput.trim()) ? 0.5 : 1,
-                    cursor: (sendingMessage || !threadInput.trim()) ? 'not-allowed' : 'pointer'
+                    marginBottom: '10px',
+                    padding: '10px 12px',
+                    borderRadius: '10px',
+                    background: msg.fromUsername === username ? 'rgba(46, 204, 113, 0.2)' : msg.fromUsername === 'appeal_bot' ? 'rgba(100, 149, 237, 0.15)' : 'rgba(100, 100, 100, 0.2)',
+                    textAlign: msg.fromUsername === username ? 'right' : 'left',
+                    marginLeft: msg.fromUsername === username ? '20%' : 0,
+                    marginRight: msg.fromUsername === username ? 0 : '20%'
                   }}
                 >
-                  {sendingMessage ? 'Sending…' : 'Send'}
-                </button>
-              </div>
-            )}
-            {appeal.status !== 'pending' && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', alignItems: 'center', padding: '8px' }}>
-                <div style={{ fontSize: '13px', color: 'var(--text-dim)', textAlign: 'center' }}>
-                  This appeal has been {appeal.status}. You can no longer send messages.
-                </div>
-                {appeal.status === 'approved' && (
-                  <div style={{ fontSize: '14px', color: 'var(--text)', textAlign: 'center' }}>
-                    Refresh the page to continue.
-                    <br />
-                    <button
-                      type="button"
-                      className="btn"
-                      onClick={() => window.location.reload()}
-                      style={{ marginTop: '8px', padding: '10px 20px', fontWeight: 600 }}
-                    >
-                      Refresh page
-                    </button>
+                  <div style={{ fontSize: '11px', color: 'var(--text-dim)', marginBottom: '4px' }}>
+                    {msg.fromUsername === username ? 'You' : msg.fromUsername === 'appeal_bot' ? 'Assistant' : msg.fromUsername} • {new Date(msg.timestamp).toLocaleTimeString()}
                   </div>
-                )}
-              </div>
+                  <div style={{ fontSize: '14px', color: 'var(--text)', whiteSpace: 'pre-wrap' }}>
+                    {msg.message}
+                  </div>
+                </div>
+              ))
             )}
+            <div ref={messagesEndRef} />
           </div>
-        )}
+
+          {canSend && (
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <input
+                type="text"
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && handleSend()}
+                placeholder={thread ? "Ask about your ban or send a message…" : "Send a message to moderators…"}
+                style={{
+                  flex: 1,
+                  padding: '10px 14px',
+                  borderRadius: '8px',
+                  border: '1px solid var(--border)',
+                  background: 'var(--panel)',
+                  color: 'var(--text)',
+                  fontSize: '14px'
+                }}
+              />
+              <button
+                className="btn"
+                onClick={handleSend}
+                disabled={sending || !input.trim()}
+                style={{
+                  padding: '10px 20px',
+                  opacity: (sending || !input.trim()) ? 0.5 : 1,
+                  cursor: (sending || !input.trim()) ? 'not-allowed' : 'pointer'
+                }}
+              >
+                {sending ? 'Sending…' : 'Send'}
+              </button>
+            </div>
+          )}
+
+          {thread && thread.status !== 'pending' && (
+            <div style={{ fontSize: '13px', color: 'var(--text-dim)', textAlign: 'center', padding: '8px' }}>
+              Moderators have closed this conversation. You can no longer send messages.
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
