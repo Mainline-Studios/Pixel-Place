@@ -21,6 +21,8 @@ const db = admin.firestore();
 const COLLECTIONS = {
   USERS: 'users',
   USER_DEVICES: 'user_devices',
+  DEVICE_USERS: 'device_users',
+  HARDWARE_BANS: 'hardware_bans',
   SKINS_CATALOG: 'skins_catalog',
   USER_SAFETY: 'user_safety',
   PUBLISHED_GAMES: 'published_games',
@@ -41,6 +43,49 @@ const COLLECTIONS = {
 };
 
 import { requireAuth, requireAdmin, requireOwnerOrAdmin, getAuthFromRequest, isAdmin, getJwtSecret } from './authMiddleware';
+
+const DEVICE_ID_MAX = 128;
+const LABEL_MAX = 64;
+
+function sanitizeDeviceId(id: string): string {
+  return String(id).slice(0, DEVICE_ID_MAX).replace(/[^a-zA-Z0-9_-]/g, '');
+}
+
+async function isDeviceBanned(deviceId: string): Promise<boolean> {
+  const id = sanitizeDeviceId(deviceId);
+  if (!id) return false;
+  const doc = await db.collection(COLLECTIONS.HARDWARE_BANS).doc(id).get();
+  return doc.exists;
+}
+
+async function recordDevice(username: string, deviceId: string, label: string): Promise<void> {
+  const id = sanitizeDeviceId(deviceId);
+  const safeLabel = String(label).slice(0, LABEL_MAX) || 'Unknown';
+  if (!id) return;
+  const now = Date.now();
+  const usernameLower = username.toLowerCase();
+
+  const userDevicesRef = db.collection(COLLECTIONS.USER_DEVICES).doc(usernameLower);
+  const userSnap = await userDevicesRef.get();
+  const devices: Array<{ deviceId: string; label: string; firstSeen: number; lastSeen: number }> =
+    Array.isArray(userSnap.data()?.devices) ? userSnap.data()!.devices : [];
+  const existing = devices.find((d: { deviceId: string }) => d.deviceId === id);
+  if (existing) {
+    existing.lastSeen = now;
+    existing.label = safeLabel;
+  } else {
+    devices.push({ deviceId: id, label: safeLabel, firstSeen: now, lastSeen: now });
+  }
+  await userDevicesRef.set({ devices, updated_at: now });
+
+  const deviceUsersRef = db.collection(COLLECTIONS.DEVICE_USERS).doc(id);
+  const deviceSnap = await deviceUsersRef.get();
+  const usernames: string[] = Array.isArray(deviceSnap.data()?.usernames) ? deviceSnap.data()!.usernames : [];
+  if (!usernames.includes(usernameLower)) {
+    usernames.push(usernameLower);
+    await deviceUsersRef.set({ usernames, updated_at: now });
+  }
+}
 
 // Minimal NEW_SKINS fallback (starter skins)
 const FALLBACK_SKINS = [
@@ -97,7 +142,11 @@ app.get('/users/devices', async (req, res) => {
   try {
     const auth = requireAdmin(req, res);
     if (!auth) return;
-    const username = (req.query.username as string) || '';
+    let username = (req.query.username as string) || '';
+    if (!username.trim() && typeof req.originalUrl === 'string') {
+      const match = req.originalUrl.match(/[?&]username=([^&]+)/);
+      if (match) username = decodeURIComponent(match[1]);
+    }
     if (!username.trim()) return res.status(400).json({ error: 'username required' });
     const doc = await db.collection(COLLECTIONS.USER_DEVICES).doc(username.trim().toLowerCase()).get();
     const devices = Array.isArray(doc.exists && doc.data()?.devices) ? doc.data()!.devices : [];
@@ -283,10 +332,13 @@ async function getAdminAccountsFromFirestore(): Promise<{ username: string; pass
 // POST /auth (login, register)
 app.post('/auth', async (req, res) => {
   try {
-    const { username, password, action, gender, role, coins } = req.body;
+    const { username, password, action, gender, role, coins, deviceId, deviceLabel } = req.body;
     if (!username || !password) return res.status(400).json({ error: 'Username and password required' });
 
     if (action === 'login') {
+      if (deviceId && (await isDeviceBanned(deviceId))) {
+        return res.status(401).json({ error: 'This device is banned. You cannot sign in.' });
+      }
       let doc = await db.collection(COLLECTIONS.USERS).doc(username.toLowerCase()).get();
       if (!doc.exists) {
         let adminAccounts = getAdminAccountsFromEnv();
@@ -333,6 +385,7 @@ app.post('/auth', async (req, res) => {
         }
       }
       if (!match) return res.status(401).json({ error: 'Invalid credentials' });
+      if (deviceId) await recordDevice(username, deviceId, deviceLabel || 'Unknown');
       const user = userFromDoc(doc);
       const token = jwt.sign({ username: user.username, role: user.role }, getJwtSecret(), { expiresIn: '7d' });
       return res.json({ success: true, user, token });
@@ -341,6 +394,9 @@ app.post('/auth', async (req, res) => {
     if (action === 'register') {
       if (String(password).length < 6) {
         return res.status(400).json({ error: 'Password must be at least 6 characters' });
+      }
+      if (deviceId && (await isDeviceBanned(deviceId))) {
+        return res.status(400).json({ error: 'This device is banned. You cannot create new accounts from this device.' });
       }
       const id = username.toLowerCase();
       const existing = await db.collection(COLLECTIONS.USERS).doc(id).get();
@@ -366,6 +422,7 @@ app.post('/auth', async (req, res) => {
         updated_at: Date.now(),
       };
       await db.collection(COLLECTIONS.USERS).doc(id).set(userData);
+      if (deviceId) await recordDevice(username, deviceId, deviceLabel || 'Unknown');
       const user = userFromDoc(await db.collection(COLLECTIONS.USERS).doc(id).get());
       const token = jwt.sign({ username, role: user.role }, getJwtSecret(), { expiresIn: '7d' });
       return res.json({ success: true, user, token });
