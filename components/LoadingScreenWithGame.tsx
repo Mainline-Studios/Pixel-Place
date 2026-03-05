@@ -157,6 +157,29 @@ export default function LoadingScreenWithGame({ gettingReady, onGoToApp }: Loadi
         fontFamily: 'system-ui, sans-serif',
       }}
     >
+      <style dangerouslySetInnerHTML={{ __html: `
+        @keyframes loading-spiral-spin {
+          to { transform: rotate(360deg); }
+        }
+        @keyframes loading-spiral-pulse {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.5; }
+        }
+      `}} />
+      {gettingReady && (
+        <div
+          style={{
+            width: '48px',
+            height: '48px',
+            marginBottom: '16px',
+            borderRadius: '50%',
+            border: '3px solid rgba(122, 162, 247, 0.2)',
+            borderTopColor: '#7aa2f7',
+            borderRightColor: '#bb9af7',
+            animation: 'loading-spiral-spin 0.85s linear infinite',
+          }}
+        />
+      )}
       <h2 style={{ marginBottom: '8px', fontSize: '1.25rem', fontWeight: 600 }}>
         Getting some things ready…
       </h2>
