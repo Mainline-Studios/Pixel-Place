@@ -2,7 +2,13 @@ export function getSchemaOrgJsonLd() {
   const baseUrl =
     (typeof process !== 'undefined' && process.env?.NEXT_PUBLIC_BASE_URL) ||
     'https://pixelplaceofficial.com';
-  const cleanUrl = baseUrl.replace(/\/$/, '');
+  const withSlash = baseUrl.replace(/\/$/, '') || baseUrl;
+  let cleanUrl: string;
+  try {
+    cleanUrl = new URL(withSlash).origin;
+  } catch {
+    cleanUrl = withSlash.split('/').slice(0, 3).join('/') || 'https://pixelplaceofficial.com';
+  }
   return {
     '@context': 'https://schema.org',
     '@graph': [
@@ -33,12 +39,20 @@ export function getSchemaOrgJsonLd() {
           'AI-powered coding assistance',
         ],
         offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
+        sameAs: [
+          'https://github.com/Mainline-Studios/Pixel-Place',
+          'https://www.youtube.com/@OfficialPixelPlace',
+        ],
       },
       {
         '@type': 'Organization',
         '@id': `${cleanUrl}/#organization`,
         name: 'Mainline Studios',
         url: cleanUrl,
+        sameAs: [
+          'https://github.com/Mainline-Studios/Pixel-Place',
+          'https://www.youtube.com/@OfficialPixelPlace',
+        ],
       },
     ],
   };
