@@ -841,8 +841,8 @@ app.post('/prebuilt', async (req, res) => {
   }
 });
 
-// Hardware bans — GET list, POST add (deviceId + reason), DELETE remove (query deviceId)
-app.get('/hardware-bans', async (req, res) => {
+// Hardware bans — GET list, POST add (deviceId + reason), DELETE remove (query deviceId). Also /api/* for Hosting rewrite.
+const getHardwareBansHandler = async (req: any, res: any) => {
   try {
     const auth = requireAdmin(req, res);
     if (!auth) return;
@@ -861,8 +861,8 @@ app.get('/hardware-bans', async (req, res) => {
   } catch (e) {
     res.status(500).json({ error: 'Failed to list hardware bans' });
   }
-});
-app.post('/hardware-bans', async (req, res) => {
+};
+const postHardwareBansHandler = async (req: any, res: any) => {
   try {
     const auth = requireAdmin(req, res);
     if (!auth) return;
@@ -905,12 +905,16 @@ app.post('/hardware-bans', async (req, res) => {
   } catch (e) {
     res.status(500).json({ error: 'Failed to add hardware ban' });
   }
-});
-app.delete('/hardware-bans', async (req, res) => {
+};
+const deleteHardwareBansHandler = async (req: any, res: any) => {
   try {
     const auth = requireAdmin(req, res);
     if (!auth) return;
-    const deviceId = (req.query.deviceId as string) || '';
+    let deviceId = (req.query.deviceId as string) || '';
+    if (!deviceId && typeof req.originalUrl === 'string') {
+      const match = req.originalUrl.match(/[?&]deviceId=([^&]+)/);
+      if (match) deviceId = decodeURIComponent(match[1]);
+    }
     const id = sanitizeDeviceId(deviceId);
     if (!id) return res.status(400).json({ error: 'deviceId required' });
     await db.collection(COLLECTIONS.HARDWARE_BANS).doc(id).delete();
@@ -925,7 +929,13 @@ app.delete('/hardware-bans', async (req, res) => {
   } catch (e) {
     res.status(500).json({ error: 'Failed to remove hardware ban' });
   }
-});
+};
+app.get('/hardware-bans', getHardwareBansHandler);
+app.get('/api/hardware-bans', getHardwareBansHandler);
+app.post('/hardware-bans', postHardwareBansHandler);
+app.post('/api/hardware-bans', postHardwareBansHandler);
+app.delete('/hardware-bans', deleteHardwareBansHandler);
+app.delete('/api/hardware-bans', deleteHardwareBansHandler);
 
 // Tab content, accessories, bans, reports, appeals (GET only)
 app.get('/tabcontent', async (_req, res) => { try { res.json((await db.collection(COLLECTIONS.TAB_CONTENT).doc('content').get()).data() || {}); } catch (e) { res.status(500).json({ error: 'Failed' }); } });

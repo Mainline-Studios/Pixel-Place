@@ -12,6 +12,52 @@ export const metadata: Metadata = {
   description: "Pixel Place by Mainline Studios",
 };
 
+function getSchemaOrgJsonLd() {
+  const baseUrl =
+    (typeof process !== 'undefined' && process.env?.NEXT_PUBLIC_BASE_URL) ||
+    'https://pixelplaceofficial.com';
+  const cleanUrl = baseUrl.replace(/\/$/, '');
+  return {
+    '@context': 'https://schema.org',
+    '@graph': [
+      {
+        '@type': 'WebApplication',
+        '@id': `${cleanUrl}/#webapp`,
+        name: 'Pixel Place',
+        description:
+          'Pixel Place is a web-based gaming platform and creative studio by Mainline Studios. Build games, play with friends, customize your avatar, and explore a community of creators. Features built-in games (Showdown, Tag, Snake, 3D runners), Game Studio, avatar customization, Pixel Coins, and AI-assisted coding.',
+        url: cleanUrl,
+        applicationCategory: 'Game',
+        operatingSystem: 'Any',
+        browserRequirements: 'Requires JavaScript. Works in modern browsers.',
+        author: {
+          '@type': 'Organization',
+          '@id': `${cleanUrl}/#organization`,
+          name: 'Mainline Studios',
+          url: cleanUrl,
+        },
+        publisher: { '@id': `${cleanUrl}/#organization` },
+        image: `${cleanUrl}/logo.png`,
+        featureList: [
+          'Avatar customization with skins and accessories',
+          'Built-in games: Showdown, Tag, Snake, 3D Avatar Runner, Memory, Tic-Tac-Toe, and more',
+          'Game Studio to build and publish your own games',
+          'Social features: friends, community creations, sharing',
+          'Pixel Coins economy',
+          'AI-powered coding assistance',
+        ],
+        offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
+      },
+      {
+        '@type': 'Organization',
+        '@id': `${cleanUrl}/#organization`,
+        name: 'Mainline Studios',
+        url: cleanUrl,
+      },
+    ],
+  };
+}
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -20,6 +66,10 @@ export default function RootLayout({
   return (
     <html lang="en">
       <head>
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(getSchemaOrgJsonLd()) }}
+        />
         <script
           dangerouslySetInnerHTML={{
             __html: `(function(){var s=localStorage.getItem('pixelplace_style');if(s&&/^(modern|futuristic|normal|90s|80s|lowcontrast)$/.test(s))document.documentElement.setAttribute('data-style',s);else document.documentElement.setAttribute('data-style','normal');})();`,
