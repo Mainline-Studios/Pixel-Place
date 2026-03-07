@@ -8,6 +8,7 @@ import Dashboard from '@/components/Dashboard/Dashboard';
 import SplashScreen from '@/components/SplashScreen';
 import BreakReminder from '@/components/BreakReminder';
 import BanScreen from '@/components/BanScreen';
+import LoginNotice from '@/components/LoginNotice';
 import { getPlaytimeTracker } from '@/lib/playtimeTracker';
 import { User } from '@/types';
 import ErrorBoundary from '@/components/ErrorBoundary';
@@ -49,6 +50,7 @@ function AppContent() {
 
   return (
     <>
+      {!showSplash && <LoginNotice />}
       {showSplash ? (
         <SplashScreen onComplete={() => setShowSplash(false)} />
       ) : bannedSession ? (

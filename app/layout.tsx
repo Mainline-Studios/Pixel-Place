@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import { headers } from "next/headers";
 import "./globals.css";
 import Script from "next/script";
 import { UserProvider } from "@/contexts/UserContext";
@@ -14,23 +13,18 @@ export const metadata: Metadata = {
   description: "Pixel Place by Mainline Studios",
 };
 
-export default async function RootLayout({
+export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const pathname = (await headers()).get("x-pathname") ?? "";
-  const isHomepage = pathname === "/";
-
   return (
     <html lang="en">
       <head>
-        {isHomepage && (
-          <script
-            type="application/ld+json"
-            dangerouslySetInnerHTML={{ __html: JSON.stringify(getSchemaOrgJsonLd()) }}
-          />
-        )}
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(getSchemaOrgJsonLd()) }}
+        />
         <script
           dangerouslySetInnerHTML={{
             __html: `(function(){var s=localStorage.getItem('pixelplace_style');if(s&&/^(modern|futuristic|normal|90s|80s|lowcontrast)$/.test(s))document.documentElement.setAttribute('data-style',s);else document.documentElement.setAttribute('data-style','normal');})();`,
