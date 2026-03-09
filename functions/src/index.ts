@@ -369,7 +369,7 @@ async function getAdminAccountsFromFirestore(): Promise<{ username: string; pass
 // POST /auth (login, register)
 app.post('/auth', async (req, res) => {
   try {
-    const { username, password, action, gender, role, coins, deviceId, deviceLabel } = req.body;
+    const { username, password, action, gender, deviceId, deviceLabel } = req.body;
     if (!username || !password) return res.status(400).json({ error: 'Username and password required' });
 
     if (action === 'login') {
@@ -464,8 +464,8 @@ app.post('/auth', async (req, res) => {
         username_lower: id,
         password_hash: hash,
         gender: gender || '',
-        role: role || 'user',
-        coins: coins ?? 10,
+        role: 'user',
+        coins: 10,
         owned_skins: ['starter_classic'],
         equipped_skin: 'starter_classic',
         owned_accessories: [],
