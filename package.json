@@ -7,7 +7,7 @@
         "dev:next": "next dev -p 3000",
         "server": "node server.js",
         "build": "next build",
-        "start": "next start",
+        "start": "serve -s out -l ${PORT:-8080}",
         "lint": "next lint",
         "deploy": "npm run build && cd functions && npm run build && cd .. && firebase deploy",
         "deploy:hosting": "npm run build && firebase deploy --only hosting"
@@ -28,6 +28,7 @@
         "next": "^15.5.12",
         "react": "^18.3.1",
         "react-dom": "^18.3.1",
+        "serve": "^14.2.6",
         "socket.io": "^4.7.2",
         "socket.io-client": "^4.7.2",
         "stripe": "^14.21.0",
