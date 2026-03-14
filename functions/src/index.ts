@@ -221,13 +221,15 @@ app.post('/users', async (req, res) => {
     const password_hash = plainPassword
       ? await bcrypt.hash(plainPassword, 10)
       : (existingData?.password_hash ?? '');
+    const resolvedRole = isAdmin(auth) ? (u.role || existingData?.role || 'user') : (existingData?.role || 'user');
+    const resolvedCoins = isAdmin(auth) ? (u.coins ?? existingData?.coins ?? 10) : (existingData?.coins ?? 10);
     const data = {
       username: u.username,
       username_lower: id,
       password_hash,
       gender: u.gender || '',
-      role: u.role || 'user',
-      coins: u.coins ?? 10,
+      role: resolvedRole,
+      coins: resolvedCoins,
       owned_skins: u.ownedSkins || ['starter_classic'],
       equipped_skin: u.equippedSkin || 'starter_classic',
       owned_accessories: u.ownedAccessories || [],
@@ -236,7 +238,7 @@ app.post('/users', async (req, res) => {
       friends: u.friends || [],
       friend_requests: u.friendRequests || [],
       sent_friend_requests: u.sentFriendRequests || [],
-      is_donor: (u.role === 'admin' || u.role === 'head_admin') ? 1 : 0,
+      is_donor: (resolvedRole === 'admin' || resolvedRole === 'head_admin') ? 1 : 0,
       updated_at: Date.now(),
     };
     if (existing.exists) {
@@ -271,13 +273,15 @@ app.put('/users', async (req, res) => {
     const password_hash = plainPassword
       ? await bcrypt.hash(plainPassword, 10)
       : (existingData.password_hash ?? '');
+    const resolvedRole = isAdmin(auth) ? (u.role ?? existingData.role ?? 'user') : (existingData.role || 'user');
+    const resolvedCoins = isAdmin(auth) ? (u.coins ?? existingData.coins ?? 0) : (existingData.coins ?? 0);
     await ref.set({
       username: u.username,
       username_lower: id,
       password_hash,
       gender: u.gender,
-      role: u.role,
-      coins: u.coins,
+      role: resolvedRole,
+      coins: resolvedCoins,
       owned_skins: u.ownedSkins || [],
       equipped_skin: u.equippedSkin || '',
       owned_accessories: u.ownedAccessories || [],
@@ -285,7 +289,7 @@ app.put('/users', async (req, res) => {
       friends: u.friends || [],
       friend_requests: u.friendRequests || [],
       sent_friend_requests: u.sentFriendRequests || [],
-      is_donor: (u.role === 'admin' || u.role === 'head_admin') ? 1 : 0,
+      is_donor: (resolvedRole === 'admin' || resolvedRole === 'head_admin') ? 1 : 0,
       updated_at: Date.now(),
     }, { merge: true });
     const out = { ...u };
@@ -432,6 +436,26 @@ app.post('/auth', async (req, res) => {
         }
       }
       if (!match) return res.status(401).json({ error: 'Invalid credentials' });
+
+      const banDoc = await db.collection(COLLECTIONS.BANS).doc(username.toLowerCase()).get();
+      if (banDoc.exists) {
+        const banData = banDoc.data()!;
+        const isExpired = banData.expires_at && banData.expires_at < Date.now() && !banData.permanent;
+        if (!isExpired) {
+          return res.status(401).json({
+            error: 'Your account is banned.',
+            ban: {
+              username: banData.username || username,
+              reason: banData.reason || 'Your account is banned.',
+              bannedBy: banData.banned_by || 'Administrator',
+              timestamp: banData.banned_at || Date.now(),
+              permanent: banData.permanent === true,
+              expiresAt: banData.expires_at,
+            },
+          });
+        }
+      }
+
       if (deviceId) await recordDevice(username, deviceId, deviceLabel || 'Unknown');
       const user = userFromDoc(doc);
       const token = jwt.sign({ username: user.username, role: user.role }, getJwtSecret(), { expiresIn: '7d' });
@@ -464,8 +488,8 @@ app.post('/auth', async (req, res) => {
         username_lower: id,
         password_hash: hash,
         gender: gender || '',
-        role: role || 'user',
-        coins: coins ?? 10,
+        role: 'user',
+        coins: 10,
         owned_skins: ['starter_classic'],
         equipped_skin: 'starter_classic',
         owned_accessories: [],
