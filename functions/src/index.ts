@@ -221,12 +221,13 @@ app.post('/users', async (req, res) => {
     const password_hash = plainPassword
       ? await bcrypt.hash(plainPassword, 10)
       : (existingData?.password_hash ?? '');
+    const resolvedRole = isAdmin(auth) ? (u.role || existingData?.role || 'user') : (existingData?.role || 'user');
     const data = {
       username: u.username,
       username_lower: id,
       password_hash,
       gender: u.gender || '',
-      role: u.role || 'user',
+      role: resolvedRole,
       coins: u.coins ?? 10,
       owned_skins: u.ownedSkins || ['starter_classic'],
       equipped_skin: u.equippedSkin || 'starter_classic',
@@ -236,7 +237,7 @@ app.post('/users', async (req, res) => {
       friends: u.friends || [],
       friend_requests: u.friendRequests || [],
       sent_friend_requests: u.sentFriendRequests || [],
-      is_donor: (u.role === 'admin' || u.role === 'head_admin') ? 1 : 0,
+      is_donor: (resolvedRole === 'admin' || resolvedRole === 'head_admin') ? 1 : 0,
       updated_at: Date.now(),
     };
     if (existing.exists) {
@@ -271,12 +272,13 @@ app.put('/users', async (req, res) => {
     const password_hash = plainPassword
       ? await bcrypt.hash(plainPassword, 10)
       : (existingData.password_hash ?? '');
+    const resolvedRole = isAdmin(auth) ? (u.role || existingData.role || 'user') : (existingData.role || 'user');
     await ref.set({
       username: u.username,
       username_lower: id,
       password_hash,
       gender: u.gender,
-      role: u.role,
+      role: resolvedRole,
       coins: u.coins,
       owned_skins: u.ownedSkins || [],
       equipped_skin: u.equippedSkin || '',
@@ -285,7 +287,7 @@ app.put('/users', async (req, res) => {
       friends: u.friends || [],
       friend_requests: u.friendRequests || [],
       sent_friend_requests: u.sentFriendRequests || [],
-      is_donor: (u.role === 'admin' || u.role === 'head_admin') ? 1 : 0,
+      is_donor: (resolvedRole === 'admin' || resolvedRole === 'head_admin') ? 1 : 0,
       updated_at: Date.now(),
     }, { merge: true });
     const out = { ...u };
@@ -464,8 +466,8 @@ app.post('/auth', async (req, res) => {
         username_lower: id,
         password_hash: hash,
         gender: gender || '',
-        role: role || 'user',
-        coins: coins ?? 10,
+        role: 'user',
+        coins: 10,
         owned_skins: ['starter_classic'],
         equipped_skin: 'starter_classic',
         owned_accessories: [],
