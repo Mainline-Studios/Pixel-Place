@@ -136,10 +136,13 @@ app.use(express.json());
 // Cloud Functions URL is .../api - requests to .../api/users have path /api/users
 // Strip /api so our routes match /users, /skins, etc. (Hosting rewrite may leave path as /api/...)
 app.use((req, res, next) => {
-  const p = req.path || req.url || '';
-  const pathOnly = p.split('?')[0];
+  const raw = req.url || '';
+  const qIdx = raw.indexOf('?');
+  const pathOnly = qIdx >= 0 ? raw.slice(0, qIdx) : raw;
+  const qs = qIdx >= 0 ? raw.slice(qIdx) : '';
   if (pathOnly.startsWith('/api/') || pathOnly === '/api') {
-    req.url = pathOnly === '/api' ? '/' : pathOnly.slice(4) || '/';
+    const newPath = pathOnly === '/api' ? '/' : pathOnly.slice(4) || '/';
+    req.url = newPath + qs;
   }
   next();
 });
@@ -221,13 +224,16 @@ app.post('/users', async (req, res) => {
     const password_hash = plainPassword
       ? await bcrypt.hash(plainPassword, 10)
       : (existingData?.password_hash ?? '');
+    const callerIsAdmin = isAdmin(auth);
+    const safeRole = callerIsAdmin ? (u.role || existingData?.role || 'user') : (existingData?.role || 'user');
+    const safeCoins = callerIsAdmin ? (u.coins ?? existingData?.coins ?? 10) : (existingData?.coins ?? 10);
     const data = {
       username: u.username,
       username_lower: id,
       password_hash,
       gender: u.gender || '',
-      role: u.role || 'user',
-      coins: u.coins ?? 10,
+      role: safeRole,
+      coins: safeCoins,
       owned_skins: u.ownedSkins || ['starter_classic'],
       equipped_skin: u.equippedSkin || 'starter_classic',
       owned_accessories: u.ownedAccessories || [],
@@ -236,7 +242,7 @@ app.post('/users', async (req, res) => {
       friends: u.friends || [],
       friend_requests: u.friendRequests || [],
       sent_friend_requests: u.sentFriendRequests || [],
-      is_donor: (u.role === 'admin' || u.role === 'head_admin') ? 1 : 0,
+      is_donor: (safeRole === 'admin' || safeRole === 'head_admin') ? 1 : 0,
       updated_at: Date.now(),
     };
     if (existing.exists) {
@@ -271,13 +277,16 @@ app.put('/users', async (req, res) => {
     const password_hash = plainPassword
       ? await bcrypt.hash(plainPassword, 10)
       : (existingData.password_hash ?? '');
+    const callerIsAdmin = isAdmin(auth);
+    const safeRole = callerIsAdmin ? (u.role ?? existingData.role) : existingData.role;
+    const safeCoins = callerIsAdmin ? (u.coins ?? existingData.coins) : existingData.coins;
     await ref.set({
       username: u.username,
       username_lower: id,
       password_hash,
       gender: u.gender,
-      role: u.role,
-      coins: u.coins,
+      role: safeRole,
+      coins: safeCoins,
       owned_skins: u.ownedSkins || [],
       equipped_skin: u.equippedSkin || '',
       owned_accessories: u.ownedAccessories || [],
@@ -285,7 +294,7 @@ app.put('/users', async (req, res) => {
       friends: u.friends || [],
       friend_requests: u.friendRequests || [],
       sent_friend_requests: u.sentFriendRequests || [],
-      is_donor: (u.role === 'admin' || u.role === 'head_admin') ? 1 : 0,
+      is_donor: (safeRole === 'admin' || safeRole === 'head_admin') ? 1 : 0,
       updated_at: Date.now(),
     }, { merge: true });
     const out = { ...u };
@@ -464,8 +473,8 @@ app.post('/auth', async (req, res) => {
         username_lower: id,
         password_hash: hash,
         gender: gender || '',
-        role: role || 'user',
-        coins: coins ?? 10,
+        role: 'user',
+        coins: 10,
         owned_skins: ['starter_classic'],
         equipped_skin: 'starter_classic',
         owned_accessories: [],
