@@ -7,6 +7,7 @@ import { apiUrl } from '@/lib/apiBaseUrl';
 import { useUser } from '@/contexts/UserContext';
 import { toast } from '@/lib/toast';
 import PyxCheckingPopup from '@/components/PyxCheckingPopup';
+import StudioRetireNotice from '@/components/StudioRetireNotice';
 
 interface StudioTabProps {
   user: User;
@@ -536,6 +537,7 @@ export default function StudioTab({ user, editMode }: StudioTabProps) {
 
   return (
     <>
+      <StudioRetireNotice />
       {showPyxCheck && (
         <PyxCheckingPopup
           open={showPyxCheck}
