@@ -13,6 +13,8 @@
       {"source": "/", "destination": "/index.html"},
       {"source": "/games", "destination": "/index.html"},
       {"source": "/games/**", "destination": "/index.html"},
+      {"source": "/mainlinelogin", "destination": "/mainlinelogin.html"},
+      {"source": "/mainlinelogin/**", "destination": "/mainlinelogin.html"},
       {"source": "/avatarshop", "destination": "/index.html"},
       {"source": "/avatarshop/**", "destination": "/index.html"},
       {"source": "/coins", "destination": "/index.html"},
