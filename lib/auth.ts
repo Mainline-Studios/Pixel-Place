@@ -41,6 +41,18 @@ function userFromDoc(doc: any): User {
     friends: Array.isArray(doc.friends) ? doc.friends : (typeof doc.friends === 'string' ? JSON.parse(doc.friends || '[]') : []),
     friendRequests: Array.isArray(doc.friend_requests) ? doc.friend_requests : (typeof doc.friend_requests === 'string' ? JSON.parse(doc.friend_requests || '[]') : []),
     sentFriendRequests: Array.isArray(doc.sent_friend_requests) ? doc.sent_friend_requests : (typeof doc.sent_friend_requests === 'string' ? JSON.parse(doc.sent_friend_requests || '[]') : []),
+    recentlyPlayed: Array.isArray(doc.recently_played)
+      ? doc.recently_played
+      : (typeof doc.recently_played === 'string'
+          ? (() => {
+              try {
+                const parsed = JSON.parse(doc.recently_played || '[]');
+                return Array.isArray(parsed) ? parsed : [];
+              } catch {
+                return [];
+              }
+            })()
+          : []),
     isDonor: doc.is_donor === 1 || doc.is_donor === true
   };
 }

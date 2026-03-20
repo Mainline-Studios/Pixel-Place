@@ -76,6 +76,19 @@ function userFromDoc(d: { id: string } & Record<string, unknown>): User {
     ownedFaces: Array.isArray(doc.owned_faces) ? doc.owned_faces as string[] : undefined,
     equippedFace: (doc.equipped_face as string) || undefined,
     safetyPoints: typeof doc.safety_points === 'number' ? doc.safety_points : undefined,
+    recentlyPlayed: (() => {
+      const rp = doc.recently_played;
+      if (Array.isArray(rp)) return rp as string[];
+      if (typeof rp === 'string') {
+        try {
+          const parsed = JSON.parse(rp);
+          return Array.isArray(parsed) ? (parsed as string[]) : [];
+        } catch {
+          return [];
+        }
+      }
+      return [];
+    })(),
   };
 }
 
