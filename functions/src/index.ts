@@ -941,6 +941,49 @@ app.delete('/api/hardware-bans', deleteHardwareBansHandler);
 app.get('/tabcontent', async (_req, res) => { try { res.json((await db.collection(COLLECTIONS.TAB_CONTENT).doc('content').get()).data() || {}); } catch (e) { res.status(500).json({ error: 'Failed' }); } });
 app.get('/accessories', async (_req, res) => { try { res.json((await db.collection(COLLECTIONS.ACCESSORIES_CATALOG).doc('catalog').get()).data()?.accessories || []); } catch (e) { res.status(500).json({ error: 'Failed' }); } });
 app.get('/bans', async (_req, res) => { try { res.json((await db.collection(COLLECTIONS.BANS).get()).docs.map(d => ({ id: d.id, ...d.data() }))); } catch (e) { res.status(500).json({ error: 'Failed' }); } });
+// POST /bans — admin only, create ban (body: { username, bannedBy, reason, timestamp?, permanent?, expiresAt? })
+const postBansHandler = async (req: any, res: any) => {
+  const auth = requireAdmin(req, res);
+  if (!auth) return;
+  const body = req.body || {};
+  const username = (body.username ?? '').toString().trim();
+  if (!username) return res.status(400).json({ error: 'username required' });
+  const bannedBy = (body.bannedBy ?? '').toString().trim() || 'Administrator';
+  const reason = (body.reason ?? '').toString().trim() || 'No reason given';
+  const permanent = body.permanent === true;
+  const timestamp = typeof body.timestamp === 'number' ? body.timestamp : Date.now();
+  const expiresAt = permanent ? undefined : (typeof body.expiresAt === 'number' ? body.expiresAt : undefined);
+  const usernameLower = username.toLowerCase();
+  try {
+    const existing = await db.collection(COLLECTIONS.BANS).where('username_lower', '==', usernameLower).get();
+    const batch = db.batch();
+    existing.docs.forEach((d) => batch.delete(d.ref));
+    await batch.commit();
+    await db.collection(COLLECTIONS.BANS).doc(usernameLower).set({
+      username,
+      username_lower: usernameLower,
+      reason,
+      banned_by: bannedBy,
+      banned_at: timestamp,
+      expires_at: expiresAt ?? null,
+      permanent,
+      created_at: Date.now(),
+    });
+    res.status(200).json({
+      username,
+      bannedBy,
+      reason,
+      timestamp,
+      permanent,
+      expiresAt: expiresAt ?? undefined,
+    });
+  } catch (e) {
+    console.error('Error creating ban:', e);
+    res.status(500).json({ error: 'Failed to create ban' });
+  }
+};
+app.post('/bans', postBansHandler);
+app.post('/api/bans', postBansHandler);
 // DELETE /bans?username=xxx — admin only, unban user
 const deleteBansHandler = async (req: any, res: any) => {
   const auth = requireAdmin(req, res);

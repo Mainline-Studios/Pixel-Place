@@ -387,9 +387,10 @@ export async function banUser(username: string, bannedBy: string, reason: string
   };
 
   try {
-    const response = await fetch(apiUrl('/api/bans'), {      method: 'POST',
+    const response = await authenticatedFetch(apiUrl('/api/bans'), {
+      method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(newBan)
+      body: JSON.stringify(newBan),
     });
     return response.ok;
   } catch (e) {
@@ -401,7 +402,8 @@ export async function banUser(username: string, bannedBy: string, reason: string
 export async function unbanUser(username: string): Promise<void> {
   if (typeof window === 'undefined') return;
   try {
-    await fetch(apiUrl(`/api/bans?username=${encodeURIComponent(username)}`), {      method: 'DELETE'
+    await authenticatedFetch(apiUrl(`/api/bans?username=${encodeURIComponent(username)}`), {
+      method: 'DELETE',
     });
   } catch (e) {
     console.error('Error unbanning user:', e);
