@@ -41,7 +41,10 @@ export default function MainlineLoginRedirect() {
       if (cancelled) return;
       const elapsed = Date.now() - startedAt;
       const hasUsername = !!user?.username;
-      const shouldRedirect = hasUsername || elapsed > 2500;
+      const hasRecent = (user?.recentlyPlayed?.length || 0) > 0;
+      // Wait for recent games to hydrate so the Mainline site can preload them.
+      // If it takes too long, fall back to redirect anyway.
+      const shouldRedirect = (hasUsername && hasRecent) || elapsed > 2500;
 
       if (shouldRedirect) {
         window.location.replace(handoffUrl);
