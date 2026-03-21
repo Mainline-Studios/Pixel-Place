@@ -52,6 +52,7 @@ const games: GameInfo[] = [
     description:
       'Classic Mac & NeXT in the browser (Infinite Mac). Pick a version, read the lore, then play. Tip: the faint italic line likes to be clicked.',
     icon: '🖥️',
+    thumbnail: '/images/games/historimac-play.png',
     category: 'Arcade',
     component: HistoriMac,
   },

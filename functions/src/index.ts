@@ -419,6 +419,7 @@ app.post('/auth', async (req, res) => {
       }
       if (!doc.exists) return res.status(401).json({ error: 'Invalid credentials' });
       const d = doc.data()!;
+      // Firestore: some users have blank password_hash (e.g. Google-only, legacy imports).
       const storedHash = (d.password_hash || '').trim();
       let match = false;
       if (storedHash.startsWith('$2')) {

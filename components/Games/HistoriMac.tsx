@@ -9,6 +9,8 @@ interface HistoriMacProps {
 }
 
 const INFINITE_MAC_URL = 'https://infinitemac.org';
+/** Classic Finder / Happy Mac–style pixel art for version Play controls */
+const HISTORIMAC_PLAY_ICON = '/images/games/historimac-play.png';
 
 function pickWhisperStart() {
   return Math.floor(Math.random() * HISTORIMAC_WHISPERS.length);
@@ -225,10 +227,8 @@ export default function HistoriMac({ onClose }: HistoriMacProps) {
             </p>
           ) : (
             HISTORIMAC_VERSIONS.map((v) => (
-              <button
+              <div
                 key={v.id}
-                type="button"
-                onClick={() => setSelected(v)}
                 style={{
                   display: 'block',
                   width: '100%',
@@ -237,7 +237,7 @@ export default function HistoriMac({ onClose }: HistoriMacProps) {
                   border: '1px solid var(--border, rgba(255,255,255,0.15))',
                   background: 'linear-gradient(135deg, var(--panel, #141820) 0%, var(--panel-soft, #1a2030) 100%)',
                   color: 'var(--text, #fff)',
-                  cursor: 'pointer',
+                  cursor: 'default',
                   textAlign: 'left',
                   boxShadow: 'var(--shadow-card, 0 4px 20px rgba(0,0,0,0.4))',
                 }}
@@ -320,7 +320,44 @@ export default function HistoriMac({ onClose }: HistoriMacProps) {
                     <span style={{ display: 'block', ...showcaseBodyStyle }}>{v.deviceShowcase}</span>
                   </div>
                 ) : null}
-              </button>
+                <button
+                  type="button"
+                  aria-label={`Play ${v.label}`}
+                  onClick={() => setSelected(v)}
+                  style={{
+                    marginTop: '16px',
+                    width: '100%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '12px',
+                    padding: '12px 18px',
+                    borderRadius: '10px',
+                    border: '1px solid rgba(255,255,255,0.25)',
+                    cursor: 'pointer',
+                    background: 'linear-gradient(180deg, #00b4ff 0%, #0090d6 100%)',
+                    boxShadow: '0 4px 16px rgba(0, 162, 255, 0.45)',
+                    color: '#fff',
+                    fontSize: '16px',
+                    fontWeight: 800,
+                    letterSpacing: '0.06em',
+                  }}
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element -- static public asset, pixel art */}
+                  <img
+                    src={HISTORIMAC_PLAY_ICON}
+                    alt=""
+                    width={36}
+                    height={36}
+                    style={{
+                      flexShrink: 0,
+                      imageRendering: 'pixelated',
+                      objectFit: 'contain',
+                    }}
+                  />
+                  Play
+                </button>
+              </div>
             ))
           )}
         </div>
