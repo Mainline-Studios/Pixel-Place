@@ -65,10 +65,16 @@ Firebase Hosting is configured to proxy `/api/**` to the Cloud Function, so the 
 firebase deploy
 ```
 
-Or from the project root:
+Or from the project root (runs `firebase deploy`):
 
 ```bash
 npm run deploy
+```
+
+To **build** the app and functions, then deploy:
+
+```bash
+npm run deploy:full
 ```
 
 ### Step 5: Verify

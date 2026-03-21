@@ -56,9 +56,9 @@
    module.exports = nextConfig
    ```
 
-5. **Deploy**:
+5. **Deploy** (publishes the `out` folder; use this if you added the `gh-pages` script above, or run `npx gh-pages -d out` directly):
    ```powershell
-   npm run deploy
+   npx gh-pages -d out
    ```
 
 6. **Enable GitHub Pages**:

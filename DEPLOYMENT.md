@@ -17,7 +17,7 @@ npm install -g vercel
 vercel login
 
 # Deploy to production
-npm run deploy
+vercel --prod
 ```
 
 Or use the Vercel dashboard:

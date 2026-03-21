@@ -9,8 +9,9 @@
         "build": "next build",
         "start": "next start",
         "lint": "next lint",
-        "deploy": "npm run build && cd functions && npm run build && cd .. && firebase deploy",
-        "deploy:hosting": "npm run build && firebase deploy --only hosting"
+        "deploy": "firebase deploy",
+        "deploy:full": "firebase deploy",
+        "deploy:hosting": "firebase deploy --only hosting"
     },
     "dependencies": {
         "@genkit-ai/googleai": "^1.28.0",

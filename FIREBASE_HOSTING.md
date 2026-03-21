@@ -30,18 +30,26 @@ NEXT_PUBLIC_API_URL=https://us-central1-pixel-place-823b1.cloudfunctions.net NEX
 
 ## 2. Build and deploy
 
-```bash
-# Build static export (outputs to out/)
-npm run build
+Hosting serves whatever is in the **`out/`** folder from **`next build`**. This repo’s **`firebase.json`** runs **`npm run build` automatically before any Hosting deploy** (`hosting.predeploy`), so a plain deploy always ships a fresh static export:
 
-# Deploy to Firebase Hosting
+```bash
 firebase deploy --only hosting
-```
-
-Or use the combined script:
-```bash
+# or
 npm run deploy
 ```
+
+You can still run **`npm run build`** yourself first if you want to verify the build before uploading.
+
+**One command** — build Next.js + build functions + deploy:
+
+```bash
+npm run deploy:full
+```
+
+### Site still looks old after deploy?
+
+1. **Hard refresh** the tab (e.g. Cmd+Shift+R / Ctrl+Shift+R) or open in a private window — the browser or a CDN edge may cache JS/CSS.
+2. Before the predeploy hook existed, **`firebase deploy` without `npm run build`** re-uploaded an **old `out/`**; that’s the usual reason changes didn’t appear.
 
 After deploy, the app will be live at:
 - `https://pixel-place-823b1.web.app`

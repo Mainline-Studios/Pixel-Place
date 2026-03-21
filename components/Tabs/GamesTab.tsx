@@ -226,6 +226,8 @@ const SECRET_GAMES_IXEL_ACE: GameInfo[] = [
 export default function GamesTab({ user, editMode }: GamesTabProps) {
   const { secretTheme } = useSecretTheme();
   const [selectedGame, setSelectedGame] = useState<string | null>(null);
+  /** Deep link: `/games#historimac=versionId` — consumed by HistoriMac after boot */
+  const [historiMacBootVersionId, setHistoriMacBootVersionId] = useState<string | null>(null);
   const [selectedUserGame, setSelectedUserGame] = useState<UserMadeGame | null>(null);
   const [userMadeGames, setUserMadeGames] = useState<UserMadeGame[]>([]);
 
@@ -244,6 +246,23 @@ export default function GamesTab({ user, editMode }: GamesTabProps) {
     getUserMadeGames().then((games) => {
       if (games.length > 0) setUserMadeGames((prev) => prev.length === 0 ? games : prev);
     });
+  }, []);
+
+  // HistoriMac share links: #historimac or #historimac=system7
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const applyHash = () => {
+      const raw = window.location.hash.replace(/^#/, '').trim();
+      const lower = raw.toLowerCase();
+      if (!lower.startsWith('historimac')) return;
+      const eq = raw.indexOf('=');
+      const id = eq >= 0 ? raw.slice(eq + 1).trim() : '';
+      setSelectedGame('historiMac');
+      setHistoriMacBootVersionId(id || null);
+    };
+    applyHash();
+    window.addEventListener('hashchange', applyHash);
+    return () => window.removeEventListener('hashchange', applyHash);
   }, []);
 
   const handleDeleteGame = async (gameId: string, gameTitle: string) => {
@@ -286,7 +305,11 @@ export default function GamesTab({ user, editMode }: GamesTabProps) {
       : selectedGame === 'ecoHero'
       ? { onClose: handleClose }
       : selectedGame === 'historiMac'
-      ? { onClose: handleClose }
+      ? {
+          onClose: handleClose,
+          bootVersionId: historiMacBootVersionId,
+          onBootVersionConsumed: () => setHistoriMacBootVersionId(null),
+        }
       : selectedGame === 'squishBubbles' || selectedGame === 'squishSlime'
       ? { onClose: handleClose }
       : selectedGame === 'showdown'

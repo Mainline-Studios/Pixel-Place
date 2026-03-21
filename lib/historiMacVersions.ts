@@ -1,5 +1,6 @@
 /**
  * HistoriMac — one entry per version button.
+ * - Infinite Monkey (AI control) is a separate page: https://infinitemac.org/monkey/ — not a `/embed?…` flag (see embed docs + blog).
  * - embedUrl: direct Infinite Mac (or other) embed — single iframe, best for their /embed URLs
  * - htmlPath: file under public/
  * - inlineHtml: full HTML document for iframe srcdoc

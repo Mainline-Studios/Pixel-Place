@@ -72,7 +72,9 @@ npm run build
 vercel --prod
 ```
 
-Or use the deploy script:
+Or after `npm run build`:
 ```powershell
-npm run deploy
+vercel --prod
 ```
+
+*(Firebase: `firebase deploy` / `npm run deploy` runs a fresh `next build` before Hosting upload; `npm run deploy:full` deploys hosting + functions.)*

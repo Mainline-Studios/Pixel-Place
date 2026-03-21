@@ -18,19 +18,14 @@ jobs:
           node-version: '22'
           cache: 'npm'
 
-      - name: Install root deps & build app
+      # Hosting predeploy (firebase.json) runs `npm run build`; functions predeploy builds functions.
+      - name: Install root & functions deps
         run: |
           npm ci
-          npm run build
+          cd functions && npm ci && cd ..
 
       - name: Install Firebase CLI
         run: npm install -g firebase-tools
-
-      - name: Build functions
-        run: |
-          cd functions
-          npm ci
-          npm run build
 
       - name: Skip deploy when token is missing
         if: ${{ env.FIREBASE_TOKEN == '' }}

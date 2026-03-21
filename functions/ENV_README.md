@@ -25,6 +25,7 @@ So:
    AI_PROVIDER=groq
    GROQ_API_KEY=your-real-groq-key
    ANTHROPIC_API_KEY=your-key-if-you-use-it
+   OPENAI_API_KEY=sk-...   # optional: server-side OpenAI (HistoriMac Computer Use uses user keys)
    ```
 
 3. **Deploy.** Those values will be pushed to the cloud and will stay until the next deploy (which will again use whatever is in `.env`).

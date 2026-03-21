@@ -66,7 +66,7 @@ If you see just a navy blue screen when opening the app:
    - Rebuild the app: `npm run electron:build:mac`
 
 4. **Quick Fix - Use Deployed URL:**
-   - Deploy your app to Vercel first: `npm run deploy`
+   - Deploy your app to Vercel first: `vercel --prod` (after `npm run build`)
    - Copy your Vercel URL
    - Update `electron-main.js` with your URL
    - Rebuild: `npm run electron:build:mac`

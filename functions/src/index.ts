@@ -1206,6 +1206,11 @@ app.post('/api/generate-game', (req, res) => handleGenerateGame(req, res));
 app.post('/chat', (req, res) => handleChat(req, res));
 app.post('/api/chat', (req, res) => handleChat(req, res));
 
+// HistoriMac Computer Use (BYOK — OpenAI Responses `computer` or Anthropic `computer_20250124`)
+import { handleHistoriMacCopilotTurn } from './historimac-copilot-turn';
+app.post('/historimac-copilot-turn', (req, res) => void handleHistoriMacCopilotTurn(req, res));
+app.post('/api/historimac-copilot-turn', (req, res) => void handleHistoriMacCopilotTurn(req, res));
+
 // 404 for unknown routes (include path debug so we can see what Express received)
 app.use((req: any, res) => {
   res.status(404).json({

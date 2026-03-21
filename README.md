@@ -15,7 +15,7 @@ Pixel Place is a web app where users sign in, customize an avatar, earn and spen
 ## Features
 
 - **Avatar customization** — Skins and accessories; avatar appears in supported games
-- **Games** — Built-in titles (Showdown, Tag, Snake, 3D Avatar Runner, Memory, Tic-Tac-Toe, and more) plus community games
+- **Games** — Built-in titles plus community games.
 - **Game Studio** — Create and publish games for the community
 - **Social** — Friends, community creations, sharing
 - **Pixel Coins** — In-platform economy for avatar items and features
@@ -35,6 +35,7 @@ Note: the current **Studio** tab will be retired soon. A new, more exciting Stud
 
 - **Repository:** [Mainline-Studios/Pixel-Place](https://github.com/Mainline-Studios/Pixel-Place)
 - **Setup / commands:** See `START_HERE.md` and `ALL_COMMANDS.txt` in the repo as needed.
+- **Firebase deploy:** `firebase deploy` or `npm run deploy` — Hosting runs **`npm run build` before upload** via `firebase.json` so `out/` stays fresh. Full project deploy (hosting + functions, etc.): `npm run deploy:full`. Details: `FIREBASE_HOSTING.md`.
 
 ---
 

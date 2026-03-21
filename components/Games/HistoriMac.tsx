@@ -1,20 +1,59 @@
 'use client';
 
-import React, { useMemo, useState, useCallback, useEffect } from 'react';
+import React, { useMemo, useState, useCallback, useEffect, useRef } from 'react';
 import { HISTORIMAC_VERSIONS, type HistoriMacVersion } from '@/lib/historiMacVersions';
 import { HISTORIMAC_WHISPERS } from '@/lib/historiMacWhispers';
 import { computeHistoriMacTimeline } from '@/lib/historiMacTimeline';
+import { readFavoriteVersionIds, toggleFavoriteVersion } from '@/lib/historiMacFavorites';
+import { tabToPath } from '@/lib/routing';
 import HistoriMacTimelineStrip from './HistoriMacTimelineStrip';
+import HistoriMacSideRail, { INFINITE_MONKEY_URL } from './HistoriMacSideRail';
+import HistoriMacCopilot from './HistoriMacCopilot';
+import { buildInfiniteMacEmbedSrc, isInfiniteMacEmbedUrl } from '@/lib/infiniteMacEmbed';
 
 interface HistoriMacProps {
   onClose?: () => void;
+  /** From URL hash `#historimac=versionId` — auto-opens that version once */
+  bootVersionId?: string | null;
+  onBootVersionConsumed?: () => void;
 }
 
 const INFINITE_MAC_URL = 'https://infinitemac.org';
 /** Classic Finder / Happy Mac–style pixel art for version Play controls */
 const HISTORIMAC_PLAY_ICON = '/images/games/historimac-play.png';
 const LAST_PLAYED_KEY = 'historiMac_lastVersionId';
+const LORE_EXPANDED_KEY = 'historiMac_loreExpanded';
 const EMBED_LOAD_TIMEOUT_MS = 45_000;
+
+function readLoreExpandedDefault(): boolean {
+  if (typeof window === 'undefined') return true;
+  try {
+    return localStorage.getItem(LORE_EXPANDED_KEY) !== '0';
+  } catch {
+    return true;
+  }
+}
+
+function writeLoreExpanded(expanded: boolean) {
+  try {
+    localStorage.setItem(LORE_EXPANDED_KEY, expanded ? '1' : '0');
+  } catch {
+    /* ignore */
+  }
+}
+
+function clearHistoriMacShareHash() {
+  if (typeof window === 'undefined') return;
+  if (!window.location.hash.toLowerCase().includes('historimac')) return;
+  window.history.replaceState(null, '', window.location.pathname + window.location.search);
+}
+
+function buildHistoriMacShareUrl(versionId: string): string {
+  if (typeof window === 'undefined') return '';
+  const origin = window.location.origin;
+  const path = tabToPath('games');
+  return `${origin}${path}#historimac=${encodeURIComponent(versionId)}`;
+}
 
 function pickWhisperStart() {
   return Math.floor(Math.random() * HISTORIMAC_WHISPERS.length);
@@ -99,13 +138,25 @@ function getIframeProps(version: HistoriMacVersion): IframeEmbedConfig {
   return { title: `HistoriMac — ${version.label}` };
 }
 
-export default function HistoriMac({ onClose }: HistoriMacProps) {
+export default function HistoriMac({
+  onClose,
+  bootVersionId,
+  onBootVersionConsumed,
+}: HistoriMacProps) {
   const [selected, setSelected] = useState<HistoriMacVersion | null>(null);
   const [whisperIdx, setWhisperIdx] = useState(pickWhisperStart);
   const [lastPlayedId, setLastPlayedId] = useState<string | null>(null);
   const [embedFullscreen, setEmbedFullscreen] = useState(false);
   const [embedPhase, setEmbedPhase] = useState<'loading' | 'ready' | 'fail'>('loading');
   const [embedRetryKey, setEmbedRetryKey] = useState(0);
+  const [favoritesTick, setFavoritesTick] = useState(0);
+  const [toast, setToast] = useState<string | null>(null);
+  const [loreExpanded, setLoreExpanded] = useState(readLoreExpandedDefault);
+  const [railNarrow, setRailNarrow] = useState(false);
+  const bootAppliedRef = useRef<string | null>(null);
+  const iframeRef = useRef<HTMLIFrameElement | null>(null);
+  /** Enables screen_update_messages on Infinite Mac /embed (heavier). */
+  const [copilotStream, setCopilotStream] = useState(false);
 
   const cycleWhisper = useCallback(() => {
     setWhisperIdx((i) => (i + 1) % HISTORIMAC_WHISPERS.length);
@@ -115,7 +166,104 @@ export default function HistoriMac({ onClose }: HistoriMacProps) {
     setLastPlayedId(readLastPlayedId());
   }, []);
 
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const mq = window.matchMedia('(max-width: 600px)');
+    const fn = () => setRailNarrow(mq.matches);
+    fn();
+    mq.addEventListener('change', fn);
+    return () => mq.removeEventListener('change', fn);
+  }, []);
+
+  useEffect(() => {
+    if (!bootVersionId) return;
+    if (bootAppliedRef.current === bootVersionId) return;
+    bootAppliedRef.current = bootVersionId;
+    const v = HISTORIMAC_VERSIONS.find((x) => x.id === bootVersionId);
+    if (v) {
+      saveLastPlayedId(v.id);
+      setLastPlayedId(v.id);
+      setSelected(v);
+      setEmbedFullscreen(false);
+    }
+    onBootVersionConsumed?.();
+  }, [bootVersionId, onBootVersionConsumed]);
+
+  useEffect(() => {
+    if (!toast) return;
+    const t = window.setTimeout(() => setToast(null), 2600);
+    return () => window.clearTimeout(t);
+  }, [toast]);
+
+  useEffect(() => {
+    if (!embedFullscreen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        setEmbedFullscreen(false);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [embedFullscreen]);
+
+  const favoriteIds = useMemo(() => {
+    void favoritesTick;
+    return readFavoriteVersionIds();
+  }, [favoritesTick]);
+
+  const favoriteVersions = useMemo(
+    () => favoriteIds.map((id) => HISTORIMAC_VERSIONS.find((v) => v.id === id)).filter(Boolean) as HistoriMacVersion[],
+    [favoriteIds],
+  );
+
+  const showToast = useCallback((msg: string) => setToast(msg), []);
+
+  const bumpFavorites = useCallback(() => setFavoritesTick((n) => n + 1), []);
+
+  const toggleFavoriteFor = useCallback(
+    (id: string) => {
+      const now = toggleFavoriteVersion(id);
+      showToast(now ? 'Saved to your picks (this device)' : 'Removed from your picks');
+      bumpFavorites();
+    },
+    [bumpFavorites, showToast],
+  );
+
+  const copyVersionLink = useCallback(
+    async (versionId: string) => {
+      const url = buildHistoriMacShareUrl(versionId);
+      try {
+        await navigator.clipboard.writeText(url);
+        showToast('Link copied — share to open this Mac version');
+      } catch {
+        showToast(`Copy failed — link: ${url}`);
+      }
+    },
+    [showToast],
+  );
+
+  const goToPicker = useCallback(() => {
+    clearHistoriMacShareHash();
+    setEmbedFullscreen(false);
+    setSelected(null);
+  }, []);
+
+  const handleExitGame = useCallback(() => {
+    clearHistoriMacShareHash();
+    onClose?.();
+  }, [onClose]);
+
   const iframeProps = useMemo(() => (selected ? getIframeProps(selected) : null), [selected]);
+
+  const iframeSrcEffective = useMemo(() => {
+    if (!iframeProps?.src || !iframeProps.external) return iframeProps?.src;
+    return buildInfiniteMacEmbedSrc(iframeProps.src, { screenUpdateMessages: copilotStream });
+  }, [iframeProps?.src, iframeProps?.external, copilotStream]);
+
+  useEffect(() => {
+    if (!selected) setCopilotStream(false);
+  }, [selected]);
   const timelineModel = useMemo(() => computeHistoriMacTimeline(HISTORIMAC_VERSIONS), []);
   const resumeVersion = useMemo(
     () => (lastPlayedId ? HISTORIMAC_VERSIONS.find((v) => v.id === lastPlayedId) : undefined),
@@ -133,7 +281,7 @@ export default function HistoriMac({ onClose }: HistoriMacProps) {
       setEmbedPhase((p) => (p === 'loading' ? 'fail' : p));
     }, EMBED_LOAD_TIMEOUT_MS);
     return () => window.clearTimeout(t);
-  }, [selected, selected?.id, iframeProps?.src, iframeProps?.srcDoc, embedRetryKey]);
+  }, [selected, selected?.id, iframeProps?.src, iframeProps?.srcDoc, embedRetryKey, iframeSrcEffective]);
 
   const handlePlay = useCallback((v: HistoriMacVersion) => {
     saveLastPlayedId(v.id);
@@ -175,7 +323,17 @@ export default function HistoriMac({ onClose }: HistoriMacProps) {
       >
         infinitemac.org
       </a>
-      .
+      . For AI-driven control (OpenAI / Anthropic “computer use”), use their{' '}
+      <a
+        href={INFINITE_MONKEY_URL}
+        target="_blank"
+        rel="noopener noreferrer"
+        title="Separate page: you choose disk + provider and paste your own API key."
+        style={{ color: '#a78bfa' }}
+      >
+        Infinite Monkey
+      </a>{' '}
+      demo — it doesn’t run inside our embed.
     </p>
   );
 
@@ -200,7 +358,7 @@ export default function HistoriMac({ onClose }: HistoriMacProps) {
           <button
             type="button"
             title="Exit to the games grid — no saving to a floppy required."
-            onClick={onClose}
+            onClick={handleExitGame}
             style={{
               position: 'fixed',
               top: '12px',
@@ -281,6 +439,44 @@ export default function HistoriMac({ onClose }: HistoriMacProps) {
             maxWidth: 'min(640px, 100%)',
           }}
         >
+          {favoriteVersions.length > 0 ? (
+            <div style={{ width: '100%' }}>
+              <div
+                style={{
+                  fontSize: '11px',
+                  fontWeight: 700,
+                  color: 'rgba(250, 204, 21, 0.85)',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.08em',
+                  marginBottom: '10px',
+                }}
+              >
+                Your picks
+              </div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                {favoriteVersions.map((v) => (
+                  <button
+                    key={v.id}
+                    type="button"
+                    onClick={() => handlePlay(v)}
+                    style={{
+                      padding: '8px 14px',
+                      borderRadius: '999px',
+                      border: '1px solid rgba(250, 204, 21, 0.45)',
+                      background: 'rgba(55, 48, 20, 0.55)',
+                      color: '#fef9c3',
+                      cursor: 'pointer',
+                      fontSize: '13px',
+                      fontWeight: 700,
+                    }}
+                  >
+                    ★ {v.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : null}
+
           {resumeVersion ? (
             <button
               type="button"
@@ -347,9 +543,11 @@ export default function HistoriMac({ onClose }: HistoriMacProps) {
               <div
                 key={v.id}
                 style={{
+                  position: 'relative',
                   display: 'block',
                   width: '100%',
                   padding: '16px 18px',
+                  paddingRight: '52px',
                   borderRadius: '12px',
                   border: '1px solid var(--border, rgba(255,255,255,0.15))',
                   background: 'linear-gradient(135deg, var(--panel, #141820) 0%, var(--panel-soft, #1a2030) 100%)',
@@ -359,6 +557,31 @@ export default function HistoriMac({ onClose }: HistoriMacProps) {
                   boxShadow: 'var(--shadow-card, 0 4px 20px rgba(0,0,0,0.4))',
                 }}
               >
+                <button
+                  type="button"
+                  aria-label={favoriteIds.includes(v.id) ? `Remove ${v.label} from picks` : `Save ${v.label} to picks`}
+                  title={favoriteIds.includes(v.id) ? 'Remove from your picks' : 'Save to your picks on this device'}
+                  onClick={() => toggleFavoriteFor(v.id)}
+                  style={{
+                    position: 'absolute',
+                    top: '12px',
+                    right: '12px',
+                    width: '36px',
+                    height: '36px',
+                    borderRadius: '10px',
+                    border: '1px solid rgba(255,255,255,0.2)',
+                    background: 'rgba(0,0,0,0.35)',
+                    color: favoriteIds.includes(v.id) ? '#facc15' : 'rgba(255,255,255,0.55)',
+                    cursor: 'pointer',
+                    fontSize: '18px',
+                    lineHeight: 1,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  {favoriteIds.includes(v.id) ? '★' : '☆'}
+                </button>
                 <span
                   style={{
                     display: 'block',
@@ -479,6 +702,33 @@ export default function HistoriMac({ onClose }: HistoriMacProps) {
             ))
           )}
         </div>
+
+        {toast ? (
+          <div
+            role="status"
+            aria-live="polite"
+            style={{
+              position: 'fixed',
+              bottom: 24,
+              left: '50%',
+              transform: 'translateX(-50%)',
+              zIndex: 100020,
+              padding: '12px 20px',
+              borderRadius: 12,
+              background: 'rgba(15, 18, 28, 0.96)',
+              border: '1px solid rgba(125, 211, 252, 0.35)',
+              color: '#e0f2fe',
+              fontSize: 13,
+              fontWeight: 600,
+              boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
+              maxWidth: 'min(90vw, 420px)',
+              textAlign: 'center',
+              pointerEvents: 'none',
+            }}
+          >
+            {toast}
+          </div>
+        ) : null}
       </div>
     );
   }
@@ -491,10 +741,15 @@ export default function HistoriMac({ onClose }: HistoriMacProps) {
 
   const iframeKey = `${selected.id}-${embedRetryKey}`;
   const showChrome = !embedFullscreen;
+  const hasLorePanel = !!(
+    selected.backgroundInfo ||
+    selected.deviceShowcase ||
+    selected.warningBanner
+  );
 
   const iframeShared = {
     key: iframeKey,
-    src: iframeProps?.src,
+    src: iframeSrcEffective ?? iframeProps?.src,
     srcDoc: iframeProps?.srcDoc,
     title: iframeProps?.title ?? 'HistoriMac',
     allow: iframeProps?.allow,
@@ -547,10 +802,7 @@ export default function HistoriMac({ onClose }: HistoriMacProps) {
           <button
             type="button"
             title="Back to the pile of disks. (They’re virtual. It’s fine.)"
-            onClick={() => {
-              setEmbedFullscreen(false);
-              setSelected(null);
-            }}
+            onClick={goToPicker}
             style={{
               fontFamily: '"Press Start 2P", monospace',
               fontSize: '9px',
@@ -571,6 +823,28 @@ export default function HistoriMac({ onClose }: HistoriMacProps) {
             Version: <strong style={{ color: 'var(--text, #fff)' }}>{selected.label}</strong>
           </span>
           <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', justifyContent: 'flex-end', alignItems: 'center' }}>
+            {hasLorePanel && !loreExpanded ? (
+              <button
+                type="button"
+                title="Show background & device info again"
+                onClick={() => {
+                  setLoreExpanded(true);
+                  writeLoreExpanded(true);
+                }}
+                style={{
+                  fontFamily: '"Press Start 2P", monospace',
+                  fontSize: '8px',
+                  padding: '8px 10px',
+                  background: 'rgba(255,255,255,0.08)',
+                  border: '1px solid rgba(255,255,255,0.2)',
+                  color: '#cbd5e1',
+                  borderRadius: '6px',
+                  cursor: 'pointer',
+                }}
+              >
+                Show lore
+              </button>
+            ) : null}
             {hasEmbed ? (
               <div
                 style={{
@@ -606,7 +880,7 @@ export default function HistoriMac({ onClose }: HistoriMacProps) {
               <button
                 type="button"
                 title="Quit HistoriMac — remember to save your imaginary work."
-                onClick={onClose}
+                onClick={handleExitGame}
                 style={{
                   fontFamily: '"Press Start 2P", monospace',
                   fontSize: '9px',
@@ -636,10 +910,14 @@ export default function HistoriMac({ onClose }: HistoriMacProps) {
             borderBottom: '1px solid rgba(255,255,255,0.1)',
           }}
         >
-          <span style={{ fontSize: '12px', color: '#cbd5e1', fontWeight: 600 }}>{selected.label}</span>
-          <div style={{ display: 'flex', gap: '8px' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+            <span style={{ fontSize: '12px', color: '#cbd5e1', fontWeight: 600 }}>{selected.label}</span>
+            <span style={{ fontSize: '9px', color: 'rgba(148,163,184,0.9)' }}>Press Esc to exit fullscreen</span>
+          </div>
+          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
             <button
               type="button"
+              title="Or press Escape"
               onClick={() => setEmbedFullscreen(false)}
               style={{
                 fontFamily: '"Press Start 2P", monospace',
@@ -656,10 +934,7 @@ export default function HistoriMac({ onClose }: HistoriMacProps) {
             </button>
             <button
               type="button"
-              onClick={() => {
-                setEmbedFullscreen(false);
-                setSelected(null);
-              }}
+              onClick={goToPicker}
               style={{
                 fontFamily: '"Press Start 2P", monospace',
                 fontSize: '8px',
@@ -678,7 +953,20 @@ export default function HistoriMac({ onClose }: HistoriMacProps) {
       )}
 
       {showChrome &&
-      (selected.backgroundInfo || selected.deviceShowcase || selected.warningBanner) ? (
+      iframeProps?.external &&
+      iframeProps.src &&
+      isInfiniteMacEmbedUrl(iframeProps.src) ? (
+        <HistoriMacCopilot
+          iframeRef={iframeRef}
+          active
+          streamScreen={copilotStream}
+          onStreamScreenChange={setCopilotStream}
+          versionLabel={selected.label}
+          onToast={showToast}
+        />
+      ) : null}
+
+      {showChrome && loreExpanded && hasLorePanel ? (
         <div
           style={{
             flexShrink: 0,
@@ -769,6 +1057,35 @@ export default function HistoriMac({ onClose }: HistoriMacProps) {
       >
         {hasEmbed ? (
           <>
+            <div
+              style={{
+                position: 'absolute',
+                zIndex: 12,
+                pointerEvents: 'none',
+                ...(railNarrow
+                  ? { bottom: embedFullscreen ? 72 : 100, right: 8, top: 'auto' as const }
+                  : { top: '50%', right: 10, transform: 'translateY(-50%)' }),
+              }}
+            >
+              <div style={{ pointerEvents: 'auto' }}>
+                <HistoriMacSideRail
+                  favorited={favoriteIds.includes(selected.id)}
+                  onToggleFavorite={() => toggleFavoriteFor(selected.id)}
+                  onCopyLink={() => void copyVersionLink(selected.id)}
+                  openExternalUrl={openUrl}
+                  loreExpanded={loreExpanded}
+                  onToggleLore={() => {
+                    setLoreExpanded((prev) => {
+                      const next = !prev;
+                      writeLoreExpanded(next);
+                      return next;
+                    });
+                  }}
+                  hasLore={hasLorePanel}
+                  compact={embedFullscreen}
+                />
+              </div>
+            </div>
             {embedPhase === 'loading' && (
               <div
                 style={{
@@ -865,6 +1182,7 @@ export default function HistoriMac({ onClose }: HistoriMacProps) {
             )}
             {embedFullscreen || !fixedSize ? (
               <iframe
+                ref={iframeRef}
                 {...iframeShared}
                 style={{
                   width: '100%',
@@ -887,6 +1205,7 @@ export default function HistoriMac({ onClose }: HistoriMacProps) {
                 }}
               >
                 <iframe
+                  ref={iframeRef}
                   {...iframeShared}
                   style={{
                     width: '100%',
@@ -915,6 +1234,17 @@ export default function HistoriMac({ onClose }: HistoriMacProps) {
           }}
         >
           {attribution}
+          <p
+            style={{
+              margin: '8px 0 0',
+              fontSize: '9px',
+              color: 'rgba(139, 144, 168, 0.45)',
+              textAlign: 'center',
+              lineHeight: 1.45,
+            }}
+          >
+            Tip: side buttons — save pick, copy link, open Infinite Mac, or 🐵 Infinite Monkey for AI control (opens their site; you use your API key).
+          </p>
           <button
             type="button"
             onClick={cycleWhisper}
@@ -936,6 +1266,33 @@ export default function HistoriMac({ onClose }: HistoriMacProps) {
           >
             {HISTORIMAC_WHISPERS[whisperIdx]}
           </button>
+        </div>
+      ) : null}
+
+      {toast ? (
+        <div
+          role="status"
+          aria-live="polite"
+          style={{
+            position: 'fixed',
+            bottom: 24,
+            left: '50%',
+            transform: 'translateX(-50%)',
+            zIndex: 100020,
+            padding: '12px 20px',
+            borderRadius: 12,
+            background: 'rgba(15, 18, 28, 0.96)',
+            border: '1px solid rgba(125, 211, 252, 0.35)',
+            color: '#e0f2fe',
+            fontSize: 13,
+            fontWeight: 600,
+            boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
+            maxWidth: 'min(90vw, 420px)',
+            textAlign: 'center',
+            pointerEvents: 'none',
+          }}
+        >
+          {toast}
         </div>
       ) : null}
     </div>

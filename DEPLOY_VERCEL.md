@@ -62,9 +62,9 @@ npm run build
 vercel --prod
 ```
 
-Or use the deploy script:
+After `npm run build`, production deploy:
 ```powershell
-npm run deploy
+vercel --prod
 ```
 
 ## Troubleshooting
