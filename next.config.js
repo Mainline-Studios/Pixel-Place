@@ -1,6 +1,10 @@
 /** @type {import('next').NextConfig} */
+const isFirebaseAppHostingBuild = Boolean(process.env.FIREBASE_WEBAPP_CONFIG);
+
 const nextConfig = {
-  output: 'export',
+  // App Hosting's Next.js adapter expects a standalone server bundle.
+  // Keep static export for legacy Firebase Hosting deploys.
+  output: isFirebaseAppHostingBuild ? 'standalone' : 'export',
   images: {
     unoptimized: true
   },
