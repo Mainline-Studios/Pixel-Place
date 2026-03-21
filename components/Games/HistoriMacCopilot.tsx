@@ -97,6 +97,7 @@ export default function HistoriMacCopilot({
   const [logLine, setLogLine] = useState<string | null>(null);
   const [frameHint, setFrameHint] = useState<string>('No frame yet.');
   const latestRef = useRef<LatestFrame | null>(null);
+  const panelRootRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     try {
@@ -125,7 +126,11 @@ export default function HistoriMacCopilot({
   }, [rememberKeys, provider, openaiKey, anthropicKey, openaiModel, anthropicModel]);
 
   useEffect(() => {
-    if (expandRequest > 0) setOpen(true);
+    if (expandRequest <= 0) return;
+    setOpen(true);
+    requestAnimationFrame(() => {
+      panelRootRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    });
   }, [expandRequest]);
 
   useEffect(() => {
@@ -430,6 +435,8 @@ export default function HistoriMacCopilot({
 
   return (
     <div
+      ref={panelRootRef}
+      data-historimac-pixel-monkey
       style={{
         flexShrink: 0,
         borderBottom: '1px solid var(--border, rgba(255,255,255,0.1))',
@@ -577,8 +584,22 @@ export default function HistoriMacCopilot({
 
           <button
             type="button"
-            disabled={busy || !streamScreen}
-            onClick={() => void runAgent()}
+            disabled={busy}
+            title={
+              busy
+                ? 'Run in progress'
+                : !streamScreen
+                  ? 'Turn on “Stream screen” above first — the agent needs live frames'
+                  : 'Start the computer-use loop with your API key'
+            }
+            onClick={() => {
+              if (busy) return;
+              if (!streamScreen) {
+                onToast('Turn on “Stream screen” above — Pixel Monkey needs live frames from the emulator.');
+                return;
+              }
+              void runAgent();
+            }}
             style={{
               alignSelf: 'flex-start',
               padding: '10px 18px',
@@ -588,7 +609,8 @@ export default function HistoriMacCopilot({
               color: '#f5f3ff',
               fontWeight: 700,
               fontSize: 13,
-              cursor: busy || !streamScreen ? 'not-allowed' : 'pointer',
+              opacity: !streamScreen && !busy ? 0.72 : 1,
+              cursor: busy ? 'not-allowed' : 'pointer',
             }}
           >
             {busy ? 'Running…' : 'Run Pixel Monkey'}

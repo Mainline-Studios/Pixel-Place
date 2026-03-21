@@ -35,7 +35,7 @@ Default OpenAI model: **gpt-5-mini**.
 - **OpenAI safety checks**: If the API returns pending computer-use safety acknowledgements, we respond **409** — not implemented yet.
 - **Anthropic**: Only the **`computer`** tool is executed. Other tool calls (if the model emits them) get an error tool result.
 - **Embeds**: Actions are best-effort mappings to `emulator_mouse_*` / `emulator_key_*`. Some actions (e.g. complex drags) may not match a real Mac 1:1.
-- **Fullscreen**: Panel is only in the normal (non-fullscreen) chrome.
+- **Fullscreen**: Pixel Monkey stays mounted below the fullscreen top bar so the 🍌 rail button still opens it.
 
 ## Endpoint
 

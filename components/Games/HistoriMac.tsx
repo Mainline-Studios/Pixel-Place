@@ -953,8 +953,8 @@ export default function HistoriMac({
         </div>
       )}
 
-      {showChrome &&
-      iframeProps?.external &&
+      {/* Pixel Monkey must mount in fullscreen too — side rail stays visible there */}
+      {iframeProps?.external &&
       iframeProps.src &&
       isInfiniteMacEmbedUrl(iframeProps.src) ? (
         <HistoriMacCopilot
@@ -1246,7 +1246,7 @@ export default function HistoriMac({
               lineHeight: 1.45,
             }}
           >
-            Tip: side buttons — save pick, copy link, open Infinite Mac, or 🐵 Infinite Monkey for AI control (opens their site; you use your API key).
+            Tip: side rail — 🍌 Pixel Monkey (AI in this page, BYOK), 🐵 Infinite Monkey (opens their site), plus save pick, copy link, open Infinite Mac.
           </p>
           <button
             type="button"
