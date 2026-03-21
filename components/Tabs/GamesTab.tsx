@@ -47,6 +47,15 @@ interface GameInfo {
 // All available games
 const games: GameInfo[] = [
   {
+    id: 'historiMac',
+    name: 'HistoriMac',
+    description:
+      'Classic Mac & NeXT in the browser (Infinite Mac). Pick a version, read the lore, then play. Tip: the faint italic line likes to be clicked.',
+    icon: '🖥️',
+    category: 'Arcade',
+    component: HistoriMac,
+  },
+  {
     id: 'gymPump',
     name: 'Gym Pump',
     description: 'Lift weights, build power, and climb the leaderboard!',
@@ -190,14 +199,6 @@ const games: GameInfo[] = [
     category: 'Arcade',
     component: EcoHero,
   },
-  {
-    id: 'historiMac',
-    name: 'HistoriMac',
-    description: 'Classic Mac experiences — pick a version, then play embedded HTML (Powered by Infinite Mac).',
-    icon: '🖥️',
-    category: 'Arcade',
-    component: HistoriMac,
-  },
 ];
 
 const SECRET_GAMES_IXEL_ACE: GameInfo[] = [
@@ -340,13 +341,12 @@ export default function GamesTab({ user, editMode }: GamesTabProps) {
           <div
             key={game.id}
             className="game-card-enhanced"
-            onClick={() => setSelectedGame(game.id)}
             style={{
               background: 'linear-gradient(135deg, var(--panel) 0%, var(--panel-soft) 100%)',
               borderRadius: '16px',
               padding: '24px',
               border: '1px solid var(--border)',
-              cursor: 'pointer',
+              cursor: 'default',
               transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
               position: 'relative',
               overflow: 'hidden',
@@ -427,8 +427,27 @@ export default function GamesTab({ user, editMode }: GamesTabProps) {
             }}>
               {game.description}
             </div>
-            <button className="btn" style={{ width: '100%' }}>
-              Play Now
+            <button
+              type="button"
+              className="btn"
+              onClick={() => setSelectedGame(game.id)}
+              style={{
+                width: '100%',
+                padding: '14px 20px',
+                fontSize: '16px',
+                fontWeight: 800,
+                letterSpacing: '0.04em',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '10px',
+                background: 'linear-gradient(180deg, #00b4ff 0%, #0090d6 100%)',
+                border: '1px solid rgba(255,255,255,0.25)',
+                boxShadow: '0 4px 16px rgba(0, 162, 255, 0.45)',
+              }}
+            >
+              <span style={{ fontSize: '18px' }} aria-hidden>▶</span>
+              Play
             </button>
           </div>
         ))}
@@ -448,13 +467,12 @@ export default function GamesTab({ user, editMode }: GamesTabProps) {
               <div
                 key={game.id}
                 className="game-card-enhanced"
-                onClick={() => setSelectedUserGame(game)}
                 style={{
                   background: 'linear-gradient(135deg, var(--panel) 0%, var(--panel-soft) 100%)',
                   borderRadius: '16px',
                   padding: '24px',
                   border: '1px solid var(--border)',
-                  cursor: 'pointer',
+                  cursor: 'default',
                   transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
                   position: 'relative',
                   overflow: 'hidden',
@@ -510,8 +528,27 @@ export default function GamesTab({ user, editMode }: GamesTabProps) {
                   By: <FilteredUsername username={game.owner || ''} currentUsername={user.username || ''} />
                 </div>
                 <div style={{ display: 'flex', gap: '8px' }}>
-                  <button className="btn" style={{ flex: 1 }} onClick={(e) => { e.stopPropagation(); setSelectedUserGame(game); }}>
-                    Play Now
+                  <button
+                    type="button"
+                    className="btn"
+                    style={{
+                      flex: 1,
+                      padding: '14px 20px',
+                      fontSize: '16px',
+                      fontWeight: 800,
+                      letterSpacing: '0.04em',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '10px',
+                      background: 'linear-gradient(180deg, #00b4ff 0%, #0090d6 100%)',
+                      border: '1px solid rgba(255,255,255,0.25)',
+                      boxShadow: '0 4px 16px rgba(0, 162, 255, 0.45)',
+                    }}
+                    onClick={() => setSelectedUserGame(game)}
+                  >
+                    <span style={{ fontSize: '18px' }} aria-hidden>▶</span>
+                    Play
                   </button>
                   {(user.role === 'admin' || user.role === 'head_admin') && (
                     <button 

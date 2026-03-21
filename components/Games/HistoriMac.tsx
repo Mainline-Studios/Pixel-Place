@@ -1,13 +1,18 @@
 'use client';
 
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useCallback } from 'react';
 import { HISTORIMAC_VERSIONS, type HistoriMacVersion } from '@/lib/historiMacVersions';
+import { HISTORIMAC_WHISPERS } from '@/lib/historiMacWhispers';
 
 interface HistoriMacProps {
   onClose?: () => void;
 }
 
 const INFINITE_MAC_URL = 'https://infinitemac.org';
+
+function pickWhisperStart() {
+  return Math.floor(Math.random() * HISTORIMAC_WHISPERS.length);
+}
 
 const showcaseHeadingStyle: React.CSSProperties = {
   fontSize: '10px',
@@ -65,6 +70,10 @@ function getIframeProps(version: HistoriMacVersion): IframeEmbedConfig {
 
 export default function HistoriMac({ onClose }: HistoriMacProps) {
   const [selected, setSelected] = useState<HistoriMacVersion | null>(null);
+  const [whisperIdx, setWhisperIdx] = useState(pickWhisperStart);
+  const cycleWhisper = useCallback(() => {
+    setWhisperIdx((i) => (i + 1) % HISTORIMAC_WHISPERS.length);
+  }, []);
 
   const iframeProps = useMemo(() => (selected ? getIframeProps(selected) : null), [selected]);
 
@@ -79,7 +88,13 @@ export default function HistoriMac({ onClose }: HistoriMacProps) {
       }}
     >
       Powered by Infinite Mac. See them at{' '}
-      <a href={INFINITE_MAC_URL} target="_blank" rel="noopener noreferrer" style={{ color: '#00a2ff' }}>
+      <a
+        href={INFINITE_MAC_URL}
+        target="_blank"
+        rel="noopener noreferrer"
+        title="Infinite Mac — emulators so good they feel like a stolen weekend in Cupertino."
+        style={{ color: '#00a2ff' }}
+      >
         infinitemac.org
       </a>
       .
@@ -89,6 +104,8 @@ export default function HistoriMac({ onClose }: HistoriMacProps) {
   if (!selected) {
     return (
       <div
+        data-historimac-root
+        data-era-hint="MCMLXXXIV"
         style={{
           width: '100%',
           minHeight: '100vh',
@@ -104,6 +121,7 @@ export default function HistoriMac({ onClose }: HistoriMacProps) {
         {onClose && (
           <button
             type="button"
+            title="Exit to the games grid — no saving to a floppy required."
             onClick={onClose}
             style={{
               position: 'fixed',
@@ -126,16 +144,57 @@ export default function HistoriMac({ onClose }: HistoriMacProps) {
 
         <div style={{ textAlign: 'center', maxWidth: '520px' }}>
           <h1
+            title="A nod to history — and to every “one more thing” that shipped anyway."
             style={{
               fontFamily: '"Press Start 2P", monospace',
               fontSize: 'clamp(14px, 3vw, 20px)',
-              margin: '0 0 12px',
+              margin: '0 0 8px',
               color: 'var(--text, #fff)',
             }}
           >
-            HistoriMac
+            Histori
+            <span
+              title="The ROM knows what you did last session."
+              style={{ color: '#7dd3fc' }}
+            >
+              Mac
+            </span>
           </h1>
+          <p
+            style={{
+              margin: '0 0 12px',
+              fontSize: '10px',
+              color: 'rgba(139, 144, 168, 0.55)',
+              letterSpacing: '0.14em',
+              textTransform: 'uppercase',
+            }}
+          >
+            <span title="512×342 forever in our hearts">Desk accessory mode</span>
+            {' · '}
+            <span title="0x7C0 = 1984 in decimal — the year the Mac said hello.">0x7c0</span>
+          </p>
           {attribution}
+          <button
+            type="button"
+            onClick={cycleWhisper}
+            title="Click to cycle hidden references. Shhh."
+            style={{
+              display: 'block',
+              width: '100%',
+              marginTop: '14px',
+              padding: 0,
+              border: 'none',
+              background: 'transparent',
+              cursor: 'pointer',
+              fontSize: '10px',
+              lineHeight: 1.45,
+              color: 'rgba(139, 144, 168, 0.38)',
+              fontStyle: 'italic',
+              textAlign: 'center',
+            }}
+          >
+            {HISTORIMAC_WHISPERS[whisperIdx]}
+          </button>
         </div>
 
         <div
@@ -148,6 +207,7 @@ export default function HistoriMac({ onClose }: HistoriMacProps) {
           }}
         >
           <div
+            title="Pick your poison — er, partition — er, disk image."
             style={{
               fontSize: '12px',
               fontWeight: 600,
@@ -277,7 +337,11 @@ export default function HistoriMac({ onClose }: HistoriMacProps) {
       : null;
 
   return (
-    <div style={{ width: '100%', height: '100%', minHeight: '100vh', position: 'relative', display: 'flex', flexDirection: 'column' }}>
+    <div
+      data-historimac-root
+      data-era-hint="MCMLXXXIV"
+      style={{ width: '100%', height: '100%', minHeight: '100vh', position: 'relative', display: 'flex', flexDirection: 'column' }}
+    >
       <div
         style={{
           flexShrink: 0,
@@ -293,6 +357,7 @@ export default function HistoriMac({ onClose }: HistoriMacProps) {
       >
         <button
           type="button"
+          title="Back to the pile of disks. (They’re virtual. It’s fine.)"
           onClick={() => setSelected(null)}
           style={{
             fontFamily: '"Press Start 2P", monospace',
@@ -307,12 +372,16 @@ export default function HistoriMac({ onClose }: HistoriMacProps) {
         >
           ← Versions
         </button>
-        <span style={{ fontSize: '12px', color: 'var(--text-dim)', flex: 1, textAlign: 'center' }}>
+        <span
+          title="The name in the menu bar would be proud."
+          style={{ fontSize: '12px', color: 'var(--text-dim)', flex: 1, textAlign: 'center' }}
+        >
           Version: <strong style={{ color: 'var(--text, #fff)' }}>{selected.label}</strong>
         </span>
         {onClose && (
           <button
             type="button"
+            title="Quit HistoriMac — remember to save your imaginary work."
             onClick={onClose}
             style={{
               fontFamily: '"Press Start 2P", monospace',
@@ -416,6 +485,7 @@ export default function HistoriMac({ onClose }: HistoriMacProps) {
       ) : null}
 
       <div
+        title="The “screen” — glass, phosphor, or LCD, depending on how old you feel today."
         style={{
           flex: 1,
           minHeight: 0,
@@ -492,6 +562,27 @@ export default function HistoriMac({ onClose }: HistoriMacProps) {
 
       <div style={{ flexShrink: 0, padding: '10px 16px', background: 'var(--panel-soft, #121620)', borderTop: '1px solid var(--border)' }}>
         {attribution}
+        <button
+          type="button"
+          onClick={cycleWhisper}
+          title="Another reference. Keep clicking. We have 68k of these."
+          style={{
+            display: 'block',
+            width: '100%',
+            marginTop: '8px',
+            padding: 0,
+            border: 'none',
+            background: 'transparent',
+            cursor: 'pointer',
+            fontSize: '9px',
+            lineHeight: 1.4,
+            color: 'rgba(139, 144, 168, 0.32)',
+            fontStyle: 'italic',
+            textAlign: 'center',
+          }}
+        >
+          {HISTORIMAC_WHISPERS[whisperIdx]}
+        </button>
       </div>
     </div>
   );
