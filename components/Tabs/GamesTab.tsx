@@ -23,6 +23,7 @@ import Chess from '../Games/Chess';
 import FloorIsLava from '../Games/FloorIsLava';
 import VoidArcade from '../Games/VoidArcade';
 import EcoHero from '../Games/EcoHero';
+import HistoriMac from '../Games/HistoriMac';
 import SquishBubbles from '../Games/SquishBubbles';
 import SquishSlime from '../Games/SquishSlime';
 
@@ -189,6 +190,14 @@ const games: GameInfo[] = [
     category: 'Arcade',
     component: EcoHero,
   },
+  {
+    id: 'historiMac',
+    name: 'HistoriMac',
+    description: 'Classic Mac experiences — pick a version, then play embedded HTML (Powered by Infinite Mac).',
+    icon: '🖥️',
+    category: 'Arcade',
+    component: HistoriMac,
+  },
 ];
 
 const SECRET_GAMES_IXEL_ACE: GameInfo[] = [
@@ -263,7 +272,7 @@ export default function GamesTab({ user, editMode }: GamesTabProps) {
     };
     
     // Components that support onClose prop
-    const supportsOnClose = ['gymPump', 'hypnosia', 'voidArcade', 'ecoHero', 'squishBubbles', 'squishSlime'].includes(selectedGame);
+    const supportsOnClose = ['gymPump', 'hypnosia', 'voidArcade', 'ecoHero', 'historiMac', 'squishBubbles', 'squishSlime'].includes(selectedGame);
     
     // Prepare props based on game type - pass user to games that need it
     const baseProps = selectedGame === 'gymPump'
@@ -273,6 +282,8 @@ export default function GamesTab({ user, editMode }: GamesTabProps) {
       : selectedGame === 'voidArcade'
       ? { onClose: handleClose }
       : selectedGame === 'ecoHero'
+      ? { onClose: handleClose }
+      : selectedGame === 'historiMac'
       ? { onClose: handleClose }
       : selectedGame === 'squishBubbles' || selectedGame === 'squishSlime'
       ? { onClose: handleClose }
