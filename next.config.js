@@ -1,5 +1,7 @@
 /** @type {import('next').NextConfig} */
-const isFirebaseAppHostingBuild = Boolean(process.env.FIREBASE_WEBAPP_CONFIG);
+const isFirebaseAppHostingBuild =
+  process.env.NEXT_PRIVATE_STANDALONE === 'true' ||
+  Boolean(process.env.FIREBASE_WEBAPP_CONFIG);
 
 const nextConfig = {
   // App Hosting's Next.js adapter expects a standalone server bundle.
