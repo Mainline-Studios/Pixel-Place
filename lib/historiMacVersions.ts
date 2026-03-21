@@ -27,12 +27,15 @@ export type HistoriMacVersion = {
   deviceShowcaseSubtitle?: string;
   /** Loud callout (e.g. SUPER UNSTABLE) above background on picker & embed */
   warningBanner?: string;
+  /** Representative year for the timeline strip (see `lib/historiMacTimeline.ts` — range auto-fits all set years) */
+  timelineYear?: number;
 };
 
 export const HISTORIMAC_VERSIONS: HistoriMacVersion[] = [
   {
     id: 'system1',
     label: 'System 1.0',
+    timelineYear: 1984,
     embedUrl: 'https://infinitemac.org/embed?disk=System+1.0&machine=Mac+128K',
     embedAllow: 'cross-origin-isolated',
     embedWidth: 512,
@@ -43,6 +46,7 @@ export const HISTORIMAC_VERSIONS: HistoriMacVersion[] = [
   {
     id: 'system3',
     label: 'System 3.0',
+    timelineYear: 1986,
     embedUrl: 'https://infinitemac.org/embed?disk=System+3.0&machine=Mac+Plus',
     embedAllow: 'cross-origin-isolated',
     embedWidth: 512,
@@ -53,6 +57,7 @@ export const HISTORIMAC_VERSIONS: HistoriMacVersion[] = [
   {
     id: 'system5',
     label: 'System 5.0',
+    timelineYear: 1987,
     embedUrl: 'https://infinitemac.org/embed?disk=System+5.0&infinite_hd=true&machine=Mac+SE',
     embedAllow: 'cross-origin-isolated',
     embedWidth: 512,
@@ -63,6 +68,7 @@ export const HISTORIMAC_VERSIONS: HistoriMacVersion[] = [
   {
     id: 'system7',
     label: 'System 7.0',
+    timelineYear: 1991,
     embedUrl: 'https://infinitemac.org/embed?disk=System+7.0&infinite_hd=true&machine=Mac+IIfx',
     embedAllow: 'cross-origin-isolated',
     embedWidth: 640,
@@ -73,6 +79,7 @@ export const HISTORIMAC_VERSIONS: HistoriMacVersion[] = [
   {
     id: 'system711pro',
     label: 'System 7.1.1 Pro',
+    timelineYear: 1993,
     embedUrl: 'https://infinitemac.org/embed?disk=System+7.1.1&infinite_hd=true&machine=Quadra+650',
     embedAllow: 'cross-origin-isolated',
     embedWidth: 640,
@@ -86,6 +93,7 @@ export const HISTORIMAC_VERSIONS: HistoriMacVersion[] = [
   {
     id: 'kanjiTalk753',
     label: 'KanjiTalk 7.5.3 (just for kicks! :D)',
+    timelineYear: 1996,
     embedUrl: 'https://infinitemac.org/embed?disk=KanjiTalk+7.5.3&infinite_hd=true&machine=Quadra+650',
     embedAllow: 'cross-origin-isolated',
     embedWidth: 640,
@@ -96,6 +104,7 @@ export const HISTORIMAC_VERSIONS: HistoriMacVersion[] = [
   {
     id: 'macos9',
     label: 'Mac OS 9',
+    timelineYear: 1999,
     embedUrl:
       'https://infinitemac.org/embed?disk=Mac+OS+9.0&infinite_hd=true&machine=Power+Macintosh+6100',
     embedAllow: 'cross-origin-isolated',
@@ -107,6 +116,7 @@ export const HISTORIMAC_VERSIONS: HistoriMacVersion[] = [
   {
     id: 'osx10',
     label: 'Mac OS X 10.0',
+    timelineYear: 2001,
     embedUrl:
       'https://infinitemac.org/embed?disk=Mac+OS+X+10.0&infinite_hd=true&machine=Power+Macintosh+G4+%28PCI+Graphics%29',
     embedAllow: 'cross-origin-isolated',
@@ -118,6 +128,7 @@ export const HISTORIMAC_VERSIONS: HistoriMacVersion[] = [
   {
     id: 'osx102',
     label: 'Mac OS X 10.2 Jaguar',
+    timelineYear: 2002,
     embedUrl:
       'https://infinitemac.org/embed?disk=Mac+OS+X+10.2&infinite_hd=true&machine=Power+Macintosh+G4+%28PCI+Graphics%29',
     embedAllow: 'cross-origin-isolated',
@@ -129,6 +140,7 @@ export const HISTORIMAC_VERSIONS: HistoriMacVersion[] = [
   {
     id: 'osx103',
     label: 'Mac OS X 10.3 Panther',
+    timelineYear: 2003,
     embedUrl:
       'https://infinitemac.org/embed?disk=Mac+OS+X+10.3&infinite_hd=true&machine=Power+Macintosh+G4+%28PCI+Graphics%29',
     embedAllow: 'cross-origin-isolated',
@@ -140,6 +152,7 @@ export const HISTORIMAC_VERSIONS: HistoriMacVersion[] = [
   {
     id: 'osx104',
     label: 'Mac OS X 10.4 Tiger',
+    timelineYear: 2005,
     embedUrl:
       'https://infinitemac.org/embed?disk=Mac+OS+X+10.4&infinite_hd=true&machine=Power+Macintosh+G4+%28PCI+Graphics%29',
     embedAllow: 'cross-origin-isolated',
@@ -151,6 +164,7 @@ export const HISTORIMAC_VERSIONS: HistoriMacVersion[] = [
   {
     id: 'nextstep1',
     label: 'NeXTSTEP 1.0',
+    timelineYear: 1989,
     embedUrl:
       'https://infinitemac.org/embed?disk=NeXTStep+1.0&infinite_hd=true&machine=NeXT+Computer',
     embedAllow: 'cross-origin-isolated',
@@ -161,7 +175,8 @@ export const HISTORIMAC_VERSIONS: HistoriMacVersion[] = [
   },
   {
     id: 'osx10publicbeta',
-    label: 'BONUS!!! Mac OS X Public Beta',
+    label: 'BONUS!!! Mac OS X Public Beta 💫',
+    timelineYear: 2000,
     embedUrl:
       'https://infinitemac.org/embed?disk=Mac+OS+X+10.0&infinite_hd=true&machine=Power+Macintosh+G3+%28Beige%29',
     embedAllow: 'cross-origin-isolated',

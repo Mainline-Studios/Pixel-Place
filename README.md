@@ -27,6 +27,8 @@ Pixel Place is a web app where users sign in, customize an avatar, earn and spen
 
 The project is in active development. Some older documentation or comments may reference early systems or prototypes that are no longer used; the codebase and this README reflect the current direction.
 
+Note: the current **Studio** tab will be retired soon. A new, more exciting Studio is on the way—thanks for your patience and stay tuned!
+
 ---
 
 ## Links
