@@ -127,6 +127,41 @@ export function rgbaToFullPngDataUrl(
   return canvas.toDataURL('image/png');
 }
 
+/** Crop a region of RGBA framebuffer to a PNG data URL (for Anthropic `zoom` follow-up screenshots). */
+export function rgbaCropRegionToPngDataUrl(
+  data: Uint8ClampedArray,
+  width: number,
+  height: number,
+  crop: { x: number; y: number; w: number; h: number },
+): string | null {
+  if (typeof document === 'undefined') return null;
+  let x = Math.max(0, Math.floor(crop.x));
+  let y = Math.max(0, Math.floor(crop.y));
+  let w = Math.max(1, Math.floor(crop.w));
+  let h = Math.max(1, Math.floor(crop.h));
+  if (x >= width || y >= height) return null;
+  w = Math.min(w, width - x);
+  h = Math.min(h, height - y);
+  const canvas = document.createElement('canvas');
+  canvas.width = w;
+  canvas.height = h;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return null;
+  try {
+    const out = new Uint8ClampedArray(w * h * 4);
+    for (let row = 0; row < h; row++) {
+      const srcRow = (y + row) * width + x;
+      const srcStart = srcRow * 4;
+      const dstStart = row * w * 4;
+      out.set(data.subarray(srcStart, srcStart + w * 4), dstStart);
+    }
+    ctx.putImageData(new ImageData(out, w, h), 0, 0);
+  } catch {
+    return null;
+  }
+  return canvas.toDataURL('image/png');
+}
+
 /** Resize for vision API — keeps aspect ratio, max long edge `maxDim`. Returns PNG data URL + scaled size (model coords use scaled size; map back with realWidth/scaledWidth). */
 export function rgbaToDownscaledPngDataUrl(
   data: Uint8ClampedArray,

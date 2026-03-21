@@ -13,6 +13,8 @@ export type HistoriMacSideRailProps = {
   loreExpanded: boolean;
   onToggleLore: () => void;
   hasLore: boolean;
+  /** Open Pixel Place’s in-page computer-use panel (Pixel Monkey) */
+  onOpenPixelMonkey?: () => void;
   /** Slimmer hit targets in fullscreen */
   compact?: boolean;
 };
@@ -43,6 +45,7 @@ export default function HistoriMacSideRail({
   loreExpanded,
   onToggleLore,
   hasLore,
+  onOpenPixelMonkey,
   compact,
 }: HistoriMacSideRailProps) {
   const sz = compact ? 40 : 44;
@@ -108,12 +111,31 @@ export default function HistoriMacSideRail({
         </a>
       ) : null}
 
+      {onOpenPixelMonkey ? (
+        <button
+          type="button"
+          aria-label="Open Pixel Monkey — computer use in this page"
+          title="Pixel Monkey: OpenAI or Anthropic computer use here (BYOK, logged in). Enable streaming in the panel."
+          onClick={onOpenPixelMonkey}
+          style={{
+            ...btnBase,
+            width: sz,
+            height: sz,
+            fontSize: compact ? 15 : 17,
+            borderColor: 'rgba(250, 204, 21, 0.4)',
+            color: '#fde68a',
+          }}
+        >
+          🍌
+        </button>
+      ) : null}
+
       <a
         href={INFINITE_MONKEY_URL}
         target="_blank"
         rel="noopener noreferrer"
-        aria-label="Open Infinite Monkey — AI controls a classic Mac"
-        title="Infinite Monkey: use OpenAI or Anthropic to drive a classic Mac (your API key on their site). Choose the matching disk in the dropdown."
+        aria-label="Open Infinite Monkey on infinitemac.org (external)"
+        title="Classic Infinite Monkey on infinitemac.org — same idea, their site & key UI. Pick the matching disk in the dropdown."
         style={{
           ...btnBase,
           width: sz,

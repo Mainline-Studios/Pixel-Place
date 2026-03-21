@@ -3,8 +3,10 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { authenticatedFetch } from '@/lib/api';
 import { apiUrl } from '@/lib/apiBaseUrl';
+import { resolveAnthropicComputerProfile } from '@/lib/anthropicComputerUse';
 import {
   normalizeEmulatorScreenPayload,
+  rgbaCropRegionToPngDataUrl,
   rgbaToFullPngDataUrl,
 } from '@/lib/infiniteMacEmbed';
 import {
@@ -20,6 +22,8 @@ type Props = {
   onStreamScreenChange: (on: boolean) => void;
   versionLabel: string;
   onToast: (msg: string) => void;
+  /** Increment (e.g. from side rail) to expand this panel */
+  expandRequest?: number;
 };
 
 const TURN_PATH = '/api/historimac-copilot-turn';
@@ -79,6 +83,7 @@ export default function HistoriMacCopilot({
   onStreamScreenChange,
   versionLabel,
   onToast,
+  expandRequest = 0,
 }: Props) {
   const [open, setOpen] = useState(false);
   const [provider, setProvider] = useState<'openai' | 'anthropic'>('openai');
@@ -118,6 +123,10 @@ export default function HistoriMacCopilot({
       /* ignore */
     }
   }, [rememberKeys, provider, openaiKey, anthropicKey, openaiModel, anthropicModel]);
+
+  useEffect(() => {
+    if (expandRequest > 0) setOpen(true);
+  }, [expandRequest]);
 
   useEffect(() => {
     if (!active || !streamScreen) {
@@ -308,14 +317,23 @@ export default function HistoriMacCopilot({
           const inputObj = b.input && typeof b.input === 'object' ? (b.input as Record<string, unknown>) : {};
 
           if (name === 'computer') {
-            await executeAnthropicComputerInput(iframe, inputObj);
+            const meta = await executeAnthropicComputerInput(iframe, inputObj);
             await sleep(150);
             const after = latestRef.current;
             if (!after) {
               onToast('Lost screen capture — keep streaming on');
               return;
             }
-            const shot = rgbaToFullPngDataUrl(after.data, after.width, after.height);
+            let shot = rgbaToFullPngDataUrl(after.data, after.width, after.height);
+            if (meta.zoomCrop && shot) {
+              const cropped = rgbaCropRegionToPngDataUrl(
+                after.data,
+                after.width,
+                after.height,
+                meta.zoomCrop,
+              );
+              if (cropped) shot = cropped;
+            }
             if (!shot) {
               onToast('Screenshot encode failed');
               return;
@@ -408,6 +426,8 @@ export default function HistoriMacCopilot({
 
   if (!active) return null;
 
+  const anthropicCu = resolveAnthropicComputerProfile(anthropicModel.trim() || DEFAULT_ANTHROPIC_MODEL);
+
   return (
     <div
       style={{
@@ -437,17 +457,37 @@ export default function HistoriMacCopilot({
           gap: '8px',
         }}
       >
-        <span>Computer use (BYOK) — {versionLabel}</span>
+        <span>Pixel Monkey — computer use (BYOK) · {versionLabel}</span>
         <span aria-hidden>{open ? '▼' : '▶'}</span>
       </button>
 
       {open ? (
         <div style={{ padding: '0 14px 14px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
           <p style={{ margin: 0, fontSize: '11px', lineHeight: 1.55, color: 'rgba(203, 213, 225, 0.9)' }}>
-            Uses your key with the official <strong>OpenAI</strong> (<code style={{ fontSize: '10px' }}>computer</code> tool
-            on Responses API) or <strong>Anthropic</strong> (<code style={{ fontSize: '10px' }}>computer_20250124</code>).
-            Keys are sent through Pixel Place’s API to the provider only (not stored on our servers). You must be logged
-            in. Enable streaming, then run — multi-step loops until the model stops or hits {MAX_TURNS} turns.
+            Our in-page take on the classic “infinite monkey” idea —{' '}
+            <a
+              href="https://folklore.org/Monkey_Lives.html"
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ color: '#a5b4fc' }}
+            >
+              Folklore.org
+            </a>
+            . Uses your keys with the vendors’ official{' '}
+            <a
+              href="https://platform.claude.com/docs/en/agents-and-tools/tool-use/computer-use-tool"
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ color: '#a5b4fc' }}
+            >
+              computer use
+            </a>{' '}
+            APIs: <strong>OpenAI</strong> <code style={{ fontSize: '10px' }}>computer</code> (Responses) or{' '}
+            <strong>Anthropic</strong>{' '}
+            <code style={{ fontSize: '10px' }}>{anthropicCu.toolType}</code>
+            {anthropicCu.enableZoom ? ' (zoom to region supported)' : ''}. Keys go through Pixel Place’s proxy to the
+            provider only — not stored server-side. Log in, enable streaming, then run — up to {MAX_TURNS} turns per
+            session.
           </p>
 
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', alignItems: 'center' }}>
@@ -551,7 +591,7 @@ export default function HistoriMacCopilot({
               cursor: busy || !streamScreen ? 'not-allowed' : 'pointer',
             }}
           >
-            {busy ? 'Running…' : 'Run computer use'}
+            {busy ? 'Running…' : 'Run Pixel Monkey'}
           </button>
 
           {logLine ? (

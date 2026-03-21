@@ -226,11 +226,14 @@ function normalizeOpenAiKeyName(k: string): string {
   return u.length ? `Key${u.charAt(0).toUpperCase()}${u.slice(1)}` : 'Enter';
 }
 
+/** After a `zoom` tool action, crop the next screenshot to this region (display pixels). */
+export type AnthropicExecMeta = { zoomCrop?: { x: number; y: number; w: number; h: number } };
+
 /** Anthropic computer tool_use.input */
 export async function executeAnthropicComputerInput(
   iframe: HTMLIFrameElement,
   input: Record<string, unknown>,
-): Promise<void> {
+): Promise<AnthropicExecMeta> {
   const action = String(input.action ?? '');
   switch (action) {
     case 'screenshot':
@@ -343,9 +346,23 @@ export async function executeAnthropicComputerInput(
     case 'hold_key':
       await sleep(Math.min(5000, Number(input.duration ?? 1) * 1000));
       break;
-    case 'zoom':
-      break;
+    case 'zoom': {
+      const region = input.region as number[] | undefined;
+      if (region && region.length >= 4) {
+        const x1 = Math.round(Number(region[0]));
+        const y1 = Math.round(Number(region[1]));
+        const x2 = Math.round(Number(region[2]));
+        const y2 = Math.round(Number(region[3]));
+        const left = Math.min(x1, x2);
+        const top = Math.min(y1, y2);
+        const w = Math.max(1, Math.abs(x2 - x1));
+        const h = Math.max(1, Math.abs(y2 - y1));
+        return { zoomCrop: { x: left, y: top, w, h } };
+      }
+      return {};
+    }
     default:
       break;
   }
+  return {};
 }

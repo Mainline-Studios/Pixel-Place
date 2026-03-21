@@ -157,6 +157,7 @@ export default function HistoriMac({
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
   /** Enables screen_update_messages on Infinite Mac /embed (heavier). */
   const [copilotStream, setCopilotStream] = useState(false);
+  const [pixelMonkeyKick, setPixelMonkeyKick] = useState(0);
 
   const cycleWhisper = useCallback(() => {
     setWhisperIdx((i) => (i + 1) % HISTORIMAC_WHISPERS.length);
@@ -963,6 +964,7 @@ export default function HistoriMac({
           onStreamScreenChange={setCopilotStream}
           versionLabel={selected.label}
           onToast={showToast}
+          expandRequest={pixelMonkeyKick}
         />
       ) : null}
 
@@ -1082,6 +1084,7 @@ export default function HistoriMac({
                     });
                   }}
                   hasLore={hasLorePanel}
+                  onOpenPixelMonkey={() => setPixelMonkeyKick((k) => k + 1)}
                   compact={embedFullscreen}
                 />
               </div>

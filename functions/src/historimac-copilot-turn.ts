@@ -1,11 +1,12 @@
 /**
  * HistoriMac Computer Use proxy — BYOK (user API key in body, not stored).
  * - OpenAI: Responses API + built-in `computer` tool (multi-turn via previous_response_id + tool outputs).
- * - Anthropic: Messages API + `computer_20250124` + beta computer-use-2025-01-24.
+ * - Anthropic: Messages API + computer tool version from model (20250124 vs 20251124 + matching beta header).
  *
  * Requires JWT (logged-in user) to reduce anonymous relay abuse; keys are forwarded only to the vendor.
  */
 import { Request, Response } from 'express';
+import { resolveAnthropicComputerProfile } from './anthropicComputerUse';
 import { requireAuth } from './authMiddleware';
 
 const DEFAULT_OPENAI_MODEL = 'gpt-5-mini';
@@ -152,18 +153,23 @@ async function proxyAnthropicTurn(
     return;
   }
 
+  const resolvedModel = model || DEFAULT_ANTHROPIC_MODEL;
+  const cu = resolveAnthropicComputerProfile(resolvedModel);
+  const computerTool: Record<string, unknown> = {
+    type: cu.toolType,
+    name: 'computer',
+    display_width_px: dw,
+    display_height_px: dh,
+    display_number: 1,
+  };
+  if (cu.enableZoom) {
+    computerTool.enable_zoom = true;
+  }
+
   const payload = {
-    model: model || DEFAULT_ANTHROPIC_MODEL,
+    model: resolvedModel,
     max_tokens: 4096,
-    tools: [
-      {
-        type: 'computer_20250124',
-        name: 'computer',
-        display_width_px: dw,
-        display_height_px: dh,
-        display_number: 1,
-      },
-    ],
+    tools: [computerTool],
     messages,
   };
 
@@ -173,7 +179,7 @@ async function proxyAnthropicTurn(
       'Content-Type': 'application/json',
       'x-api-key': apiKey,
       'anthropic-version': '2023-06-01',
-      'anthropic-beta': 'computer-use-2025-01-24',
+      'anthropic-beta': cu.betaHeader,
     },
     body: JSON.stringify(payload),
   });
@@ -199,5 +205,6 @@ async function proxyAnthropicTurn(
     role: data.role,
     content: data.content,
     stop_reason: data.stop_reason,
+    anthropic_computer_tool: cu.toolType,
   });
 }
