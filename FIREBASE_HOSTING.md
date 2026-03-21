@@ -7,6 +7,14 @@ Deploy the static Next.js export to Firebase Hosting and serve it on your custom
 1. **Firebase CLI** installed: `npm install -g firebase-tools`
 2. **Logged in**: `firebase login`
 3. **Cloud Functions** deployed (API backend): `cd functions && npm run build && firebase deploy --only functions`
+4. **GitHub Actions**: add repository **Secrets** for every `NEXT_PUBLIC_FIREBASE_*` and `NEXT_PUBLIC_API_URL` (see `.github/workflows/deploy-firebase.yml`) so Hosting’s `npm run build` embeds your Firebase Web config.
+
+### GitHub Actions secrets (deploy-firebase workflow)
+
+Create secrets matching the `env` block in `.github/workflows/deploy-firebase.yml`, including:
+
+- `NEXT_PUBLIC_FIREBASE_API_KEY`, `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN`, `NEXT_PUBLIC_FIREBASE_PROJECT_ID`, `NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET`, `NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID`, `NEXT_PUBLIC_FIREBASE_APP_ID`
+- Optional: `NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID`, `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`, `NEXT_PUBLIC_BASE_URL`, `NEXT_PUBLIC_API_URL`
 
 ## 1. Set production environment variables
 
@@ -14,18 +22,25 @@ Create or update `.env.production` (or set these before building):
 
 ```bash
 # Cloud Functions API (required for static export)
-NEXT_PUBLIC_API_URL=https://us-central1-pixel-place-823b1.cloudfunctions.net
+NEXT_PUBLIC_API_URL=https://us-central1-YOUR_PROJECT.cloudfunctions.net
+
+# Firebase Web config (required — copy from Firebase Console → Project settings → Web app; do not commit real keys)
+# See .env.example for all NEXT_PUBLIC_FIREBASE_* variable names.
 
 # Base URL for Stripe redirects
-NEXT_PUBLIC_BASE_URL=https://pixelplaceofficial.com
+NEXT_PUBLIC_BASE_URL=https://your-domain.com
 
-# Stripe keys (if using payments)
+# Stripe publishable key (if using payments)
 NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_live_...
 ```
 
-Or pass inline for a one-off deploy:
+Or pass inline for a one-off deploy (include every `NEXT_PUBLIC_FIREBASE_*` you use):
+
 ```bash
-NEXT_PUBLIC_API_URL=https://us-central1-pixel-place-823b1.cloudfunctions.net NEXT_PUBLIC_BASE_URL=https://pixelplaceofficial.com npm run build
+NEXT_PUBLIC_API_URL=... NEXT_PUBLIC_FIREBASE_API_KEY=... NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=... \
+NEXT_PUBLIC_FIREBASE_PROJECT_ID=... NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=... \
+NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=... NEXT_PUBLIC_FIREBASE_APP_ID=... \
+NEXT_PUBLIC_BASE_URL=... npm run build
 ```
 
 ## 2. Build and deploy

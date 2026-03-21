@@ -36,6 +36,8 @@ Note: the current **Studio** tab will be retired soon. A new, more exciting Stud
 - **Repository:** [Mainline-Studios/Pixel-Place](https://github.com/Mainline-Studios/Pixel-Place)
 - **Setup / commands:** See `START_HERE.md` and `ALL_COMMANDS.txt` in the repo as needed.
 - **Firebase deploy:** `firebase deploy` or `npm run deploy` — Hosting runs **`npm run build` before upload** via `firebase.json` so `out/` stays fresh. Full project deploy (hosting + functions, etc.): `npm run deploy:full`. Details: `FIREBASE_HOSTING.md`.
+- **Security:** `docs/SECURITY_REVIEW_2026.md` (audit checklist, secrets, JWT). Password-hashing notes: `SECURITY_AUDIT.md`.
+- **Firebase (client):** Web SDK config is **not** in source. Copy `NEXT_PUBLIC_FIREBASE_*` from Firebase Console → Project settings into `.env.local` (dev) or CI secrets (see `FIREBASE_HOSTING.md`).
 
 ---
 

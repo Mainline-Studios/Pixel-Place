@@ -4,7 +4,7 @@ HistoriMac can run a **multi-turn computer-use loop** inside the page: your **ow
 
 ## Requirements
 
-1. **Logged in** (JWT) — the proxy endpoint rejects anonymous calls to reduce relay abuse.
+1. **Logged in with a server JWT** — the browser must send `Authorization: Bearer …` (`pixelPlaceAuthToken` in localStorage). That is set when you **sign in with username + password** against the live API. **Session restore** (page reload) can bring back your user from sessionStorage **without** restoring the token; **sign out and sign in again** if Pixel Monkey says Unauthorized. (Cloud Functions must have **`JWT_SECRET`** set — not the default placeholder — or every auth fails.)
 2. **Your API key** — pasted in the panel (optionally remembered in **sessionStorage** for the tab). Keys are **forwarded to OpenAI/Anthropic only** for each request; we do **not** persist them server-side.
 3. **Stream screen** on — adds `screen_update_messages=true` to the `/embed` URL (higher CPU/bandwidth).
 

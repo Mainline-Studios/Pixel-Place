@@ -66,7 +66,6 @@ NEXT_PUBLIC_BASE_URL=https://pixelplaceofficial.com
 STRIPE_SECRET_KEY=sk_live_your_live_secret_key_here
 NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_live_your_live_publishable_key_here
 STRIPE_WEBHOOK_SECRET=whsec_your_webhook_secret_here
-NEXT_PUBLIC_ACCESS_PASSWORD=pixelplace2026
 NODE_ENV=production
 ```
 

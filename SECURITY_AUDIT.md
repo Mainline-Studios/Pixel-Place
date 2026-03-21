@@ -47,9 +47,8 @@ This document summarizes the security audit and fixes applied. **Never store or 
 - **Issue**: UserContext offline fallback compares `found.password !== password`; with API now returning `password: ''`, this path only works if old data with a stored value exists locally.
 - **Recommendation**: Treat offline login as best-effort only, or remove it and require backend login for security.
 
-### 3.3 PasswordGate / PrivateAccess (low)
-- **Issue**: Hardcoded or env-based access password; if weak or leaked, anyone can bypass.
-- **Recommendation**: Keep in env, use a strong value, and rotate if exposed.
+### 3.3 Site-wide password gate (removed)
+- **Previous**: `PrivateAccess` / `PasswordGate` and `NEXT_PUBLIC_ACCESS_PASSWORD` — removed from the codebase as unused.
 
 ### 3.4 GET /users (consider)
 - **Issue**: Returns list of all users (without passwords). May be needed for game features but exposes usernames and profile data.
@@ -88,3 +87,9 @@ This document summarizes the security audit and fixes applied. **Never store or 
 ---
 
 *Last updated: after password hashing, response-sanitization, admin-env, GET /users auth, and JWT-secret checks.*
+
+---
+
+## 6. Broader review (2026)
+
+See **`docs/SECURITY_REVIEW_2026.md`** for a long-form pass: exposed gate passwords, unauthenticated Next admin routes (mitigated with `ADMIN_SETUP_SECRET`), Firebase client keys, CORS, BYOK proxy, and production checklists.

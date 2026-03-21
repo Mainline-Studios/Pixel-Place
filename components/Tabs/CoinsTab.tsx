@@ -28,10 +28,9 @@ const adminCoinPack: CoinPack = {
   stripePriceId: 'price_admin_1000000'
 };
 
-// Initialize Stripe
-const stripePromise = loadStripe(
-  process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || 'pk_test_placeholder'
-);
+const stripePublishableKey = (process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || '').trim();
+/** No placeholder key in repo — Stripe loads only when env is set. */
+const stripePromise = stripePublishableKey ? loadStripe(stripePublishableKey) : null;
 
 // Helper function to format numbers with commas
 const formatNumber = (num: number): string => {
@@ -144,10 +143,9 @@ export default function CoinsTab({ user, editMode }: CoinsTabProps) {
           throw new Error(data.error || 'Failed to create checkout session');
         }
 
-        // Redirect to Stripe Checkout
-        const stripe = await stripePromise;
+        const stripe = stripePromise ? await stripePromise : null;
         if (!stripe) {
-          throw new Error('Stripe failed to load');
+          throw new Error('Stripe is not configured (set NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY).');
         }
 
         const { error } = await stripe.redirectToCheckout({
@@ -191,10 +189,9 @@ export default function CoinsTab({ user, editMode }: CoinsTabProps) {
         throw new Error(data.error || 'Failed to create checkout session');
       }
 
-      // Redirect to Stripe Checkout
-      const stripe = await stripePromise;
+      const stripe = stripePromise ? await stripePromise : null;
       if (!stripe) {
-        throw new Error('Stripe failed to load. Please check NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY in your .env.local file.');
+        throw new Error('Stripe is not configured. Set NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY in your environment.');
       }
 
       const { error } = await stripe.redirectToCheckout({

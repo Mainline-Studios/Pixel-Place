@@ -2,8 +2,8 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { getFirestore, onSnapshot, doc, setDoc, serverTimestamp, Firestore } from 'firebase/firestore';
-import { initializeApp, getApps, FirebaseApp } from 'firebase/app';
-import { firebaseConfig } from './firebaseConfig';
+import type { FirebaseApp } from 'firebase/app';
+import { getOrInitFirebaseApp } from './firebaseConfig';
 import { apiUrl } from './apiBaseUrl';
 
 // Initialize Firebase app if not already initialized (client-side only)
@@ -13,15 +13,9 @@ let db: Firestore | null = null;
 // Initialize Firebase safely - never throw errors
 function initializeFirebase() {
   if (typeof window === 'undefined') return;
-  
+
   try {
-    if (getApps().length === 0) {
-      app = initializeApp(firebaseConfig);
-    } else {
-      app = getApps()[0];
-    }
-    
-    // Initialize Firestore if app is available
+    app = getOrInitFirebaseApp() ?? undefined;
     if (app) {
       try {
         db = getFirestore(app);
@@ -29,6 +23,8 @@ function initializeFirebase() {
         console.warn('Firestore initialization failed, continuing without it:', firestoreError);
         db = null;
       }
+    } else {
+      db = null;
     }
   } catch (error) {
     console.warn('Firebase initialization failed, continuing without it:', error);

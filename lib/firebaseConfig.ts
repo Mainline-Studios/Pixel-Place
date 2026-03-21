@@ -1,34 +1,54 @@
-// Firebase configuration constants
-// For Stripe (Pixel Coins): set STRIPE_SECRET_KEY, NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY,
-// STRIPE_WEBHOOK_SECRET, NEXT_PUBLIC_BASE_URL in your hosting env (Vercel/Firebase/Firehub).
-// See STRIPE_FIREHUB.md and .env.example.
-export const firebaseConfig = {
-    apiKey: "AIzaSyCccrF6i4LBBjuFU8KH3WOQeJjXdc0NlfY",
-    authDomain: "pixel-place-823b1.firebaseapp.com",
-    projectId: "pixel-place-823b1",
-    storageBucket: "pixel-place-823b1.firebasestorage.app",
-    messagingSenderId: "78021257708",
-    appId: "1:78021257708:web:19fabf7a291e1baba3f8c9",
-    measurementId: "G-QLXJJKGQW4"
+/**
+ * Firebase Web SDK config — values MUST come from environment at build time.
+ * Never commit real API keys; copy keys from Firebase Console → Project settings → Your apps.
+ *
+ * Required for client Firestore/Auth: NEXT_PUBLIC_FIREBASE_* (see .env.example).
+ */
+import type { FirebaseOptions } from 'firebase/app';
+import { getApps, initializeApp, type FirebaseApp } from 'firebase/app';
+
+function readPublicEnv(name: string): string {
+  if (typeof process === 'undefined') return '';
+  const v = process.env[name];
+  return typeof v === 'string' ? v.trim() : '';
+}
+
+export const firebaseConfig: FirebaseOptions = {
+  apiKey: readPublicEnv('NEXT_PUBLIC_FIREBASE_API_KEY'),
+  authDomain: readPublicEnv('NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN'),
+  projectId: readPublicEnv('NEXT_PUBLIC_FIREBASE_PROJECT_ID'),
+  storageBucket: readPublicEnv('NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET'),
+  messagingSenderId: readPublicEnv('NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID'),
+  appId: readPublicEnv('NEXT_PUBLIC_FIREBASE_APP_ID'),
 };
 
+const measurementId = readPublicEnv('NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID');
+if (measurementId) {
+  (firebaseConfig as FirebaseOptions & { measurementId?: string }).measurementId = measurementId;
+}
 
+export function isFirebaseClientConfigured(): boolean {
+  return Boolean(
+    firebaseConfig.apiKey &&
+      firebaseConfig.projectId &&
+      firebaseConfig.appId &&
+      firebaseConfig.authDomain,
+  );
+}
 
+/**
+ * Single Firebase app for browser SDK. Returns null if env is incomplete (no keys in repo).
+ */
+export function getOrInitFirebaseApp(): FirebaseApp | null {
+  if (!isFirebaseClientConfigured()) return null;
+  try {
+    if (getApps().length > 0) return getApps()[0]!;
+    return initializeApp(firebaseConfig);
+  } catch (e) {
+    console.warn('[Firebase] initializeApp failed:', e);
+    return null;
+  }
+}
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+// Stripe (server): STRIPE_SECRET_KEY, NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY, STRIPE_WEBHOOK_SECRET, NEXT_PUBLIC_BASE_URL
+// See STRIPE_FIREHUB.md and .env.example.

@@ -144,11 +144,9 @@ app.use((req, res, next) => {
   next();
 });
 
-// Check if JWT_SECRET is set (env or legacy functions.config) + debug path
-const sendJwtCheck = (req: any, res: any) => {
-  const secret = getJwtSecret();
-  const set = secret !== 'your-secret-key-change-in-production';
-  res.json({ jwtSecretSet: set, path: req.path, url: req.url, originalUrl: req.originalUrl });
+// Liveness only — do not expose whether JWT_SECRET is configured (reconnaissance aid).
+const sendJwtCheck = (_req: any, res: any) => {
+  res.json({ ok: true });
 };
 ['/auth/check-config', '/api/auth/check-config', '/check-config', '/api/check-config'].forEach(p => app.get(p, sendJwtCheck));
 

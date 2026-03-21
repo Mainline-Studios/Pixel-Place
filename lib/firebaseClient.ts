@@ -1,19 +1,12 @@
 'use client';
 
-import { initializeApp, getApps, FirebaseApp } from 'firebase/app';
 import { getAuth, Auth, GoogleAuthProvider, RecaptchaVerifier, signInWithCredential } from 'firebase/auth';
-import { firebaseConfig } from './firebaseConfig';
+import { getOrInitFirebaseApp } from './firebaseConfig';
 
-// Initialize Firebase app
-let app: FirebaseApp;
-if (getApps().length === 0) {
-  app = initializeApp(firebaseConfig);
-} else {
-  app = getApps()[0];
-}
+const app = typeof window !== 'undefined' ? getOrInitFirebaseApp() : null;
 
-// Initialize Firebase Auth
-export const auth: Auth = getAuth(app);
+/** Null when NEXT_PUBLIC_FIREBASE_* is not set at build time. */
+export const auth: Auth | null = app ? getAuth(app) : null;
 
 // Google Auth Provider
 export const googleProvider = new GoogleAuthProvider();
@@ -27,6 +20,9 @@ let recaptchaVerifier: RecaptchaVerifier | null = null;
 export function getRecaptchaVerifier(containerId: string = 'recaptcha-container'): RecaptchaVerifier {
   if (typeof window === 'undefined') {
     throw new Error('reCAPTCHA can only be initialized in the browser');
+  }
+  if (!auth) {
+    throw new Error('Firebase Auth is not configured. Set NEXT_PUBLIC_FIREBASE_* at build time (.env.example).');
   }
 
   if (!recaptchaVerifier) {

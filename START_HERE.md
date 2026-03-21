@@ -36,10 +36,9 @@ http://localhost:3000
 ✅ **Gray Background** - Updated from blue
 ✅ **Server Management** - Buy and manage game servers
 
-## 🎯 Test Accounts
+## 🎯 Test accounts
 
-- Username: `admin` / Password: `456`
-- Username: `admin2` / Password: `password`
+Use **Create account** or set `ADMIN_ACCOUNTS_JSON` / `ADMIN_USERNAME` + `ADMIN_PASSWORD` for your environment. **Do not use shared passwords from old docs** — rotate if they were ever committed.
 
 ## 🌐 Localhost URL
 

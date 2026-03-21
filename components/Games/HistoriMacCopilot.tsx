@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { authenticatedFetch } from '@/lib/api';
+import { authenticatedFetch, hasUsableAuthToken } from '@/lib/api';
 import { apiUrl } from '@/lib/apiBaseUrl';
 import { resolveAnthropicComputerProfile } from '@/lib/anthropicComputerUse';
 import {
@@ -45,6 +45,17 @@ function dataUrlToBase64(dataUrl: string): string {
 
 function sleep(ms: number) {
   return new Promise((r) => setTimeout(r, ms));
+}
+
+/** Cloud Function returns 401 when Bearer JWT is missing, expired, or server JWT_SECRET is unset. */
+function copilotApiErrorMessage(status: number, bodyError?: string): string {
+  if (status === 401) {
+    return (
+      bodyError ||
+      'Unauthorized — sign out and sign in again with your password (online). Pixel Place only sends your key to OpenAI/Anthropic if your session has a valid login token.'
+    );
+  }
+  return bodyError || `Request failed (${status})`;
 }
 
 function extractOpenAiAssistantText(output: unknown[]): string {
@@ -201,7 +212,7 @@ export default function HistoriMacCopilot({
           status?: string;
         };
         if (!res.ok) {
-          onToast(data.error || `OpenAI error (${res.status})`);
+          onToast(copilotApiErrorMessage(res.status, data.error) || `OpenAI error (${res.status})`);
           return;
         }
         previousResponseId = data.responseId;
@@ -305,7 +316,7 @@ export default function HistoriMacCopilot({
           stop_reason?: string;
         };
         if (!res.ok) {
-          onToast(data.error || `Anthropic error (${res.status})`);
+          onToast(copilotApiErrorMessage(res.status, data.error) || `Anthropic error (${res.status})`);
           return;
         }
 
@@ -402,6 +413,14 @@ export default function HistoriMacCopilot({
       return;
     }
 
+    if (!hasUsableAuthToken()) {
+      onToast(
+        'No login token — sign out, then sign in again with your password while online. ' +
+          'Reloading the page can restore your avatar without restoring the API token Pixel Monkey needs.',
+      );
+      return;
+    }
+
     setBusy(true);
     setLogLine(null);
     try {
@@ -493,8 +512,9 @@ export default function HistoriMacCopilot({
             <strong>Anthropic</strong>{' '}
             <code style={{ fontSize: '10px' }}>{anthropicCu.toolType}</code>
             {anthropicCu.enableZoom ? ' (zoom to region supported)' : ''}. Keys go through Pixel Place’s proxy to the
-            provider only — not stored server-side. Log in, enable streaming, then run — up to {MAX_TURNS} turns per
-            session.
+            provider only — not stored server-side. <strong>You need a server login token</strong> (sign in with
+            username/password while online; if you see Unauthorized, sign out and sign in again). Then enable streaming
+            — up to {MAX_TURNS} turns per session.
           </p>
 
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', alignItems: 'center' }}>

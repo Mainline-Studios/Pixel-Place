@@ -3,8 +3,12 @@ export const dynamic = 'force-static';
 import { NextRequest, NextResponse } from 'next/server';
 import { getDb } from '@/lib/db';
 import { hashPassword } from '@/lib/auth';
+import { denyUnlessAdminSetupSecret } from '@/lib/serverSetupSecret';
 
 export async function POST(request: NextRequest) {
+  const denied = denyUnlessAdminSetupSecret(request);
+  if (denied) return denied;
+
   try {
     const { username, password } = await request.json();
     

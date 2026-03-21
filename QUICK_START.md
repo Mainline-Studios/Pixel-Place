@@ -35,11 +35,9 @@ Visit: **http://localhost:3000**
 - **Stripe Payments** - Real payment integration for coins
 - **3D Game Player** - Play published games in fullscreen
 
-## 📝 Default Login
+## 📝 Login
 
-Create an account or use these test accounts:
-- Username: `admin` / Password: `456`
-- Username: `admin2` / Password: `password`
+Create an account, or configure admin credentials via environment variables (see `.env.example`). Do not rely on passwords published in historical README text.
 
 ## 🔗 URLs
 

@@ -3,6 +3,7 @@ export const dynamic = 'force-static';
 import { NextRequest, NextResponse } from 'next/server';
 import { getDocuments, deleteDocument, COLLECTIONS } from '@/lib/firestore';
 import { getAdminAccounts } from '@/lib/adminAccounts';
+import { denyUnlessAdminSetupSecret } from '@/lib/serverSetupSecret';
 
 // Old admin accounts that should be removed (usernames no longer in env admin list)
 const OLD_ADMIN_ACCOUNTS = [
@@ -17,6 +18,9 @@ const OLD_ADMIN_ACCOUNTS = [
 ];
 
 export async function POST(request: NextRequest) {
+  const denied = denyUnlessAdminSetupSecret(request);
+  if (denied) return denied;
+
   try {
     const adminAccounts = getAdminAccounts();
     const currentAdminUsernames = new Set(adminAccounts.map(a => a.username.toLowerCase()));

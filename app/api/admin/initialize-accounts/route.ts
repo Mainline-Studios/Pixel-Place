@@ -4,8 +4,12 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getDb } from '@/lib/db';
 import { hashPassword } from '@/lib/auth';
 import { getAdminAccounts } from '@/lib/adminAccounts';
+import { denyUnlessAdminSetupSecret } from '@/lib/serverSetupSecret';
 
 export async function POST(request: NextRequest) {
+  const denied = denyUnlessAdminSetupSecret(request);
+  if (denied) return denied;
+
   try {
     const db = getDb();
     const results = [];

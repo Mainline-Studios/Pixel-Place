@@ -22,6 +22,8 @@ So:
    JWT_SECRET=paste-your-long-random-string-here
    ADMIN_USERNAME=admin
    ADMIN_PASSWORD=your-secure-password
+
+Optional (Next.js dev / maintenance tools only): `ADMIN_SETUP_SECRET` — required header `x-admin-setup-secret` for `/api/admin/*` and cleanup routes. See `docs/SECURITY_REVIEW_2026.md`.
    AI_PROVIDER=groq
    GROQ_API_KEY=your-real-groq-key
    ANTHROPIC_API_KEY=your-key-if-you-use-it

@@ -23,8 +23,7 @@ import {
   runTransaction,
   serverTimestamp,
 } from 'firebase/firestore';
-import { getApps, initializeApp } from 'firebase/app';
-import { firebaseConfig } from './firebaseConfig';
+import { getOrInitFirebaseApp } from './firebaseConfig';
 
 const CHESS_QUEUE = 'chess_matchmaking';
 const CHESS_GAMES = 'chess_games';
@@ -32,8 +31,9 @@ const CHESS_GAMES = 'chess_games';
 function getDb() {
   if (typeof window === 'undefined') return null;
   try {
-    if (getApps().length === 0) initializeApp(firebaseConfig);
-    return getFirestore(getApps()[0]);
+    const app = getOrInitFirebaseApp();
+    if (!app) return null;
+    return getFirestore(app);
   } catch {
     return null;
   }

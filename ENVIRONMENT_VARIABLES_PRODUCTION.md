@@ -9,7 +9,6 @@ Add these in **Vercel Dashboard** → Your Project → **Settings** → **Enviro
 ```bash
 NEXT_PUBLIC_BASE_URL=https://pixelplaceofficial.com
 NODE_ENV=production
-NEXT_PUBLIC_ACCESS_PASSWORD=pixelplace2026
 ```
 
 ### Stripe Configuration (LIVE MODE)
@@ -66,9 +65,6 @@ vercel env add NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY production
 
 vercel env add STRIPE_WEBHOOK_SECRET production
 # Enter: whsec_your_secret_here
-
-vercel env add NEXT_PUBLIC_ACCESS_PASSWORD production
-# Enter: pixelplace2026
 
 vercel env add NODE_ENV production
 # Enter: production

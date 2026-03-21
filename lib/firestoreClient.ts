@@ -11,8 +11,7 @@
  */
 
 import { getFirestore, onSnapshot, collection, doc } from 'firebase/firestore';
-import { getApps, initializeApp } from 'firebase/app';
-import { firebaseConfig } from './firebaseConfig';
+import { getOrInitFirebaseApp } from './firebaseConfig';
 import { User } from '@/types';
 
 const COLLECTIONS = {
@@ -30,10 +29,9 @@ function getDb() {
   if (typeof window === 'undefined') return null;
   try {
     if (!db) {
-      if (getApps().length === 0) {
-        initializeApp(firebaseConfig);
-      }
-      db = getFirestore(getApps()[0]);
+      const app = getOrInitFirebaseApp();
+      if (!app) return null;
+      db = getFirestore(app);
     }
     return db;
   } catch (e) {
