@@ -226,7 +226,7 @@ const SECRET_GAMES_IXEL_ACE: GameInfo[] = [
 export default function GamesTab({ user, editMode }: GamesTabProps) {
   const { secretTheme } = useSecretTheme();
   const [selectedGame, setSelectedGame] = useState<string | null>(null);
-  /** Deep link: `/games#historimac=versionId` — consumed by HistoriMac after boot */
+  /** Deep link: `#historimac=versionId` redirects to `/historimac/:id` (invite); else HistoriMac boot */
   const [historiMacBootVersionId, setHistoriMacBootVersionId] = useState<string | null>(null);
   const [selectedUserGame, setSelectedUserGame] = useState<UserMadeGame | null>(null);
   const [userMadeGames, setUserMadeGames] = useState<UserMadeGame[]>([]);
@@ -248,7 +248,7 @@ export default function GamesTab({ user, editMode }: GamesTabProps) {
     });
   }, []);
 
-  // HistoriMac share links: #historimac or #historimac=system7
+  // HistoriMac: #historimac=versionId → canonical invite URL; bare #historimac opens picker
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const applyHash = () => {
@@ -257,8 +257,14 @@ export default function GamesTab({ user, editMode }: GamesTabProps) {
       if (!lower.startsWith('historimac')) return;
       const eq = raw.indexOf('=');
       const id = eq >= 0 ? raw.slice(eq + 1).trim() : '';
+      if (id) {
+        const next = `${window.location.origin}/historimac/${encodeURIComponent(id)}`;
+        if (window.location.pathname.startsWith('/historimac/')) return;
+        window.location.replace(next);
+        return;
+      }
       setSelectedGame('historiMac');
-      setHistoriMacBootVersionId(id || null);
+      setHistoriMacBootVersionId(null);
     };
     applyHash();
     window.addEventListener('hashchange', applyHash);

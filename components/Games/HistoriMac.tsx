@@ -5,7 +5,7 @@ import { HISTORIMAC_VERSIONS, type HistoriMacVersion } from '@/lib/historiMacVer
 import { HISTORIMAC_WHISPERS } from '@/lib/historiMacWhispers';
 import { computeHistoriMacTimeline } from '@/lib/historiMacTimeline';
 import { readFavoriteVersionIds, toggleFavoriteVersion } from '@/lib/historiMacFavorites';
-import { tabToPath } from '@/lib/routing';
+import { buildHistoriMacInviteUrl } from '@/lib/historiMacInvite';
 import HistoriMacPicker from './HistoriMacPicker';
 import HistoriMacSideRail, { INFINITE_MONKEY_URL } from './HistoriMacSideRail';
 import HistoriMacCopilot from './HistoriMacCopilot';
@@ -28,6 +28,10 @@ interface HistoriMacProps {
   /** From URL hash `#historimac=versionId` — auto-opens that version once */
   bootVersionId?: string | null;
   onBootVersionConsumed?: () => void;
+  /**
+   * Invite route (`/historimac/...`): no Back to games, no Close — standalone preview.
+   */
+  standaloneInvite?: boolean;
 }
 
 const INFINITE_MAC_URL = 'https://infinitemac.org';
@@ -61,13 +65,6 @@ function clearHistoriMacShareHash() {
   if (typeof window === 'undefined') return;
   if (!window.location.hash.toLowerCase().includes('historimac')) return;
   window.history.replaceState(null, '', window.location.pathname + window.location.search);
-}
-
-function buildHistoriMacShareUrl(versionId: string): string {
-  if (typeof window === 'undefined') return '';
-  const origin = window.location.origin;
-  const path = tabToPath('games');
-  return `${origin}${path}#historimac=${encodeURIComponent(versionId)}`;
 }
 
 function pickWhisperStart() {
@@ -157,6 +154,7 @@ export default function HistoriMac({
   onClose,
   bootVersionId,
   onBootVersionConsumed,
+  standaloneInvite = false,
 }: HistoriMacProps) {
   const [selected, setSelected] = useState<HistoriMacVersion | null>(null);
   const [whisperIdx, setWhisperIdx] = useState(pickWhisperStart);
@@ -248,7 +246,7 @@ export default function HistoriMac({
 
   const copyVersionLink = useCallback(
     async (versionId: string) => {
-      const url = buildHistoriMacShareUrl(versionId);
+      const url = buildHistoriMacInviteUrl(versionId);
       try {
         await navigator.clipboard.writeText(url);
         showToast('Link copied — share to open this Mac version');
@@ -267,8 +265,8 @@ export default function HistoriMac({
 
   const handleExitGame = useCallback(() => {
     clearHistoriMacShareHash();
-    onClose?.();
-  }, [onClose]);
+    if (!standaloneInvite) onClose?.();
+  }, [onClose, standaloneInvite]);
 
   const iframeProps = useMemo(() => (selected ? getIframeProps(selected) : null), [selected]);
 
@@ -392,7 +390,7 @@ export default function HistoriMac({
   if (!selected) {
     return (
       <HistoriMacPicker
-        onClose={onClose}
+        onClose={standaloneInvite ? undefined : onClose}
         onExitGame={handleExitGame}
         attribution={attributionPicker}
         whisperIdx={whisperIdx}
@@ -480,14 +478,16 @@ export default function HistoriMac({
               <span style={aquaTrafficLight('min')} />
               <span style={aquaTrafficLight('zoom')} />
             </div>
-            <button
-              type="button"
-              title="Back to the pile of disks. (They’re virtual. It’s fine.)"
-              onClick={goToPicker}
-              style={aquaToolbarButtonDark}
-            >
-              ← Versions
-            </button>
+            {!standaloneInvite ? (
+              <button
+                type="button"
+                title="Back to the pile of disks. (They’re virtual. It’s fine.)"
+                onClick={goToPicker}
+                style={aquaToolbarButtonDark}
+              >
+                ← Versions
+              </button>
+            ) : null}
           </div>
           <span
             title="The name in the menu bar would be proud."
@@ -560,7 +560,7 @@ export default function HistoriMac({
                 </button>
               </div>
             ) : null}
-            {onClose ? (
+            {onClose && !standaloneInvite ? (
               <button
                 type="button"
                 title="Quit HistoriMac — remember to save your imaginary work."
@@ -602,9 +602,11 @@ export default function HistoriMac({
             <button type="button" title="Or press Escape" onClick={() => setEmbedFullscreen(false)} style={aquaToolbarButtonKeyDark}>
               Exit fullscreen
             </button>
-            <button type="button" onClick={goToPicker} style={aquaToolbarButtonDark}>
-              Versions
-            </button>
+            {!standaloneInvite ? (
+              <button type="button" onClick={goToPicker} style={aquaToolbarButtonDark}>
+                Versions
+              </button>
+            ) : null}
           </div>
         </div>
       )}
