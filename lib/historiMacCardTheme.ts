@@ -8,7 +8,7 @@ import {
   AQUA_FONT,
   aquaCardInfiniteMac,
   aquaGelButtonGraphite,
-  aquaRunButton,
+  aquaRunButtonPixel,
   aquaUnstableBadge,
   aquaPinstripePage,
   aquaSheet,
@@ -106,6 +106,7 @@ export function cardRunButtonStyle(theme: HistoriMacCardTheme): CSSProperties {
   switch (theme) {
     case 'classic':
       return {
+        ...classicPlatinumTextRenderStyle,
         fontFamily: THEME_FONT_CHICAGO_LIKE,
         fontWeight: 800,
         fontSize: 14,
@@ -113,29 +114,42 @@ export function cardRunButtonStyle(theme: HistoriMacCardTheme): CSSProperties {
         color: '#000',
         backgroundColor: '#fff',
         border: '2px solid #000',
-        borderRadius: 6,
+        borderRadius: 0,
         padding: '8px 22px',
         cursor: 'pointer',
         boxShadow: 'none',
       };
     case 'platinum':
       return {
+        ...classicPlatinumTextRenderStyle,
         fontFamily: THEME_FONT_CLASSIC_SANS,
         fontWeight: 700,
         fontSize: 14,
         color: '#000',
-        background: 'linear-gradient(180deg, #f0f0f0 0%, #d8d8d8 100%)',
+        backgroundColor: '#c8c8c8',
+        backgroundImage: `
+          repeating-linear-gradient(
+            0deg,
+            #dcdcdc 0px,
+            #dcdcdc 1px,
+            #c0c0c0 1px,
+            #c0c0c0 2px
+          )
+        `,
         border: '1px solid #000',
-        borderRadius: 4,
+        borderRadius: 0,
         padding: '8px 22px',
         cursor: 'pointer',
         boxShadow: `
-          inset 1px 1px 0 rgba(255,255,255,0.95),
-          inset -1px -1px 0 rgba(0,0,0,0.2)
+          inset 2px 2px 0 #ffffff,
+          inset -2px -2px 0 #606060
         `,
       };
     case 'next':
       return {
+        WebkitFontSmoothing: 'none',
+        MozOsxFontSmoothing: 'grayscale',
+        textRendering: 'optimizeSpeed',
         fontFamily: THEME_FONT_CLASSIC_SANS,
         fontWeight: 800,
         fontSize: 14,
@@ -151,7 +165,7 @@ export function cardRunButtonStyle(theme: HistoriMacCardTheme): CSSProperties {
         boxShadow: 'none',
       };
     case 'aqua':
-      return { ...aquaRunButton };
+      return { ...aquaRunButtonPixel };
     default:
       return {};
   }

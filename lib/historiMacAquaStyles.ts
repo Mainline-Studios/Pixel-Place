@@ -98,6 +98,39 @@ export const aquaRunButton: CSSProperties = {
   cursor: 'pointer',
 };
 
+/**
+ * Run control — **pixel / flat** variant (horizontal 1px bands + hard bevel, no glossy pill).
+ * Use on OS X cards when matching Infinite Mac “bitmap” chrome alongside pinstripe cards.
+ */
+export const aquaRunButtonPixel: CSSProperties = {
+  fontFamily: AQUA_FONT,
+  fontWeight: 700,
+  fontSize: 14,
+  color: '#000',
+  letterSpacing: '0.04em',
+  border: '2px solid #333',
+  borderRadius: 2,
+  padding: '10px 26px',
+  backgroundColor: '#d8d8d8',
+  backgroundImage: `
+    repeating-linear-gradient(
+      0deg,
+      #ececec 0px,
+      #ececec 1px,
+      #d0d0d0 1px,
+      #d0d0d0 2px
+    )
+  `,
+  boxShadow: `
+    inset 1px 1px 0 #fff,
+    inset -1px -1px 0 #707070
+  `,
+  cursor: 'pointer',
+  WebkitFontSmoothing: 'none',
+  MozOsxFontSmoothing: 'grayscale',
+  textRendering: 'optimizeSpeed',
+};
+
 /** Floating sheet / inspector panel */
 export const aquaSheet: CSSProperties = {
   background: 'linear-gradient(180deg, #fafafa 0%, #ececec 100%)',

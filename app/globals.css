@@ -1820,3 +1820,9 @@ footer a:hover {
   image-rendering: pixelated;
   image-rendering: crisp-edges;
 }
+
+/* HistoriMac — Run control: keep banded backgrounds from smoothing into gradients */
+[data-historimac-pixel-run='true'] {
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+}

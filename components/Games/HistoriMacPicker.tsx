@@ -650,6 +650,7 @@ export default function HistoriMacPicker({
                         type="button"
                         aria-label={`Run ${v.label} (play emulator)`}
                         onClick={() => onPlay(v)}
+                        data-historimac-pixel-run="true"
                         style={{
                           ...cardRunButtonStyle(cardTheme),
                           ...(cardTheme === 'aqua'
