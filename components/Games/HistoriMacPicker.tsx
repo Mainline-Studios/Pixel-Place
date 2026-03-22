@@ -11,51 +11,58 @@ import {
   HISTORIMAC_ERA_ORDER,
   type HistoriMacEraBucket,
 } from '@/lib/historiMacEra';
-import HistoriMacTimelineStrip from './HistoriMacTimelineStrip';
+import type { HistoriMacCardTheme } from '@/lib/historiMacCardTheme';
 import {
-  AQUA_FONT,
-  aquaPinstripePage,
-  aquaSheet,
-  aquaCardInfiniteMac,
-  aquaTextField,
-  aquaGelButtonGraphite,
-  aquaSegmentOff,
-  aquaSegmentOn,
-  aquaHudToast,
-  aquaTrafficLight,
-  aquaRunButton,
-  aquaUnstableBadge,
-} from '@/lib/historiMacAquaStyles';
+  inferHistoriMacCardTheme,
+  cardArticleStyle,
+  cardRunButtonStyle,
+  cardFavButtonStyle,
+  unstableBadgeStyle,
+  eraChipStyle,
+  themeYearStyle,
+  themeBlurbStyle,
+  themeDetailsLinkStyle,
+  themeExpandedHeadingStyle,
+  themeExpandedBodyStyle,
+  themeExpandedSubtitleStyle,
+  themeWarningBoxStyle,
+  themeWarningTextStyle,
+  themeExpandedBorderColor,
+  THEME_FONT_SERIF_TITLE,
+  shellRootStyle,
+  shellBodyFont,
+  shellHeroSheetStyle,
+  shellHeroTitlebarStyle,
+  shellHeroTitleStyle,
+  shellShowTrafficLights,
+  shellHeroBodyMuted,
+  shellHeroBodyText,
+  shellH1Style,
+  shellH1AccentColor,
+  shellBackButtonStyle,
+  shellSearchFieldStyle,
+  shellSortButtonStyle,
+  shellSegmentOffStyle,
+  shellSegmentOnStyle,
+  shellToolbarLabelStyle,
+  shellSectionHeadingStyle,
+  shellFavoritesPanelStyle,
+  shellFavoritesLabelStyle,
+  shellPickPillStyle,
+  shellResumeStyle,
+  shellResumeFont,
+  shellResumeAccent,
+  shellWhisperButtonStyle,
+  shellStatsPillStyle,
+  shellKbdHintStyle,
+  shellToastStyle,
+} from '@/lib/historiMacCardTheme';
+import HistoriMacTimelineStrip from './HistoriMacTimelineStrip';
+import { AQUA_FONT, aquaTrafficLight } from '@/lib/historiMacAquaStyles';
 
 const HISTORIMAC_PLAY_ICON = '/images/games/historimac-play.png';
 
 type PickerFilter = 'all' | HistoriMacEraBucket | 'saved';
-
-const showcaseHeadingStyle: React.CSSProperties = {
-  fontFamily: AQUA_FONT,
-  fontSize: '10px',
-  fontWeight: 700,
-  textTransform: 'uppercase',
-  letterSpacing: '0.12em',
-  color: '#5a5a5a',
-  marginBottom: '6px',
-};
-
-const showcaseSubtitleStyle: React.CSSProperties = {
-  fontFamily: AQUA_FONT,
-  fontSize: '12px',
-  fontWeight: 600,
-  color: '#222',
-  marginBottom: '8px',
-};
-
-const showcaseBodyStyle: React.CSSProperties = {
-  fontFamily: AQUA_FONT,
-  fontSize: '13px',
-  fontWeight: 400,
-  lineHeight: 1.55,
-  color: '#333',
-};
 
 function excerpt(text: string | undefined, max = 140): string {
   if (!text?.trim()) return '';
@@ -63,20 +70,24 @@ function excerpt(text: string | undefined, max = 140): string {
   return t.length <= max ? t : `${t.slice(0, max - 1)}…`;
 }
 
-/** Split "Mac OS X 10.4 (Tiger)" → main + gray (Tiger); all **Lucida Grande** via {@link AQUA_FONT} */
-function VersionTitle({ label }: { label: string }) {
+/** Title line: Lucida for Aqua OS X; New York–style serif for classic / Platinum / NeXT */
+function VersionTitle({ label, theme }: { label: string; theme: HistoriMacCardTheme }) {
   const trimmed = label.trim();
   const paren = trimmed.match(/^(.+?)\s*(\([^)]+\))\s*$/);
+  const fontTitle = theme === 'aqua' ? AQUA_FONT : THEME_FONT_SERIF_TITLE;
+  const subColor = theme === 'next' ? '#333' : theme === 'aqua' ? '#888' : '#888';
   if (paren) {
     return (
-      <span style={{ lineHeight: 1.25, fontFamily: AQUA_FONT }}>
-        <span style={{ fontWeight: 700, color: '#000', letterSpacing: '-0.02em' }}>{paren[1]}</span>
-        <span style={{ fontWeight: 600, color: '#888' }}> {paren[2]}</span>
+      <span style={{ lineHeight: 1.25, fontFamily: fontTitle }}>
+        <span style={{ fontWeight: 700, color: '#000', letterSpacing: theme === 'aqua' ? '-0.02em' : '0' }}>{paren[1]}</span>
+        <span style={{ fontWeight: 600, color: subColor }}> {paren[2]}</span>
       </span>
     );
   }
   return (
-    <span style={{ fontFamily: AQUA_FONT, fontWeight: 700, color: '#000', letterSpacing: '-0.02em' }}>{trimmed}</span>
+    <span style={{ fontFamily: fontTitle, fontWeight: 700, color: '#000', letterSpacing: theme === 'aqua' ? '-0.02em' : '0' }}>
+      {trimmed}
+    </span>
   );
 }
 
@@ -171,17 +182,22 @@ export default function HistoriMacPicker({
     return list;
   }, [query, filter, yearSort, favoriteIds]);
 
+  const shellTheme = useMemo((): HistoriMacCardTheme => {
+    if (resumeVersion) return inferHistoriMacCardTheme(resumeVersion);
+    return 'aqua';
+  }, [resumeVersion?.id]);
+
   return (
     <div
       data-historimac-root
-      data-era-hint="AQUA"
+      data-shell-era={shellTheme}
       style={{
         width: '100%',
         minHeight: '100vh',
         position: 'relative',
         overflowX: 'hidden',
-        fontFamily: AQUA_FONT,
-        ...aquaPinstripePage,
+        fontFamily: shellBodyFont(shellTheme),
+        ...shellRootStyle(shellTheme),
       }}
     >
       {onClose ? (
@@ -194,10 +210,7 @@ export default function HistoriMacPicker({
             top: '12px',
             left: '12px',
             zIndex: 9999,
-            ...aquaGelButtonGraphite,
-            fontSize: 11,
-            padding: '8px 16px',
-            boxShadow: `${aquaGelButtonGraphite.boxShadow}, 0 4px 16px rgba(0,0,0,0.2)`,
+            ...shellBackButtonStyle(shellTheme),
           }}
         >
           ◄ Back
@@ -223,7 +236,7 @@ export default function HistoriMacPicker({
         >
           <div
             style={{
-              ...aquaSheet,
+              ...shellHeroSheetStyle(shellTheme),
               maxWidth: '720px',
               margin: '0 auto',
               padding: '0',
@@ -231,64 +244,39 @@ export default function HistoriMacPicker({
               textAlign: 'left',
             }}
           >
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 10,
-                padding: '10px 14px',
-                background: 'linear-gradient(180deg, #ededed 0%, #c8c8c8 100%)',
-                borderBottom: '1px solid #888',
-                boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.9)',
-              }}
-            >
-              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }} aria-hidden>
-                <span style={aquaTrafficLight('close')} />
-                <span style={aquaTrafficLight('min')} />
-                <span style={aquaTrafficLight('zoom')} />
-              </div>
-              <span
-                style={{
-                  flex: 1,
-                  textAlign: 'center',
-                  fontSize: 13,
-                  fontWeight: 700,
-                  color: '#333',
-                  textShadow: '0 1px 0 rgba(255,255,255,0.8)',
-                }}
-              >
-                HistoriMac
-              </span>
-              <span style={{ width: 52 }} aria-hidden />
+            <div style={shellHeroTitlebarStyle(shellTheme)}>
+              {shellShowTrafficLights(shellTheme) ? (
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }} aria-hidden>
+                  <span style={aquaTrafficLight('close')} />
+                  <span style={aquaTrafficLight('min')} />
+                  <span style={aquaTrafficLight('zoom')} />
+                </div>
+              ) : (
+                <span style={{ width: 4 }} aria-hidden />
+              )}
+              <span style={shellHeroTitleStyle(shellTheme)}>HistoriMac</span>
+              <span style={{ width: shellShowTrafficLights(shellTheme) ? 52 : 8 }} aria-hidden />
             </div>
             <div style={{ padding: '20px 22px 18px', textAlign: 'center' }}>
               <p
                 style={{
                   margin: '0 0 8px',
                   fontSize: 11,
-                  color: '#666',
+                  color: shellHeroBodyMuted(shellTheme),
                   letterSpacing: '0.08em',
                   textTransform: 'uppercase',
                   fontWeight: 600,
+                  fontFamily: shellBodyFont(shellTheme),
                 }}
               >
                 Infinite Mac in one place
               </p>
               <h1
                 title="A nod to history — and to every “one more thing” that shipped anyway."
-                style={{
-                  fontFamily: AQUA_FONT,
-                  fontSize: 'clamp(22px, 4.5vw, 32px)',
-                  fontWeight: 700,
-                  margin: '0 0 12px',
-                  lineHeight: 1.2,
-                  color: '#111',
-                  textShadow: '0 1px 0 rgba(255,255,255,0.95)',
-                  letterSpacing: '-0.02em',
-                }}
+                style={shellH1Style(shellTheme)}
               >
                 Histori
-                <span title="The ROM knows what you did last session." style={{ color: '#0066cc' }}>
+                <span title="The ROM knows what you did last session." style={{ color: shellH1AccentColor(shellTheme) }}>
                   Mac
                 </span>
               </h1>
@@ -298,7 +286,8 @@ export default function HistoriMacPicker({
                   maxWidth: '520px',
                   fontSize: 14,
                   lineHeight: 1.55,
-                  color: '#444',
+                  color: shellHeroBodyText(shellTheme),
+                  fontFamily: shellBodyFont(shellTheme),
                 }}
               >
                 Every major era — System through OS X and NeXT — one click. Fullscreen recommended once you’re in.
@@ -314,29 +303,32 @@ export default function HistoriMacPicker({
                   marginBottom: '12px',
                 }}
               >
-                <span
-                  style={{
-                    ...aquaSegmentOff,
-                    cursor: 'default',
-                    fontSize: 12,
-                    color: '#333',
-                  }}
-                >
+                <span style={shellStatsPillStyle(shellTheme)}>
                   {HISTORIMAC_VERSIONS.length} versions
                   {yearSpan ? (
-                    <span style={{ color: '#666', fontWeight: 600 }}> · {yearSpan}</span>
+                    <span style={{ opacity: 0.75, fontWeight: 600 }}> · {yearSpan}</span>
                   ) : null}
                 </span>
-                <span style={{ fontSize: 12, color: '#555' }}>
+                <span style={shellKbdHintStyle(shellTheme)}>
                   <kbd
                     style={{
                       padding: '3px 8px',
-                      borderRadius: 6,
-                      background: 'linear-gradient(180deg, #fff, #e0e0e0)',
-                      border: '1px solid #999',
+                      borderRadius: shellTheme === 'next' ? 0 : 6,
+                      background:
+                        shellTheme === 'next'
+                          ? '#888'
+                          : shellTheme === 'classic'
+                            ? '#fff'
+                            : 'linear-gradient(180deg, #fff, #e0e0e0)',
+                      border:
+                        shellTheme === 'classic'
+                          ? '2px solid #000'
+                          : shellTheme === 'next'
+                            ? '1px solid #000'
+                            : '1px solid #999',
                       fontFamily: 'ui-monospace, monospace',
                       fontSize: 11,
-                      boxShadow: 'inset 0 1px 0 #fff',
+                      boxShadow: shellTheme === 'aqua' || shellTheme === 'platinum' ? 'inset 0 1px 0 #fff' : 'none',
                     }}
                   >
                     /
@@ -345,30 +337,22 @@ export default function HistoriMacPicker({
                 </span>
               </div>
 
-              <div style={{ margin: '0 auto', maxWidth: '640px' }}>{attribution}</div>
+              <div
+                style={{
+                  margin: '0 auto',
+                  maxWidth: '640px',
+                  color: shellHeroBodyText(shellTheme),
+                  fontFamily: shellBodyFont(shellTheme),
+                }}
+              >
+                {attribution}
+              </div>
 
               <button
                 type="button"
                 onClick={cycleWhisper}
                 title="Click to cycle hidden references. Shhh."
-                style={{
-                  display: 'block',
-                  width: '100%',
-                  maxWidth: '480px',
-                  margin: '14px auto 0',
-                  padding: '8px 12px',
-                  border: '1px solid #ccc',
-                  borderRadius: 8,
-                  background: 'linear-gradient(180deg, #f8f8f8, #eaeaea)',
-                  cursor: 'pointer',
-                  fontSize: 11,
-                  lineHeight: 1.45,
-                  color: '#777',
-                  fontStyle: 'italic',
-                  textAlign: 'center',
-                  fontFamily: AQUA_FONT,
-                  boxShadow: 'inset 0 1px 0 #fff',
-                }}
+                style={shellWhisperButtonStyle(shellTheme)}
               >
                 {HISTORIMAC_WHISPERS[whisperIdx]}
               </button>
@@ -399,23 +383,13 @@ export default function HistoriMacPicker({
               onKeyDown={(e) => {
                 if (e.key === 'Escape') setQuery('');
               }}
-              style={{
-                flex: '1 1 220px',
-                minWidth: 0,
-                padding: '10px 14px',
-                fontSize: 14,
-                ...aquaTextField,
-              }}
+              style={shellSearchFieldStyle(shellTheme)}
             />
             <button
               type="button"
               onClick={() => setYearSort((s) => (s === 'asc' ? 'desc' : 'asc'))}
               title="Toggle sort by timeline year"
-              style={{
-                ...aquaGelButtonGraphite,
-                padding: '10px 16px',
-                whiteSpace: 'nowrap',
-              }}
+              style={shellSortButtonStyle(shellTheme)}
             >
               Year {yearSort === 'asc' ? '↑' : '↓'}
             </button>
@@ -426,20 +400,10 @@ export default function HistoriMacPicker({
             aria-label="Filter by era"
             style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', alignItems: 'center' }}
           >
-            <span
-              style={{
-                fontSize: 11,
-                fontWeight: 700,
-                color: '#444',
-                marginRight: 4,
-                textShadow: '0 1px 0 rgba(255,255,255,0.5)',
-              }}
-            >
-              SHOW
-            </span>
+            <span style={shellToolbarLabelStyle(shellTheme)}>SHOW</span>
             <button
               type="button"
-              style={filter === 'all' ? aquaSegmentOn : aquaSegmentOff}
+              style={filter === 'all' ? shellSegmentOnStyle(shellTheme) : shellSegmentOffStyle(shellTheme)}
               onClick={() => setFilter('all')}
             >
               All
@@ -448,7 +412,7 @@ export default function HistoriMacPicker({
               <button
                 key={era}
                 type="button"
-                style={filter === era ? aquaSegmentOn : aquaSegmentOff}
+                style={filter === era ? shellSegmentOnStyle(shellTheme) : shellSegmentOffStyle(shellTheme)}
                 onClick={() => setFilter(era)}
               >
                 {HISTORIMAC_ERA_LABELS[era]}
@@ -456,7 +420,7 @@ export default function HistoriMacPicker({
             ))}
             <button
               type="button"
-              style={filter === 'saved' ? aquaSegmentOn : aquaSegmentOff}
+              style={filter === 'saved' ? shellSegmentOnStyle(shellTheme) : shellSegmentOffStyle(shellTheme)}
               onClick={() => setFilter('saved')}
               title="Versions you starred"
             >
@@ -477,39 +441,15 @@ export default function HistoriMacPicker({
           }}
         >
           {favoriteVersions.length > 0 ? (
-            <div
-              style={{
-                ...aquaSheet,
-                padding: '16px',
-                background: 'linear-gradient(180deg, #fffef5 0%, #f5f0dc 100%)',
-                border: '1px solid #c9b87a',
-              }}
-            >
-              <div
-                style={{
-                  fontSize: 11,
-                  fontWeight: 800,
-                  color: '#8a7220',
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.1em',
-                  marginBottom: 10,
-                  fontFamily: AQUA_FONT,
-                }}
-              >
-                Your picks
-              </div>
+            <div style={shellFavoritesPanelStyle(shellTheme)}>
+              <div style={shellFavoritesLabelStyle(shellTheme)}>Your picks</div>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
                 {favoriteVersions.map((v) => (
                   <button
                     key={v.id}
                     type="button"
                     onClick={() => onPlay(v)}
-                    style={{
-                      ...aquaGelButtonGraphite,
-                      padding: '8px 14px',
-                      fontSize: 13,
-                      borderColor: '#a89860',
-                    }}
+                    style={shellPickPillStyle(shellTheme)}
                   >
                     ★ {v.label}
                   </button>
@@ -519,36 +459,19 @@ export default function HistoriMacPicker({
           ) : null}
 
           {resumeVersion ? (
-            <button
-              type="button"
-              onClick={() => onPlay(resumeVersion)}
-              style={{
-                width: '100%',
-                padding: '14px 18px',
-                ...aquaSheet,
-                cursor: 'pointer',
-                textAlign: 'left',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                gap: '12px',
-                flexWrap: 'wrap',
-                border: '1px solid #4a8cc8',
-                background: 'linear-gradient(180deg, #eef6ff 0%, #d0e8fc 100%)',
-              }}
-            >
-              <span style={{ fontWeight: 700, fontSize: 15, color: '#111' }}>
-                Resume <span style={{ color: '#0066cc' }}>{resumeVersion.label}</span>
+            <button type="button" onClick={() => onPlay(resumeVersion)} style={shellResumeStyle(shellTheme)}>
+              <span style={shellResumeFont(shellTheme)}>
+                Resume <span style={{ color: shellResumeAccent(shellTheme) }}>{resumeVersion.label}</span>
               </span>
               <span
                 style={{
                   fontSize: 12,
-                  color: '#333',
+                  color: shellTheme === 'next' ? '#111' : '#333',
                   display: 'flex',
                   alignItems: 'center',
                   gap: 8,
                   fontWeight: 600,
-                  fontFamily: AQUA_FONT,
+                  fontFamily: shellBodyFont(shellTheme),
                 }}
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -561,39 +484,37 @@ export default function HistoriMacPicker({
 
         {timelineModel ? (
           <div style={{ maxWidth: '900px', margin: '0 auto', width: '100%' }}>
-            <HistoriMacTimelineStrip model={timelineModel} onActivateVersion={onActivateVersion} />
+            <HistoriMacTimelineStrip
+              model={timelineModel}
+              onActivateVersion={onActivateVersion}
+              shellTheme={shellTheme}
+            />
           </div>
         ) : null}
 
         {/* Version grid */}
         <section aria-label="Macintosh versions" style={{ width: '100%' }}>
-          <h2
-            style={{
-              fontSize: 12,
-              fontWeight: 700,
-              letterSpacing: '0.14em',
-              textTransform: 'uppercase',
-              color: '#444',
-              margin: '0 0 16px',
-              textAlign: 'center',
-              textShadow: '0 1px 0 rgba(255,255,255,0.5)',
-            }}
-          >
-            Choose a version
-          </h2>
+          <h2 style={shellSectionHeadingStyle(shellTheme)}>Choose a version</h2>
 
           {HISTORIMAC_VERSIONS.length === 0 ? (
-            <p style={{ color: '#444', fontSize: 14, textAlign: 'center', fontFamily: AQUA_FONT }}>
+            <p
+              style={{
+                color: shellHeroBodyText(shellTheme),
+                fontSize: 14,
+                textAlign: 'center',
+                fontFamily: shellBodyFont(shellTheme),
+              }}
+            >
               No versions configured. Add entries in <code>lib/historiMacVersions.ts</code>.
             </p>
           ) : filteredSorted.length === 0 ? (
             <p
               style={{
-                color: '#555',
+                color: shellHeroBodyText(shellTheme),
                 fontSize: 15,
                 textAlign: 'center',
                 padding: 32,
-                fontFamily: AQUA_FONT,
+                fontFamily: shellBodyFont(shellTheme),
               }}
             >
               No matches. Try another filter or clear search.
@@ -612,6 +533,8 @@ export default function HistoriMacPicker({
                 const fav = favoriteIds.includes(v.id);
                 const era = inferHistoriMacEra(v);
                 const blurb = excerpt(v.backgroundInfo);
+                const cardTheme = inferHistoriMacCardTheme(v);
+                const runRowJustify = cardTheme === 'aqua' ? 'center' : 'flex-end';
 
                 return (
                   <article
@@ -620,7 +543,7 @@ export default function HistoriMacPicker({
                       position: 'relative',
                       display: 'flex',
                       flexDirection: 'column',
-                      ...aquaCardInfiniteMac,
+                      ...cardArticleStyle(cardTheme),
                       overflow: 'hidden',
                     }}
                   >
@@ -631,25 +554,13 @@ export default function HistoriMacPicker({
                           aria-label={fav ? `Remove ${v.label} from picks` : `Save ${v.label} to picks`}
                           title={fav ? 'Remove from picks' : 'Save to picks (this device)'}
                           onClick={() => onToggleFavorite(v.id)}
-                          style={{
-                            flexShrink: 0,
-                            width: 40,
-                            height: 40,
-                            borderRadius: 10,
-                            ...aquaGelButtonGraphite,
-                            padding: 0,
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            fontSize: 18,
-                            color: fav ? '#b8860b' : '#666',
-                          }}
+                          style={cardFavButtonStyle(cardTheme, fav)}
                         >
                           {fav ? '★' : '☆'}
                         </button>
                         <div style={{ minWidth: 0, flex: 1 }}>
                           <div style={{ fontSize: 'clamp(17px, 2.5vw, 20px)', lineHeight: 1.3 }}>
-                            <VersionTitle label={v.label} />
+                            <VersionTitle label={v.label} theme={cardTheme} />
                           </div>
                           <div
                             style={{
@@ -660,52 +571,16 @@ export default function HistoriMacPicker({
                               marginTop: '8px',
                             }}
                           >
-                            {v.timelineYear != null ? (
-                              <span
-                                style={{
-                                  fontSize: 13,
-                                  fontWeight: 500,
-                                  color: '#666',
-                                  fontFamily: AQUA_FONT,
-                                }}
-                              >
-                                {v.timelineYear}
-                              </span>
-                            ) : null}
+                            {v.timelineYear != null ? <span style={themeYearStyle(cardTheme)}>{v.timelineYear}</span> : null}
                             {v.warningBanner ? (
-                              <span style={aquaUnstableBadge} title={v.warningBanner}>
+                              <span style={unstableBadgeStyle(cardTheme)} title={v.warningBanner}>
                                 Unstable
                               </span>
                             ) : null}
-                            <span
-                              style={{
-                                fontSize: 10,
-                                fontWeight: 600,
-                                textTransform: 'uppercase',
-                                letterSpacing: '0.05em',
-                                padding: '3px 8px',
-                                borderRadius: 6,
-                                background: 'rgba(0,0,0,0.06)',
-                                border: '1px solid rgba(0,0,0,0.12)',
-                                color: '#555',
-                                fontFamily: AQUA_FONT,
-                              }}
-                            >
-                              {HISTORIMAC_ERA_LABELS[era]}
-                            </span>
+                            <span style={eraChipStyle(cardTheme)}>{HISTORIMAC_ERA_LABELS[era]}</span>
                           </div>
                           {blurb && !expanded ? (
-                            <p
-                              style={{
-                                margin: '10px 0 0',
-                                fontSize: 13,
-                                lineHeight: 1.5,
-                                color: '#444',
-                                fontFamily: AQUA_FONT,
-                              }}
-                            >
-                              {blurb}
-                            </p>
+                            <p style={{ margin: '10px 0 0', ...themeBlurbStyle(cardTheme) }}>{blurb}</p>
                           ) : null}
                         </div>
                       </div>
@@ -713,43 +588,14 @@ export default function HistoriMacPicker({
                       {expanded ? (
                         <div style={{ marginTop: '4px' }}>
                           {v.warningBanner ? (
-                            <div
-                              style={{
-                                marginBottom: '12px',
-                                padding: '12px',
-                                background: 'linear-gradient(180deg, #fee2e2, #fecaca)',
-                                border: '2px solid #dc2626',
-                                borderRadius: 10,
-                                textAlign: 'center',
-                              }}
-                            >
-                              <span
-                                style={{
-                                  fontFamily: AQUA_FONT,
-                                  fontSize: 12,
-                                  fontWeight: 700,
-                                  color: '#991b1b',
-                                  lineHeight: 1.5,
-                                }}
-                              >
-                                {v.warningBanner}
-                              </span>
+                            <div style={themeWarningBoxStyle(cardTheme)}>
+                              <span style={themeWarningTextStyle(cardTheme)}>{v.warningBanner}</span>
                             </div>
                           ) : null}
                           {v.backgroundInfo ? (
                             <>
-                              <span style={{ display: 'block', ...showcaseHeadingStyle }}>Background</span>
-                              <span
-                                style={{
-                                  display: 'block',
-                                  fontSize: 13,
-                                  lineHeight: 1.6,
-                                  color: '#222',
-                                  fontFamily: AQUA_FONT,
-                                }}
-                              >
-                                {v.backgroundInfo}
-                              </span>
+                              <span style={{ display: 'block', ...themeExpandedHeadingStyle(cardTheme) }}>Background</span>
+                              <span style={{ display: 'block', ...themeExpandedBodyStyle(cardTheme) }}>{v.backgroundInfo}</span>
                             </>
                           ) : null}
                           {v.deviceShowcase ? (
@@ -757,53 +603,46 @@ export default function HistoriMacPicker({
                               style={{
                                 marginTop: v.backgroundInfo || v.warningBanner ? '14px' : 0,
                                 paddingTop: v.backgroundInfo || v.warningBanner ? '14px' : 0,
-                                borderTop: v.backgroundInfo || v.warningBanner ? '1px solid #ccc' : 'none',
+                                borderTop:
+                                  v.backgroundInfo || v.warningBanner
+                                    ? `1px solid ${themeExpandedBorderColor(cardTheme)}`
+                                    : 'none',
                               }}
                             >
-                              <span style={{ display: 'block', ...showcaseHeadingStyle }}>Device</span>
+                              <span style={{ display: 'block', ...themeExpandedHeadingStyle(cardTheme) }}>Device</span>
                               {v.deviceShowcaseSubtitle ? (
-                                <span style={{ display: 'block', ...showcaseSubtitleStyle }}>{v.deviceShowcaseSubtitle}</span>
+                                <span style={{ display: 'block', ...themeExpandedSubtitleStyle(cardTheme) }}>
+                                  {v.deviceShowcaseSubtitle}
+                                </span>
                               ) : null}
-                              <span style={{ display: 'block', ...showcaseBodyStyle }}>{v.deviceShowcase}</span>
+                              <span style={{ display: 'block', ...themeExpandedBodyStyle(cardTheme) }}>{v.deviceShowcase}</span>
                             </div>
                           ) : null}
                         </div>
                       ) : null}
 
-                      <button
-                        type="button"
-                        onClick={() => toggleExpanded(v.id)}
-                        style={{
-                          marginTop: '12px',
-                          padding: '6px 0',
-                          border: 'none',
-                          background: 'none',
-                          color: '#0066cc',
-                          fontSize: 12,
-                          fontWeight: 600,
-                          cursor: 'pointer',
-                          textDecoration: 'underline',
-                          textUnderlineOffset: '3px',
-                          fontFamily: AQUA_FONT,
-                        }}
-                      >
+                      <button type="button" onClick={() => toggleExpanded(v.id)} style={themeDetailsLinkStyle(cardTheme)}>
                         {expanded ? 'Show less' : 'Details & lore'}
                       </button>
                     </div>
 
-                    <div style={{ padding: '0 20px 20px', display: 'flex', justifyContent: 'center' }}>
+                    <div style={{ padding: '0 20px 20px', display: 'flex', justifyContent: runRowJustify }}>
                       <button
                         type="button"
                         aria-label={`Run ${v.label} (play emulator)`}
                         onClick={() => onPlay(v)}
                         style={{
-                          ...aquaRunButton,
-                          minWidth: 'min(100%, 200px)',
-                          width: '100%',
-                          maxWidth: 280,
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
+                          ...cardRunButtonStyle(cardTheme),
+                          ...(cardTheme === 'aqua'
+                            ? {
+                                minWidth: 'min(100%, 200px)',
+                                width: '100%',
+                                maxWidth: 280,
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                              }
+                            : { display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }),
                         }}
                       >
                         Run
@@ -831,8 +670,7 @@ export default function HistoriMacPicker({
             maxWidth: 'min(90vw, 420px)',
             textAlign: 'center',
             pointerEvents: 'none',
-            ...aquaHudToast,
-            boxShadow: `${aquaHudToast.boxShadow}, 0 4px 24px rgba(0,0,0,0.25)`,
+            ...shellToastStyle(shellTheme),
           }}
         >
           {toast}

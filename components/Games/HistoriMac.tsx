@@ -33,6 +33,9 @@ interface HistoriMacProps {
 const INFINITE_MAC_URL = 'https://infinitemac.org';
 /** Classic Finder / Happy Mac–style pixel art for version Play controls */
 const HISTORIMAC_PLAY_ICON = '/images/games/historimac-play.png';
+/** Shown by Fullscreen and in fullscreen chrome — pointer can stay “captured” by the iframe */
+const HISTORIMAC_MOUSE_CAPTURE_HINT =
+  'Lost your mouse? Chase it! Just kidding. Press escape then move the cursor up to regain control.';
 const LAST_PLAYED_KEY = 'historiMac_lastVersionId';
 const LORE_EXPANDED_KEY = 'historiMac_loreExpanded';
 const EMBED_LOAD_TIMEOUT_MS = 45_000;
@@ -520,7 +523,7 @@ export default function HistoriMac({
                   display: 'flex',
                   flexDirection: 'column',
                   alignItems: 'flex-end',
-                  gap: 4,
+                  gap: 6,
                 }}
               >
                 <span
@@ -529,15 +532,27 @@ export default function HistoriMac({
                     color: '#9ad4ff',
                     lineHeight: 1.2,
                     textAlign: 'right',
-                    maxWidth: 180,
+                    maxWidth: 220,
                     fontFamily: AQUA_FONT,
                   }}
                 >
                   Fullscreen recommended
                 </span>
+                <span
+                  style={{
+                    fontSize: 9,
+                    color: 'rgba(186, 230, 253, 0.88)',
+                    lineHeight: 1.35,
+                    textAlign: 'right',
+                    maxWidth: 280,
+                    fontFamily: AQUA_FONT,
+                  }}
+                >
+                  {HISTORIMAC_MOUSE_CAPTURE_HINT}
+                </span>
                 <button
                   type="button"
-                  title="Use the whole screen for the emulator — best experience."
+                  title={`Use the whole screen for the emulator — best experience.\n\n${HISTORIMAC_MOUSE_CAPTURE_HINT}`}
                   onClick={() => setEmbedFullscreen(true)}
                   style={aquaToolbarButtonKeyDark}
                 >
@@ -569,9 +584,19 @@ export default function HistoriMac({
             ...aquaEmbedToolbarDark,
           }}
         >
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 2, fontFamily: AQUA_FONT }}>
+          <div
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 6,
+              fontFamily: AQUA_FONT,
+              maxWidth: 'min(100%, 420px)',
+            }}
+          >
             <span style={{ fontSize: 13, color: '#eee', fontWeight: 700 }}>{selected.label}</span>
-            <span style={{ fontSize: 10, color: 'rgba(220,220,220,0.85)' }}>Press Esc to exit fullscreen</span>
+            <span style={{ fontSize: 10, color: 'rgba(220,220,220,0.9)', lineHeight: 1.4 }}>
+              {HISTORIMAC_MOUSE_CAPTURE_HINT}
+            </span>
           </div>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
             <button type="button" title="Or press Escape" onClick={() => setEmbedFullscreen(false)} style={aquaToolbarButtonKeyDark}>
