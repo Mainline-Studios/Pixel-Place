@@ -1,8 +1,11 @@
 const path = require('path');
 
+const isAppHostingBuild =
+  process.env.NEXT_PRIVATE_STANDALONE === 'true' || Boolean(process.env.FIREBASE_WEBAPP_CONFIG);
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  output: 'export',
+  ...(isAppHostingBuild ? {} : { output: 'export' }),
   images: {
     unoptimized: true
   },
