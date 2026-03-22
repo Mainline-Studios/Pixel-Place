@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useMemo, useState, useCallback, useEffect, useRef } from 'react';
+import { Archivo_Narrow, Silkscreen } from 'next/font/google';
 import type { HistoriMacVersion } from '@/lib/historiMacVersions';
 import { HISTORIMAC_VERSIONS } from '@/lib/historiMacVersions';
 import { HISTORIMAC_WHISPERS } from '@/lib/historiMacWhispers';
@@ -58,7 +59,20 @@ import {
   shellToastStyle,
   usesClassicPlatinumPixelUi,
   classicPlatinumPixelOverlayStyle,
+  historiMacClassicRunLabelStyle,
 } from '@/lib/historiMacCardTheme';
+
+const fontHistoriMacChicago = Silkscreen({
+  weight: '700',
+  subsets: ['latin'],
+  variable: '--font-historimac-chicago',
+});
+
+const fontHistoriMacCharcoal = Archivo_Narrow({
+  weight: '700',
+  subsets: ['latin'],
+  variable: '--font-historimac-charcoal',
+});
 import HistoriMacTimelineStrip from './HistoriMacTimelineStrip';
 import { AQUA_FONT, aquaTrafficLight } from '@/lib/historiMacAquaStyles';
 
@@ -193,6 +207,7 @@ export default function HistoriMacPicker({
     <div
       data-historimac-root
       data-shell-era={shellTheme}
+      className={`${fontHistoriMacChicago.variable} ${fontHistoriMacCharcoal.variable}`}
       style={{
         width: '100%',
         minHeight: '100vh',
@@ -662,10 +677,18 @@ export default function HistoriMacPicker({
                                 alignItems: 'center',
                                 justifyContent: 'center',
                               }
-                            : { display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }),
+                            : {
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                              }),
                         }}
                       >
-                        Run
+                        {cardTheme === 'classic' ? (
+                          <span style={historiMacClassicRunLabelStyle()}>Run</span>
+                        ) : (
+                          'Run'
+                        )}
                       </button>
                     </div>
                   </article>

@@ -58,6 +58,46 @@ export const THEME_FONT_CLASSIC_SANS = '"Helvetica Neue", Helvetica, Arial, sans
 /** Run label — Chicago was bitmap; bold condensed sans reads closest on the web */
 export const THEME_FONT_CHICAGO_LIKE = '"Helvetica Neue", Helvetica, Arial, sans-serif';
 
+/**
+ * Bitmap-style Run labels — CSS vars from `next/font` on `[data-historimac-root]` (HistoriMacPicker).
+ * Fallbacks keep UI usable if the picker root isn’t font-wrapped.
+ */
+export const HISTORIMAC_FONT_STACK_CLASSIC_RUN =
+  'var(--font-historimac-chicago), Geneva, ui-monospace, monospace';
+
+export const HISTORIMAC_FONT_STACK_PLATINUM_RUN =
+  'var(--font-historimac-charcoal), "Arial Narrow", "Arial Hebrew Narrow", Arial, sans-serif';
+
+/** Classic Mac default button: thick outer black frame, white gutter, inner black ring (image 3). */
+export function historiMacClassicRunShellStyle(): CSSProperties {
+  return {
+    padding: 0,
+    border: '4px solid #000000',
+    backgroundColor: '#ffffff',
+    borderRadius: 0,
+    cursor: 'pointer',
+    lineHeight: 1,
+    boxShadow: 'none',
+  };
+}
+
+export function historiMacClassicRunLabelStyle(): CSSProperties {
+  return {
+    display: 'block',
+    margin: '3px',
+    border: '1px solid #000000',
+    padding: '9px 26px',
+    backgroundColor: '#ffffff',
+    ...classicPlatinumTextRenderStyle,
+    fontFamily: HISTORIMAC_FONT_STACK_CLASSIC_RUN,
+    fontWeight: 700,
+    fontSize: 13,
+    letterSpacing: '0.14em',
+    textTransform: 'uppercase',
+    color: '#000000',
+  };
+}
+
 export function inferHistoriMacCardTheme(v: HistoriMacVersion): HistoriMacCardTheme {
   if (v.id === 'nextstep1') return 'next';
   if (v.id.startsWith('osx')) return 'aqua';
@@ -105,44 +145,34 @@ export function cardArticleStyle(theme: HistoriMacCardTheme): CSSProperties {
 export function cardRunButtonStyle(theme: HistoriMacCardTheme): CSSProperties {
   switch (theme) {
     case 'classic':
+      /** Use {@link historiMacClassicRunShellStyle} + inner span {@link historiMacClassicRunLabelStyle} */
       return {
-        ...classicPlatinumTextRenderStyle,
-        fontFamily: THEME_FONT_CHICAGO_LIKE,
-        fontWeight: 800,
-        fontSize: 14,
-        letterSpacing: '0.04em',
-        color: '#000',
-        backgroundColor: '#fff',
-        border: '2px solid #000',
-        borderRadius: 0,
-        padding: '8px 22px',
-        cursor: 'pointer',
-        boxShadow: 'none',
+        ...historiMacClassicRunShellStyle(),
       };
     case 'platinum':
+      /** Mac OS 8/9–style chunky bevel + Charcoal-like face (image 2) — hard edges, no blur */
       return {
         ...classicPlatinumTextRenderStyle,
-        fontFamily: THEME_FONT_CLASSIC_SANS,
+        fontFamily: HISTORIMAC_FONT_STACK_PLATINUM_RUN,
         fontWeight: 700,
-        fontSize: 14,
-        color: '#000',
-        backgroundColor: '#c8c8c8',
-        backgroundImage: `
-          repeating-linear-gradient(
-            0deg,
-            #dcdcdc 0px,
-            #dcdcdc 1px,
-            #c0c0c0 1px,
-            #c0c0c0 2px
-          )
-        `,
-        border: '1px solid #000',
-        borderRadius: 0,
-        padding: '8px 22px',
+        fontSize: 13,
+        letterSpacing: '0.02em',
+        fontStretch: 'condensed',
+        color: '#000000',
+        backgroundColor: '#c0c0c0',
+        backgroundImage:
+          'linear-gradient(180deg, #ececec 0%, #ececec 45%, #c4c4c4 45%, #c4c4c4 100%)',
+        borderTop: '2px solid #ffffff',
+        borderLeft: '2px solid #ffffff',
+        borderBottom: '2px solid #1a1a1a',
+        borderRight: '2px solid #1a1a1a',
+        borderRadius: 6,
+        padding: '9px 26px',
         cursor: 'pointer',
         boxShadow: `
-          inset 2px 2px 0 #ffffff,
-          inset -2px -2px 0 #606060
+          inset 1px 1px 0 #f5f5f5,
+          inset -1px -1px 0 #5a5a5a,
+          0 0 0 1px #000000
         `,
       };
     case 'next':
