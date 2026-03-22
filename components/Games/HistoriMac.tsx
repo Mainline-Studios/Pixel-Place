@@ -6,6 +6,7 @@ import { HISTORIMAC_WHISPERS } from '@/lib/historiMacWhispers';
 import { computeHistoriMacTimeline } from '@/lib/historiMacTimeline';
 import { readFavoriteVersionIds, toggleFavoriteVersion } from '@/lib/historiMacFavorites';
 import { buildHistoriMacInviteUrl } from '@/lib/historiMacInvite';
+import { useUser } from '@/contexts/UserContext';
 import HistoriMacPicker from './HistoriMacPicker';
 import HistoriMacSideRail, { INFINITE_MONKEY_URL } from './HistoriMacSideRail';
 import HistoriMacCopilot from './HistoriMacCopilot';
@@ -156,6 +157,7 @@ export default function HistoriMac({
   onBootVersionConsumed,
   standaloneInvite = false,
 }: HistoriMacProps) {
+  const { user } = useUser();
   const [selected, setSelected] = useState<HistoriMacVersion | null>(null);
   const [whisperIdx, setWhisperIdx] = useState(pickWhisperStart);
   const [lastPlayedId, setLastPlayedId] = useState<string | null>(null);
@@ -246,7 +248,7 @@ export default function HistoriMac({
 
   const copyVersionLink = useCallback(
     async (versionId: string) => {
-      const url = buildHistoriMacInviteUrl(versionId);
+      const url = buildHistoriMacInviteUrl(versionId, user?.username ?? null);
       try {
         await navigator.clipboard.writeText(url);
         showToast('Link copied — share to open this Mac version');
@@ -254,7 +256,7 @@ export default function HistoriMac({
         showToast(`Copy failed — link: ${url}`);
       }
     },
-    [showToast],
+    [showToast, user?.username],
   );
 
   const goToPicker = useCallback(() => {

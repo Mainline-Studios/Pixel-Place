@@ -1,8 +1,10 @@
 'use client';
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { useUser } from '@/contexts/UserContext';
 import HistoriMac from '@/components/Games/HistoriMac';
+import { historiMacInvitePersonalTitle } from '@/lib/historiMacInvite';
 
 type Props = {
   versionId: string;
@@ -13,10 +15,25 @@ type Props = {
  * Discord-style invite gate → HistoriMac in standalone mode (no Back to games / no Close).
  */
 export default function HistoriMacInviteShell({ versionId, label }: Props) {
+  const searchParams = useSearchParams();
   const { user, isRestoring } = useUser();
   const [started, setStarted] = useState(false);
 
   const onBootConsumed = useCallback(() => {}, []);
+
+  useEffect(() => {
+    const who = searchParams.get('inviter')?.trim();
+    if (!who) return;
+    const title = historiMacInvitePersonalTitle(who, label);
+    document.title = title;
+    let meta = document.querySelector('meta[property="og:title"]');
+    if (!meta) {
+      meta = document.createElement('meta');
+      meta.setAttribute('property', 'og:title');
+      document.head.appendChild(meta);
+    }
+    meta.setAttribute('content', title);
+  }, [searchParams, label]);
 
   if (started) {
     return (
