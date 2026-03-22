@@ -1,6 +1,11 @@
+const path = require('path');
+
+const isAppHostingBuild =
+  process.env.NEXT_PRIVATE_STANDALONE === 'true' || Boolean(process.env.FIREBASE_WEBAPP_CONFIG);
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  output: 'export',
+  ...(isAppHostingBuild ? {} : { output: 'export' }),
   images: {
     unoptimized: true
   },
@@ -12,6 +17,11 @@ const nextConfig = {
     ignoreBuildErrors: true,
   },
   webpack: (config, { isServer }) => {
+    config.resolve.alias = {
+      ...(config.resolve.alias || {}),
+      '@': path.resolve(__dirname),
+    };
+
     config.module.rules.push({
       test: /[\\/]components[\\/]Games[\\/](CityLife|HideAndSeek|GhostInTheDark|MusicalMayhem|InternationalSportsHQ)\.tsx$/,
       use: {
