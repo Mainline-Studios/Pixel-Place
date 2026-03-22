@@ -68,39 +68,6 @@ export const HISTORIMAC_FONT_STACK_CLASSIC_RUN =
 export const HISTORIMAC_FONT_STACK_PLATINUM_RUN =
   'var(--font-historimac-charcoal), "Arial Narrow", "Arial Hebrew Narrow", Arial, sans-serif';
 
-/**
- * Classic Mac default button frame: **3px black** | **1px white gutter** | **1px black** | label.
- * Gutter is the button’s `padding` (white) between outer border and inner span border.
- */
-export function historiMacClassicRunShellStyle(): CSSProperties {
-  return {
-    padding: '1px',
-    border: '3px solid #000000',
-    backgroundColor: '#ffffff',
-    borderRadius: 0,
-    cursor: 'pointer',
-    lineHeight: 1,
-    boxShadow: 'none',
-  };
-}
-
-export function historiMacClassicRunLabelStyle(): CSSProperties {
-  return {
-    display: 'block',
-    margin: 0,
-    border: '1px solid #000000',
-    padding: '9px 26px',
-    backgroundColor: '#ffffff',
-    ...classicPlatinumTextRenderStyle,
-    fontFamily: HISTORIMAC_FONT_STACK_CLASSIC_RUN,
-    fontWeight: 700,
-    fontSize: 13,
-    letterSpacing: '0.14em',
-    textTransform: 'uppercase',
-    color: '#000000',
-  };
-}
-
 export function inferHistoriMacCardTheme(v: HistoriMacVersion): HistoriMacCardTheme {
   if (v.id === 'nextstep1') return 'next';
   if (v.id.startsWith('osx')) return 'aqua';
@@ -115,7 +82,7 @@ export function cardArticleStyle(theme: HistoriMacCardTheme): CSSProperties {
         backgroundColor: '#ffffff',
         border: '1px solid #e0e0e0',
         borderRadius: 0,
-        boxShadow: '0 2px 10px rgba(0,0,0,0.06)',
+        boxShadow: 'none',
         position: 'relative',
         ...classicPlatinumTextRenderStyle,
       };
@@ -148,12 +115,23 @@ export function cardArticleStyle(theme: HistoriMacCardTheme): CSSProperties {
 export function cardRunButtonStyle(theme: HistoriMacCardTheme): CSSProperties {
   switch (theme) {
     case 'classic':
-      /** Use {@link historiMacClassicRunShellStyle} + inner span {@link historiMacClassicRunLabelStyle} */
+      /** System 1–6: flat control — no drop/inset shadows, no 3D bevel */
       return {
-        ...historiMacClassicRunShellStyle(),
+        ...classicPlatinumTextRenderStyle,
+        fontFamily: HISTORIMAC_FONT_STACK_CLASSIC_RUN,
+        fontWeight: 700,
+        fontSize: 13,
+        letterSpacing: '0.06em',
+        color: '#000000',
+        backgroundColor: '#d8d8d8',
+        border: '2px solid #000000',
+        borderRadius: 0,
+        padding: '9px 28px',
+        cursor: 'pointer',
+        boxShadow: 'none',
       };
     case 'platinum':
-      /** Mac OS 8/9–style chunky bevel + Charcoal-like face (image 2) — hard edges, no blur */
+      /** Mac OS 8/9: 1px black frame, 1px white top/left + dark bottom/right inset bevel, solid gray */
       return {
         ...classicPlatinumTextRenderStyle,
         fontFamily: HISTORIMAC_FONT_STACK_PLATINUM_RUN,
@@ -162,20 +140,14 @@ export function cardRunButtonStyle(theme: HistoriMacCardTheme): CSSProperties {
         letterSpacing: '0.02em',
         fontStretch: 'condensed',
         color: '#000000',
-        backgroundColor: '#c0c0c0',
-        backgroundImage:
-          'linear-gradient(180deg, #ececec 0%, #ececec 45%, #c4c4c4 45%, #c4c4c4 100%)',
-        borderTop: '2px solid #ffffff',
-        borderLeft: '2px solid #ffffff',
-        borderBottom: '2px solid #1a1a1a',
-        borderRight: '2px solid #1a1a1a',
-        borderRadius: 0,
-        padding: '9px 26px',
+        backgroundColor: '#c4c4c4',
+        border: '1px solid #000000',
+        borderRadius: 2,
+        padding: '8px 26px',
         cursor: 'pointer',
         boxShadow: `
-          inset 1px 1px 0 #f5f5f5,
-          inset -1px -1px 0 #5a5a5a,
-          0 0 0 1px #000000
+          inset 1px 1px 0 #ffffff,
+          inset -1px -1px 0 #606060
         `,
       };
     case 'next':

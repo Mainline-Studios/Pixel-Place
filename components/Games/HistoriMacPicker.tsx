@@ -59,7 +59,6 @@ import {
   shellToastStyle,
   usesClassicPlatinumPixelUi,
   classicPlatinumPixelOverlayStyle,
-  historiMacClassicRunLabelStyle,
 } from '@/lib/historiMacCardTheme';
 
 const fontHistoriMacChicago = Silkscreen({
@@ -684,11 +683,7 @@ export default function HistoriMacPicker({
                               }),
                         }}
                       >
-                        {cardTheme === 'classic' ? (
-                          <span style={historiMacClassicRunLabelStyle()}>Run</span>
-                        ) : (
-                          'Run'
-                        )}
+                        Run
                       </button>
                     </div>
                   </article>
