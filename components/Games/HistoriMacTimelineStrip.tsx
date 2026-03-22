@@ -4,7 +4,12 @@ import React from 'react';
 import type { HistoriMacTimelineModel } from '@/lib/historiMacTimeline';
 import { aquaTrafficLight } from '@/lib/historiMacAquaStyles';
 import type { HistoriMacCardTheme } from '@/lib/historiMacCardTheme';
-import { timelineStripChrome, shellTimelineCardStyle } from '@/lib/historiMacCardTheme';
+import {
+  timelineStripChrome,
+  shellTimelineCardStyle,
+  usesClassicPlatinumPixelUi,
+  classicPlatinumPixelOverlayStyle,
+} from '@/lib/historiMacCardTheme';
 
 type Props = {
   model: HistoriMacTimelineModel;
@@ -27,6 +32,9 @@ export default function HistoriMacTimelineStrip({ model, onActivateVersion, shel
 
   return (
     <div style={shellTimelineCardStyle(shellTheme)}>
+      {usesClassicPlatinumPixelUi(shellTheme) ? (
+        <div aria-hidden style={classicPlatinumPixelOverlayStyle()} />
+      ) : null}
       <div
         style={{
           display: 'flex',
@@ -35,6 +43,8 @@ export default function HistoriMacTimelineStrip({ model, onActivateVersion, shel
           marginBottom: 12,
           paddingBottom: 10,
           borderBottom: c.headerBorder,
+          position: 'relative',
+          zIndex: 1,
         }}
       >
         {c.showLights ? (
@@ -65,7 +75,7 @@ export default function HistoriMacTimelineStrip({ model, onActivateVersion, shel
           </p>
         </div>
       </div>
-      <div style={{ position: 'relative', height: 52, marginBottom: 10 }}>
+      <div style={{ position: 'relative', height: 52, marginBottom: 10, zIndex: 1 }}>
         <div style={c.trackStyle} />
         {dots.map(({ versionId, label, leftPct, offsetX, year }) => (
           <button
@@ -97,6 +107,8 @@ export default function HistoriMacTimelineStrip({ model, onActivateVersion, shel
           color: c.tickColor,
           letterSpacing: '0.03em',
           fontFamily: c.font,
+          position: 'relative',
+          zIndex: 1,
         }}
       >
         {tickYears.map((y) => (

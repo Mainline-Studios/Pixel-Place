@@ -1814,3 +1814,9 @@ footer a:hover {
 [data-secret-theme="ixelace"] .ixel-ace-brand {
   display: block;
 }
+
+/* HistoriMac — System 1–9 era cards: sharper bitmap-style images inside pixel UI */
+[data-historimac-pixel-ui='true'] img {
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+}

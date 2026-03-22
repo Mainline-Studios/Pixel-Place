@@ -56,6 +56,8 @@ import {
   shellStatsPillStyle,
   shellKbdHintStyle,
   shellToastStyle,
+  usesClassicPlatinumPixelUi,
+  classicPlatinumPixelOverlayStyle,
 } from '@/lib/historiMacCardTheme';
 import HistoriMacTimelineStrip from './HistoriMacTimelineStrip';
 import { AQUA_FONT, aquaTrafficLight } from '@/lib/historiMacAquaStyles';
@@ -244,20 +246,24 @@ export default function HistoriMacPicker({
               textAlign: 'left',
             }}
           >
-            <div style={shellHeroTitlebarStyle(shellTheme)}>
-              {shellShowTrafficLights(shellTheme) ? (
-                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }} aria-hidden>
-                  <span style={aquaTrafficLight('close')} />
-                  <span style={aquaTrafficLight('min')} />
-                  <span style={aquaTrafficLight('zoom')} />
-                </div>
-              ) : (
-                <span style={{ width: 4 }} aria-hidden />
-              )}
-              <span style={shellHeroTitleStyle(shellTheme)}>HistoriMac</span>
-              <span style={{ width: shellShowTrafficLights(shellTheme) ? 52 : 8 }} aria-hidden />
-            </div>
-            <div style={{ padding: '20px 22px 18px', textAlign: 'center' }}>
+            {usesClassicPlatinumPixelUi(shellTheme) ? (
+              <div aria-hidden style={classicPlatinumPixelOverlayStyle()} />
+            ) : null}
+            <div style={{ position: 'relative', zIndex: 1 }}>
+              <div style={shellHeroTitlebarStyle(shellTheme)}>
+                {shellShowTrafficLights(shellTheme) ? (
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'center' }} aria-hidden>
+                    <span style={aquaTrafficLight('close')} />
+                    <span style={aquaTrafficLight('min')} />
+                    <span style={aquaTrafficLight('zoom')} />
+                  </div>
+                ) : (
+                  <span style={{ width: 4 }} aria-hidden />
+                )}
+                <span style={shellHeroTitleStyle(shellTheme)}>HistoriMac</span>
+                <span style={{ width: shellShowTrafficLights(shellTheme) ? 52 : 8 }} aria-hidden />
+              </div>
+              <div style={{ padding: '20px 22px 18px', textAlign: 'center' }}>
               <p
                 style={{
                   margin: '0 0 8px',
@@ -356,6 +362,7 @@ export default function HistoriMacPicker({
               >
                 {HISTORIMAC_WHISPERS[whisperIdx]}
               </button>
+              </div>
             </div>
           </div>
         </header>
@@ -539,6 +546,7 @@ export default function HistoriMacPicker({
                 return (
                   <article
                     key={v.id}
+                    data-historimac-pixel-ui={usesClassicPlatinumPixelUi(cardTheme) ? 'true' : undefined}
                     style={{
                       position: 'relative',
                       display: 'flex',
@@ -547,7 +555,10 @@ export default function HistoriMacPicker({
                       overflow: 'hidden',
                     }}
                   >
-                    <div style={{ padding: '20px 20px 14px', flex: 1 }}>
+                    {usesClassicPlatinumPixelUi(cardTheme) ? (
+                      <div aria-hidden style={classicPlatinumPixelOverlayStyle()} />
+                    ) : null}
+                    <div style={{ padding: '20px 20px 14px', flex: 1, position: 'relative', zIndex: 1 }}>
                       <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', marginBottom: '10px' }}>
                         <button
                           type="button"
@@ -626,7 +637,15 @@ export default function HistoriMacPicker({
                       </button>
                     </div>
 
-                    <div style={{ padding: '0 20px 20px', display: 'flex', justifyContent: runRowJustify }}>
+                    <div
+                      style={{
+                        padding: '0 20px 20px',
+                        display: 'flex',
+                        justifyContent: runRowJustify,
+                        position: 'relative',
+                        zIndex: 1,
+                      }}
+                    >
                       <button
                         type="button"
                         aria-label={`Run ${v.label} (play emulator)`}

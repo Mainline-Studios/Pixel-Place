@@ -20,6 +20,34 @@ import {
 
 export type HistoriMacCardTheme = 'classic' | 'platinum' | 'next' | 'aqua';
 
+/** System 1–9 era cards / shell — low-res Macintosh “bitmapped” feel */
+export function usesClassicPlatinumPixelUi(theme: HistoriMacCardTheme): boolean {
+  return theme === 'classic' || theme === 'platinum';
+}
+
+/** Subtle 1×1-ish grid overlay (multiply) — “a bit pixelated” without hurting readability */
+export function classicPlatinumPixelOverlayStyle(): CSSProperties {
+  return {
+    position: 'absolute',
+    inset: 0,
+    pointerEvents: 'none',
+    borderRadius: 'inherit',
+    opacity: 0.055,
+    backgroundImage: `
+      repeating-linear-gradient(90deg, #000 0px, #000 1px, transparent 1px, transparent 4px),
+      repeating-linear-gradient(0deg, #000 0px, #000 1px, transparent 1px, transparent 4px)
+    `,
+    mixBlendMode: 'multiply',
+  };
+}
+
+/** Sharper, less subpixel-smoothed type (closer to 1-bit / early CRT UI) */
+export const classicPlatinumTextRenderStyle: CSSProperties = {
+  WebkitFontSmoothing: 'none',
+  MozOsxFontSmoothing: 'grayscale',
+  textRendering: 'optimizeSpeed',
+};
+
 /** New York / early Mac marketing titles */
 export const THEME_FONT_SERIF_TITLE =
   'ui-serif, "New York", "Iowan Old Style", Palatino, "Palatino Linotype", Georgia, "Times New Roman", serif';
@@ -45,6 +73,8 @@ export function cardArticleStyle(theme: HistoriMacCardTheme): CSSProperties {
         border: '1px solid #e0e0e0',
         borderRadius: 8,
         boxShadow: '0 2px 10px rgba(0,0,0,0.06)',
+        position: 'relative',
+        ...classicPlatinumTextRenderStyle,
       };
     case 'platinum':
       return {
@@ -55,6 +85,8 @@ export function cardArticleStyle(theme: HistoriMacCardTheme): CSSProperties {
           inset 0 1px 0 rgba(255,255,255,1),
           0 2px 8px rgba(0,0,0,0.08)
         `,
+        position: 'relative',
+        ...classicPlatinumTextRenderStyle,
       };
     case 'next':
       return {
@@ -466,11 +498,13 @@ export function shellRootStyle(theme: HistoriMacCardTheme): CSSProperties {
       return {
         backgroundColor: '#dcdcdc',
         backgroundImage: 'none',
+        ...classicPlatinumTextRenderStyle,
       };
     case 'platinum':
       return {
         backgroundColor: '#c8c8c8',
         backgroundImage: 'linear-gradient(180deg, #d8d8d8 0%, #b8b8b8 100%)',
+        ...classicPlatinumTextRenderStyle,
       };
     case 'next':
       return {
@@ -495,11 +529,15 @@ export function shellHeroSheetStyle(theme: HistoriMacCardTheme): CSSProperties {
         borderRadius: 8,
         border: '2px solid #000',
         boxShadow: '0 6px 20px rgba(0,0,0,0.12)',
+        position: 'relative',
+        ...classicPlatinumTextRenderStyle,
       };
     case 'platinum':
       return {
         ...aquaSheet,
         borderRadius: 10,
+        position: 'relative',
+        ...classicPlatinumTextRenderStyle,
       };
     case 'next':
       return {
