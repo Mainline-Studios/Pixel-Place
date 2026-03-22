@@ -675,12 +675,13 @@ export default function HistoriMacPicker({
                             src={historiMacRunImageSrc(cardTheme)}
                             alt=""
                             draggable={false}
+                            width={50}
+                            height={50}
                             style={{
                               display: 'block',
-                              height: 'auto',
-                              width: 'auto',
-                              maxHeight: 48,
-                              maxWidth: 'min(100%, 240px)',
+                              width: 50,
+                              height: 50,
+                              objectFit: 'contain',
                               imageRendering: 'pixelated',
                             }}
                           />
