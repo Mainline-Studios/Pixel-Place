@@ -8,7 +8,7 @@ import {
   AQUA_FONT,
   aquaCardInfiniteMac,
   aquaGelButtonGraphite,
-  aquaRunButtonPixel,
+  aquaRunButton,
   aquaUnstableBadge,
   aquaPinstripePage,
   aquaSheet,
@@ -68,11 +68,14 @@ export const HISTORIMAC_FONT_STACK_CLASSIC_RUN =
 export const HISTORIMAC_FONT_STACK_PLATINUM_RUN =
   'var(--font-historimac-charcoal), "Arial Narrow", "Arial Hebrew Narrow", Arial, sans-serif';
 
-/** Classic Mac default button: thick outer black frame, white gutter, inner black ring (image 3). */
+/**
+ * Classic Mac default button frame: **3px black** | **1px white gutter** | **1px black** | label.
+ * Gutter is the button’s `padding` (white) between outer border and inner span border.
+ */
 export function historiMacClassicRunShellStyle(): CSSProperties {
   return {
-    padding: 0,
-    border: '4px solid #000000',
+    padding: '1px',
+    border: '3px solid #000000',
     backgroundColor: '#ffffff',
     borderRadius: 0,
     cursor: 'pointer',
@@ -84,7 +87,7 @@ export function historiMacClassicRunShellStyle(): CSSProperties {
 export function historiMacClassicRunLabelStyle(): CSSProperties {
   return {
     display: 'block',
-    margin: '3px',
+    margin: 0,
     border: '1px solid #000000',
     padding: '9px 26px',
     backgroundColor: '#ffffff',
@@ -111,7 +114,7 @@ export function cardArticleStyle(theme: HistoriMacCardTheme): CSSProperties {
       return {
         backgroundColor: '#ffffff',
         border: '1px solid #e0e0e0',
-        borderRadius: 8,
+        borderRadius: 0,
         boxShadow: '0 2px 10px rgba(0,0,0,0.06)',
         position: 'relative',
         ...classicPlatinumTextRenderStyle,
@@ -120,7 +123,7 @@ export function cardArticleStyle(theme: HistoriMacCardTheme): CSSProperties {
       return {
         backgroundColor: '#ffffff',
         border: '1px solid #b8b8b8',
-        borderRadius: 8,
+        borderRadius: 0,
         boxShadow: `
           inset 0 1px 0 rgba(255,255,255,1),
           0 2px 8px rgba(0,0,0,0.08)
@@ -166,7 +169,7 @@ export function cardRunButtonStyle(theme: HistoriMacCardTheme): CSSProperties {
         borderLeft: '2px solid #ffffff',
         borderBottom: '2px solid #1a1a1a',
         borderRight: '2px solid #1a1a1a',
-        borderRadius: 6,
+        borderRadius: 0,
         padding: '9px 26px',
         cursor: 'pointer',
         boxShadow: `
@@ -195,7 +198,7 @@ export function cardRunButtonStyle(theme: HistoriMacCardTheme): CSSProperties {
         boxShadow: 'none',
       };
     case 'aqua':
-      return { ...aquaRunButtonPixel };
+      return { ...aquaRunButton };
     default:
       return {};
   }
@@ -217,7 +220,7 @@ export function cardFavButtonStyle(theme: HistoriMacCardTheme, favorited: boolea
     case 'classic':
       return {
         ...base,
-        borderRadius: 6,
+        borderRadius: 0,
         border: '2px solid #000',
         background: '#fff',
         color: favorited ? '#000' : '#333',
@@ -225,7 +228,7 @@ export function cardFavButtonStyle(theme: HistoriMacCardTheme, favorited: boolea
     case 'platinum':
       return {
         ...base,
-        borderRadius: 4,
+        borderRadius: 0,
         border: '1px solid #000',
         background: 'linear-gradient(180deg, #eee 0%, #ccc 100%)',
         boxShadow: 'inset 1px 1px 0 #fff, inset -1px -1px 0 rgba(0,0,0,0.15)',
@@ -267,7 +270,7 @@ export function unstableBadgeStyle(theme: HistoriMacCardTheme): CSSProperties {
       letterSpacing: '0.08em',
       color: '#000',
       padding: '4px 8px',
-      borderRadius: 4,
+      borderRadius: 0,
       border: '2px solid #000',
       background: '#ffcccc',
       whiteSpace: 'nowrap',
@@ -293,7 +296,7 @@ export function unstableBadgeStyle(theme: HistoriMacCardTheme): CSSProperties {
     fontWeight: 700,
     color: '#fff',
     padding: '4px 10px',
-    borderRadius: 4,
+    borderRadius: 0,
     background: 'linear-gradient(180deg, #e8a0a0, #c05050)',
     border: '1px solid #000',
     boxShadow: 'inset 1px 1px 0 rgba(255,255,255,0.35)',
@@ -336,7 +339,7 @@ export function eraChipStyle(theme: HistoriMacCardTheme): CSSProperties {
     textTransform: 'uppercase' as const,
     letterSpacing: '0.05em',
     padding: '3px 8px',
-    borderRadius: 4,
+    borderRadius: 0,
     background: '#f0f0f0',
     border: '1px solid #999',
     color: '#333',
@@ -481,7 +484,7 @@ export function themeWarningBoxStyle(theme: HistoriMacCardTheme): CSSProperties 
       padding: '12px',
       background: '#ffdddd',
       border: '2px solid #000',
-      borderRadius: 4,
+      borderRadius: 0,
       textAlign: 'center' as const,
     };
   }
@@ -510,7 +513,7 @@ export function themeWarningBoxStyle(theme: HistoriMacCardTheme): CSSProperties 
     padding: '12px',
     background: 'linear-gradient(180deg, #fde8e8, #f5caca)',
     border: '2px solid #000',
-    borderRadius: 6,
+    borderRadius: 0,
     textAlign: 'center' as const,
   };
 }
@@ -570,7 +573,7 @@ export function shellHeroSheetStyle(theme: HistoriMacCardTheme): CSSProperties {
     case 'classic':
       return {
         background: '#ffffff',
-        borderRadius: 8,
+        borderRadius: 0,
         border: '2px solid #000',
         boxShadow: '0 6px 20px rgba(0,0,0,0.12)',
         position: 'relative',
@@ -579,7 +582,7 @@ export function shellHeroSheetStyle(theme: HistoriMacCardTheme): CSSProperties {
     case 'platinum':
       return {
         ...aquaSheet,
-        borderRadius: 10,
+        borderRadius: 0,
         position: 'relative',
         ...classicPlatinumTextRenderStyle,
       };
@@ -743,13 +746,14 @@ export function shellBackButtonStyle(theme: HistoriMacCardTheme): CSSProperties 
         color: '#000',
         background: '#fff',
         border: '2px solid #000',
-        borderRadius: 6,
+        borderRadius: 0,
         cursor: 'pointer',
         boxShadow: '0 2px 8px rgba(0,0,0,0.12)',
       };
     case 'platinum':
       return {
         ...aquaGelButtonGraphite,
+        borderRadius: 0,
         fontSize: 11,
         padding: '8px 16px',
         boxShadow: `${aquaGelButtonGraphite.boxShadow}, 0 4px 12px rgba(0,0,0,0.15)`,
@@ -792,7 +796,7 @@ export function shellSearchFieldStyle(theme: HistoriMacCardTheme): CSSProperties
       return {
         ...base,
         border: '2px solid #000',
-        borderRadius: 4,
+        borderRadius: 0,
         background: '#fff',
         color: '#000',
         boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.06)',
@@ -802,6 +806,7 @@ export function shellSearchFieldStyle(theme: HistoriMacCardTheme): CSSProperties
       return {
         ...base,
         ...aquaTextField,
+        borderRadius: 0,
       };
     case 'next':
       return {
@@ -831,7 +836,7 @@ export function shellSortButtonStyle(theme: HistoriMacCardTheme): CSSProperties 
         color: '#000',
         background: '#fff',
         border: '2px solid #000',
-        borderRadius: 6,
+        borderRadius: 0,
         cursor: 'pointer',
       };
     case 'next':
@@ -850,6 +855,12 @@ export function shellSortButtonStyle(theme: HistoriMacCardTheme): CSSProperties 
         cursor: 'pointer',
       };
     case 'platinum':
+      return {
+        ...aquaGelButtonGraphite,
+        borderRadius: 0,
+        padding: '10px 16px',
+        whiteSpace: 'nowrap',
+      };
     case 'aqua':
     default:
       return {
@@ -869,7 +880,7 @@ export function shellSegmentOffStyle(theme: HistoriMacCardTheme): CSSProperties 
         fontWeight: 800,
         color: '#000',
         padding: '6px 12px',
-        borderRadius: 4,
+        borderRadius: 0,
         border: '2px solid #000',
         background: '#fff',
         cursor: 'pointer',
@@ -890,6 +901,7 @@ export function shellSegmentOffStyle(theme: HistoriMacCardTheme): CSSProperties 
         cursor: 'pointer',
       };
     case 'platinum':
+      return { ...aquaSegmentOff, borderRadius: 0 };
     case 'aqua':
     default:
       return { ...aquaSegmentOff };
@@ -905,7 +917,7 @@ export function shellSegmentOnStyle(theme: HistoriMacCardTheme): CSSProperties {
         fontWeight: 800,
         color: '#fff',
         padding: '6px 12px',
-        borderRadius: 4,
+        borderRadius: 0,
         border: '2px solid #000',
         background: '#000',
         cursor: 'pointer',
@@ -926,6 +938,7 @@ export function shellSegmentOnStyle(theme: HistoriMacCardTheme): CSSProperties {
         cursor: 'pointer',
       };
     case 'platinum':
+      return { ...aquaSegmentOn, borderRadius: 0 };
     case 'aqua':
     default:
       return { ...aquaSegmentOn };
@@ -1010,7 +1023,7 @@ export function shellFavoritesPanelStyle(theme: HistoriMacCardTheme): CSSPropert
         padding: '16px',
         background: '#fff',
         border: '2px solid #000',
-        borderRadius: 8,
+        borderRadius: 0,
         boxShadow: '0 2px 10px rgba(0,0,0,0.08)',
       };
     case 'next':
@@ -1023,6 +1036,7 @@ export function shellFavoritesPanelStyle(theme: HistoriMacCardTheme): CSSPropert
     case 'platinum':
       return {
         ...aquaSheet,
+        borderRadius: 0,
         padding: '16px',
         background: 'linear-gradient(180deg, #fffef8 0%, #f0ead8 100%)',
         border: '1px solid #a89870',
@@ -1070,7 +1084,7 @@ export function shellPickPillStyle(theme: HistoriMacCardTheme): CSSProperties {
         color: '#000',
         background: '#fff',
         border: '2px solid #000',
-        borderRadius: 6,
+        borderRadius: 0,
         cursor: 'pointer',
       };
     case 'next':
@@ -1088,6 +1102,13 @@ export function shellPickPillStyle(theme: HistoriMacCardTheme): CSSProperties {
         cursor: 'pointer',
       };
     case 'platinum':
+      return {
+        ...aquaGelButtonGraphite,
+        borderRadius: 0,
+        padding: '8px 14px',
+        fontSize: 13,
+        borderColor: '#a89860',
+      };
     case 'aqua':
     default:
       return {
@@ -1114,7 +1135,7 @@ export function shellResumeStyle(theme: HistoriMacCardTheme): CSSProperties {
         flexWrap: 'wrap',
         background: '#fff',
         border: '2px solid #000',
-        borderRadius: 8,
+        borderRadius: 0,
         boxShadow: '0 2px 12px rgba(0,0,0,0.1)',
       };
     case 'next':
@@ -1137,6 +1158,7 @@ export function shellResumeStyle(theme: HistoriMacCardTheme): CSSProperties {
         width: '100%',
         padding: '14px 18px',
         ...aquaSheet,
+        borderRadius: 0,
         cursor: 'pointer',
         textAlign: 'left' as const,
         display: 'flex',
@@ -1192,7 +1214,7 @@ export function shellWhisperButtonStyle(theme: HistoriMacCardTheme): CSSProperti
         margin: '14px auto 0',
         padding: '8px 12px',
         border: '2px dashed #000',
-        borderRadius: 4,
+        borderRadius: 0,
         background: '#f5f5f5',
         cursor: 'pointer',
         fontSize: 11,
@@ -1221,6 +1243,24 @@ export function shellWhisperButtonStyle(theme: HistoriMacCardTheme): CSSProperti
         fontFamily: font,
       };
     case 'platinum':
+      return {
+        display: 'block',
+        width: '100%',
+        maxWidth: 480,
+        margin: '14px auto 0',
+        padding: '8px 12px',
+        border: '1px solid #ccc',
+        borderRadius: 0,
+        background: 'linear-gradient(180deg, #f8f8f8, #eaeaea)',
+        cursor: 'pointer',
+        fontSize: 11,
+        lineHeight: 1.45,
+        color: '#777',
+        fontStyle: 'italic',
+        textAlign: 'center',
+        fontFamily: font,
+        boxShadow: 'inset 0 1px 0 #fff',
+      };
     case 'aqua':
     default:
       return {
@@ -1259,6 +1299,13 @@ export function shellStatsPillStyle(theme: HistoriMacCardTheme): CSSProperties {
         fontSize: 12,
       };
     case 'platinum':
+      return {
+        ...aquaSegmentOff,
+        borderRadius: 0,
+        cursor: 'default',
+        fontSize: 12,
+        color: '#333',
+      };
     case 'aqua':
     default:
       return {
@@ -1287,7 +1334,7 @@ export function shellToastStyle(theme: HistoriMacCardTheme): CSSProperties {
         fontFamily: THEME_FONT_CLASSIC_SANS,
         background: '#fff',
         border: '2px solid #000',
-        borderRadius: 8,
+        borderRadius: 0,
         color: '#000',
         fontSize: 13,
         fontWeight: 600,
@@ -1309,7 +1356,7 @@ export function shellToastStyle(theme: HistoriMacCardTheme): CSSProperties {
         fontFamily: THEME_FONT_CLASSIC_SANS,
         background: 'linear-gradient(180deg, #fafafa, #e8e8e8)',
         border: '1px solid #000',
-        borderRadius: 8,
+        borderRadius: 0,
         color: '#111',
         fontSize: 13,
         fontWeight: 600,
@@ -1379,7 +1426,7 @@ export function timelineStripChrome(theme: HistoriMacCardTheme): TimelineStripCh
         showLights: false,
         trackStyle: {
           ...trackBase,
-          borderRadius: 2,
+          borderRadius: 0,
           background: '#fff',
           border: '2px solid #000',
           boxShadow: 'none',
@@ -1387,7 +1434,7 @@ export function timelineStripChrome(theme: HistoriMacCardTheme): TimelineStripCh
         tickColor: '#000',
         dotStyle: {
           ...dotBase,
-          borderRadius: '50%',
+          borderRadius: 0,
           border: '2px solid #000',
           background: '#fff',
           boxShadow: 'none',
@@ -1404,7 +1451,7 @@ export function timelineStripChrome(theme: HistoriMacCardTheme): TimelineStripCh
         showLights: false,
         trackStyle: {
           ...trackBase,
-          borderRadius: 4,
+          borderRadius: 0,
           background: 'linear-gradient(180deg, #c0c0c0 0%, #e4e4e4 45%, #d0d0d0 100%)',
           border: '1px solid #666',
           boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.12)',
@@ -1412,7 +1459,7 @@ export function timelineStripChrome(theme: HistoriMacCardTheme): TimelineStripCh
         tickColor: '#444',
         dotStyle: {
           ...dotBase,
-          borderRadius: '50%',
+          borderRadius: 0,
           border: '1px solid #000',
           background: 'linear-gradient(180deg, #f4f4f4, #c8c8c8)',
           boxShadow: 'inset 1px 1px 0 #fff, inset -1px -1px 0 rgba(0,0,0,0.2)',

@@ -334,7 +334,7 @@ export default function HistoriMacPicker({
                   <kbd
                     style={{
                       padding: '3px 8px',
-                      borderRadius: shellTheme === 'next' ? 0 : 6,
+                      borderRadius: shellTheme === 'aqua' ? 6 : 0,
                       background:
                         shellTheme === 'next'
                           ? '#888'
@@ -665,7 +665,7 @@ export default function HistoriMacPicker({
                         type="button"
                         aria-label={`Run ${v.label} (play emulator)`}
                         onClick={() => onPlay(v)}
-                        data-historimac-pixel-run="true"
+                        data-historimac-pixel-run={cardTheme === 'aqua' ? undefined : 'true'}
                         style={{
                           ...cardRunButtonStyle(cardTheme),
                           ...(cardTheme === 'aqua'

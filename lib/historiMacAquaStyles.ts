@@ -70,7 +70,7 @@ export const aquaUnstableBadge: CSSProperties = {
 };
 
 /**
- * Glossy pill “Run” control — specular highlight on top, black label (lickable).
+ * Glossy pill “Run” — blue → white (cup / U-down fill) + dome specular, black label (lickable Aqua).
  */
 export const aquaRunButton: CSSProperties = {
   fontFamily: AQUA_FONT,
@@ -78,57 +78,30 @@ export const aquaRunButton: CSSProperties = {
   fontSize: 15,
   color: '#000',
   letterSpacing: '0.03em',
-  border: '1px solid #9a9a9a',
+  border: '1px solid #2a6aa8',
   borderRadius: 999,
   padding: '11px 28px',
   background: `
-    linear-gradient(180deg,
+    radial-gradient(ellipse 115% 72% at 50% -8%,
       rgba(255,255,255,0.98) 0%,
-      rgba(255,255,255,0.55) 18%,
-      rgba(255,255,255,0.15) 38%,
-      transparent 52%),
-    linear-gradient(180deg, #fafafa 0%, #e4e4e4 42%, #c8c8c8 100%)
+      rgba(255,255,255,0.45) 38%,
+      transparent 58%),
+    linear-gradient(180deg,
+      #4a9ae8 0%,
+      #7ab8f5 22%,
+      #b8dafb 48%,
+      #eef6ff 72%,
+      #ffffff 100%)
   `,
   boxShadow: `
-    inset 0 1px 0 rgba(255,255,255,1),
-    inset 0 -1px 0 rgba(0,0,0,0.06),
-    0 4px 12px rgba(0,0,0,0.22),
+    inset 0 1px 0 rgba(255,255,255,0.95),
+    inset 0 -1px 0 rgba(0,50,110,0.14),
+    0 4px 14px rgba(0,70,140,0.28),
     0 1px 3px rgba(0,0,0,0.12)
   `,
   cursor: 'pointer',
-};
-
-/**
- * Run control — **pixel / flat** variant (horizontal 1px bands + hard bevel, no glossy pill).
- * Use on OS X cards when matching Infinite Mac “bitmap” chrome alongside pinstripe cards.
- */
-export const aquaRunButtonPixel: CSSProperties = {
-  fontFamily: AQUA_FONT,
-  fontWeight: 700,
-  fontSize: 14,
-  color: '#000',
-  letterSpacing: '0.04em',
-  border: '2px solid #333',
-  borderRadius: 2,
-  padding: '10px 26px',
-  backgroundColor: '#d8d8d8',
-  backgroundImage: `
-    repeating-linear-gradient(
-      0deg,
-      #ececec 0px,
-      #ececec 1px,
-      #d0d0d0 1px,
-      #d0d0d0 2px
-    )
-  `,
-  boxShadow: `
-    inset 1px 1px 0 #fff,
-    inset -1px -1px 0 #707070
-  `,
-  cursor: 'pointer',
-  WebkitFontSmoothing: 'none',
-  MozOsxFontSmoothing: 'grayscale',
-  textRendering: 'optimizeSpeed',
+  WebkitFontSmoothing: 'subpixel-antialiased',
+  MozOsxFontSmoothing: 'auto',
 };
 
 /** Floating sheet / inspector panel */
