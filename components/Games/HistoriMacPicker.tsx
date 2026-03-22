@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useMemo, useState, useCallback, useEffect, useRef } from 'react';
-import { Archivo_Narrow, Silkscreen } from 'next/font/google';
 import type { HistoriMacVersion } from '@/lib/historiMacVersions';
 import { HISTORIMAC_VERSIONS } from '@/lib/historiMacVersions';
 import { HISTORIMAC_WHISPERS } from '@/lib/historiMacWhispers';
@@ -60,18 +59,7 @@ import {
   usesClassicPlatinumPixelUi,
   classicPlatinumPixelOverlayStyle,
 } from '@/lib/historiMacCardTheme';
-
-const fontHistoriMacChicago = Silkscreen({
-  weight: '700',
-  subsets: ['latin'],
-  variable: '--font-historimac-chicago',
-});
-
-const fontHistoriMacCharcoal = Archivo_Narrow({
-  weight: '700',
-  subsets: ['latin'],
-  variable: '--font-historimac-charcoal',
-});
+import { historiMacRunUsesImage, historiMacRunImageSrc } from '@/lib/historiMacRunAssets';
 import HistoriMacTimelineStrip from './HistoriMacTimelineStrip';
 import { AQUA_FONT, aquaTrafficLight } from '@/lib/historiMacAquaStyles';
 
@@ -206,7 +194,6 @@ export default function HistoriMacPicker({
     <div
       data-historimac-root
       data-shell-era={shellTheme}
-      className={`${fontHistoriMacChicago.variable} ${fontHistoriMacCharcoal.variable}`}
       style={{
         width: '100%',
         minHeight: '100vh',
@@ -683,7 +670,23 @@ export default function HistoriMacPicker({
                               }),
                         }}
                       >
-                        Run
+                        {historiMacRunUsesImage(cardTheme) ? (
+                          <img
+                            src={historiMacRunImageSrc(cardTheme)}
+                            alt=""
+                            draggable={false}
+                            style={{
+                              display: 'block',
+                              height: 'auto',
+                              width: 'auto',
+                              maxHeight: 48,
+                              maxWidth: 'min(100%, 240px)',
+                              imageRendering: 'pixelated',
+                            }}
+                          />
+                        ) : (
+                          'Run'
+                        )}
                       </button>
                     </div>
                   </article>

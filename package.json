@@ -11,7 +11,8 @@
         "lint": "next lint",
         "deploy": "firebase deploy",
         "deploy:full": "firebase deploy",
-        "deploy:hosting": "firebase deploy --only hosting"
+        "deploy:hosting": "firebase deploy --only hosting",
+        "historimac:run-png": "node scripts/historimac-transparent-run-png.mjs"
     },
     "dependencies": {
         "@genkit-ai/googleai": "^1.28.0",
@@ -44,6 +45,7 @@
         "eslint-config-next": "^15.5.12",
         "firebase-tools": "^15.5.1",
         "ignore-loader": "^0.1.2",
+        "pngjs": "^7.0.0",
         "postcss": "^8.4.40",
         "tailwindcss": "^3.4.7",
         "typescript": "^5.5.4"

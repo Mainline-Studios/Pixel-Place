@@ -58,16 +58,6 @@ export const THEME_FONT_CLASSIC_SANS = '"Helvetica Neue", Helvetica, Arial, sans
 /** Run label — Chicago was bitmap; bold condensed sans reads closest on the web */
 export const THEME_FONT_CHICAGO_LIKE = '"Helvetica Neue", Helvetica, Arial, sans-serif';
 
-/**
- * Bitmap-style Run labels — CSS vars from `next/font` on `[data-historimac-root]` (HistoriMacPicker).
- * Fallbacks keep UI usable if the picker root isn’t font-wrapped.
- */
-export const HISTORIMAC_FONT_STACK_CLASSIC_RUN =
-  'var(--font-historimac-chicago), Geneva, ui-monospace, monospace';
-
-export const HISTORIMAC_FONT_STACK_PLATINUM_RUN =
-  'var(--font-historimac-charcoal), "Arial Narrow", "Arial Hebrew Narrow", Arial, sans-serif';
-
 export function inferHistoriMacCardTheme(v: HistoriMacVersion): HistoriMacCardTheme {
   if (v.id === 'nextstep1') return 'next';
   if (v.id.startsWith('osx')) return 'aqua';
@@ -115,40 +105,16 @@ export function cardArticleStyle(theme: HistoriMacCardTheme): CSSProperties {
 export function cardRunButtonStyle(theme: HistoriMacCardTheme): CSSProperties {
   switch (theme) {
     case 'classic':
-      /** System 1–6: flat control — no drop/inset shadows, no 3D bevel */
-      return {
-        ...classicPlatinumTextRenderStyle,
-        fontFamily: HISTORIMAC_FONT_STACK_CLASSIC_RUN,
-        fontWeight: 700,
-        fontSize: 13,
-        letterSpacing: '0.06em',
-        color: '#000000',
-        backgroundColor: '#d8d8d8',
-        border: '2px solid #000000',
-        borderRadius: 0,
-        padding: '9px 28px',
-        cursor: 'pointer',
-        boxShadow: 'none',
-      };
     case 'platinum':
-      /** Mac OS 8/9: 1px black frame, 1px white top/left + dark bottom/right inset bevel, solid gray */
+      /** PNG Run art — chrome is in the image; button is invisible hit target */
       return {
-        ...classicPlatinumTextRenderStyle,
-        fontFamily: HISTORIMAC_FONT_STACK_PLATINUM_RUN,
-        fontWeight: 700,
-        fontSize: 13,
-        letterSpacing: '0.02em',
-        fontStretch: 'condensed',
-        color: '#000000',
-        backgroundColor: '#c4c4c4',
-        border: '1px solid #000000',
-        borderRadius: 2,
-        padding: '8px 26px',
+        border: 'none',
+        background: 'transparent',
+        padding: 0,
+        margin: 0,
+        boxShadow: 'none',
+        lineHeight: 0,
         cursor: 'pointer',
-        boxShadow: `
-          inset 1px 1px 0 #ffffff,
-          inset -1px -1px 0 #606060
-        `,
       };
     case 'next':
       return {
