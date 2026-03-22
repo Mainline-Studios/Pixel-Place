@@ -1,10 +1,8 @@
 /** @type {import('next').NextConfig} */
-const isAppHostingBuild =
-  process.env.NEXT_PRIVATE_STANDALONE === 'true' ||
-  Boolean(process.env.FIREBASE_WEBAPP_CONFIG);
+const useStaticExport = process.env.NEXT_OUTPUT_EXPORT === 'true';
 
 const nextConfig = {
-  output: isAppHostingBuild ? undefined : 'export',
+  output: useStaticExport ? 'export' : undefined,
   images: {
     unoptimized: true
   },
