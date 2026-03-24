@@ -10,7 +10,7 @@ type UrgentPayload = { message: string; dismissKey: string };
 
 /**
  * Urgent bar from /status-page: scrolls long text once, then pauses and auto-dismisses.
- * Same dismissKey (updatedAt + message) won't show again until storage cleared or payload changes.
+ * Same dismissKey (updatedAt + message) won't show again in this tab until payload changes.
  */
 export default function UrgentGameBanner() {
   const [payload, setPayload] = useState<UrgentPayload | null>(null);
@@ -190,10 +190,6 @@ export default function UrgentGameBanner() {
             Status ↗
           </a>
         </div>
-        <p className="urgent-game-banner__sub">
-          Custom colors or themes here may look off while we work on this — that&apos;s expected.
-          Official details on the status page.
-        </p>
       </div>
       <div className="urgent-game-banner__strip" aria-hidden />
     </div>
