@@ -332,6 +332,123 @@ textarea {
   text-align: left;
 }
 
+/* Urgent alert — same source as status site; above splash/ban/login/game */
+.urgent-game-banner {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 10050;
+  text-align: center;
+  border-bottom: 2px solid #0a0a0a;
+  box-shadow: 0 6px 28px rgba(185, 28, 28, 0.55);
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+}
+
+.urgent-game-banner__strip {
+  height: 4px;
+  background: linear-gradient(90deg, #0a0a0a 0%, #262626 50%, #0a0a0a 100%);
+}
+
+.urgent-game-banner__inner {
+  background: linear-gradient(180deg, #991b1b 0%, #b91c1c 35%, #dc2626 50%, #b91c1c 65%, #991b1b 100%);
+  padding: 10px 14px 12px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 12px;
+  animation: urgent-game-pulse 2.8s ease-in-out infinite;
+}
+
+@keyframes urgent-game-pulse {
+  0%,
+  100% {
+    filter: brightness(1);
+  }
+  50% {
+    filter: brightness(1.1);
+  }
+}
+
+.urgent-game-banner__badge {
+  flex-shrink: 0;
+  font-weight: 900;
+  font-size: 0.65rem;
+  letter-spacing: 0.22em;
+  text-indent: 0.22em;
+  color: #fef08a;
+  text-shadow: 0 0 10px rgba(0, 0, 0, 0.95);
+  padding: 5px 8px;
+  border: 2px solid rgba(254, 240, 138, 0.85);
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.35);
+  margin-top: 2px;
+}
+
+.urgent-game-banner__copy {
+  flex: 1 1 200px;
+  min-width: 0;
+  text-align: left;
+}
+
+.urgent-game-banner__text {
+  margin: 0;
+  color: #fff;
+  font-weight: 800;
+  font-size: 0.88rem;
+  line-height: 1.35;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.85);
+}
+
+.urgent-game-banner__sub {
+  margin: 6px 0 0;
+  color: rgba(255, 255, 255, 0.88);
+  font-size: 0.72rem;
+  line-height: 1.4;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  text-transform: none;
+}
+
+.urgent-game-banner__link {
+  flex-shrink: 0;
+  align-self: center;
+  color: #fef08a !important;
+  font-weight: 800;
+  font-size: 0.75rem;
+  letter-spacing: 0.06em;
+  text-decoration: none !important;
+  padding: 8px 12px;
+  border: 1px solid rgba(254, 240, 138, 0.6);
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.25);
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.urgent-game-banner__link:hover {
+  background: rgba(0, 0, 0, 0.45);
+  border-color: #fef08a;
+}
+
+.urgent-game-banner__link:focus-visible {
+  outline: 2px solid #fef08a;
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .urgent-game-banner__inner {
+    animation: none;
+  }
+}
+
+/* Push scrollable app below fixed urgent bar */
+body.has-urgent-game-banner {
+  padding-top: var(--urgent-game-banner-h, 0px);
+}
+
 .login-box {
   width: 420px;
   background: rgba(45, 45, 50, 0.98);

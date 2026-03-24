@@ -13,6 +13,7 @@ import { getPlaytimeTracker } from '@/lib/playtimeTracker';
 import { User } from '@/types';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import KonamiCodeEasterEgg from '@/components/KonamiCodeEasterEgg';
+import UrgentGameBanner from '@/components/UrgentGameBanner';
 
 function AppContent() {
   const { user, bannedSession, clearBannedSession, deviceBannedSession, clearDeviceBannedSession, isRestoring } = useUser();
@@ -50,6 +51,7 @@ function AppContent() {
 
   return (
     <>
+      <UrgentGameBanner />
       {!showSplash && <LoginNotice />}
       {showSplash ? (
         <SplashScreen onComplete={() => setShowSplash(false)} />
