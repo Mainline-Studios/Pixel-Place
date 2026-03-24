@@ -70,6 +70,15 @@ After deploy, the app will be live at:
 - `https://pixel-place-823b1.web.app`
 - `https://pixel-place-823b1.firebaseapp.com`
 
+## Status page (`status.` subdomain)
+
+- **Source:** `status-site/` (static `index.html` + `status.json`).
+- **Firebase site:** `pixelplace-status` → `https://pixelplace-status.web.app` and custom domain **`status.pixelplaceofficial.com`** (CNAME to `pixelplace-status.web.app`).
+- **Deploy status only (no Next build):** `npm run deploy:status`
+- **Multi-site:** Root `firebase.json` has two Hosting targets. **`.firebaserc`** maps `main` → `pixel-place-823b1` and `status` → `pixelplace-status`. If **`pixelplaceofficial.com`** ever points at the wrong site after a deploy, run `firebase hosting:sites:list` and fix the **`main`** site ID in **`.firebaserc`** so it matches the site that lists your apex domain.
+
+Details: **`status-site/README.md`**.
+
 ## 3. Add custom domain (pixelplaceofficial.com)
 
 1. Go to [Firebase Console](https://console.firebase.google.com/) → **pixel-place-823b1** → **Hosting**

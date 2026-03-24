@@ -41,7 +41,84 @@ const COLLECTIONS = {
   GAME_SUBMISSIONS: 'game_submissions',
   PRESENCE: 'presence',
   GAME_SESSIONS: 'game_sessions',
+  STATUS_PAGE: 'status_page',
 };
+
+/** Public status page payload (mirrors status-site/status.json). */
+const DEFAULT_STATUS_PAGE = {
+  updatedAt: '2026-03-24T12:00:00.000Z',
+  pixelPlace: {
+    status: 'operational' as string,
+    title: 'Pixel Place',
+    message:
+      'We are shipping updates regularly. Play and account services are expected to be available. Check here if something feels off.',
+    glowColor: '' as string,
+    accentColor: '' as string,
+    headerTitle: '' as string,
+    headerSubtitle: '' as string,
+    customStatusLabel: '' as string,
+  },
+  maintenance: {
+    active: false as boolean,
+    message: '' as string,
+    accentColor: '' as string,
+  },
+};
+
+const STATUS_ALLOWED = new Set(['operational', 'degraded', 'maintenance', 'outage']);
+const STATUS_TITLE_MAX = 200;
+const STATUS_MSG_MAX = 5000;
+const MAINT_MSG_MAX = 2000;
+const HEADER_TITLE_MAX = 120;
+const HEADER_SUB_MAX = 400;
+const CUSTOM_LABEL_MAX = 64;
+
+function sanitizeStatusHex(v: unknown): string {
+  const x = String(v ?? '').trim();
+  if (!x) return '';
+  if (/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/.test(x)) return x;
+  return '';
+}
+
+function normalizeStatusPagePayload(body: any): { ok: true; data: typeof DEFAULT_STATUS_PAGE } | { ok: false; error: string } {
+  const pp = body?.pixelPlace;
+  const mt = body?.maintenance;
+  if (!pp || typeof pp !== 'object' || !mt || typeof mt !== 'object') {
+    return { ok: false, error: 'pixelPlace and maintenance objects required' };
+  }
+  const status = String(pp.status || 'operational').toLowerCase();
+  if (!STATUS_ALLOWED.has(status)) return { ok: false, error: 'Invalid pixelPlace.status' };
+  const title = String(pp.title ?? 'Pixel Place').slice(0, STATUS_TITLE_MAX);
+  const message = String(pp.message ?? '').slice(0, STATUS_MSG_MAX);
+  const glowColor = sanitizeStatusHex(pp.glowColor);
+  const accentColor = sanitizeStatusHex(pp.accentColor);
+  const headerTitle = String(pp.headerTitle ?? '').slice(0, HEADER_TITLE_MAX);
+  const headerSubtitle = String(pp.headerSubtitle ?? '').slice(0, HEADER_SUB_MAX);
+  const customStatusLabel = String(pp.customStatusLabel ?? '').slice(0, CUSTOM_LABEL_MAX);
+  const active = mt.active === true;
+  const mMsg = String(mt.message ?? '').slice(0, MAINT_MSG_MAX);
+  const maintAccent = sanitizeStatusHex(mt.accentColor);
+  return {
+    ok: true,
+    data: {
+      updatedAt: new Date().toISOString(),
+      pixelPlace: { status, title, message, glowColor, accentColor, headerTitle, headerSubtitle, customStatusLabel },
+      maintenance: { active, message: mMsg, accentColor: maintAccent },
+    },
+  };
+}
+
+function cloneDefaultStatusPage(): typeof DEFAULT_STATUS_PAGE {
+  return JSON.parse(JSON.stringify(DEFAULT_STATUS_PAGE)) as typeof DEFAULT_STATUS_PAGE;
+}
+
+async function readStatusPagePayload(): Promise<typeof DEFAULT_STATUS_PAGE> {
+  const snap = await db.collection(COLLECTIONS.STATUS_PAGE).doc('current').get();
+  if (!snap.exists) return cloneDefaultStatusPage();
+  const n = normalizeStatusPagePayload(snap.data());
+  if (!n.ok) return cloneDefaultStatusPage();
+  return n.data;
+}
 
 import { requireAuth, requireAdmin, requireOwnerOrAdmin, getAuthFromRequest, isAdmin, getJwtSecret } from './authMiddleware';
 
@@ -1208,6 +1285,32 @@ app.post('/api/chat', (req, res) => handleChat(req, res));
 import { handleHistoriMacCopilotTurn } from './historimac-copilot-turn';
 app.post('/historimac-copilot-turn', (req, res) => void handleHistoriMacCopilotTurn(req, res));
 app.post('/api/historimac-copilot-turn', (req, res) => void handleHistoriMacCopilotTurn(req, res));
+
+// Public status page JSON (status.pixelplaceofficial.com); admin updates via PUT
+const getStatusPageHandler = async (_req: any, res: any) => {
+  try {
+    const payload = await readStatusPagePayload();
+    res.json(payload);
+  } catch (e) {
+    res.status(500).json({ error: 'Failed to read status' });
+  }
+};
+const putStatusPageHandler = async (req: any, res: any) => {
+  const auth = requireAdmin(req, res);
+  if (!auth) return;
+  const n = normalizeStatusPagePayload(req.body);
+  if (!n.ok) return res.status(400).json({ error: n.error });
+  try {
+    await db.collection(COLLECTIONS.STATUS_PAGE).doc('current').set(n.data);
+    res.json({ success: true, ...n.data });
+  } catch (e) {
+    res.status(500).json({ error: 'Failed to save status' });
+  }
+};
+app.get('/status-page', getStatusPageHandler);
+app.get('/api/status-page', getStatusPageHandler);
+app.put('/status-page', putStatusPageHandler);
+app.put('/api/status-page', putStatusPageHandler);
 
 // 404 for unknown routes (include path debug so we can see what Express received)
 app.use((req: any, res) => {

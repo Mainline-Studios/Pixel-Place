@@ -12,6 +12,7 @@
         "deploy": "firebase deploy",
         "deploy:full": "firebase deploy",
         "deploy:hosting": "firebase deploy --only hosting",
+        "deploy:status": "firebase deploy --only hosting:status",
         "historimac:run-png": "node scripts/historimac-transparent-run-png.mjs"
     },
     "dependencies": {

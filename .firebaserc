@@ -1,5 +1,13 @@
 {
   "projects": {
     "default": "pixel-place-823b1"
+  },
+  "targets": {
+    "pixel-place-823b1": {
+      "hosting": {
+        "main": ["pixel-place-823b1"],
+        "status": ["pixelplace-status"]
+      }
+    }
   }
 }

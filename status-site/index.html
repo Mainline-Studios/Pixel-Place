@@ -1,0 +1,829 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="Pixel Place and Firebase service status — updates, outages, and official links." />
+    <title>Pixel Place — Status</title>
+    <link rel="icon" href="https://pixelplaceofficial.com/logo.png" type="image/png" />
+    <style>
+      :root {
+        --bg: #0c0e14;
+        --panel: #161a24;
+        --border: rgba(255, 255, 255, 0.08);
+        --text: #e8e8ef;
+        --muted: #8b90a8;
+        --ok: #34d399;
+        --warn: #fbbf24;
+        --bad: #f87171;
+        --accent: #5ecfff;
+        --pp-glow: var(--ok);
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+        background: var(--bg);
+        color: var(--text);
+        line-height: 1.5;
+      }
+      .wrap {
+        max-width: 640px;
+        margin: 0 auto;
+        padding: 32px 20px 48px;
+      }
+      header {
+        margin-bottom: 28px;
+      }
+      h1 {
+        margin: 0 0 8px;
+        font-size: 1.5rem;
+        font-weight: 800;
+        letter-spacing: -0.02em;
+      }
+      .sub {
+        color: var(--muted);
+        font-size: 0.95rem;
+      }
+      .card {
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        padding: 18px 20px;
+        margin-bottom: 16px;
+      }
+      .card h2 {
+        margin: 0 0 12px;
+        font-size: 0.75rem;
+        font-weight: 700;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--muted);
+      }
+      .pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        font-weight: 700;
+        font-size: 0.95rem;
+        margin-bottom: 10px;
+      }
+      .dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        flex-shrink: 0;
+      }
+      .st-ok .dot {
+        background: var(--ok);
+        box-shadow: 0 0 12px var(--ok);
+      }
+      .st-warn .dot {
+        background: var(--warn);
+        box-shadow: 0 0 12px var(--warn);
+      }
+      .st-bad .dot {
+        background: var(--bad);
+        box-shadow: 0 0 12px var(--bad);
+      }
+      .st-custom .dot {
+        background: var(--pp-glow);
+        box-shadow:
+          0 0 14px var(--pp-glow),
+          0 0 28px color-mix(in srgb, var(--pp-glow) 45%, transparent);
+      }
+      .msg {
+        color: var(--muted);
+        font-size: 0.9rem;
+        margin: 0;
+        white-space: pre-wrap;
+      }
+      .banner {
+        background: linear-gradient(135deg, rgba(251, 191, 36, 0.15), rgba(245, 158, 11, 0.08));
+        border-color: rgba(251, 191, 36, 0.35);
+        margin-bottom: 20px;
+      }
+      .banner .msg {
+        color: #fde68a;
+      }
+      .banner.banner-custom .msg {
+        color: rgba(255, 252, 245, 0.95);
+      }
+      a {
+        color: var(--accent);
+        text-decoration: none;
+        font-weight: 600;
+      }
+      a:hover {
+        text-decoration: underline;
+        text-underline-offset: 3px;
+      }
+      ul.links {
+        margin: 0;
+        padding-left: 1.1rem;
+        color: var(--muted);
+        font-size: 0.9rem;
+      }
+      ul.links li {
+        margin-bottom: 8px;
+      }
+      footer {
+        margin-top: 32px;
+        padding-top: 20px;
+        border-top: 1px solid var(--border);
+        font-size: 0.8rem;
+        color: var(--muted);
+      }
+      .home {
+        display: inline-block;
+        margin-top: 8px;
+      }
+      .admin-card {
+        margin-top: 24px;
+      }
+      .admin-card summary {
+        cursor: pointer;
+        font-weight: 700;
+        color: var(--muted);
+        font-size: 0.8rem;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        list-style: none;
+      }
+      .admin-card summary::-webkit-details-marker {
+        display: none;
+      }
+      .admin-inner {
+        margin-top: 16px;
+        padding-top: 16px;
+        border-top: 1px solid var(--border);
+      }
+      .field {
+        margin-bottom: 14px;
+      }
+      .field label {
+        display: block;
+        font-size: 0.75rem;
+        font-weight: 600;
+        color: var(--muted);
+        margin-bottom: 6px;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+      }
+      .field input[type='text'],
+      .field input[type='password'],
+      .field textarea,
+      .field select {
+        width: 100%;
+        padding: 10px 12px;
+        border-radius: 10px;
+        border: 1px solid var(--border);
+        background: rgba(0, 0, 0, 0.25);
+        color: var(--text);
+        font-size: 0.9rem;
+        font-family: inherit;
+      }
+      .field textarea {
+        min-height: 100px;
+        resize: vertical;
+      }
+      .row-colors {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        align-items: center;
+      }
+      .row-colors input[type='color'] {
+        width: 48px;
+        height: 40px;
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 2px;
+        cursor: pointer;
+        background: transparent;
+      }
+      .row-colors input[type='text'] {
+        flex: 1;
+        min-width: 120px;
+      }
+      .btn-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-top: 16px;
+      }
+      button {
+        padding: 10px 18px;
+        border-radius: 10px;
+        border: 1px solid var(--border);
+        background: rgba(94, 207, 255, 0.12);
+        color: var(--accent);
+        font-weight: 700;
+        font-size: 0.9rem;
+        cursor: pointer;
+        font-family: inherit;
+      }
+      button.secondary {
+        background: transparent;
+        color: var(--muted);
+      }
+      button:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+      .hint {
+        font-size: 0.8rem;
+        color: var(--muted);
+        margin-top: 4px;
+      }
+      .err {
+        color: var(--bad);
+        font-size: 0.85rem;
+        margin-top: 8px;
+      }
+      .chk {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      .chk input {
+        width: 18px;
+        height: 18px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <header>
+        <h1 id="page-title">Pixel Place status</h1>
+        <p class="sub" id="page-sub">
+          Updates, planned work, and third‑party dependencies (Firebase / Google Cloud).
+        </p>
+      </header>
+
+      <div id="maintenance-banner" class="card banner" hidden>
+        <h2>Maintenance</h2>
+        <p class="msg" id="maintenance-text"></p>
+      </div>
+
+      <div class="card" id="pp-card">
+        <h2 id="pp-card-heading">Pixel Place</h2>
+        <div class="pill st-ok" id="pp-pill">
+          <span class="dot" aria-hidden="true"></span>
+          <span id="pp-status-label">Loading…</span>
+        </div>
+        <p class="msg" id="pp-message">Checking status…</p>
+      </div>
+
+      <div class="card">
+        <h2>Firebase &amp; Google Cloud</h2>
+        <p class="msg" style="margin-bottom: 12px">
+          Pixel Place relies on Firebase (Auth, Firestore, Hosting, Functions, and more). Regional or product outages
+          there can affect login, saves, or the site even when our own release is healthy.
+        </p>
+        <ul class="links">
+          <li>
+            <a href="https://status.firebase.google.com/" target="_blank" rel="noopener noreferrer"
+              >Firebase status dashboard</a
+            >
+            — official incidents and availability
+          </li>
+          <li>
+            <a href="https://status.cloud.google.com/" target="_blank" rel="noopener noreferrer"
+              >Google Cloud status</a
+            >
+            — underlying infrastructure
+          </li>
+        </ul>
+      </div>
+
+      <div class="card">
+        <h2>Still updating?</h2>
+        <p class="msg">
+          We ship improvements often. If the main site looks unchanged after a release, try a hard refresh
+          (e.g. Cmd+Shift+R / Ctrl+Shift+R) or a private window — caches can lag briefly.
+        </p>
+      </div>
+
+      <details class="card admin-card" id="admin-details">
+        <summary>Admin — edit status</summary>
+        <div class="admin-inner">
+          <div id="login-block">
+            <p class="msg" style="margin-bottom: 12px">
+              Sign in with a Pixel Place account. Only <strong>admin</strong> or <strong>head_admin</strong> can save changes.
+            </p>
+            <div class="field">
+              <label for="login-user">Username</label>
+              <input type="text" id="login-user" autocomplete="username" />
+            </div>
+            <div class="field">
+              <label for="login-pass">Password</label>
+              <input type="password" id="login-pass" autocomplete="current-password" />
+            </div>
+            <div class="btn-row">
+              <button type="button" id="btn-login">Sign in</button>
+            </div>
+            <p class="err" id="login-err" hidden></p>
+          </div>
+          <div id="editor-block" hidden>
+            <p class="msg" style="margin-bottom: 12px">
+              Signed in as <strong id="editor-user"></strong>. Changes apply to the live status page for everyone.
+            </p>
+            <div id="non-admin-note" class="err" hidden>Your account is not an admin — viewing only.</div>
+            <div id="form-fields" hidden>
+              <div class="field">
+                <label for="f-header-title">Page title</label>
+                <input type="text" id="f-header-title" maxlength="120" placeholder="Pixel Place status" />
+                <p class="hint">Main heading at the top (optional).</p>
+              </div>
+              <div class="field">
+                <label for="f-header-sub">Page subtitle</label>
+                <textarea id="f-header-sub" maxlength="400" rows="2" placeholder="Short line under the title"></textarea>
+              </div>
+              <div class="field">
+                <label for="f-card-title">Service card title</label>
+                <input type="text" id="f-card-title" maxlength="200" />
+              </div>
+              <div class="field">
+                <label for="f-status">Status</label>
+                <select id="f-status">
+                  <option value="operational">Operational</option>
+                  <option value="degraded">Degraded</option>
+                  <option value="maintenance">Maintenance</option>
+                  <option value="outage">Outage</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="f-custom-label">Custom status label</label>
+                <input type="text" id="f-custom-label" maxlength="64" placeholder="e.g. Rolling out v2" />
+                <p class="hint">Overrides the default word next to the dot (Operational, etc.). Leave blank to use the default.</p>
+              </div>
+              <div class="field">
+                <label for="f-message">Public description</label>
+                <textarea id="f-message" maxlength="5000" rows="5" placeholder="What players should know…"></textarea>
+              </div>
+              <div class="field">
+                <label>Status glow color</label>
+                <div class="row-colors">
+                  <input type="color" id="f-glow-color-pick" value="#34d399" />
+                  <input type="text" id="f-glow-color" placeholder="#hex or empty for auto" maxlength="9" />
+                </div>
+                <p class="hint">Color of the status dot and glow. Clear the hex field to match status type (green / amber / red).</p>
+              </div>
+              <div class="field">
+                <label>Link accent color</label>
+                <div class="row-colors">
+                  <input type="color" id="f-accent-color-pick" value="#5ecfff" />
+                  <input type="text" id="f-accent-color" placeholder="#hex or empty for default" maxlength="9" />
+                </div>
+              </div>
+              <div class="field chk">
+                <input type="checkbox" id="f-maint-active" />
+                <label for="f-maint-active" style="margin: 0; text-transform: none; letter-spacing: normal">Show maintenance banner</label>
+              </div>
+              <div class="field">
+                <label for="f-maint-msg">Maintenance message</label>
+                <textarea id="f-maint-msg" maxlength="2000" rows="3"></textarea>
+              </div>
+              <div class="field">
+                <label>Maintenance banner tint</label>
+                <div class="row-colors">
+                  <input type="color" id="f-maint-accent-pick" value="#fbbf24" />
+                  <input type="text" id="f-maint-accent" placeholder="#hex or empty for default gold" maxlength="9" />
+                </div>
+              </div>
+              <div class="btn-row">
+                <button type="button" id="btn-save">Save to live status</button>
+                <button type="button" class="secondary" id="btn-logout">Sign out</button>
+              </div>
+              <p class="err" id="save-err" hidden></p>
+              <p class="hint" id="save-ok" hidden style="color: var(--ok)">Saved.</p>
+            </div>
+          </div>
+        </div>
+      </details>
+
+      <footer>
+        <span id="updated-at"></span>
+        <a class="home" href="https://pixelplaceofficial.com/">← pixelplaceofficial.com</a>
+      </footer>
+    </div>
+    <script>
+      (function () {
+        var API_BASE = 'https://us-central1-pixel-place-823b1.cloudfunctions.net/api';
+        var TOKEN_KEY = 'pp_status_token';
+        var USER_KEY = 'pp_status_user';
+
+        var DEFAULT_HEADER_TITLE = 'Pixel Place status';
+        var DEFAULT_HEADER_SUB =
+          'Updates, planned work, and third‑party dependencies (Firebase / Google Cloud).';
+
+        function mergeDefaults(raw) {
+          var d = raw && typeof raw === 'object' ? raw : {};
+          var pp = d.pixelPlace && typeof d.pixelPlace === 'object' ? d.pixelPlace : {};
+          var mt = d.maintenance && typeof d.maintenance === 'object' ? d.maintenance : {};
+          return {
+            updatedAt: d.updatedAt || '',
+            pixelPlace: {
+              status: pp.status || 'operational',
+              title: pp.title || 'Pixel Place',
+              message: pp.message || '',
+              glowColor: pp.glowColor || '',
+              accentColor: pp.accentColor || '',
+              headerTitle: pp.headerTitle || '',
+              headerSubtitle: pp.headerSubtitle || '',
+              customStatusLabel: pp.customStatusLabel || '',
+            },
+            maintenance: {
+              active: !!mt.active,
+              message: mt.message || '',
+              accentColor: mt.accentColor || '',
+            },
+          };
+        }
+
+        function hexToRgb(hex) {
+          if (!hex || hex[0] !== '#') return null;
+          var h = hex.slice(1);
+          if (h.length === 3)
+            h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2];
+          if (h.length === 4)
+            h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2] + h[3] + h[3];
+          if (h.length !== 6 && h.length !== 8) return null;
+          var n = parseInt(h.slice(0, 6), 16);
+          if (isNaN(n)) return null;
+          return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255 };
+        }
+
+        function maintBannerStyle(hex) {
+          var rgb = hexToRgb(hex);
+          if (!rgb) return null;
+          return (
+            'background:linear-gradient(135deg,rgba(' +
+            rgb.r +
+            ',' +
+            rgb.g +
+            ',' +
+            rgb.b +
+            ',0.24),rgba(' +
+            rgb.r +
+            ',' +
+            rgb.g +
+            ',' +
+            rgb.b +
+            ',0.1));border-color:rgba(' +
+            rgb.r +
+            ',' +
+            rgb.g +
+            ',' +
+            rgb.b +
+            ',0.42)'
+          );
+        }
+
+        function setPp(data) {
+          var pp = data.pixelPlace || {};
+          var status = pp.status || 'operational';
+          var pill = document.getElementById('pp-pill');
+          var label = document.getElementById('pp-status-label');
+          var msg = document.getElementById('pp-message');
+          var root = document.documentElement;
+          var glow = (pp.glowColor || '').trim();
+
+          pill.classList.remove('st-ok', 'st-warn', 'st-bad', 'st-custom');
+          if (glow && /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/.test(glow)) {
+            root.style.setProperty('--pp-glow', glow);
+            pill.classList.add('st-custom');
+          } else {
+            root.style.removeProperty('--pp-glow');
+            var map = { operational: 'st-ok', degraded: 'st-warn', maintenance: 'st-warn', outage: 'st-bad' };
+            pill.classList.add(map[status] || 'st-ok');
+          }
+
+          var labels = {
+            operational: 'Operational',
+            degraded: 'Degraded',
+            maintenance: 'Maintenance',
+            outage: 'Outage',
+          };
+          var custom = (pp.customStatusLabel || '').trim();
+          label.textContent = custom || labels[status] || 'Operational';
+          msg.textContent = pp.message || '';
+
+          document.getElementById('pp-card-heading').textContent = pp.title || 'Pixel Place';
+
+          var ht = (pp.headerTitle || '').trim();
+          var hs = (pp.headerSubtitle || '').trim();
+          document.getElementById('page-title').textContent = ht || DEFAULT_HEADER_TITLE;
+          document.getElementById('page-sub').textContent = hs || DEFAULT_HEADER_SUB;
+
+          var ac = (pp.accentColor || '').trim();
+          if (ac && /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/.test(ac)) {
+            root.style.setProperty('--accent', ac);
+          } else {
+            root.style.removeProperty('--accent');
+          }
+        }
+
+        function setMaintenance(data) {
+          var mt = data.maintenance || {};
+          var b = document.getElementById('maintenance-banner');
+          var txt = document.getElementById('maintenance-text');
+          if (mt.active && (mt.message || '').trim()) {
+            txt.textContent = mt.message;
+            b.hidden = false;
+            var styleStr = maintBannerStyle((mt.accentColor || '').trim());
+            if (styleStr) {
+              b.classList.add('banner-custom');
+              b.setAttribute('style', styleStr);
+            } else {
+              b.classList.remove('banner-custom');
+              b.removeAttribute('style');
+            }
+          } else {
+            b.hidden = true;
+            b.classList.remove('banner-custom');
+            b.removeAttribute('style');
+          }
+        }
+
+        function fmtDate(iso) {
+          if (!iso) return '';
+          try {
+            var d = new Date(iso);
+            return 'Last updated: ' + d.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
+          } catch (e) {
+            return '';
+          }
+        }
+
+        function applyPayload(data) {
+          var merged = mergeDefaults(data);
+          setPp(merged);
+          setMaintenance(merged);
+          document.getElementById('updated-at').textContent = fmtDate(merged.updatedAt);
+          return merged;
+        }
+
+        var lastPayload = null;
+
+        function loadStatus() {
+          return fetch(API_BASE + '/status-page?' + Date.now())
+            .then(function (r) {
+              if (!r.ok) throw new Error('api');
+              return r.json();
+            })
+            .then(function (data) {
+              lastPayload = applyPayload(data);
+            })
+            .catch(function () {
+              return fetch('/status.json?' + Date.now())
+                .then(function (r) {
+                  return r.json();
+                })
+                .then(function (data) {
+                  lastPayload = applyPayload(data);
+                })
+                .catch(function () {
+                  applyPayload({
+                    pixelPlace: {
+                      status: 'operational',
+                      message:
+                        'Could not load status. Defaulting to operational — see Firebase links above for provider outages.',
+                    },
+                  });
+                });
+            });
+        }
+
+        function isAdminRole(role) {
+          return role === 'admin' || role === 'head_admin';
+        }
+
+        function getToken() {
+          try {
+            return sessionStorage.getItem(TOKEN_KEY) || '';
+          } catch (e) {
+            return '';
+          }
+        }
+
+        function getUser() {
+          try {
+            var s = sessionStorage.getItem(USER_KEY);
+            return s ? JSON.parse(s) : null;
+          } catch (e) {
+            return null;
+          }
+        }
+
+        function setSession(token, user) {
+          try {
+            sessionStorage.setItem(TOKEN_KEY, token);
+            sessionStorage.setItem(USER_KEY, JSON.stringify(user));
+          } catch (e) {}
+        }
+
+        function clearSession() {
+          try {
+            sessionStorage.removeItem(TOKEN_KEY);
+            sessionStorage.removeItem(USER_KEY);
+          } catch (e) {}
+        }
+
+        function wireColorPair(pickId, textId, fallbackHex) {
+          var pick = document.getElementById(pickId);
+          var text = document.getElementById(textId);
+          function syncPickFromText() {
+            var v = (text.value || '').trim();
+            if (/^#([0-9a-fA-F]{6}|[0-9a-fA-F]{3})$/.test(v)) {
+              var h = v.length === 4 ? '#' + v[1] + v[1] + v[2] + v[2] + v[3] + v[3] : v;
+              pick.value = h.length === 7 ? h : pick.value;
+            }
+          }
+          function syncTextFromPick() {
+            text.value = pick.value;
+          }
+          pick.addEventListener('input', syncTextFromPick);
+          text.addEventListener('input', syncPickFromText);
+          return {
+            set: function (hex) {
+              var h = (hex || '').trim();
+              if (h && /^#([0-9a-fA-F]{3,8})$/.test(h)) {
+                if (h.length === 4) {
+                  h = '#' + h[1] + h[1] + h[2] + h[2] + h[3] + h[3];
+                }
+                if (h.length === 7) pick.value = h;
+                text.value = hex.trim();
+              } else {
+                pick.value = fallbackHex;
+                text.value = '';
+              }
+            },
+            get: function () {
+              return (text.value || '').trim();
+            },
+          };
+        }
+
+        var glowPair = wireColorPair('f-glow-color-pick', 'f-glow-color', '#34d399');
+        var accentPair = wireColorPair('f-accent-color-pick', 'f-accent-color', '#5ecfff');
+        var maintPair = wireColorPair('f-maint-accent-pick', 'f-maint-accent', '#fbbf24');
+
+        function fillFormFromPayload(data) {
+          var pp = data.pixelPlace || {};
+          var mt = data.maintenance || {};
+          document.getElementById('f-header-title').value = pp.headerTitle || '';
+          document.getElementById('f-header-sub').value = pp.headerSubtitle || '';
+          document.getElementById('f-card-title').value = pp.title || 'Pixel Place';
+          document.getElementById('f-status').value = pp.status || 'operational';
+          document.getElementById('f-custom-label').value = pp.customStatusLabel || '';
+          document.getElementById('f-message').value = pp.message || '';
+          glowPair.set(pp.glowColor || '');
+          accentPair.set(pp.accentColor || '');
+          document.getElementById('f-maint-active').checked = !!mt.active;
+          document.getElementById('f-maint-msg').value = mt.message || '';
+          maintPair.set(mt.accentColor || '');
+        }
+
+        function collectPayload() {
+          return {
+            pixelPlace: {
+              status: document.getElementById('f-status').value,
+              title: document.getElementById('f-card-title').value.trim() || 'Pixel Place',
+              message: document.getElementById('f-message').value,
+              glowColor: glowPair.get(),
+              accentColor: accentPair.get(),
+              headerTitle: document.getElementById('f-header-title').value.trim(),
+              headerSubtitle: document.getElementById('f-header-sub').value.trim(),
+              customStatusLabel: document.getElementById('f-custom-label').value.trim(),
+            },
+            maintenance: {
+              active: document.getElementById('f-maint-active').checked,
+              message: document.getElementById('f-maint-msg').value,
+              accentColor: maintPair.get(),
+            },
+          };
+        }
+
+        function updateEditorUi() {
+          var u = getUser();
+          var token = getToken();
+          var loginBlock = document.getElementById('login-block');
+          var editorBlock = document.getElementById('editor-block');
+          var formFields = document.getElementById('form-fields');
+          var nonAdmin = document.getElementById('non-admin-note');
+          document.getElementById('login-err').hidden = true;
+          if (token && u && u.username) {
+            loginBlock.hidden = true;
+            editorBlock.hidden = false;
+            document.getElementById('editor-user').textContent = u.username;
+            if (isAdminRole(u.role)) {
+              nonAdmin.hidden = true;
+              formFields.hidden = false;
+              if (lastPayload) fillFormFromPayload(lastPayload);
+            } else {
+              nonAdmin.hidden = false;
+              formFields.hidden = true;
+            }
+          } else {
+            loginBlock.hidden = false;
+            editorBlock.hidden = true;
+          }
+        }
+
+        document.getElementById('btn-login').addEventListener('click', function () {
+          var user = document.getElementById('login-user').value.trim();
+          var pass = document.getElementById('login-pass').value;
+          var errEl = document.getElementById('login-err');
+          errEl.hidden = true;
+          if (!user || !pass) {
+            errEl.textContent = 'Enter username and password.';
+            errEl.hidden = false;
+            return;
+          }
+          fetch(API_BASE + '/auth', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username: user, password: pass, action: 'login' }),
+          })
+            .then(function (r) {
+              return r.json().then(function (j) {
+                return { ok: r.ok, j: j };
+              });
+            })
+            .then(function (_ref) {
+              if (_ref.ok && _ref.j.success && _ref.j.token && _ref.j.user) {
+                setSession(_ref.j.token, { username: _ref.j.user.username, role: _ref.j.user.role || 'user' });
+                document.getElementById('login-pass').value = '';
+                updateEditorUi();
+              } else {
+                errEl.textContent = _ref.j.error || _ref.j.message || 'Sign in failed.';
+                errEl.hidden = false;
+              }
+            })
+            .catch(function () {
+              errEl.textContent = 'Network error.';
+              errEl.hidden = false;
+            });
+        });
+
+        document.getElementById('btn-logout').addEventListener('click', function () {
+          clearSession();
+          updateEditorUi();
+        });
+
+        document.getElementById('btn-save').addEventListener('click', function () {
+          var errEl = document.getElementById('save-err');
+          var okEl = document.getElementById('save-ok');
+          errEl.hidden = true;
+          okEl.hidden = true;
+          var token = getToken();
+          if (!token) return;
+          var body = collectPayload();
+          fetch(API_BASE + '/status-page', {
+            method: 'PUT',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: 'Bearer ' + token,
+            },
+            body: JSON.stringify(body),
+          })
+            .then(function (r) {
+              return r.json().then(function (j) {
+                return { ok: r.ok, j: j };
+              });
+            })
+            .then(function (_ref2) {
+              if (_ref2.ok && _ref2.j.success !== false && !_ref2.j.error) {
+                lastPayload = applyPayload(_ref2.j);
+                fillFormFromPayload(lastPayload);
+                okEl.hidden = false;
+                setTimeout(function () {
+                  okEl.hidden = true;
+                }, 4000);
+              } else {
+                errEl.textContent = _ref2.j.error || 'Save failed (admins only).';
+                errEl.hidden = false;
+              }
+            })
+            .catch(function () {
+              errEl.textContent = 'Network error.';
+              errEl.hidden = false;
+            });
+        });
+
+        document.getElementById('admin-details').addEventListener('toggle', function () {
+          if (this.open) updateEditorUi();
+        });
+
+        loadStatus().then(function () {
+          updateEditorUi();
+        });
+      })();
+    </script>
+  </body>
+</html>

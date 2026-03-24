@@ -1,0 +1,18 @@
+{
+  "updatedAt": "2026-03-24T12:00:00.000Z",
+  "pixelPlace": {
+    "status": "operational",
+    "title": "Pixel Place",
+    "message": "We are shipping updates regularly. Play and account services are expected to be available. Check here if something feels off.",
+    "glowColor": "",
+    "accentColor": "",
+    "headerTitle": "",
+    "headerSubtitle": "",
+    "customStatusLabel": ""
+  },
+  "maintenance": {
+    "active": false,
+    "message": "",
+    "accentColor": ""
+  }
+}
