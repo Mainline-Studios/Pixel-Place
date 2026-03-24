@@ -1,4 +1,4 @@
-import { PIXEL_PLACE_GITHUB, PIXEL_PLACE_YOUTUBE } from '@/lib/siteLinks';
+import { PIXEL_PLACE_DISCORD, PIXEL_PLACE_GITHUB, PIXEL_PLACE_YOUTUBE } from '@/lib/siteLinks';
 
 export function getSchemaOrgJsonLd() {
   const baseUrl =
@@ -41,14 +41,14 @@ export function getSchemaOrgJsonLd() {
           'AI-powered coding assistance',
         ],
         offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
-        sameAs: [PIXEL_PLACE_GITHUB, PIXEL_PLACE_YOUTUBE],
+        sameAs: [PIXEL_PLACE_GITHUB, PIXEL_PLACE_YOUTUBE, PIXEL_PLACE_DISCORD],
       },
       {
         '@type': 'Organization',
         '@id': `${cleanUrl}/#organization`,
         name: 'Mainline Studios',
         url: cleanUrl,
-        sameAs: [PIXEL_PLACE_GITHUB, PIXEL_PLACE_YOUTUBE],
+        sameAs: [PIXEL_PLACE_GITHUB, PIXEL_PLACE_YOUTUBE, PIXEL_PLACE_DISCORD],
       },
     ],
   };
