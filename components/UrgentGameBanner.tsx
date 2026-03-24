@@ -4,17 +4,23 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { resolveClientApiUrl } from '@/lib/apiBaseUrl';
 import { getStatusPageUrl } from '@/lib/statusPageUrl';
 
+const STORAGE_KEY = 'pixelplace_urgent_autodismiss_v1';
+
+type UrgentPayload = { message: string; dismissKey: string };
+
 /**
- * Mirrors status.pixelplaceofficial.com urgent bar when admins enable it.
- * Explains possible miscolors / odd UI so players aren’t confused.
+ * Urgent bar from /status-page: scrolls long text once, then pauses and auto-dismisses.
+ * Same dismissKey (updatedAt + message) won't show again until storage cleared or payload changes.
  */
 export default function UrgentGameBanner() {
-  const [message, setMessage] = useState<string | null>(null);
+  const [payload, setPayload] = useState<UrgentPayload | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
+  const trackRef = useRef<HTMLDivElement>(null);
+  const textRef = useRef<HTMLSpanElement>(null);
 
   useLayoutEffect(() => {
     const el = rootRef.current;
-    if (!message || !el) {
+    if (!payload || !el) {
       document.body.classList.remove('has-urgent-game-banner');
       document.documentElement.style.removeProperty('--urgent-game-banner-h');
       return;
@@ -32,7 +38,7 @@ export default function UrgentGameBanner() {
       document.body.classList.remove('has-urgent-game-banner');
       document.documentElement.style.removeProperty('--urgent-game-banner-h');
     };
-  }, [message]);
+  }, [payload]);
 
   useEffect(() => {
     let cancelled = false;
@@ -45,10 +51,25 @@ export default function UrgentGameBanner() {
           const u = data?.urgent;
           const msg =
             u?.active && String(u.message || '').trim() ? String(u.message).trim() : null;
-          setMessage(msg);
+          if (!msg) {
+            setPayload(null);
+            return;
+          }
+          const dismissKey = `${data.updatedAt || ''}|${msg}`;
+          try {
+            if (sessionStorage.getItem(STORAGE_KEY) === dismissKey) {
+              setPayload(null);
+              return;
+            }
+          } catch {
+            /* ignore */
+          }
+          setPayload((prev) =>
+            prev?.dismissKey === dismissKey ? prev : { message: msg, dismissKey },
+          );
         })
         .catch(() => {
-          if (!cancelled) setMessage(null);
+          if (!cancelled) setPayload(null);
         });
     }
 
@@ -65,7 +86,87 @@ export default function UrgentGameBanner() {
     };
   }, []);
 
-  if (!message) return null;
+  useEffect(() => {
+    if (!payload) return;
+
+    const { dismissKey } = payload;
+    const timeouts: number[] = [];
+    let raf1 = 0;
+    let raf2 = 0;
+    let done = false;
+
+    const finish = () => {
+      if (done) return;
+      done = true;
+      try {
+        sessionStorage.setItem(STORAGE_KEY, dismissKey);
+      } catch {
+        /* ignore */
+      }
+      setPayload(null);
+    };
+
+    const resetTextStyles = (text: HTMLSpanElement) => {
+      text.classList.remove('urgent-game-banner__marquee-text--scrolling');
+      text.style.removeProperty('transform');
+      text.style.removeProperty('--urgent-scroll-to');
+      text.style.removeProperty('animation-duration');
+    };
+
+    const runMeasure = () => {
+      if (done) return;
+      const text = textRef.current;
+      const track = trackRef.current;
+      if (!text || !track) {
+        timeouts.push(window.setTimeout(finish, 10_000));
+        return;
+      }
+
+      resetTextStyles(text);
+      const trackW = track.clientWidth;
+      const scrollW = text.scrollWidth;
+      const overflow = scrollW - trackW;
+      const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+      if (overflow <= 4) {
+        timeouts.push(window.setTimeout(finish, 10_000));
+        return;
+      }
+
+      if (reduceMotion) {
+        text.style.transform = `translateX(${-overflow}px)`;
+        timeouts.push(window.setTimeout(finish, 5000));
+        return;
+      }
+
+      text.style.setProperty('--urgent-scroll-to', `${-overflow}px`);
+      const durSec = Math.min(25, Math.max(3, overflow / 55));
+      text.style.animationDuration = `${durSec}s`;
+
+      const onAnimEnd = () => {
+        if (done) return;
+        timeouts.push(window.setTimeout(finish, 5000));
+      };
+      text.addEventListener('animationend', onAnimEnd, { once: true });
+      void text.offsetWidth;
+      text.classList.add('urgent-game-banner__marquee-text--scrolling');
+    };
+
+    raf1 = window.requestAnimationFrame(() => {
+      raf2 = window.requestAnimationFrame(runMeasure);
+    });
+
+    return () => {
+      done = true;
+      window.cancelAnimationFrame(raf1);
+      window.cancelAnimationFrame(raf2);
+      timeouts.forEach((t) => window.clearTimeout(t));
+      const text = textRef.current;
+      if (text) resetTextStyles(text);
+    };
+  }, [payload]);
+
+  if (!payload) return null;
 
   const href = getStatusPageUrl();
 
@@ -73,22 +174,26 @@ export default function UrgentGameBanner() {
     <div ref={rootRef} className="urgent-game-banner" role="alert" aria-live="assertive">
       <div className="urgent-game-banner__strip" aria-hidden />
       <div className="urgent-game-banner__inner">
-        <span className="urgent-game-banner__badge">URGENT</span>
-        <div className="urgent-game-banner__copy">
-          <p className="urgent-game-banner__text">{message}</p>
-          <p className="urgent-game-banner__sub">
-            Custom colors or themes here may look off while we work on this — that&apos;s expected. Official
-            details on the status page.
-          </p>
+        <div className="urgent-game-banner__toprow">
+          <span className="urgent-game-banner__badge">URGENT ALERT</span>
+          <div ref={trackRef} className="urgent-game-banner__marquee-track">
+            <span ref={textRef} className="urgent-game-banner__marquee-text">
+              {payload.message}
+            </span>
+          </div>
+          <a
+            className="urgent-game-banner__link"
+            href={href}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Status ↗
+          </a>
         </div>
-        <a
-          className="urgent-game-banner__link"
-          href={href}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Status ↗
-        </a>
+        <p className="urgent-game-banner__sub">
+          Custom colors or themes here may look off while we work on this — that&apos;s expected.
+          Official details on the status page.
+        </p>
       </div>
       <div className="urgent-game-banner__strip" aria-hidden />
     </div>

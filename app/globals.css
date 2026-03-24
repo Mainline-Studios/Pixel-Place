@@ -354,11 +354,55 @@ textarea {
   background: linear-gradient(180deg, #991b1b 0%, #b91c1c 35%, #dc2626 50%, #b91c1c 65%, #991b1b 100%);
   padding: 10px 14px 12px;
   display: flex;
-  flex-wrap: wrap;
-  align-items: flex-start;
-  justify-content: center;
-  gap: 12px;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
   animation: urgent-game-pulse 2.8s ease-in-out infinite;
+}
+
+.urgent-game-banner__toprow {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-width: 0;
+}
+
+.urgent-game-banner__marquee-track {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-align: left;
+}
+
+.urgent-game-banner__marquee-text {
+  display: inline-block;
+  white-space: nowrap;
+  margin: 0;
+  color: #fff;
+  font-weight: 800;
+  font-size: 0.88rem;
+  line-height: 1.35;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.85);
+  will-change: transform;
+}
+
+.urgent-game-banner__marquee-text--scrolling {
+  animation-name: urgent-game-scroll-once;
+  animation-timing-function: linear;
+  animation-fill-mode: forwards;
+}
+
+@keyframes urgent-game-scroll-once {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(var(--urgent-scroll-to, 0px));
+  }
 }
 
 @keyframes urgent-game-pulse {
@@ -374,37 +418,19 @@ textarea {
 .urgent-game-banner__badge {
   flex-shrink: 0;
   font-weight: 900;
-  font-size: 0.65rem;
-  letter-spacing: 0.22em;
-  text-indent: 0.22em;
+  font-size: 0.6rem;
+  letter-spacing: 0.14em;
+  text-indent: 0.14em;
   color: #fef08a;
   text-shadow: 0 0 10px rgba(0, 0, 0, 0.95);
   padding: 5px 8px;
   border: 2px solid rgba(254, 240, 138, 0.85);
   border-radius: 4px;
   background: rgba(0, 0, 0, 0.35);
-  margin-top: 2px;
-}
-
-.urgent-game-banner__copy {
-  flex: 1 1 200px;
-  min-width: 0;
-  text-align: left;
-}
-
-.urgent-game-banner__text {
-  margin: 0;
-  color: #fff;
-  font-weight: 800;
-  font-size: 0.88rem;
-  line-height: 1.35;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.85);
 }
 
 .urgent-game-banner__sub {
-  margin: 6px 0 0;
+  margin: 0;
   color: rgba(255, 255, 255, 0.88);
   font-size: 0.72rem;
   line-height: 1.4;
@@ -415,7 +441,6 @@ textarea {
 
 .urgent-game-banner__link {
   flex-shrink: 0;
-  align-self: center;
   color: #fef08a !important;
   font-weight: 800;
   font-size: 0.75rem;
@@ -440,6 +465,10 @@ textarea {
 
 @media (prefers-reduced-motion: reduce) {
   .urgent-game-banner__inner {
+    animation: none;
+  }
+
+  .urgent-game-banner__marquee-text--scrolling {
     animation: none;
   }
 }
