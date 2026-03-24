@@ -63,12 +63,17 @@ const DEFAULT_STATUS_PAGE = {
     message: '' as string,
     accentColor: '' as string,
   },
+  urgent: {
+    active: false as boolean,
+    message: '' as string,
+  },
 };
 
 const STATUS_ALLOWED = new Set(['operational', 'degraded', 'maintenance', 'outage']);
 const STATUS_TITLE_MAX = 200;
 const STATUS_MSG_MAX = 5000;
 const MAINT_MSG_MAX = 2000;
+const URGENT_MSG_MAX = 400;
 const HEADER_TITLE_MAX = 120;
 const HEADER_SUB_MAX = 400;
 const CUSTOM_LABEL_MAX = 64;
@@ -98,12 +103,19 @@ function normalizeStatusPagePayload(body: any): { ok: true; data: typeof DEFAULT
   const active = mt.active === true;
   const mMsg = String(mt.message ?? '').slice(0, MAINT_MSG_MAX);
   const maintAccent = sanitizeStatusHex(mt.accentColor);
+  const urgIn = body?.urgent && typeof body.urgent === 'object' ? body.urgent : {};
+  const urgentActive = urgIn.active === true;
+  const urgentMessage = String(urgIn.message ?? '').slice(0, URGENT_MSG_MAX).trim();
+  if (urgentActive && !urgentMessage) {
+    return { ok: false, error: 'Urgent banner requires a non-empty message' };
+  }
   return {
     ok: true,
     data: {
       updatedAt: new Date().toISOString(),
       pixelPlace: { status, title, message, glowColor, accentColor, headerTitle, headerSubtitle, customStatusLabel },
       maintenance: { active, message: mMsg, accentColor: maintAccent },
+      urgent: { active: urgentActive, message: urgentActive ? urgentMessage : '' },
     },
   };
 }

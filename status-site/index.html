@@ -30,6 +30,70 @@
         color: var(--text);
         line-height: 1.5;
       }
+      /* EAS-style urgent alert (full width, top) */
+      .urgent-bar {
+        position: sticky;
+        top: 0;
+        z-index: 200;
+        width: 100%;
+        text-align: center;
+        border-bottom: 2px solid #0a0a0a;
+        box-shadow: 0 6px 28px rgba(185, 28, 28, 0.55);
+      }
+      .urgent-bar__strip {
+        height: 5px;
+        background: linear-gradient(90deg, #0a0a0a 0%, #262626 50%, #0a0a0a 100%);
+      }
+      .urgent-bar__inner {
+        background: linear-gradient(180deg, #991b1b 0%, #b91c1c 35%, #dc2626 50%, #b91c1c 65%, #991b1b 100%);
+        padding: 14px 18px;
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: center;
+        gap: 14px;
+        animation: urgent-pulse 2.8s ease-in-out infinite;
+      }
+      @keyframes urgent-pulse {
+        0%,
+        100% {
+          filter: brightness(1);
+        }
+        50% {
+          filter: brightness(1.12);
+        }
+      }
+      .urgent-bar__badge {
+        flex-shrink: 0;
+        font-weight: 900;
+        font-size: 0.68rem;
+        letter-spacing: 0.28em;
+        text-indent: 0.28em;
+        color: #fef08a;
+        text-shadow:
+          0 0 12px rgba(0, 0, 0, 0.95),
+          0 1px 0 #000;
+        padding: 4px 10px;
+        border: 2px solid rgba(254, 240, 138, 0.85);
+        border-radius: 4px;
+        background: rgba(0, 0, 0, 0.35);
+      }
+      .urgent-bar__text {
+        flex: 1 1 220px;
+        min-width: 0;
+        color: #fff;
+        font-weight: 700;
+        font-size: 0.98rem;
+        line-height: 1.45;
+        letter-spacing: 0.03em;
+        text-shadow: 0 1px 3px rgba(0, 0, 0, 0.85);
+        text-transform: uppercase;
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .urgent-bar__inner {
+          animation: none;
+        }
+      }
       .wrap {
         max-width: 640px;
         margin: 0 auto;
@@ -54,6 +118,7 @@
         border-radius: 14px;
         padding: 18px 20px;
         margin-bottom: 16px;
+        box-shadow: 0 4px 24px rgba(0, 0, 0, 0.35);
       }
       .card h2 {
         margin: 0 0 12px;
@@ -256,6 +321,14 @@
     </style>
   </head>
   <body>
+    <div id="urgent-bar" class="urgent-bar" hidden role="alert" aria-live="assertive">
+      <div class="urgent-bar__strip" aria-hidden="true"></div>
+      <div class="urgent-bar__inner">
+        <span class="urgent-bar__badge">URGENT ALERT</span>
+        <span class="urgent-bar__text" id="urgent-bar-text"></span>
+      </div>
+      <div class="urgent-bar__strip" aria-hidden="true"></div>
+    </div>
     <div class="wrap">
       <header>
         <h1 id="page-title">Pixel Place status</h1>
@@ -401,6 +474,17 @@
                   <input type="text" id="f-maint-accent" placeholder="#hex or empty for default gold" maxlength="9" />
                 </div>
               </div>
+              <div class="field chk">
+                <input type="checkbox" id="f-urgent-active" />
+                <label for="f-urgent-active" style="margin: 0; text-transform: none; letter-spacing: normal">
+                  Urgent — full-width alert bar at top (EAS-style)
+                </label>
+              </div>
+              <div class="field">
+                <label for="f-urgent-msg">Urgent message</label>
+                <textarea id="f-urgent-msg" maxlength="400" rows="2" placeholder="Short caps-friendly line for the red alert bar"></textarea>
+                <p class="hint">Shown in a sticky red banner for everyone. Requires a message when enabled.</p>
+              </div>
               <div class="btn-row">
                 <button type="button" id="btn-save">Save to live status</button>
                 <button type="button" class="secondary" id="btn-logout">Sign out</button>
@@ -449,6 +533,10 @@
               active: !!mt.active,
               message: mt.message || '',
               accentColor: mt.accentColor || '',
+            },
+            urgent: {
+              active: !!(d.urgent && d.urgent.active),
+              message: (d.urgent && d.urgent.message) || '',
             },
           };
         }
@@ -558,6 +646,21 @@
           }
         }
 
+        function setUrgent(data) {
+          var u = data.urgent || {};
+          var bar = document.getElementById('urgent-bar');
+          var el = document.getElementById('urgent-bar-text');
+          var msg = (u.message || '').trim();
+          var on = !!u.active && !!msg;
+          if (on) {
+            el.textContent = msg;
+            bar.hidden = false;
+          } else {
+            el.textContent = '';
+            bar.hidden = true;
+          }
+        }
+
         function fmtDate(iso) {
           if (!iso) return '';
           try {
@@ -572,6 +675,7 @@
           var merged = mergeDefaults(data);
           setPp(merged);
           setMaintenance(merged);
+          setUrgent(merged);
           document.getElementById('updated-at').textContent = fmtDate(merged.updatedAt);
           return merged;
         }
@@ -695,6 +799,9 @@
           document.getElementById('f-maint-active').checked = !!mt.active;
           document.getElementById('f-maint-msg').value = mt.message || '';
           maintPair.set(mt.accentColor || '');
+          var ur = data.urgent || {};
+          document.getElementById('f-urgent-active').checked = !!ur.active;
+          document.getElementById('f-urgent-msg').value = ur.message || '';
         }
 
         function collectPayload() {
@@ -713,6 +820,10 @@
               active: document.getElementById('f-maint-active').checked,
               message: document.getElementById('f-maint-msg').value,
               accentColor: maintPair.get(),
+            },
+            urgent: {
+              active: document.getElementById('f-urgent-active').checked,
+              message: document.getElementById('f-urgent-msg').value,
             },
           };
         }
@@ -795,6 +906,11 @@
           var token = getToken();
           if (!token) return;
           var body = collectPayload();
+          if (body.urgent.active && !(String(body.urgent.message || '').trim())) {
+            errEl.textContent = 'Urgent is on — add a message for the alert bar, or turn it off.';
+            errEl.hidden = false;
+            return;
+          }
           fetch(API_BASE + '/status-page', {
             method: 'PUT',
             headers: {

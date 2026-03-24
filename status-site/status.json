@@ -14,5 +14,9 @@
     "active": false,
     "message": "",
     "accentColor": ""
+  },
+  "urgent": {
+    "active": false,
+    "message": ""
   }
 }
