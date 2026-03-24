@@ -20,25 +20,38 @@ export default function StatusPageLink({ variant = 'footer' }: { variant?: Statu
 
   useEffect(() => {
     let cancelled = false;
-    fetch(resolveClientApiUrl('/status-page'))
-      .then((r) => (r.ok ? r.json() : Promise.reject()))
-      .then((data) => {
-        if (cancelled || !data?.pixelPlace) return;
-        const pp = data.pixelPlace;
-        const s = String(pp.status || 'operational').toLowerCase();
-        const custom = String(pp.customStatusLabel || '').trim();
-        setDotColor(statusDotColorFromPixelPlace(pp));
-        const word = custom || LABELS[s] || 'Operational';
-        setLine(`${word} · System status`);
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setLine('System status');
-          setDotColor('#34d399');
-        }
-      });
+
+    function load() {
+      fetch(resolveClientApiUrl('/status-page'))
+        .then((r) => (r.ok ? r.json() : Promise.reject()))
+        .then((data) => {
+          if (cancelled || !data?.pixelPlace) return;
+          const pp = data.pixelPlace;
+          const s = String(pp.status || 'operational').toLowerCase();
+          const custom = String(pp.customStatusLabel || '').trim();
+          setDotColor(statusDotColorFromPixelPlace(pp));
+          const word = custom || LABELS[s] || 'Operational';
+          setLine(`${word} · System status`);
+        })
+        .catch(() => {
+          if (!cancelled) {
+            setLine('System status');
+            setDotColor('#34d399');
+          }
+        });
+    }
+
+    load();
+    const interval = window.setInterval(load, 60_000);
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') load();
+    };
+    document.addEventListener('visibilitychange', onVisible);
+
     return () => {
       cancelled = true;
+      window.clearInterval(interval);
+      document.removeEventListener('visibilitychange', onVisible);
     };
   }, []);
 
