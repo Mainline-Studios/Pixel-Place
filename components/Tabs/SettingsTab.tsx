@@ -10,6 +10,7 @@ import { useUser } from '@/contexts/UserContext';
 import { useStyle } from '@/components/StyleProvider';
 import { useSound } from '@/contexts/SoundContext';
 import { useSecretTheme } from '@/contexts/SecretThemeContext';
+import { useMobileBeta } from '@/contexts/MobileBetaContext';
 import { STYLE_OPTIONS } from '@/lib/styleTheme';
 
 interface SettingsTabProps {
@@ -23,6 +24,7 @@ export default function SettingsTab({ user, editMode, onToggleEditMode }: Settin
   const { style, setStyle } = useStyle();
   const { soundsEnabled, setSoundsEnabled } = useSound();
   const { secretTheme, unlockSecretTheme, clearSecretTheme } = useSecretTheme();
+  const { isMobileBeta, forceDesktop, setForceDesktop } = useMobileBeta();
   const [skins, setSkins] = useState<Skin[]>([]);
   const [tabContent, setTabContent] = useState<TabContent | null>(null);
   const [secretPasswordModal, setSecretPasswordModal] = useState(false);
@@ -106,6 +108,29 @@ export default function SettingsTab({ user, editMode, onToggleEditMode }: Settin
           />
           <span>Enable sound effects</span>
         </label>
+      </div>
+
+      <div className="ai-box">
+        <div className="ai-label">Mobile layout</div>
+        <div className="ai-output" style={{ marginBottom: '12px' }}>
+          On a phone or small screen we use a simplified &quot;mobile beta&quot; layout (touch controls for
+          Showdown, HistoriMac hidden). Turn this off to use the full desktop layout on this device — can be
+          cramped on small screens.
+        </div>
+        <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer' }}>
+          <input
+            type="checkbox"
+            checked={forceDesktop}
+            onChange={(e) => setForceDesktop(e.target.checked)}
+            style={{ width: '18px', height: '18px' }}
+          />
+          <span>Use full desktop layout on this device (not recommended on phones)</span>
+        </label>
+        {!forceDesktop && !isMobileBeta && (
+          <p style={{ margin: '10px 0 0', fontSize: 13, color: 'var(--text-dim)' }}>
+            You&apos;re on a larger screen — mobile beta is off automatically.
+          </p>
+        )}
       </div>
 
       <div className="ai-box">

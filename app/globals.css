@@ -743,6 +743,37 @@ textarea {
   gap: 20px;
 }
 
+/* Full-width bar under nav — dominant YouTube + GitHub */
+.site-social-dominant-strip {
+  position: relative;
+  z-index: 9;
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 14px 20px 16px;
+  background: linear-gradient(
+    90deg,
+    rgba(180, 0, 0, 0.22) 0%,
+    rgba(22, 27, 34, 0.55) 42%,
+    rgba(22, 27, 34, 0.55) 58%,
+    rgba(180, 0, 0, 0.18) 100%
+  );
+  border-bottom: 1px solid var(--border);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
+}
+
+.site-social-dominant-yt:hover,
+.site-social-dominant-gh:hover {
+  transform: translateY(-2px) scale(1.02);
+  filter: brightness(1.08);
+}
+
+.site-social-dominant-yt:active,
+.site-social-dominant-gh:active {
+  transform: translateY(0) scale(0.99);
+}
+
 .brand {
   font-size: 18px;
   font-weight: 700;

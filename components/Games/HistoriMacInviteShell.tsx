@@ -3,6 +3,7 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useUser } from '@/contexts/UserContext';
+import { useMobileBeta } from '@/contexts/MobileBetaContext';
 import HistoriMac from '@/components/Games/HistoriMac';
 import { historiMacInvitePersonalTitle } from '@/lib/historiMacInvite';
 
@@ -17,6 +18,7 @@ type Props = {
 export default function HistoriMacInviteShell({ versionId, label }: Props) {
   const searchParams = useSearchParams();
   const { user, isRestoring } = useUser();
+  const { isMobileBeta } = useMobileBeta();
   const [started, setStarted] = useState(false);
 
   const onBootConsumed = useCallback(() => {}, []);
@@ -34,6 +36,60 @@ export default function HistoriMacInviteShell({ versionId, label }: Props) {
     }
     meta.setAttribute('content', title);
   }, [searchParams, label]);
+
+  if (isMobileBeta) {
+    return (
+      <div
+        style={{
+          minHeight: '100vh',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '24px 16px',
+          boxSizing: 'border-box',
+          background: 'linear-gradient(180deg, #1a1d29 0%, #0f1118 100%)',
+        }}
+      >
+        <div
+          style={{
+            maxWidth: 420,
+            textAlign: 'center',
+            color: 'rgba(232, 232, 239, 0.95)',
+            lineHeight: 1.55,
+          }}
+        >
+          <div style={{ fontSize: 48, marginBottom: 16 }} aria-hidden>
+            🖥️
+          </div>
+          <h1 style={{ margin: '0 0 12px', fontSize: '1.35rem', fontWeight: 700, color: '#fff' }}>
+            HistoriMac isn&apos;t available on mobile
+          </h1>
+          <p style={{ margin: '0 0 20px', fontSize: '0.95rem', color: 'rgba(232,232,239,0.85)' }}>
+            Classic Mac emulation needs a keyboard, mouse, and a larger screen.{' '}
+            <strong style={{ color: '#7dd3fc' }}>{label}</strong> will be here when you open this link on a
+            computer.
+          </p>
+          <a
+            href="/"
+            style={{
+              display: 'inline-block',
+              padding: '12px 20px',
+              fontWeight: 700,
+              color: '#0f1419',
+              background: 'linear-gradient(180deg, #7dd3fc, #38bdf8)',
+              borderRadius: 12,
+              textDecoration: 'none',
+            }}
+          >
+            Back to Pixel Place
+          </a>
+          <p style={{ margin: '20px 0 0', fontSize: '0.75rem', color: 'rgba(232,232,239,0.45)' }}>
+            Pixel Place mobile beta focuses on touch-friendly games like Showdown.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   if (started) {
     return (

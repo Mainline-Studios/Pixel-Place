@@ -5,6 +5,7 @@ import Image from 'next/image';
 import { getSkins, getAccessories } from '@/lib/storage';
 import Avatar3DViewer from '@/components/Avatar3DViewer';
 import { useUser } from '@/contexts/UserContext';
+import { useMobileBeta } from '@/contexts/MobileBetaContext';
 import { useState, useEffect } from 'react';
 
 interface TopBarProps {
@@ -24,6 +25,7 @@ const TABS: { key: TabType; label: string; shortcut?: string; adminOnly?: boolea
 
 export default function TopBar({ currentTab, onTabChange, user }: TopBarProps) {
   const { setUser } = useUser();
+  const { isMobileBeta } = useMobileBeta();
   const [skins, setSkins] = useState<Skin[]>([]);
   const [accessories, setAccessories] = useState<Accessory[]>([]);
 
@@ -82,6 +84,23 @@ export default function TopBar({ currentTab, onTabChange, user }: TopBarProps) {
             priority
           />
           <span>PIXEL PLACE</span>
+          {isMobileBeta && (
+            <span
+              style={{
+                fontSize: 11,
+                fontWeight: 700,
+                letterSpacing: '0.06em',
+                padding: '4px 8px',
+                borderRadius: 8,
+                background: 'linear-gradient(135deg, rgba(0,212,255,0.25), rgba(247,37,133,0.2))',
+                border: '1px solid rgba(0,212,255,0.35)',
+                color: '#7ee8ff',
+              }}
+              title="Touch-friendly layout — HistoriMac hidden. Change in Settings."
+            >
+              MOBILE β
+            </span>
+          )}
         </div>
         <div className="header-nav">
           {TABS

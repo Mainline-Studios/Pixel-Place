@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { User, UserMadeGame } from '@/types';
 import { getUserMadeGames, deleteUserMadeGame } from '@/lib/storage';
 import { subscribeToUserMadeGames } from '@/lib/firestoreClient';
@@ -24,6 +24,7 @@ import FloorIsLava from '../Games/FloorIsLava';
 import VoidArcade from '../Games/VoidArcade';
 import EcoHero from '../Games/EcoHero';
 import HistoriMac from '../Games/HistoriMac';
+import { useMobileBeta } from '@/contexts/MobileBetaContext';
 import SquishBubbles from '../Games/SquishBubbles';
 import SquishSlime from '../Games/SquishSlime';
 
@@ -225,13 +226,22 @@ const SECRET_GAMES_IXEL_ACE: GameInfo[] = [
 
 export default function GamesTab({ user, editMode }: GamesTabProps) {
   const { secretTheme } = useSecretTheme();
+  const { isMobileBeta } = useMobileBeta();
   const [selectedGame, setSelectedGame] = useState<string | null>(null);
   /** Deep link: `#historimac=versionId` redirects to `/historimac/:id` (invite); else HistoriMac boot */
   const [historiMacBootVersionId, setHistoriMacBootVersionId] = useState<string | null>(null);
   const [selectedUserGame, setSelectedUserGame] = useState<UserMadeGame | null>(null);
   const [userMadeGames, setUserMadeGames] = useState<UserMadeGame[]>([]);
 
-  const gamesList = secretTheme === 'ixelace' ? [...games, ...SECRET_GAMES_IXEL_ACE] : games;
+  const gamesList = useMemo(() => {
+    let list = secretTheme === 'ixelace' ? [...games, ...SECRET_GAMES_IXEL_ACE] : games;
+    if (isMobileBeta) list = list.filter((g) => g.id !== 'historiMac');
+    return list;
+  }, [secretTheme, isMobileBeta]);
+
+  useEffect(() => {
+    if (isMobileBeta && selectedGame === 'historiMac') setSelectedGame(null);
+  }, [isMobileBeta, selectedGame]);
 
   // Real-time games from Firestore (instant updates when games are added/edited in Firebase Console)
   useEffect(() => {
@@ -358,6 +368,20 @@ export default function GamesTab({ user, editMode }: GamesTabProps) {
   return (
     <>
       <h2 className="section-title">🎮 Play Games</h2>
+
+      {isMobileBeta && (
+        <div
+          className="ai-box"
+          style={{ marginBottom: 16, borderColor: 'rgba(0, 212, 255, 0.35)', background: 'rgba(0, 40, 60, 0.2)' }}
+        >
+          <div className="ai-label">Mobile beta</div>
+          <div className="ai-output">
+            Simplified layout for phones and tablets. HistoriMac is hidden (needs desktop). Showdown includes
+            an on-screen D-pad. Add <code style={{ fontSize: 12 }}>?desktop=1</code> to the URL to try the
+            full site once.
+          </div>
+        </div>
+      )}
       
       <div className="ai-box">
         <div className="ai-label">Available Games</div>

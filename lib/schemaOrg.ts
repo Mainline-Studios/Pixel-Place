@@ -1,3 +1,5 @@
+import { PIXEL_PLACE_GITHUB, PIXEL_PLACE_YOUTUBE } from '@/lib/siteLinks';
+
 export function getSchemaOrgJsonLd() {
   const baseUrl =
     (typeof process !== 'undefined' && process.env?.NEXT_PUBLIC_BASE_URL) ||
@@ -39,20 +41,14 @@ export function getSchemaOrgJsonLd() {
           'AI-powered coding assistance',
         ],
         offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
-        sameAs: [
-          'https://github.com/Mainline-Studios/Pixel-Place',
-          'https://www.youtube.com/@OfficialPixelPlace',
-        ],
+        sameAs: [PIXEL_PLACE_GITHUB, PIXEL_PLACE_YOUTUBE],
       },
       {
         '@type': 'Organization',
         '@id': `${cleanUrl}/#organization`,
         name: 'Mainline Studios',
         url: cleanUrl,
-        sameAs: [
-          'https://github.com/Mainline-Studios/Pixel-Place',
-          'https://www.youtube.com/@OfficialPixelPlace',
-        ],
+        sameAs: [PIXEL_PLACE_GITHUB, PIXEL_PLACE_YOUTUBE],
       },
     ],
   };

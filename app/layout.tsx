@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import Script from "next/script";
+import { MobileBetaProvider } from "@/contexts/MobileBetaContext";
 import { UserProvider } from "@/contexts/UserContext";
 import { StyleProvider } from "@/components/StyleProvider";
 import { SecretThemeProvider } from "@/contexts/SecretThemeContext";
@@ -41,10 +42,12 @@ export default function RootLayout({
         <StyleProvider>
           <SecretThemeProvider>
             <SoundProvider>
-              <UserProvider>
-              <SoundEffects />
-              {children}
-              </UserProvider>
+              <MobileBetaProvider>
+                <UserProvider>
+                  <SoundEffects />
+                  {children}
+                </UserProvider>
+              </MobileBetaProvider>
             </SoundProvider>
           </SecretThemeProvider>
         </StyleProvider>

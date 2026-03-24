@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useRef, useState } from 'react';
+import { useMobileBeta } from '@/contexts/MobileBetaContext';
 import {
   loadShowdownData,
   loadShowdownDataWithSync,
@@ -156,11 +157,17 @@ interface ShowdownProps {
 }
 
 export default function Showdown({ user }: ShowdownProps): JSX.Element {
+  const { isMobileBeta } = useMobileBeta();
+  const mobileHudRef = useRef(false);
+  mobileHudRef.current = isMobileBeta;
+
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const rafRef = useRef<number | null>(null);
   const lastRef = useRef<number | null>(null);
   const mouseRef = useRef({ x: ARENA_W / 2, y: ARENA_H / 2, down: false });
   const keysRef = useRef<Record<string, boolean>>({});
+  /** Virtual WASD from on-screen D-pad (mobile beta) */
+  const dPadRef = useRef({ w: false, a: false, s: false, d: false });
   const screenShakeRef = useRef(0);
   const botStuckRef = useRef<Record<string, { lastPos: Vec; stuckFrames: number }>>({});
 
@@ -434,11 +441,29 @@ export default function Showdown({ user }: ShowdownProps): JSX.Element {
     function onKey(e: KeyboardEvent) {
       keysRef.current[e.key.toLowerCase()] = e.type === 'keydown';
     }
+    function setTouchFromClient(clientX: number, clientY: number) {
+      const r = canvas.getBoundingClientRect();
+      mouseRef.current.x = clientX - r.left;
+      mouseRef.current.y = clientY - r.top;
+    }
+    function onTouchStart(e: TouchEvent) {
+      if (e.touches.length > 0) {
+        setTouchFromClient(e.touches[0].clientX, e.touches[0].clientY);
+      }
+    }
+    function onTouchMove(e: TouchEvent) {
+      if (e.touches.length > 0) {
+        setTouchFromClient(e.touches[0].clientX, e.touches[0].clientY);
+        e.preventDefault();
+      }
+    }
     window.addEventListener('mousemove', onMove);
     window.addEventListener('mousedown', onDown);
     window.addEventListener('mouseup', onUp);
     window.addEventListener('keydown', onKey);
     window.addEventListener('keyup', onKey);
+    canvas.addEventListener('touchstart', onTouchStart, { passive: true });
+    canvas.addEventListener('touchmove', onTouchMove, { passive: false });
 
     function update(dt: number) {
       if (gameOverRef.current) return;
@@ -453,10 +478,11 @@ export default function Showdown({ user }: ShowdownProps): JSX.Element {
           const speed = 240;
           let ax = 0,
             ay = 0;
-          if (keysRef.current['w'] || keysRef.current['arrowup']) ay -= 1;
-          if (keysRef.current['s'] || keysRef.current['arrowdown']) ay += 1;
-          if (keysRef.current['a'] || keysRef.current['arrowleft']) ax -= 1;
-          if (keysRef.current['d'] || keysRef.current['arrowright']) ax += 1;
+          const pad = dPadRef.current;
+          if (keysRef.current['w'] || keysRef.current['arrowup'] || pad.w) ay -= 1;
+          if (keysRef.current['s'] || keysRef.current['arrowdown'] || pad.s) ay += 1;
+          if (keysRef.current['a'] || keysRef.current['arrowleft'] || pad.a) ax -= 1;
+          if (keysRef.current['d'] || keysRef.current['arrowright'] || pad.d) ax += 1;
           const len = Math.hypot(ax, ay) || 1;
           local.vel.x = (ax / len) * speed;
           local.vel.y = (ay / len) * speed;
@@ -845,7 +871,9 @@ export default function Showdown({ user }: ShowdownProps): JSX.Element {
       ctx.textAlign = 'right';
       ctx.font = '12px system-ui';
       ctx.fillText(
-        'WASD move • Mouse aim • Click shoot • Pick powers in store',
+        mobileHudRef.current
+          ? 'D-pad move • drag on arena to aim • tap to shoot'
+          : 'WASD move • Mouse aim • Click shoot • Pick powers in store',
         ARENA_W - 12,
         22
       );
@@ -868,6 +896,8 @@ export default function Showdown({ user }: ShowdownProps): JSX.Element {
       window.removeEventListener('mouseup', onUp);
       window.removeEventListener('keydown', onKey);
       window.removeEventListener('keyup', onKey);
+      canvas.removeEventListener('touchstart', onTouchStart);
+      canvas.removeEventListener('touchmove', onTouchMove);
     };
   }, []);
 
@@ -932,13 +962,37 @@ export default function Showdown({ user }: ShowdownProps): JSX.Element {
     gameOverRef.current = false;
   }
 
+  const padBind = (k: 'w' | 'a' | 's' | 'd', down: boolean) => {
+    dPadRef.current[k] = down;
+  };
+
+  const padCell: React.CSSProperties = {
+    width: 52,
+    height: 52,
+    borderRadius: 12,
+    border: '2px solid rgba(0,212,255,0.45)',
+    background: 'rgba(8,16,32,0.92)',
+    color: '#e8f4ff',
+    fontSize: 20,
+    fontWeight: 800,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    touchAction: 'none',
+    userSelect: 'none',
+    WebkitUserSelect: 'none',
+    cursor: 'pointer',
+    padding: 0,
+  };
+
   return (
     <div
       style={{
         fontFamily: 'system-ui, sans-serif',
         minHeight: '100%',
         background: 'linear-gradient(180deg, #0a0e1a 0%, #0f1629 100%)',
-        padding: 24,
+        padding: isMobileBeta ? 12 : 24,
+        position: 'relative',
       }}
     >
       <h2
@@ -958,7 +1012,15 @@ export default function Showdown({ user }: ShowdownProps): JSX.Element {
         Arena combat • Collect pixelcoins • Unlock powers • Dominate
       </p>
 
-      <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap' }}>
+      <div
+        style={{
+          display: 'flex',
+          gap: 24,
+          flexWrap: 'wrap',
+          flexDirection: isMobileBeta ? 'column' : 'row',
+          alignItems: isMobileBeta ? 'stretch' : undefined,
+        }}
+      >
         <div
           style={{
             padding: 4,
@@ -1064,7 +1126,15 @@ export default function Showdown({ user }: ShowdownProps): JSX.Element {
           </div>
         </div>
 
-        <div style={{ width: 280, display: 'flex', flexDirection: 'column', gap: 16 }}>
+        <div
+          style={{
+            width: isMobileBeta ? '100%' : 280,
+            maxWidth: '100%',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 16,
+          }}
+        >
           <div
             style={{
               background: 'rgba(15,22,41,0.9)',
@@ -1213,6 +1283,70 @@ export default function Showdown({ user }: ShowdownProps): JSX.Element {
           </div>
         </div>
       </div>
+
+      {isMobileBeta && (
+        <div
+          role="group"
+          aria-label="Move"
+          style={{
+            position: 'fixed',
+            bottom: 'max(20px, env(safe-area-inset-bottom, 12px))',
+            left: 14,
+            zIndex: 400,
+            display: 'grid',
+            gridTemplateColumns: '52px 52px 52px',
+            gap: 8,
+            filter: 'drop-shadow(0 6px 20px rgba(0,0,0,0.5))',
+          }}
+        >
+          <span style={{ width: 52, height: 52 }} aria-hidden />
+          <PadBtn label="↑" style={padCell} onDown={() => padBind('w', true)} onUp={() => padBind('w', false)} />
+          <span style={{ width: 52, height: 52 }} aria-hidden />
+          <PadBtn label="←" style={padCell} onDown={() => padBind('a', true)} onUp={() => padBind('a', false)} />
+          <span style={{ width: 52, height: 52 }} aria-hidden />
+          <PadBtn label="→" style={padCell} onDown={() => padBind('d', true)} onUp={() => padBind('d', false)} />
+          <span style={{ width: 52, height: 52 }} aria-hidden />
+          <PadBtn label="↓" style={padCell} onDown={() => padBind('s', true)} onUp={() => padBind('s', false)} />
+          <span style={{ width: 52, height: 52 }} aria-hidden />
+        </div>
+      )}
     </div>
+  );
+}
+
+function PadBtn({
+  label,
+  style,
+  onDown,
+  onUp,
+}: {
+  label: string;
+  style: React.CSSProperties;
+  onDown: () => void;
+  onUp: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      style={style}
+      aria-label={label === '↑' ? 'Up' : label === '↓' ? 'Down' : label === '←' ? 'Left' : 'Right'}
+      onPointerDown={(e) => {
+        e.preventDefault();
+        onDown();
+        (e.currentTarget as HTMLButtonElement).setPointerCapture(e.pointerId);
+      }}
+      onPointerUp={(e) => {
+        onUp();
+        try {
+          (e.currentTarget as HTMLButtonElement).releasePointerCapture(e.pointerId);
+        } catch {
+          /* ignore */
+        }
+      }}
+      onPointerCancel={() => onUp()}
+      onLostPointerCapture={() => onUp()}
+    >
+      {label}
+    </button>
   );
 }
