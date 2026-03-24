@@ -100,8 +100,8 @@ export default function Dashboard({ user }: DashboardProps) {
         onTabChange={handleTabChange}
         user={user}
       />
-      <div className="site-social-dominant-strip" aria-label="Official Pixel Place links">
-        <SiteSocialLinks variant="dominant" />
+      <div className="site-social-url-bar" aria-label="Official Pixel Place URLs">
+        <SiteSocialLinks variant="urls" />
       </div>
       <div className="body-row">
         <div className="body-inner">
@@ -137,9 +137,6 @@ export default function Dashboard({ user }: DashboardProps) {
         background: 'linear-gradient(180deg, transparent 0%, rgba(0,0,0,0.2) 100%)',
         borderTop: '1px solid var(--border)',
       }}>
-        <div style={{ marginBottom: 16 }}>
-          <SiteSocialLinks variant="dominant" />
-        </div>
         <span style={{ background: 'linear-gradient(90deg, #00aaff, #00dd88)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', fontWeight: 700 }}>© 2025 Pixel Place</span>
         <span style={{ margin: '0 12px', opacity: 0.5 }}>•</span>
         <span>Play. Create. Share.</span>

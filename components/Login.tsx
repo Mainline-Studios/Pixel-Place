@@ -134,16 +134,8 @@ export default function Login() {
             <span>PLACE</span>
           </h1>
 
-          <div
-            style={{
-              width: '100%',
-              maxWidth: 420,
-              margin: '0 auto 20px',
-              padding: '0 4px',
-            }}
-            aria-label="Official Pixel Place links"
-          >
-            <SiteSocialLinks variant="dominant" />
+          <div style={{ width: '100%', maxWidth: 440, margin: '0 auto 18px' }} aria-label="Official Pixel Place URLs">
+            <SiteSocialLinks variant="urls" />
           </div>
 
           {mode === 'signin' ? (
@@ -398,18 +390,6 @@ export default function Login() {
           {message && <div id="msg" className="show">{message}</div>}
         </div>
       </div>
-
-      <footer
-        style={{
-          marginTop: 28,
-          padding: '16px 20px 32px',
-          textAlign: 'center',
-          fontSize: 14,
-          color: 'rgba(242, 242, 245, 0.65)',
-        }}
-      >
-        <SiteSocialLinks variant="inline" compact />
-      </footer>
 
       {/* Terms of Use Modal */}
       {showTerms && (

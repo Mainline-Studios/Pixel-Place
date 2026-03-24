@@ -743,35 +743,39 @@ textarea {
   gap: 20px;
 }
 
-/* Full-width bar under nav — dominant YouTube + GitHub */
-.site-social-dominant-strip {
+/* Subtle footer / login social text links */
+.site-social-links-inline a:hover {
+  color: var(--accent-hover, #5ecfff) !important;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* Full official URLs — under top bar (dashboard) */
+.site-social-url-bar {
   position: relative;
   z-index: 9;
   width: 100%;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  padding: 14px 20px 16px;
-  background: linear-gradient(
-    90deg,
-    rgba(180, 0, 0, 0.22) 0%,
-    rgba(22, 27, 34, 0.55) 42%,
-    rgba(22, 27, 34, 0.55) 58%,
-    rgba(180, 0, 0, 0.18) 100%
-  );
+  padding: 10px 16px 12px;
   border-bottom: 1px solid var(--border);
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
+  background: rgba(14, 16, 24, 0.65);
+  backdrop-filter: blur(8px);
+}
+
+.site-social-urls-link:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  color: var(--accent-hover, #7dd3ff) !important;
 }
 
 .site-social-dominant-yt:hover,
 .site-social-dominant-gh:hover {
-  transform: translateY(-2px) scale(1.02);
-  filter: brightness(1.08);
+  transform: translateY(-1px);
+  filter: brightness(1.06);
 }
 
 .site-social-dominant-yt:active,
 .site-social-dominant-gh:active {
-  transform: translateY(0) scale(0.99);
+  transform: translateY(0);
 }
 
 .brand {

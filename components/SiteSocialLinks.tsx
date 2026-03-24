@@ -1,20 +1,26 @@
 'use client';
 
 import type { CSSProperties } from 'react';
-import { PIXEL_PLACE_GITHUB, PIXEL_PLACE_YOUTUBE } from '@/lib/siteLinks';
+import {
+  PIXEL_PLACE_GITHUB,
+  PIXEL_PLACE_OFFICIAL_LINKS,
+  PIXEL_PLACE_YOUTUBE,
+} from '@/lib/siteLinks';
 
 const linkStyle: CSSProperties = {
-  color: 'var(--accent, #00a2ff)',
-  fontWeight: 600,
+  color: 'var(--text-dim, #8b90a8)',
+  fontWeight: 500,
+  fontSize: 13,
   textDecoration: 'none',
-  borderBottom: '1px solid transparent',
 };
 
 type Props = {
-  /** @deprecated use variant="inline" — tighter text links */
+  /** Tighter spacing between text links */
   compact?: boolean;
-  /** `dominant` = large branded buttons; `inline` = text links */
-  variant?: 'inline' | 'dominant';
+  /**
+   * `inline` = short labels · `urls` = full URLs as link text · `dominant` = large buttons
+   */
+  variant?: 'inline' | 'urls' | 'dominant';
   className?: string;
 };
 
@@ -24,8 +30,68 @@ type Props = {
  * @see https://github.com/Mainline-Studios/Pixel-Place
  */
 export default function SiteSocialLinks({ compact, variant, className }: Props) {
-  const resolvedVariant =
-    variant ?? (compact ? 'inline' : 'dominant');
+  const resolvedVariant = variant ?? 'inline';
+
+  if (resolvedVariant === 'urls') {
+    return (
+      <div
+        className={['site-social-urls', className].filter(Boolean).join(' ')}
+        style={{
+          display: 'flex',
+          flexWrap: 'wrap',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: '10px 14px',
+          rowGap: 8,
+          width: '100%',
+          maxWidth: 900,
+          margin: '0 auto',
+          padding: '0 4px',
+          boxSizing: 'border-box',
+        }}
+      >
+        <span
+          style={{
+            fontSize: 12,
+            fontWeight: 600,
+            letterSpacing: '0.06em',
+            textTransform: 'uppercase' as const,
+            color: 'var(--text-dim, #8b90a8)',
+            flexShrink: 0,
+          }}
+        >
+          Official
+        </span>
+        {PIXEL_PLACE_OFFICIAL_LINKS.map((item, i) => (
+          <span key={item.href} style={{ display: 'inline-flex', alignItems: 'center', gap: 14 }}>
+            {i > 0 ? (
+              <span style={{ opacity: 0.35, userSelect: 'none' }} aria-hidden>
+                |
+              </span>
+            ) : null}
+            <a
+              href={item.href}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="site-social-urls-link"
+              style={{
+                fontSize: 13,
+                fontWeight: 500,
+                color: 'var(--accent, #5ecfff)',
+                textDecoration: 'none',
+                wordBreak: 'break-all' as const,
+                textAlign: 'center' as const,
+                lineHeight: 1.35,
+              }}
+              title={item.label}
+            >
+              {item.label}
+            </a>
+          </span>
+        ))}
+      </div>
+    );
+  }
 
   if (resolvedVariant === 'dominant') {
     return (
@@ -154,7 +220,7 @@ export default function SiteSocialLinks({ compact, variant, className }: Props) 
   const gap = compact ? 10 : 14;
   return (
     <span
-      className={className}
+      className={['site-social-links-inline', className].filter(Boolean).join(' ')}
       style={{
         display: 'inline-flex',
         flexWrap: 'wrap',
