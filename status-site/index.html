@@ -313,7 +313,7 @@
         <div class="admin-inner">
           <div id="login-block">
             <p class="msg" style="margin-bottom: 12px">
-              Sign in with a Pixel Place account. Only <strong>admin</strong> or <strong>head_admin</strong> can save changes.
+              Sign in with a Pixel Place <strong>admin</strong> or <strong>head_admin</strong> account. Regular accounts cannot access this panel.
             </p>
             <div class="field">
               <label for="login-user">Username</label>
@@ -332,8 +332,7 @@
             <p class="msg" style="margin-bottom: 12px">
               Signed in as <strong id="editor-user"></strong>. Changes apply to the live status page for everyone.
             </p>
-            <div id="non-admin-note" class="err" hidden>Your account is not an admin — viewing only.</div>
-            <div id="form-fields" hidden>
+            <div id="form-fields">
               <p
                 class="hint"
                 style="border-left: 3px solid var(--accent); padding-left: 12px; margin: 0 0 16px; line-height: 1.45"
@@ -723,21 +722,17 @@
           var token = getToken();
           var loginBlock = document.getElementById('login-block');
           var editorBlock = document.getElementById('editor-block');
-          var formFields = document.getElementById('form-fields');
-          var nonAdmin = document.getElementById('non-admin-note');
           document.getElementById('login-err').hidden = true;
-          if (token && u && u.username) {
+          if (token && u && u.username && !isAdminRole(u.role)) {
+            clearSession();
+            u = null;
+            token = '';
+          }
+          if (token && u && u.username && isAdminRole(u.role)) {
             loginBlock.hidden = true;
             editorBlock.hidden = false;
             document.getElementById('editor-user').textContent = u.username;
-            if (isAdminRole(u.role)) {
-              nonAdmin.hidden = true;
-              formFields.hidden = false;
-              if (lastPayload) fillFormFromPayload(lastPayload);
-            } else {
-              nonAdmin.hidden = false;
-              formFields.hidden = true;
-            }
+            if (lastPayload) fillFormFromPayload(lastPayload);
           } else {
             loginBlock.hidden = false;
             editorBlock.hidden = true;
@@ -766,7 +761,14 @@
             })
             .then(function (_ref) {
               if (_ref.ok && _ref.j.success && _ref.j.token && _ref.j.user) {
-                setSession(_ref.j.token, { username: _ref.j.user.username, role: _ref.j.user.role || 'user' });
+                var role = _ref.j.user.role || 'user';
+                if (!isAdminRole(role)) {
+                  errEl.textContent =
+                    'This panel is restricted to admin or head_admin accounts. Sign in on the main Pixel Place site with a regular account.';
+                  errEl.hidden = false;
+                  return;
+                }
+                setSession(_ref.j.token, { username: _ref.j.user.username, role: role });
                 document.getElementById('login-pass').value = '';
                 updateEditorUi();
               } else {
