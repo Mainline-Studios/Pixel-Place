@@ -11,7 +11,9 @@ const LABELS: Record<string, string> = {
   outage: 'Outage',
 };
 
-export default function StatusPageLink() {
+type StatusPageLinkVariant = 'footer' | 'login';
+
+export default function StatusPageLink({ variant = 'footer' }: { variant?: StatusPageLinkVariant }) {
   const [line, setLine] = useState<string>('System status');
   const [status, setStatus] = useState<string>('operational');
 
@@ -43,38 +45,28 @@ export default function StatusPageLink() {
         ? '#fbbf24'
         : '#34d399';
 
+  const className =
+    variant === 'login' ? 'status-page-link status-page-link--login' : 'status-page-link';
+
   return (
     <a
+      className={className}
       href={href}
       target="_blank"
       rel="noopener noreferrer"
-      style={{
-        display: 'inline-flex',
-        alignItems: 'center',
-        gap: 8,
-        padding: '6px 12px',
-        borderRadius: 999,
-        border: '1px solid var(--border)',
-        background: 'rgba(255,255,255,0.04)',
-        color: 'var(--accent)',
-        fontSize: 12,
-        fontWeight: 600,
-        textDecoration: 'none',
-      }}
-      title="Open status.pixelplaceofficial.com — outages and updates"
+      title="Open the full status page (new tab)"
+      aria-label={`${line}. Opens the Pixel Place status page in a new tab.`}
     >
       <span
+        className="status-page-link__dot"
         aria-hidden
         style={{
-          width: 8,
-          height: 8,
-          borderRadius: '50%',
           background: dotColor,
-          boxShadow: `0 0 8px ${dotColor}`,
-          flexShrink: 0,
+          boxShadow: `0 0 10px ${dotColor}, 0 0 22px ${dotColor}66`,
         }}
       />
-      <span>{line}</span>
+      <span className="status-page-link__line">{line}</span>
+      <span className="status-page-link__hint">New tab ↗</span>
     </a>
   );
 }

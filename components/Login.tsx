@@ -193,6 +193,7 @@ export default function Login() {
               >
                 Create
               </button>
+              <StatusPageLink variant="login" />
             </>
           ) : (
             <>
@@ -386,6 +387,7 @@ export default function Login() {
               >
                 Sign Up
               </button>
+              <StatusPageLink variant="login" />
             </>
           )}
 
@@ -402,9 +404,6 @@ export default function Login() {
           color: 'rgba(242, 242, 245, 0.55)',
         }}
       >
-        <div style={{ marginBottom: 14, display: 'flex', justifyContent: 'center' }}>
-          <StatusPageLink />
-        </div>
         <div style={{ marginBottom: 14, maxWidth: 560, marginLeft: 'auto', marginRight: 'auto' }}>
           <SiteSocialLinks variant="urls" />
         </div>
