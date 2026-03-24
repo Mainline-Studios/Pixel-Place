@@ -5,6 +5,7 @@ import { useUser } from '@/contexts/UserContext';
 import { useSound } from '@/contexts/SoundContext';
 import BanScreen from './BanScreen';
 import SiteSocialLinks from './SiteSocialLinks';
+import PyxTrainCta from './PyxTrainCta';
 
 export default function Login() {
   const [mode, setMode] = useState<'signin' | 'signup'>('signin');
@@ -134,8 +135,8 @@ export default function Login() {
             <span>PLACE</span>
           </h1>
 
-          <div style={{ width: '100%', maxWidth: 440, margin: '0 auto 18px' }} aria-label="Official Pixel Place URLs">
-            <SiteSocialLinks variant="urls" />
+          <div style={{ width: '100%', maxWidth: 440, margin: '0 auto 18px' }}>
+            <PyxTrainCta />
           </div>
 
           {mode === 'signin' ? (
@@ -390,6 +391,20 @@ export default function Login() {
           {message && <div id="msg" className="show">{message}</div>}
         </div>
       </div>
+
+      <footer
+        style={{
+          marginTop: 28,
+          padding: '20px 20px 36px',
+          textAlign: 'center',
+          fontSize: 13,
+          color: 'rgba(242, 242, 245, 0.55)',
+        }}
+      >
+        <div style={{ marginBottom: 14, maxWidth: 560, marginLeft: 'auto', marginRight: 'auto' }}>
+          <SiteSocialLinks variant="urls" />
+        </div>
+      </footer>
 
       {/* Terms of Use Modal */}
       {showTerms && (

@@ -9,6 +9,7 @@ import Sidebar from './Sidebar';
 import FloatingParticles from '../FloatingParticles';
 import ScrollToTop from '../ScrollToTop';
 import SiteSocialLinks from '../SiteSocialLinks';
+import PyxTrainCta from '../PyxTrainCta';
 import { useSecretTheme } from '@/contexts/SecretThemeContext';
 import GamesTab from '../Tabs/GamesTab';
 import CreateTab from '../Tabs/CreateTab';
@@ -100,8 +101,8 @@ export default function Dashboard({ user }: DashboardProps) {
         onTabChange={handleTabChange}
         user={user}
       />
-      <div className="site-social-url-bar" aria-label="Official Pixel Place URLs">
-        <SiteSocialLinks variant="urls" />
+      <div className="pyx-train-cta-bar" aria-label="Train Pyx AI">
+        <PyxTrainCta />
       </div>
       <div className="body-row">
         <div className="body-inner">
@@ -137,6 +138,9 @@ export default function Dashboard({ user }: DashboardProps) {
         background: 'linear-gradient(180deg, transparent 0%, rgba(0,0,0,0.2) 100%)',
         borderTop: '1px solid var(--border)',
       }}>
+        <div style={{ marginBottom: 16, maxWidth: 720, marginLeft: 'auto', marginRight: 'auto' }}>
+          <SiteSocialLinks variant="urls" />
+        </div>
         <span style={{ background: 'linear-gradient(90deg, #00aaff, #00dd88)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', fontWeight: 700 }}>© 2025 Pixel Place</span>
         <span style={{ margin: '0 12px', opacity: 0.5 }}>•</span>
         <span>Play. Create. Share.</span>

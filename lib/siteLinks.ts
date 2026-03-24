@@ -7,3 +7,6 @@ export const PIXEL_PLACE_OFFICIAL_LINKS: readonly { href: string; label: string 
   { href: PIXEL_PLACE_YOUTUBE, label: PIXEL_PLACE_YOUTUBE },
   { href: PIXEL_PLACE_GITHUB, label: PIXEL_PLACE_GITHUB },
 ];
+
+/** Pyx AI trainer / content filter — https://pyx-ai.web.app/ */
+export const PYX_AI_TRAIN_URL = 'https://pyx-ai.web.app/';
