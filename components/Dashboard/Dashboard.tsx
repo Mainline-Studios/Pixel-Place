@@ -9,6 +9,7 @@ import Sidebar from './Sidebar';
 import FloatingParticles from '../FloatingParticles';
 import ScrollToTop from '../ScrollToTop';
 import SiteSocialLinks from '../SiteSocialLinks';
+import StatusPageLink from '../StatusPageLink';
 import PyxTrainCta from '../PyxTrainCta';
 import { useSecretTheme } from '@/contexts/SecretThemeContext';
 import GamesTab from '../Tabs/GamesTab';
@@ -138,6 +139,9 @@ export default function Dashboard({ user }: DashboardProps) {
         background: 'linear-gradient(180deg, transparent 0%, rgba(0,0,0,0.2) 100%)',
         borderTop: '1px solid var(--border)',
       }}>
+        <div style={{ marginBottom: 12, display: 'flex', justifyContent: 'center' }}>
+          <StatusPageLink />
+        </div>
         <div style={{ marginBottom: 16, maxWidth: 720, marginLeft: 'auto', marginRight: 'auto' }}>
           <SiteSocialLinks variant="urls" />
         </div>

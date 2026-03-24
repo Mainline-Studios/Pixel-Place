@@ -334,6 +334,13 @@
             </p>
             <div id="non-admin-note" class="err" hidden>Your account is not an admin — viewing only.</div>
             <div id="form-fields" hidden>
+              <p
+                class="hint"
+                style="border-left: 3px solid var(--accent); padding-left: 12px; margin: 0 0 16px; line-height: 1.45"
+              >
+                When you’re finished making changes, use <strong>Sign out</strong> below so this browser doesn’t keep
+                admin access—especially on a shared or public computer.
+              </p>
               <div class="field">
                 <label for="f-header-title">Page title</label>
                 <input type="text" id="f-header-title" maxlength="120" placeholder="Pixel Place status" />
@@ -400,7 +407,9 @@
                 <button type="button" class="secondary" id="btn-logout">Sign out</button>
               </div>
               <p class="err" id="save-err" hidden></p>
-              <p class="hint" id="save-ok" hidden style="color: var(--ok)">Saved.</p>
+              <p class="hint" id="save-ok" hidden style="color: var(--ok); line-height: 1.45">
+                Saved. If you’re done, <strong>Sign out</strong> now so this session isn’t left open.
+              </p>
             </div>
           </div>
         </div>
@@ -804,7 +813,7 @@
                 okEl.hidden = false;
                 setTimeout(function () {
                   okEl.hidden = true;
-                }, 4000);
+                }, 8000);
               } else {
                 errEl.textContent = _ref2.j.error || 'Save failed (admins only).';
                 errEl.hidden = false;

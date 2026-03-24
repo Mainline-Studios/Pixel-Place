@@ -6,6 +6,7 @@ import { useSound } from '@/contexts/SoundContext';
 import BanScreen from './BanScreen';
 import SiteSocialLinks from './SiteSocialLinks';
 import PyxTrainCta from './PyxTrainCta';
+import StatusPageLink from './StatusPageLink';
 
 export default function Login() {
   const [mode, setMode] = useState<'signin' | 'signup'>('signin');
@@ -401,6 +402,9 @@ export default function Login() {
           color: 'rgba(242, 242, 245, 0.55)',
         }}
       >
+        <div style={{ marginBottom: 14, display: 'flex', justifyContent: 'center' }}>
+          <StatusPageLink />
+        </div>
         <div style={{ marginBottom: 14, maxWidth: 560, marginLeft: 'auto', marginRight: 'auto' }}>
           <SiteSocialLinks variant="urls" />
         </div>

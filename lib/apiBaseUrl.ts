@@ -17,3 +17,11 @@ export function apiUrl(path: string): string {
   const p = path.startsWith('/') ? path : `/${path}`;
   return base ? `${base.replace(/\/$/, '')}${p}` : p;
 }
+
+/** Use for browser fetch when `NEXT_PUBLIC_API_URL` is unset (Firebase Hosting only rewrites `/api/*`). */
+export function resolveClientApiUrl(path: string): string {
+  const p = path.startsWith('/') ? path : `/${path}`;
+  const base = getApiBaseUrl().replace(/\/$/, '');
+  if (base) return `${base}${p}`;
+  return `https://us-central1-pixel-place-823b1.cloudfunctions.net/api${p}`;
+}
