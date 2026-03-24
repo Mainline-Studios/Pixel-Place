@@ -285,6 +285,25 @@ export function createGame(container: HTMLElement) {
         <span className="smalltext" style={{ color: 'var(--text-dim)' }}>🛡️ Content safety powered by Pyx AI</span>
       </div>
 
+      <div
+        className="ai-box"
+        style={{
+          marginBottom: 20,
+          borderColor: 'rgba(255, 193, 7, 0.35)',
+          background: 'linear-gradient(135deg, rgba(255, 193, 7, 0.12) 0%, rgba(255, 152, 0, 0.08) 100%)',
+        }}
+      >
+        <div className="ai-label" style={{ color: '#ffd54f' }}>
+          New studio on the way
+        </div>
+        <div className="ai-output" style={{ lineHeight: 1.55 }}>
+          This Game Studio will be <strong>replaced</strong> by a brand-new studio app we&apos;re building — with{' '}
+          <strong>powerful AI tools</strong>, <strong>user-friendly AI</strong>, and its own game format:{' '}
+          <strong>.ppgf</strong> (Pixel Place Game Format). Everything here still works for now;
+          we&apos;ll let you know when the new experience is ready. Thanks for your patience!
+        </div>
+      </div>
+
       {/* Mode Selector - Four Options */}
       <div className="ai-box" style={{ marginBottom: '24px' }}>
         <div className="ai-label">Choose Your Creation Method</div>

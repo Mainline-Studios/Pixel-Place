@@ -25,7 +25,7 @@ type Props = {
 };
 
 /**
- * Official YouTube + GitHub for Pixel Place (opens in new tab).
+ * Official YouTube, GitHub, and Mainline Studios Discord links (opens in new tab).
  * @see https://www.youtube.com/@OfficialPixelPlace
  * @see https://github.com/Mainline-Studios/Pixel-Place
  */
@@ -83,9 +83,9 @@ export default function SiteSocialLinks({ compact, variant, className }: Props) 
                 textAlign: 'center' as const,
                 lineHeight: 1.35,
               }}
-              title={item.label}
+              title={item.title ?? item.href}
             >
-              {item.label}
+              {item.linkText}
             </a>
           </span>
         ))}

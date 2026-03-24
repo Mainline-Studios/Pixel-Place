@@ -1,14 +1,30 @@
 /** Official Pixel Place social / source links (UI + JSON-LD). */
 export const PIXEL_PLACE_YOUTUBE = 'https://www.youtube.com/@OfficialPixelPlace';
 export const PIXEL_PLACE_GITHUB = 'https://github.com/Mainline-Studios/Pixel-Place';
-/** Mainline Studios Discord community invite */
-export const PIXEL_PLACE_DISCORD = 'https://discord.gg/VV6nKAz5sR';
 
-/** Shown in UI as link text (same as href — easy to copy/share). */
-export const PIXEL_PLACE_OFFICIAL_LINKS: readonly { href: string; label: string }[] = [
-  { href: PIXEL_PLACE_YOUTUBE, label: PIXEL_PLACE_YOUTUBE },
-  { href: PIXEL_PLACE_GITHUB, label: PIXEL_PLACE_GITHUB },
-  { href: PIXEL_PLACE_DISCORD, label: PIXEL_PLACE_DISCORD },
+/** Official Mainline Studios Discord server (community hub, not only Pixel Place). */
+export const MAINLINE_STUDIOS_DISCORD = 'https://discord.gg/VV6nKAz5sR';
+
+/** @deprecated use MAINLINE_STUDIOS_DISCORD */
+export const PIXEL_PLACE_DISCORD = MAINLINE_STUDIOS_DISCORD;
+
+export type OfficialFooterLink = {
+  href: string;
+  /** Anchor text in the footer */
+  linkText: string;
+  /** Tooltip; defaults to `href` in the UI */
+  title?: string;
+};
+
+/** Footer “urls” row — YouTube & GitHub show full URLs; Discord shows a clear Mainline Studios label. */
+export const PIXEL_PLACE_OFFICIAL_LINKS: readonly OfficialFooterLink[] = [
+  { href: PIXEL_PLACE_YOUTUBE, linkText: PIXEL_PLACE_YOUTUBE },
+  { href: PIXEL_PLACE_GITHUB, linkText: PIXEL_PLACE_GITHUB },
+  {
+    href: MAINLINE_STUDIOS_DISCORD,
+    linkText: 'Mainline Studios Discord',
+    title: `Official Mainline Studios Discord — ${MAINLINE_STUDIOS_DISCORD}`,
+  },
 ];
 
 /** Pyx AI trainer / content filter — https://pyx-ai.web.app/ */
