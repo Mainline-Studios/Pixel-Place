@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { resolveClientApiUrl } from '@/lib/apiBaseUrl';
 import { getStatusPageUrl } from '@/lib/statusPageUrl';
+import { statusDotColorFromPixelPlace } from '@/lib/statusDotColor';
 
 const LABELS: Record<string, string> = {
   operational: 'Operational',
@@ -15,7 +16,7 @@ type StatusPageLinkVariant = 'footer' | 'login';
 
 export default function StatusPageLink({ variant = 'footer' }: { variant?: StatusPageLinkVariant }) {
   const [line, setLine] = useState<string>('System status');
-  const [status, setStatus] = useState<string>('operational');
+  const [dotColor, setDotColor] = useState<string>('#34d399');
 
   useEffect(() => {
     let cancelled = false;
@@ -23,14 +24,18 @@ export default function StatusPageLink({ variant = 'footer' }: { variant?: Statu
       .then((r) => (r.ok ? r.json() : Promise.reject()))
       .then((data) => {
         if (cancelled || !data?.pixelPlace) return;
-        const s = String(data.pixelPlace.status || 'operational').toLowerCase();
-        const custom = String(data.pixelPlace.customStatusLabel || '').trim();
-        setStatus(s);
+        const pp = data.pixelPlace;
+        const s = String(pp.status || 'operational').toLowerCase();
+        const custom = String(pp.customStatusLabel || '').trim();
+        setDotColor(statusDotColorFromPixelPlace(pp));
         const word = custom || LABELS[s] || 'Operational';
         setLine(`${word} · System status`);
       })
       .catch(() => {
-        if (!cancelled) setLine('System status');
+        if (!cancelled) {
+          setLine('System status');
+          setDotColor('#34d399');
+        }
       });
     return () => {
       cancelled = true;
@@ -38,12 +43,6 @@ export default function StatusPageLink({ variant = 'footer' }: { variant?: Statu
   }, []);
 
   const href = getStatusPageUrl();
-  const dotColor =
-    status === 'outage'
-      ? '#f87171'
-      : status === 'degraded' || status === 'maintenance'
-        ? '#fbbf24'
-        : '#34d399';
 
   const className =
     variant === 'login' ? 'status-page-link status-page-link--login' : 'status-page-link';

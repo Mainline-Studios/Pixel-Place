@@ -492,6 +492,20 @@
           );
         }
 
+        function inferPillClassFromCustomLabel(custom) {
+          var t = (custom || '').trim();
+          if (!t) return null;
+          if (/\b(outage|down|offline|unavailable|major)\b/i.test(t)) return 'st-bad';
+          if (
+            /\b(error|errors|issue|issues|problem|problems|degrad|degraded|slow|warn|warning|intermit|disrupt|incident)\b/i.test(
+              t,
+            )
+          ) {
+            return 'st-warn';
+          }
+          return null;
+        }
+
         function setPp(data) {
           var pp = data.pixelPlace || {};
           var status = pp.status || 'operational';
@@ -508,7 +522,12 @@
           } else {
             root.style.removeProperty('--pp-glow');
             var map = { operational: 'st-ok', degraded: 'st-warn', maintenance: 'st-warn', outage: 'st-bad' };
-            pill.classList.add(map[status] || 'st-ok');
+            var cls = map[status] || 'st-ok';
+            if (cls === 'st-ok' && status === 'operational') {
+              var hinted = inferPillClassFromCustomLabel(pp.customStatusLabel || '');
+              if (hinted) cls = hinted;
+            }
+            pill.classList.add(cls);
           }
 
           var labels = {
