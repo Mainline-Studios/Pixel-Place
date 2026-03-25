@@ -1,6 +1,7 @@
 /** @type {import('next').NextConfig} */
+const isStaticExportBuild = process.env.NEXT_OUTPUT_EXPORT === 'true';
+
 const nextConfig = {
-  output: 'export',
   images: {
     unoptimized: true
   },
@@ -34,5 +35,9 @@ const nextConfig = {
     ];
   },
 };
+
+if (isStaticExportBuild) {
+  nextConfig.output = 'export';
+}
 
 module.exports = nextConfig;
