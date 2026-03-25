@@ -82,64 +82,112 @@ type PadKeys = { left: boolean; right: boolean; up: boolean };
 
 const clamp = (v: number, a: number, b: number) => Math.max(a, Math.min(b, v));
 
-type Platform = { x: number; y: number; w: number; h: number };
+type Platform = {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  // Optional per-map modifiers (used for “city slide” and “hotel drop”).
+  baseX?: number;
+  cityPhase?: number;
+  hotelPhase?: number;
+};
 
 function createInitialPlatforms(mapKey: MapKey): Platform[] {
   // y increases downward; platforms are the “solid” surfaces the player can land on.
   // Each map starts with a different “path” so it actually feels different.
+  let list: Platform[];
   switch (mapKey) {
     case 'house':
-      return [
+      list = [
         { x: 0, y: HEIGHT - 80, w: WIDTH, h: PLATFORM_H },
-        // mid
         { x: 140, y: HEIGHT - 145, w: 160, h: PLATFORM_H },
-        // 3rd step (make it reachable)
         { x: 300, y: HEIGHT - 185, w: 180, h: PLATFORM_H },
-        // extra platform so “3rd” never feels missing
         { x: 460, y: HEIGHT - 220, w: 120, h: PLATFORM_H },
       ];
+      break;
     case 'mountain':
-      // “Cliff” ladder: mostly narrower stepping stones.
-      return [
+      list = [
         { x: 0, y: HEIGHT - 80, w: WIDTH, h: PLATFORM_H },
         { x: 150, y: HEIGHT - 150, w: 140, h: PLATFORM_H },
         { x: 250, y: HEIGHT - 185, w: 120, h: PLATFORM_H },
         { x: 310, y: HEIGHT - 220, w: 130, h: PLATFORM_H },
         { x: 395, y: HEIGHT - 250, w: 90, h: PLATFORM_H },
       ];
+      break;
     case 'city':
-      // Building rooftops: staggered, wider “rooftops” with more gaps.
-      return [
+      list = [
         { x: 0, y: HEIGHT - 80, w: WIDTH, h: PLATFORM_H },
         { x: 70, y: HEIGHT - 150, w: 200, h: PLATFORM_H },
         { x: 300, y: HEIGHT - 180, w: 140, h: PLATFORM_H },
         { x: 420, y: HEIGHT - 230, w: 130, h: PLATFORM_H },
         { x: 180, y: HEIGHT - 230, w: 150, h: PLATFORM_H },
       ];
+      break;
     case 'coral':
-      // Softer, more “bubbly” path: slightly wider platforms.
-      return [
+      list = [
         { x: 0, y: HEIGHT - 80, w: WIDTH, h: PLATFORM_H },
         { x: 120, y: HEIGHT - 150, w: 200, h: PLATFORM_H },
         { x: 330, y: HEIGHT - 190, w: 150, h: PLATFORM_H },
         { x: 480, y: HEIGHT - 230, w: 120, h: PLATFORM_H },
         { x: 210, y: HEIGHT - 230, w: 130, h: PLATFORM_H },
       ];
+      break;
     case 'hotel':
-      // “Hotel” balconies: a few higher ledges.
-      return [
+      list = [
         { x: 0, y: HEIGHT - 80, w: WIDTH, h: PLATFORM_H },
         { x: 110, y: HEIGHT - 155, w: 160, h: PLATFORM_H },
         { x: 260, y: HEIGHT - 210, w: 180, h: PLATFORM_H },
         { x: 420, y: HEIGHT - 240, w: 120, h: PLATFORM_H },
       ];
+      break;
     default:
-      return [
+      list = [
         { x: 0, y: HEIGHT - 80, w: WIDTH, h: PLATFORM_H },
         { x: 120, y: HEIGHT - 150, w: 120, h: PLATFORM_H },
         { x: 380, y: HEIGHT - 220, w: 120, h: PLATFORM_H },
       ];
+      break;
   }
+
+  // Attach stable per-platform modifier seeds.
+  return list.map((pl, idx) => ({
+    ...pl,
+    baseX: pl.x,
+    cityPhase: mapKey === 'city' && idx !== 0 ? idx * 0.9 + Math.random() * 0.25 : undefined,
+    hotelPhase: mapKey === 'hotel' && idx !== 0 ? idx * 1.1 + Math.random() * 0.35 : undefined,
+  }));
+}
+
+type EffectivePlatform = { x: number; y: number; w: number; h: number; dropped?: boolean };
+
+function getEffectivePlatform(pl: Platform, idx: number, mapKey: MapKey, tSec: number): EffectivePlatform {
+  let x = pl.x;
+  let y = pl.y;
+  let w = pl.w;
+  let h = pl.h;
+  let dropped = false;
+
+  if (mapKey === 'city' && idx !== 0) {
+    const baseX = pl.baseX ?? pl.x;
+    const phase = pl.cityPhase ?? 0;
+    const amp = 14;
+    const speed = 1.1;
+    x = baseX + Math.sin(tSec * speed + phase) * amp;
+  }
+
+  if (mapKey === 'hotel' && idx !== 0) {
+    const phase = pl.hotelPhase ?? 0;
+    const period = 6; // seconds
+    const t = (tSec + phase) % period;
+    const isDropped = t < 2.2;
+    if (isDropped) {
+      y = y + 22;
+      dropped = true;
+    }
+  }
+
+  return { x, y, w, h, dropped };
 }
 
 function mapControlHint(mapKey: MapKey): string {
@@ -147,7 +195,11 @@ function mapControlHint(mapKey: MapKey): string {
     case 'mountain':
       return 'Mountain: click/tap rocks to climb up.';
     case 'city':
-      return 'City: hop rooftop-to-rooftop (bigger jumps, staggered builds).';
+      return 'City: rooftops slide sideways—aim for the landing spot.';
+    case 'coral':
+      return 'Coral Reef: landing bounces you (use it to reach higher ledges).';
+    case 'hotel':
+      return 'Hotel: balconies periodically “drop” (don’t jump when they’re falling).';
     default:
       return 'Jump between platforms. Don\'t touch the lava!';
   }
@@ -202,7 +254,7 @@ export default function FloorIsLava(): JSX.Element {
     vel: { x: 0, y: 0 },
     onGround: false,
   });
-  const platformsRef = useRef<Array<{ x: number; y: number; w: number; h: number }>>([]);
+  const platformsRef = useRef<Platform[]>([]);
   const lavaYRef = useRef(HEIGHT - 24);
   const baseLavaSpeedRef = useRef(15);
   const elapsedRef = useRef(0);
@@ -308,31 +360,55 @@ export default function FloorIsLava(): JSX.Element {
     ctx.fillRect(0, 0, WIDTH, HEIGHT);
 
     // Platforms
-    for (const pl of platformsRef.current) {
-      const mapKey = selectedMapRef.current;
+    const mapKey = selectedMapRef.current;
+    const tSec = elapsedRef.current;
+    for (let i = 0; i < platformsRef.current.length; i++) {
+      const pl = platformsRef.current[i];
+      const rect = getEffectivePlatform(pl, i, mapKey, tSec);
+
       if (mapKey === 'city') {
         // Rooftops: base + highlight + small “window” slits.
         ctx.fillStyle = map.platformColor;
-        ctx.fillRect(pl.x, pl.y, pl.w, pl.h);
+        ctx.fillRect(rect.x, rect.y, rect.w, rect.h);
         ctx.fillStyle = 'rgba(255,255,255,0.12)';
-        ctx.fillRect(pl.x + 6, pl.y + 3, Math.max(0, pl.w - 12), 2);
+        ctx.fillRect(rect.x + 6, rect.y + 3, Math.max(0, rect.w - 12), 2);
         ctx.fillStyle = 'rgba(0,0,0,0.25)';
-        for (let i = 0; i < 3; i++) {
-          const wx = pl.x + 10 + i * ((pl.w - 20) / 3);
-          ctx.fillRect(wx, pl.y + 4, Math.max(2, pl.w / 12), pl.h - 6);
+        for (let wi = 0; wi < 3; wi++) {
+          const wx = rect.x + 10 + wi * ((rect.w - 20) / 3);
+          ctx.fillRect(wx, rect.y + 4, Math.max(2, rect.w / 12), rect.h - 6);
         }
       } else if (mapKey === 'mountain') {
         // Rocks: outline + slight internal glow.
         ctx.fillStyle = map.platformColor;
-        ctx.fillRect(pl.x, pl.y, pl.w, pl.h);
+        ctx.fillRect(rect.x, rect.y, rect.w, rect.h);
         ctx.strokeStyle = 'rgba(0,0,0,0.45)';
         ctx.lineWidth = 2;
-        ctx.strokeRect(pl.x + 1, pl.y + 1, pl.w - 2, pl.h - 2);
+        ctx.strokeRect(rect.x + 1, rect.y + 1, rect.w - 2, rect.h - 2);
         ctx.fillStyle = 'rgba(255,255,255,0.10)';
-        ctx.fillRect(pl.x + 4, pl.y + 2, Math.max(0, pl.w - 8), Math.max(0, pl.h - 4));
+        ctx.fillRect(rect.x + 4, rect.y + 2, Math.max(0, rect.w - 8), Math.max(0, rect.h - 4));
+      } else if (mapKey === 'hotel') {
+        ctx.fillStyle = map.platformColor;
+        ctx.globalAlpha = rect.dropped ? 0.35 : 1;
+        ctx.fillRect(rect.x, rect.y, rect.w, rect.h);
+        ctx.globalAlpha = 1;
+        ctx.strokeStyle = 'rgba(0,0,0,0.35)';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(rect.x + 1, rect.y + 1, rect.w - 2, rect.h - 2);
+        if (!rect.dropped) {
+          // Little “balcony rail” highlight.
+          ctx.fillStyle = 'rgba(255,255,255,0.10)';
+          ctx.fillRect(rect.x + 4, rect.y + 2, Math.max(0, rect.w - 8), Math.max(0, rect.h - 4));
+        }
+      } else if (mapKey === 'coral') {
+        ctx.fillStyle = map.platformColor;
+        ctx.fillRect(rect.x, rect.y, rect.w, rect.h);
+        // Coral sparkle on top.
+        const sparkle = 0.6 + Math.sin(tSec * 2 + i) * 0.4;
+        ctx.fillStyle = `rgba(255,255,255,${0.10 * sparkle})`;
+        ctx.fillRect(rect.x + 3, rect.y + 2, Math.max(2, rect.w - 6), 2);
       } else {
         ctx.fillStyle = map.platformColor;
-        ctx.fillRect(pl.x, pl.y, pl.w, pl.h);
+        ctx.fillRect(rect.x, rect.y, rect.w, rect.h);
       }
     }
 
@@ -359,8 +435,13 @@ export default function FloorIsLava(): JSX.Element {
     const mapKey = selectedMapRef.current;
 
     // Controls
-    if (keysRef.current.left) p.vel.x -= 0.9;
-    if (keysRef.current.right) p.vel.x += 0.9;
+    const accel =
+      mapKey === 'city' ? 1.15 : mapKey === 'hotel' ? 0.78 : mapKey === 'coral' ? 0.95 : 0.9;
+    const friction =
+      mapKey === 'city' ? 0.84 : mapKey === 'hotel' ? 0.92 : mapKey === 'coral' ? 0.87 : 0.88;
+
+    if (keysRef.current.left) p.vel.x -= accel;
+    if (keysRef.current.right) p.vel.x += accel;
     // Mountain is “climb by clicking rocks” — ignore jump input.
     if (mapKey !== 'mountain' && keysRef.current.up && p.onGround) {
       p.vel.y = -14.5;
@@ -371,7 +452,7 @@ export default function FloorIsLava(): JSX.Element {
     p.vel.y += GRAVITY * dt;
     p.pos.x += p.vel.x * dt;
     p.pos.y += p.vel.y * dt;
-    p.vel.x *= 0.88;
+    p.vel.x *= friction;
 
     // bounds
     if (p.pos.x < 0) {
@@ -387,16 +468,29 @@ export default function FloorIsLava(): JSX.Element {
     p.onGround = false;
     for (let i = 0; i < plats.length; i++) {
       const pl = plats[i];
+      const rect = getEffectivePlatform(pl, i, mapKey, elapsedRef.current);
       if (
-        p.pos.x + PLAYER_SIZE > pl.x &&
-        p.pos.x < pl.x + pl.w &&
-        p.pos.y + PLAYER_SIZE > pl.y &&
-        p.pos.y + PLAYER_SIZE - p.vel.y <= pl.y
+        p.pos.x + PLAYER_SIZE > rect.x &&
+        p.pos.x < rect.x + rect.w &&
+        p.pos.y + PLAYER_SIZE > rect.y &&
+        p.pos.y + PLAYER_SIZE - p.vel.y <= rect.y
       ) {
-        p.pos.y = pl.y - PLAYER_SIZE;
+        const impactVelY = p.vel.y;
+        p.pos.y = rect.y - PLAYER_SIZE;
         p.vel.y = 0;
         p.onGround = true;
+
+        // Coral: “bouncy reef” platforms.
+        if (mapKey === 'coral' && impactVelY > 2.5) {
+          p.vel.y = -11;
+          p.onGround = false;
+        }
       }
+    }
+
+    // Hotel: heavier control “grip” when grounded.
+    if (p.onGround && mapKey === 'hotel') {
+      p.vel.x *= 0.72;
     }
 
     // lava + difficulty
@@ -447,7 +541,15 @@ export default function FloorIsLava(): JSX.Element {
       const w = Math.round(PLATFORM_MIN_W + Math.random() * (PLATFORM_MAX_W - PLATFORM_MIN_W));
       const x = Math.round(Math.random() * (WIDTH - w));
       const y = -20 - Math.random() * 80;
-      plats.push({ x, y, w, h: PLATFORM_H });
+      plats.push({
+        x,
+        y,
+        w,
+        h: PLATFORM_H,
+        baseX: x,
+        cityPhase: Math.random() * Math.PI * 2,
+        hotelPhase: Math.random() * 10,
+      });
     }
 
     // score
