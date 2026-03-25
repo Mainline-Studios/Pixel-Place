@@ -11,6 +11,7 @@ import { useStyle } from '@/components/StyleProvider';
 import { useSound } from '@/contexts/SoundContext';
 import { useSecretTheme } from '@/contexts/SecretThemeContext';
 import { useMobileBeta } from '@/contexts/MobileBetaContext';
+import { useAccessibility, type ColorBlindMode } from '@/contexts/AccessibilityContext';
 import { STYLE_OPTIONS } from '@/lib/styleTheme';
 
 interface SettingsTabProps {
@@ -25,6 +26,14 @@ export default function SettingsTab({ user, editMode, onToggleEditMode }: Settin
   const { soundsEnabled, setSoundsEnabled } = useSound();
   const { secretTheme, unlockSecretTheme, clearSecretTheme } = useSecretTheme();
   const { isMobileBeta, forceDesktop, setForceDesktop } = useMobileBeta();
+  const {
+    reduceMotion,
+    setReduceMotion,
+    invertColors,
+    setInvertColors,
+    colorBlindMode,
+    setColorBlindMode,
+  } = useAccessibility();
   const [skins, setSkins] = useState<Skin[]>([]);
   const [tabContent, setTabContent] = useState<TabContent | null>(null);
   const [secretPasswordModal, setSecretPasswordModal] = useState(false);
@@ -108,6 +117,69 @@ export default function SettingsTab({ user, editMode, onToggleEditMode }: Settin
           />
           <span>Enable sound effects</span>
         </label>
+      </div>
+
+      <div className="ai-box">
+        <div className="ai-label">Accessibility</div>
+        <div className="ai-output" style={{ marginBottom: '12px' }}>
+          Adjust motion and colors for comfort. Device &quot;reduce motion&quot; is always honored; you can
+          also turn on extra options here. Color filters are approximate and apply to the whole page.
+        </div>
+        <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer' }}>
+          <input
+            type="checkbox"
+            checked={reduceMotion}
+            onChange={(e) => setReduceMotion(e.target.checked)}
+            style={{ width: '18px', height: '18px' }}
+          />
+          <span>Reduce motion (fewer animations and transitions)</span>
+        </label>
+        <label
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '10px',
+            cursor: 'pointer',
+            marginTop: '10px',
+          }}
+        >
+          <input
+            type="checkbox"
+            checked={invertColors}
+            onChange={(e) => setInvertColors(e.target.checked)}
+            style={{ width: '18px', height: '18px' }}
+          />
+          <span>Invert colors (light/dark flip for the whole site)</span>
+        </label>
+        <div style={{ marginTop: '14px' }}>
+          <label htmlFor="pixelplace-colorblind" style={{ display: 'block', marginBottom: '6px' }}>
+            Color vision filter
+          </label>
+          <select
+            id="pixelplace-colorblind"
+            value={colorBlindMode}
+            onChange={(e) => setColorBlindMode(e.target.value as ColorBlindMode)}
+            style={{
+              width: '100%',
+              maxWidth: '360px',
+              padding: '10px 12px',
+              borderRadius: '8px',
+              border: '1px solid var(--border)',
+              background: 'var(--panel-soft)',
+              color: 'var(--text-main)',
+              fontSize: '14px',
+            }}
+          >
+            <option value="none">None</option>
+            <option value="protanopia">Red–green (protanopia-style)</option>
+            <option value="deuteranopia">Red–green (deuteranopia-style)</option>
+            <option value="tritanopia">Blue–yellow (tritanopia-style)</option>
+          </select>
+          <p style={{ margin: '8px 0 0', fontSize: 13, color: 'var(--text-dim)' }}>
+            These use common color matrices for preview and experimentation; they are not a medical
+            calibration.
+          </p>
+        </div>
       </div>
 
       <div className="ai-box">

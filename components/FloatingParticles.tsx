@@ -1,9 +1,11 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
+import { useReducedMotionEffective } from '@/contexts/AccessibilityContext';
 
 export default function FloatingParticles() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const reducedMotion = useReducedMotionEffective();
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -12,7 +14,7 @@ export default function FloatingParticles() {
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    let animationId: number;
+    let animationId = 0;
     let particles: { x: number; y: number; vx: number; vy: number; size: number; opacity: number }[] = [];
 
     const resize = () => {
@@ -55,16 +57,23 @@ export default function FloatingParticles() {
 
     resize();
     window.addEventListener('resize', resize);
-    animate();
+
+    if (!reducedMotion) {
+      animate();
+    } else {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+    }
+
     return () => {
       window.removeEventListener('resize', resize);
       cancelAnimationFrame(animationId);
     };
-  }, []);
+  }, [reducedMotion]);
 
   return (
     <canvas
       ref={canvasRef}
+      className="floating-particles-canvas"
       style={{
         position: 'fixed',
         top: 0,
@@ -73,7 +82,7 @@ export default function FloatingParticles() {
         height: '100%',
         pointerEvents: 'none',
         zIndex: 0,
-        opacity: 0.6,
+        opacity: reducedMotion ? 0 : 0.6,
       }}
       aria-hidden
     />

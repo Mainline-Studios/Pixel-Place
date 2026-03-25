@@ -461,6 +461,58 @@ textarea {
   .urgent-game-banner__marquee-text--scrolling {
     animation: none;
   }
+
+  .avatar-preview-spinner-ring {
+    animation: none;
+  }
+
+  .login-box h1,
+  .pixel-place-title {
+    animation: none !important;
+  }
+
+  .gender-other.selected {
+    animation: none;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+html.reduce-motion .urgent-game-banner__inner {
+  animation: none;
+}
+
+html.reduce-motion .urgent-game-banner__marquee-text--scrolling {
+  animation: none;
+}
+
+html.reduce-motion .avatar-preview-spinner-ring {
+  animation: none;
+}
+
+html.reduce-motion .login-box h1,
+html.reduce-motion .pixel-place-title {
+  animation: none !important;
+}
+
+html.reduce-motion .gender-other.selected {
+  animation: none;
+}
+
+html.reduce-motion *,
+html.reduce-motion *::before,
+html.reduce-motion *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+  scroll-behavior: auto !important;
 }
 
 /* Push scrollable app below fixed urgent bar */
@@ -2038,7 +2090,7 @@ footer a:hover {
 }
 
 /* ========== STYLE THEMES ========== */
-[data-style="normal"] { /* default, no overrides */ }
+
 
 [data-style="modern"] {
   --panel-radius: 12px;
