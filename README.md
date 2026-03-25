@@ -47,8 +47,4 @@ Note: the current **Studio** tab will be retired soon. A new, more exciting Stud
 
 ## License
 
-This project is private and proprietary. All rights reserved by Mainline Studios.
-
----
-
-*Pixel Place — by Mainline Studios*
+<a href="https://pixelplaceofficial.com/games">Pixel Place</a> © 2026 by <a href="https://github.com/Mainline-Studios">Mainline Studios</a> is licensed under <a href="https://creativecommons.org/licenses/by-nc-nd/4.0/">CC BY-NC-ND 4.0</a><img src="https://mirrors.creativecommons.org/presskit/icons/cc.svg" alt="" style="max-width: 1em;max-height:1em;margin-left: .2em;"><img src="https://mirrors.creativecommons.org/presskit/icons/by.svg" alt="" style="max-width: 1em;max-height:1em;margin-left: .2em;"><img src="https://mirrors.creativecommons.org/presskit/icons/nc.svg" alt="" style="max-width: 1em;max-height:1em;margin-left: .2em;"><img src="https://mirrors.creativecommons.org/presskit/icons/nd.svg" alt="" style="max-width: 1em;max-height:1em;margin-left: .2em;">

@@ -5,6 +5,7 @@ import { useUser } from '@/contexts/UserContext';
 import { useSound } from '@/contexts/SoundContext';
 import BanScreen from './BanScreen';
 import SiteSocialLinks from './SiteSocialLinks';
+import SiteLicenseAttribution from './SiteLicenseAttribution';
 import PyxTrainCta from './PyxTrainCta';
 import StatusPageLink from './StatusPageLink';
 
@@ -406,6 +407,9 @@ export default function Login() {
       >
         <div style={{ marginBottom: 14, maxWidth: 560, marginLeft: 'auto', marginRight: 'auto' }}>
           <SiteSocialLinks variant="urls" />
+        </div>
+        <div style={{ lineHeight: 1.65, maxWidth: 560, marginLeft: 'auto', marginRight: 'auto' }}>
+          <SiteLicenseAttribution />
         </div>
       </footer>
 
