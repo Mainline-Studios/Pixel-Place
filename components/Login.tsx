@@ -112,6 +112,7 @@ export default function Login() {
   return (
     <>
       <div id="login-screen">
+        <div className="login-screen-main">
         <div className="login-box">
           {mode === 'signup' && (
             <button
@@ -194,7 +195,6 @@ export default function Login() {
               >
                 Create
               </button>
-              <StatusPageLink variant="login" />
             </>
           ) : (
             <>
@@ -388,30 +388,28 @@ export default function Login() {
               >
                 Sign Up
               </button>
-              <StatusPageLink variant="login" />
             </>
           )}
 
           {message && <div id="msg" className="show">{message}</div>}
         </div>
-      </div>
+        </div>
 
-      <footer
-        style={{
-          marginTop: 28,
-          padding: '20px 20px 36px',
-          textAlign: 'center',
-          fontSize: 13,
-          color: 'rgba(242, 242, 245, 0.55)',
-        }}
-      >
-        <div style={{ marginBottom: 14, maxWidth: 560, marginLeft: 'auto', marginRight: 'auto' }}>
-          <SiteSocialLinks variant="urls" />
-        </div>
-        <div style={{ lineHeight: 1.65, maxWidth: 560, marginLeft: 'auto', marginRight: 'auto' }}>
-          <SiteLicenseAttribution />
-        </div>
-      </footer>
+        <footer className="login-footer" role="contentinfo">
+          <div className="login-footer__inner">
+            <div className="login-footer__status">
+              <StatusPageLink variant="login" />
+            </div>
+            <div className="login-footer__social">
+              <SiteSocialLinks variant="urls" />
+            </div>
+            <div className="login-footer__legal">
+              <SiteLicenseAttribution />
+            </div>
+            <p className="login-footer__tagline">Play. Create. Share.</p>
+          </div>
+        </footer>
+      </div>
 
       {/* Terms of Use Modal */}
       {showTerms && (
