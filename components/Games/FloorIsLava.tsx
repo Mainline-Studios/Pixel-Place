@@ -82,6 +82,77 @@ type PadKeys = { left: boolean; right: boolean; up: boolean };
 
 const clamp = (v: number, a: number, b: number) => Math.max(a, Math.min(b, v));
 
+type Platform = { x: number; y: number; w: number; h: number };
+
+function createInitialPlatforms(mapKey: MapKey): Platform[] {
+  // y increases downward; platforms are the “solid” surfaces the player can land on.
+  // Each map starts with a different “path” so it actually feels different.
+  switch (mapKey) {
+    case 'house':
+      return [
+        { x: 0, y: HEIGHT - 80, w: WIDTH, h: PLATFORM_H },
+        // mid
+        { x: 140, y: HEIGHT - 145, w: 160, h: PLATFORM_H },
+        // 3rd step (make it reachable)
+        { x: 300, y: HEIGHT - 185, w: 180, h: PLATFORM_H },
+        // extra platform so “3rd” never feels missing
+        { x: 460, y: HEIGHT - 220, w: 120, h: PLATFORM_H },
+      ];
+    case 'mountain':
+      // “Cliff” ladder: mostly narrower stepping stones.
+      return [
+        { x: 0, y: HEIGHT - 80, w: WIDTH, h: PLATFORM_H },
+        { x: 150, y: HEIGHT - 150, w: 140, h: PLATFORM_H },
+        { x: 250, y: HEIGHT - 185, w: 120, h: PLATFORM_H },
+        { x: 310, y: HEIGHT - 220, w: 130, h: PLATFORM_H },
+        { x: 395, y: HEIGHT - 250, w: 90, h: PLATFORM_H },
+      ];
+    case 'city':
+      // Building rooftops: staggered, wider “rooftops” with more gaps.
+      return [
+        { x: 0, y: HEIGHT - 80, w: WIDTH, h: PLATFORM_H },
+        { x: 70, y: HEIGHT - 150, w: 200, h: PLATFORM_H },
+        { x: 300, y: HEIGHT - 180, w: 140, h: PLATFORM_H },
+        { x: 420, y: HEIGHT - 230, w: 130, h: PLATFORM_H },
+        { x: 180, y: HEIGHT - 230, w: 150, h: PLATFORM_H },
+      ];
+    case 'coral':
+      // Softer, more “bubbly” path: slightly wider platforms.
+      return [
+        { x: 0, y: HEIGHT - 80, w: WIDTH, h: PLATFORM_H },
+        { x: 120, y: HEIGHT - 150, w: 200, h: PLATFORM_H },
+        { x: 330, y: HEIGHT - 190, w: 150, h: PLATFORM_H },
+        { x: 480, y: HEIGHT - 230, w: 120, h: PLATFORM_H },
+        { x: 210, y: HEIGHT - 230, w: 130, h: PLATFORM_H },
+      ];
+    case 'hotel':
+      // “Hotel” balconies: a few higher ledges.
+      return [
+        { x: 0, y: HEIGHT - 80, w: WIDTH, h: PLATFORM_H },
+        { x: 110, y: HEIGHT - 155, w: 160, h: PLATFORM_H },
+        { x: 260, y: HEIGHT - 210, w: 180, h: PLATFORM_H },
+        { x: 420, y: HEIGHT - 240, w: 120, h: PLATFORM_H },
+      ];
+    default:
+      return [
+        { x: 0, y: HEIGHT - 80, w: WIDTH, h: PLATFORM_H },
+        { x: 120, y: HEIGHT - 150, w: 120, h: PLATFORM_H },
+        { x: 380, y: HEIGHT - 220, w: 120, h: PLATFORM_H },
+      ];
+  }
+}
+
+function mapControlHint(mapKey: MapKey): string {
+  switch (mapKey) {
+    case 'mountain':
+      return 'Mountain: click/tap rocks to climb up.';
+    case 'city':
+      return 'City: hop rooftop-to-rooftop (bigger jumps, staggered builds).';
+    default:
+      return 'Jump between platforms. Don\'t touch the lava!';
+  }
+}
+
 export default function FloorIsLava(): JSX.Element {
   const { isMobileBeta } = useMobileBeta();
 
@@ -170,11 +241,7 @@ export default function FloorIsLava(): JSX.Element {
     p.vel.y = 0;
     p.onGround = false;
 
-    platformsRef.current = [
-      { x: 0, y: HEIGHT - 80, w: WIDTH, h: PLATFORM_H },
-      { x: 120, y: HEIGHT - 150, w: 120, h: PLATFORM_H },
-      { x: 380, y: HEIGHT - 220, w: 120, h: PLATFORM_H },
-    ];
+    platformsRef.current = createInitialPlatforms(key);
 
     lavaYRef.current = HEIGHT - 24;
     baseLavaSpeedRef.current = 15 * (map.lavaSpeedMod ?? 1);
@@ -241,8 +308,33 @@ export default function FloorIsLava(): JSX.Element {
     ctx.fillRect(0, 0, WIDTH, HEIGHT);
 
     // Platforms
-    ctx.fillStyle = map.platformColor;
-    for (const pl of platformsRef.current) ctx.fillRect(pl.x, pl.y, pl.w, pl.h);
+    for (const pl of platformsRef.current) {
+      const mapKey = selectedMapRef.current;
+      if (mapKey === 'city') {
+        // Rooftops: base + highlight + small “window” slits.
+        ctx.fillStyle = map.platformColor;
+        ctx.fillRect(pl.x, pl.y, pl.w, pl.h);
+        ctx.fillStyle = 'rgba(255,255,255,0.12)';
+        ctx.fillRect(pl.x + 6, pl.y + 3, Math.max(0, pl.w - 12), 2);
+        ctx.fillStyle = 'rgba(0,0,0,0.25)';
+        for (let i = 0; i < 3; i++) {
+          const wx = pl.x + 10 + i * ((pl.w - 20) / 3);
+          ctx.fillRect(wx, pl.y + 4, Math.max(2, pl.w / 12), pl.h - 6);
+        }
+      } else if (mapKey === 'mountain') {
+        // Rocks: outline + slight internal glow.
+        ctx.fillStyle = map.platformColor;
+        ctx.fillRect(pl.x, pl.y, pl.w, pl.h);
+        ctx.strokeStyle = 'rgba(0,0,0,0.45)';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(pl.x + 1, pl.y + 1, pl.w - 2, pl.h - 2);
+        ctx.fillStyle = 'rgba(255,255,255,0.10)';
+        ctx.fillRect(pl.x + 4, pl.y + 2, Math.max(0, pl.w - 8), Math.max(0, pl.h - 4));
+      } else {
+        ctx.fillStyle = map.platformColor;
+        ctx.fillRect(pl.x, pl.y, pl.w, pl.h);
+      }
+    }
 
     // Player
     ctx.fillStyle = '#ffd166';
@@ -264,11 +356,13 @@ export default function FloorIsLava(): JSX.Element {
     const p = playerRef.current;
     const plats = platformsRef.current;
     const dt = dtMs / (1000 / 60); // normalize-ish to original feel
+    const mapKey = selectedMapRef.current;
 
     // Controls
     if (keysRef.current.left) p.vel.x -= 0.9;
     if (keysRef.current.right) p.vel.x += 0.9;
-    if (keysRef.current.up && p.onGround) {
+    // Mountain is “climb by clicking rocks” — ignore jump input.
+    if (mapKey !== 'mountain' && keysRef.current.up && p.onGround) {
       p.vel.y = -14.5;
       p.onGround = false;
     }
@@ -870,10 +964,53 @@ export default function FloorIsLava(): JSX.Element {
         <div style={{ marginTop: 12, fontSize: 12, color: 'rgba(255,255,255,0.65)', lineHeight: 1.35 }}>
           Map: <strong style={{ color: '#fff' }}>{MAPS[selectedMap].displayName}</strong> • Game duration:{' '}
           <strong style={{ color: '#fff' }}>{GAME_DURATION}s</strong>
+          <div style={{ marginTop: 6 }}>{mapControlHint(selectedMap)}</div>
         </div>
       </div>
     );
   }, [gameOver, paused, resetGame, running, score, startGame, stopGame, timeUp, selectedMap, togglePause]);
+
+  const handleCanvasPointerDown = useCallback(
+    (e: React.PointerEvent<HTMLCanvasElement>) => {
+      if (selectedMapRef.current !== 'mountain') return;
+      if (!runningRef.current || pausedRef.current || gameOverRef.current || timeUpRef.current) return;
+
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+
+      // Convert client coords to canvas logical coords.
+      const rect = e.currentTarget.getBoundingClientRect();
+      const x = ((e.clientX - rect.left) / rect.width) * WIDTH;
+
+      // “Climb by clicking rocks”: if you click a platform above you, snap onto it and give an upward impulse.
+      const p = playerRef.current;
+      const candidates = platformsRef.current.filter((pl) => {
+        const inX = x >= pl.x && x <= pl.x + pl.w;
+        const above = pl.y < p.pos.y + 10;
+        const reachable = p.pos.y - pl.y <= 160;
+        return inX && above && reachable;
+      });
+      if (!candidates.length) return;
+
+      // Choose the closest platform above the player.
+      let best = candidates[0];
+      let bestDy = p.pos.y - best.y;
+      for (const pl of candidates) {
+        const dy = p.pos.y - pl.y;
+        if (dy >= 0 && dy < bestDy) {
+          best = pl;
+          bestDy = dy;
+        }
+      }
+
+      p.pos.x = clamp(x - PLAYER_SIZE / 2, 0, WIDTH - PLAYER_SIZE);
+      p.pos.y = best.y - PLAYER_SIZE;
+      p.vel.x = 0;
+      p.vel.y = -16;
+      p.onGround = false;
+    },
+    [],
+  );
 
   const overlayVisible = Boolean(overlay);
 
@@ -904,7 +1041,7 @@ export default function FloorIsLava(): JSX.Element {
         🔥 Floor Is Lava
       </h2>
       <p style={{ margin: '0 0 20px 0', color: 'rgba(255,255,255,0.7)', fontSize: 14 }}>
-        Jump from platform to platform. The lava rises until you fall (or survive the full round).
+        {mapControlHint(selectedMap)}
       </p>
 
       <div
@@ -944,12 +1081,14 @@ export default function FloorIsLava(): JSX.Element {
             )}
             <canvas
               ref={canvasRef}
+              onPointerDown={handleCanvasPointerDown}
               style={{
                 display: 'block',
                 background: '#000',
                 width: WIDTH,
                 height: HEIGHT,
                 imageRendering: 'pixelated',
+                cursor: selectedMap === 'mountain' ? 'crosshair' : 'default',
               }}
             />
           </div>
