@@ -96,7 +96,7 @@ export default function Dashboard({ user }: DashboardProps) {
   };
 
   return (
-    <div id="dashboard" style={{ position: 'relative' }}>
+    <div id="dashboard" className="dashboard-shell" style={{ position: 'relative' }}>
       <FloatingParticles />
       <TopBar
         currentTab={currentTab}
@@ -133,12 +133,12 @@ export default function Dashboard({ user }: DashboardProps) {
       </div>
       <footer style={{
         marginTop: '40px',
-        padding: '24px',
+        padding: '28px 20px 32px',
         textAlign: 'center',
         color: 'var(--text-dim)',
         fontSize: '13px',
-        background: 'linear-gradient(180deg, transparent 0%, rgba(0,0,0,0.2) 100%)',
-        borderTop: '1px solid var(--border)',
+        background: 'linear-gradient(180deg, transparent 0%, rgba(52,245,197,0.04) 40%, rgba(0,0,0,0.35) 100%)',
+        borderTop: '1px solid rgba(52, 245, 197, 0.2)',
       }}>
         <div style={{ marginBottom: 12, display: 'flex', justifyContent: 'center' }}>
           <StatusPageLink />

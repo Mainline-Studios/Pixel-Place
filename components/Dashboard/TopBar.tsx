@@ -92,9 +92,9 @@ export default function TopBar({ currentTab, onTabChange, user }: TopBarProps) {
                 letterSpacing: '0.06em',
                 padding: '4px 8px',
                 borderRadius: 8,
-                background: 'linear-gradient(135deg, rgba(0,212,255,0.25), rgba(247,37,133,0.2))',
-                border: '1px solid rgba(0,212,255,0.35)',
-                color: '#7ee8ff',
+                background: 'linear-gradient(135deg, rgba(52,245,197,0.28), rgba(244,114,182,0.22))',
+                border: '1px solid rgba(52,245,197,0.45)',
+                color: '#b8fff0',
               }}
               title="Touch-friendly layout — HistoriMac hidden. Change in Settings."
             >
@@ -126,13 +126,14 @@ export default function TopBar({ currentTab, onTabChange, user }: TopBarProps) {
               display: 'flex',
               alignItems: 'center',
               gap: '6px',
-              padding: '6px 12px',
-              background: 'linear-gradient(135deg, rgba(255, 193, 7, 0.2) 0%, rgba(255, 152, 0, 0.15) 100%)',
-              borderRadius: '20px',
-              border: '1px solid rgba(255, 193, 7, 0.3)',
+              padding: '7px 14px',
+              background: 'linear-gradient(135deg, rgba(52,245,197,0.12) 0%, rgba(244,114,182,0.1) 100%)',
+              borderRadius: '999px',
+              border: '1px solid rgba(52,245,197,0.35)',
               fontSize: '14px',
-              fontWeight: 600,
-              color: '#ffc107',
+              fontWeight: 700,
+              color: '#34f5c5',
+              boxShadow: '0 0 20px rgba(52,245,197,0.15)',
             }}
           >
             <span style={{ fontSize: '16px' }}>🪙</span>

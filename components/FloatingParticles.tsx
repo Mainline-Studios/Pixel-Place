@@ -15,7 +15,15 @@ export default function FloatingParticles() {
     if (!ctx) return;
 
     let animationId = 0;
-    let particles: { x: number; y: number; vx: number; vy: number; size: number; opacity: number }[] = [];
+    let particles: {
+      x: number;
+      y: number;
+      vx: number;
+      vy: number;
+      size: number;
+      opacity: number;
+      hue: 'mint' | 'pink';
+    }[] = [];
 
     const resize = () => {
       canvas.width = window.innerWidth;
@@ -48,7 +56,10 @@ export default function FloatingParticles() {
 
         ctx.beginPath();
         ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(125, 211, 252, ${p.opacity})`;
+        ctx.fillStyle =
+          p.hue === 'mint'
+            ? `rgba(52, 245, 197, ${p.opacity})`
+            : `rgba(244, 114, 182, ${p.opacity})`;
         ctx.fill();
       });
 
@@ -82,7 +93,7 @@ export default function FloatingParticles() {
         height: '100%',
         pointerEvents: 'none',
         zIndex: 0,
-        opacity: reducedMotion ? 0 : 0.6,
+        opacity: reducedMotion ? 0 : 0.72,
       }}
       aria-hidden
     />

@@ -75,8 +75,8 @@ export default function HistoriMacInviteShell({ versionId, label }: Props) {
               display: 'inline-block',
               padding: '12px 20px',
               fontWeight: 700,
-              color: '#0f1419',
-              background: 'linear-gradient(180deg, #7dd3fc, #38bdf8)',
+              color: '#05050a',
+              background: 'linear-gradient(180deg, #8efce8, #34f5c5)',
               borderRadius: 12,
               textDecoration: 'none',
             }}
