@@ -4,11 +4,6 @@
 
 *This project is **Pixel Place** by Mainline Studios. It is not affiliated with other products or games named "Pixel Place" or "PixelPlace."*
 
----
-
-## Overview
-
-Pixel Place is a web app where users sign in, customize an avatar, earn and spend Pixel Coins, and access a mix of built-in games (e.g. Showdown, Tag, Snake, 3D runners, Memory, Tic-Tac-Toe) and community-created games. The platform includes a Game Studio for building and publishing games and optional AI-assisted coding. The stack includes Next.js, React, TypeScript, and Firebase.
 
 ---
 
@@ -33,11 +28,10 @@ Note: the current **Studio** tab will be retired soon. A new, more exciting Stud
 
 ## Links
 
-- **Repository:** [Mainline-Studios/Pixel-Place](https://github.com/Mainline-Studios/Pixel-Place)
-- **Setup / commands:** See `START_HERE.md` and `ALL_COMMANDS.txt` in the repo as needed.
-- **Firebase deploy:** `firebase deploy` or `npm run deploy` — Hosting runs **`npm run build` before upload** via `firebase.json` so `out/` stays fresh. Full project deploy (hosting + functions, etc.): `npm run deploy:full`. Details: `FIREBASE_HOSTING.md`.
-- **Security:** `docs/SECURITY_REVIEW_2026.md` (audit checklist, secrets, JWT). Password-hashing notes: `SECURITY_AUDIT.md`.
-- **Firebase (client):** Web SDK config is **not** in source. Copy `NEXT_PUBLIC_FIREBASE_*` from Firebase Console → Project settings into `.env.local` (dev) or CI secrets (see `FIREBASE_HOSTING.md`).
+- **Youtube:** [Youtube](https://www.youtube.com/@OfficialPixelPlace)
+- **Discord:** [Discord](https://discord.com/invite/VV6nKAz5sR)
+- **Website (Play Here!):** [Pixel Place Official](https://pixelplaceofficial.com/games)
+- **Status Page:** [Status](https://status.pixelplaceofficial.com)
 
 ---
 
