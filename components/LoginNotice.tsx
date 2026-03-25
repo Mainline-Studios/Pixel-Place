@@ -97,8 +97,8 @@ export default function LoginNotice() {
           padding: 10px 24px;
           font-size: 0.95rem;
           font-weight: 600;
-          color: #05050a;
-          background: linear-gradient(180deg, #8efce8 0%, #34f5c5 100%);
+          color: #0f172a;
+          background: linear-gradient(180deg, #7dd3fc 0%, #38bdf8 100%);
           border: none;
           border-radius: 10px;
           cursor: pointer;
@@ -106,7 +106,7 @@ export default function LoginNotice() {
         }
         .login-notice-btn:hover {
           transform: translateY(-1px);
-          box-shadow: 0 6px 20px rgba(52, 245, 197, 0.4);
+          box-shadow: 0 6px 20px rgba(56, 189, 248, 0.35);
         }
         .login-notice-btn:active {
           transform: translateY(0);

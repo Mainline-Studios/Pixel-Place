@@ -137,8 +137,8 @@ export default function Dashboard({ user }: DashboardProps) {
         textAlign: 'center',
         color: 'var(--text-dim)',
         fontSize: '13px',
-        background: 'linear-gradient(180deg, transparent 0%, rgba(52,245,197,0.04) 40%, rgba(0,0,0,0.35) 100%)',
-        borderTop: '1px solid rgba(52, 245, 197, 0.2)',
+        background: 'linear-gradient(180deg, transparent 0%, rgba(0,0,0,0.22) 100%)',
+        borderTop: '1px solid var(--border)',
       }}>
         <div style={{ marginBottom: 12, display: 'flex', justifyContent: 'center' }}>
           <StatusPageLink />

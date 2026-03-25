@@ -574,8 +574,8 @@ export default function AvatarShopTab({ user, editMode }: AvatarShopTabProps) {
       <div>
         {/* Starter Skins - 10 Pixel-Coins - Perfect for new players! */}
         {starterSkins.length > 0 && (
-          <div className="ai-box" style={{ marginBottom: '24px', border: '2px solid rgba(52, 245, 197, 0.45)', boxShadow: '0 0 28px rgba(244, 114, 182, 0.12)' }}>
-            <div className="skins-section-title" style={{ color: '#34f5c5' }}>🌟 Starter Skins — 10 Pixel-Coins Each</div>
+          <div className="ai-box" style={{ marginBottom: '24px', border: '2px solid rgba(56, 189, 248, 0.4)', boxShadow: '0 0 24px rgba(56, 189, 248, 0.12)' }}>
+            <div className="skins-section-title" style={{ color: '#38bdf8' }}>🌟 Starter Skins — 10 Pixel-Coins Each</div>
             <div className="smalltext" style={{ marginBottom: '12px' }}>
               Start with 10 Pixel-Coins! Personalize your avatar right away. All skins use 3D models.
             </div>
@@ -583,11 +583,11 @@ export default function AvatarShopTab({ user, editMode }: AvatarShopTabProps) {
               {starterSkins.map((s) => {
                 const affordable = (user.coins || 0) >= 10;
                 return (
-                  <div key={s.id} className="skin-card" style={{ border: '2px solid rgba(52, 245, 197, 0.35)' }}>
+                  <div key={s.id} className="skin-card" style={{ border: '2px solid rgba(56, 189, 248, 0.3)' }}>
                     <SkinThumb skin={s} previewMode="3d" width={100} height={100} />
                     <div className="skin-name">{escapeHTML(s.name)}</div>
                     <div className="skin-meta">
-                      <span className="price-tag" style={{ color: '#34f5c5' }}>💠 10 Pixel-Coins</span>
+                      <span className="price-tag" style={{ color: '#38bdf8' }}>💠 10 Pixel-Coins</span>
                     </div>
                     <div className="skin-actions">
                       <button
@@ -596,7 +596,7 @@ export default function AvatarShopTab({ user, editMode }: AvatarShopTabProps) {
                         onClick={() => handlePurchase(s)}
                         style={
                           affordable
-                            ? { background: 'linear-gradient(135deg, #34f5c5, #e879f9)', color: '#05050a', fontWeight: 700 }
+                            ? { background: 'linear-gradient(135deg, #38bdf8, #0284c7)', color: '#0f172a', fontWeight: 700 }
                             : {}
                         }
                       >

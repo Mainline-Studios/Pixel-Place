@@ -15,29 +15,21 @@ export default function FloatingParticles() {
     if (!ctx) return;
 
     let animationId = 0;
-    let particles: {
-      x: number;
-      y: number;
-      vx: number;
-      vy: number;
-      size: number;
-      opacity: number;
-      hue: 'mint' | 'pink';
-    }[] = [];
+    let particles: { x: number; y: number; vx: number; vy: number; size: number; opacity: number }[] = [];
 
     const resize = () => {
       canvas.width = window.innerWidth;
       canvas.height = window.innerHeight;
       particles = [];
-      const count = Math.min(40, Math.floor((canvas.width * canvas.height) / 40000));
+      const count = Math.min(36, Math.floor((canvas.width * canvas.height) / 42000));
       for (let i = 0; i < count; i++) {
         particles.push({
           x: Math.random() * canvas.width,
           y: Math.random() * canvas.height,
-          vx: (Math.random() - 0.5) * 0.3,
-          vy: (Math.random() - 0.5) * 0.3,
-          size: Math.random() * 2 + 0.5,
-          opacity: Math.random() * 0.4 + 0.1,
+          vx: (Math.random() - 0.5) * 0.28,
+          vy: (Math.random() - 0.5) * 0.28,
+          size: Math.random() * 1.8 + 0.45,
+          opacity: Math.random() * 0.32 + 0.08,
         });
       }
     };
@@ -56,10 +48,7 @@ export default function FloatingParticles() {
 
         ctx.beginPath();
         ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
-        ctx.fillStyle =
-          p.hue === 'mint'
-            ? `rgba(52, 245, 197, ${p.opacity})`
-            : `rgba(244, 114, 182, ${p.opacity})`;
+        ctx.fillStyle = `rgba(148, 180, 220, ${p.opacity})`;
         ctx.fill();
       });
 
@@ -93,7 +82,7 @@ export default function FloatingParticles() {
         height: '100%',
         pointerEvents: 'none',
         zIndex: 0,
-        opacity: reducedMotion ? 0 : 0.72,
+        opacity: reducedMotion ? 0 : 0.5,
       }}
       aria-hidden
     />
