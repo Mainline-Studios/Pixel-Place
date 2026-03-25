@@ -9,6 +9,7 @@ import Sidebar from './Sidebar';
 import FloatingParticles from '../FloatingParticles';
 import ScrollToTop from '../ScrollToTop';
 import SiteSocialLinks from '../SiteSocialLinks';
+import SiteLicenseAttribution from '../SiteLicenseAttribution';
 import StatusPageLink from '../StatusPageLink';
 import PyxTrainCta from '../PyxTrainCta';
 import { useSecretTheme } from '@/contexts/SecretThemeContext';
@@ -145,11 +146,14 @@ export default function Dashboard({ user }: DashboardProps) {
         <div style={{ marginBottom: 16, maxWidth: 720, marginLeft: 'auto', marginRight: 'auto' }}>
           <SiteSocialLinks variant="urls" />
         </div>
-        <span style={{ background: 'linear-gradient(90deg, #00aaff, #00dd88)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', fontWeight: 700 }}>© 2025 Pixel Place</span>
-        <span style={{ margin: '0 12px', opacity: 0.5 }}>•</span>
-        <span>Play. Create. Share.</span>
-        <span style={{ margin: '0 12px', opacity: 0.5 }}>•</span>
-        <span>Press G, S, C, P, F, or O to switch tabs</span>
+        <div style={{ marginBottom: 14, lineHeight: 1.65, maxWidth: 640, marginLeft: 'auto', marginRight: 'auto' }}>
+          <SiteLicenseAttribution />
+        </div>
+        <div>
+          <span>Play. Create. Share.</span>
+          <span style={{ margin: '0 12px', opacity: 0.5 }}>•</span>
+          <span>Press G, S, C, P, F, or O to switch tabs</span>
+        </div>
       </footer>
       <ScrollToTop />
     </div>

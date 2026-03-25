@@ -42,6 +42,7 @@ export function getSchemaOrgJsonLd() {
         ],
         offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
         sameAs: [PIXEL_PLACE_GITHUB, PIXEL_PLACE_YOUTUBE, MAINLINE_STUDIOS_DISCORD],
+        license: 'https://creativecommons.org/licenses/by-nc-nd/4.0/',
       },
       {
         '@type': 'Organization',
