@@ -3,6 +3,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { resolveClientApiUrl } from '@/lib/apiBaseUrl';
 import { getStatusPageUrl } from '@/lib/statusPageUrl';
+import { readReducedMotionPreferred } from '@/lib/a11yReducedMotion';
 
 const STORAGE_KEY = 'pixelplace_urgent_autodismiss_v1';
 
@@ -90,6 +91,7 @@ export default function UrgentGameBanner() {
     if (!payload) return;
 
     const { dismissKey } = payload;
+    const textEl = textRef.current;
     const timeouts: number[] = [];
     let raf1 = 0;
     let raf2 = 0;
@@ -126,7 +128,7 @@ export default function UrgentGameBanner() {
       const trackW = track.clientWidth;
       const scrollW = text.scrollWidth;
       const overflow = scrollW - trackW;
-      const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      const reduceMotion = readReducedMotionPreferred();
 
       if (overflow <= 4) {
         timeouts.push(window.setTimeout(finish, 10_000));
@@ -161,8 +163,7 @@ export default function UrgentGameBanner() {
       window.cancelAnimationFrame(raf1);
       window.cancelAnimationFrame(raf2);
       timeouts.forEach((t) => window.clearTimeout(t));
-      const text = textRef.current;
-      if (text) resetTextStyles(text);
+      if (textEl) resetTextStyles(textEl);
     };
   }, [payload]);
 

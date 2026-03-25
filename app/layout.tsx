@@ -6,6 +6,7 @@ import { UserProvider } from "@/contexts/UserContext";
 import { StyleProvider } from "@/components/StyleProvider";
 import { SecretThemeProvider } from "@/contexts/SecretThemeContext";
 import { SoundProvider } from "@/contexts/SoundContext";
+import { AccessibilityProvider } from "@/contexts/AccessibilityContext";
 import SoundEffects from "@/components/SoundEffects";
 import { getSchemaOrgJsonLd } from "@/lib/schemaOrg";
 
@@ -40,16 +41,18 @@ export default function RootLayout({
       </head>
       <body>
         <StyleProvider>
-          <SecretThemeProvider>
-            <SoundProvider>
-              <MobileBetaProvider>
-                <UserProvider>
-                  <SoundEffects />
-                  {children}
-                </UserProvider>
-              </MobileBetaProvider>
-            </SoundProvider>
-          </SecretThemeProvider>
+          <AccessibilityProvider>
+            <SecretThemeProvider>
+              <SoundProvider>
+                <MobileBetaProvider>
+                  <UserProvider>
+                    <SoundEffects />
+                    {children}
+                  </UserProvider>
+                </MobileBetaProvider>
+              </SoundProvider>
+            </SecretThemeProvider>
+          </AccessibilityProvider>
         </StyleProvider>
       </body>
     </html>
