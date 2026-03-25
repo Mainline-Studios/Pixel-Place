@@ -227,7 +227,7 @@ export default function FullScreenStudio({ mode, onClose }: FullScreenStudioProp
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-            <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#00aaff' }}>
+            <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#38bdf8' }}>
               {mode === 'realism' && '🌟 Realism Pixel'}
               {mode === '3d' && '🎯 3D Pixel'}
               {mode === '2d' && '📐 2D Pixel'}

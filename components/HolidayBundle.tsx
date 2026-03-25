@@ -229,7 +229,7 @@ export default function HolidayBundle({ user, onClose }: HolidayBundleProps) {
                             onClick={handlePurchase}
                             style={{
                                 padding: '15px 40px',
-                                backgroundColor: user.username === '6767kid' ? '#00aaff' : holiday.color,
+                                backgroundColor: user.username === '6767kid' ? '#38bdf8' : holiday.color,
                                 color: '#fff',
                                 border: 'none',
                                 borderRadius: '10px',

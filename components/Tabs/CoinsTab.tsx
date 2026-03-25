@@ -269,11 +269,11 @@ export default function CoinsTab({ user, editMode }: CoinsTabProps) {
 
       {/* Admin-only coin pack */}
       {(user.role === 'admin' || user.role === 'head_admin') && (
-        <div className="ai-box" style={{ marginTop: '20px', border: '2px solid #00aaff' }}>
-          <div className="ai-label" style={{ color: '#00aaff' }}>Admin Exclusive</div>
+        <div className="ai-box" style={{ marginTop: '20px', border: '2px solid #38bdf8' }}>
+          <div className="ai-label" style={{ color: '#38bdf8' }}>Admin Exclusive</div>
           <div className="coins-store-row">
-            <div className="coin-pack" style={{ border: '2px solid #00aaff' }}>
-              <div className="coin-amount" style={{ fontSize: '24px', color: '#00aaff' }}>
+            <div className="coin-pack" style={{ border: '2px solid #38bdf8' }}>
+              <div className="coin-amount" style={{ fontSize: '24px', color: '#38bdf8' }}>
                 {formatNumber(adminCoinPack.coins)} Coins
               </div>
               <div className="coin-price" style={{ fontSize: '18px', fontWeight: 'bold' }}>
@@ -283,7 +283,7 @@ export default function CoinsTab({ user, editMode }: CoinsTabProps) {
                 className="btn coin-buy-btn"
                 onClick={() => handlePurchase(adminCoinPack)}
                 disabled={loading === adminCoinPack.stripePriceId}
-                style={{ background: user.username === '6767kid' ? '#00aaff' : undefined }}
+                style={{ background: user.username === '6767kid' ? '#38bdf8' : undefined }}
               >
                 {loading === adminCoinPack.stripePriceId ? 'Processing...' : user.username === '6767kid' ? 'Get Free' : 'Buy'}
               </button>
