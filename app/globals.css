@@ -194,7 +194,6 @@ textarea {
   display: flex;
   flex-direction: column;
   align-items: stretch;
-  justify-content: flex-start;
   padding: 0;
   background: #0a0c12;
   position: relative;
@@ -245,7 +244,7 @@ textarea {
   background-position: 0 0;
 }
 
-.login-screen-main {
+.login-screen-center {
   flex: 1 1 auto;
   display: flex;
   align-items: center;
@@ -254,86 +253,45 @@ textarea {
   min-height: 0;
 }
 
-.login-footer {
+/* Full-width strip — not a second “card” */
+.login-site-footer {
   flex-shrink: 0;
+  width: 100%;
+  margin-top: auto;
+  padding: 20px 20px max(28px, env(safe-area-inset-bottom, 0px));
+  border-top: 1px solid rgba(148, 163, 184, 0.14);
+  text-align: center;
+  font-size: 13px;
+  color: rgba(242, 242, 245, 0.55);
   position: relative;
   z-index: 1;
-  width: 100%;
-  max-width: 560px;
-  margin: 0 auto;
-  padding: 8px 16px 28px;
   box-sizing: border-box;
+  background: linear-gradient(180deg, transparent 0%, rgba(0, 0, 0, 0.28) 100%);
 }
 
-.login-footer__inner {
-  border-radius: var(--panel-radius);
-  border: 1px solid rgba(56, 189, 248, 0.16);
-  background: linear-gradient(165deg, rgba(18, 22, 38, 0.82) 0%, rgba(10, 12, 22, 0.92) 100%);
-  backdrop-filter: blur(14px) saturate(140%);
-  box-shadow:
-    0 -8px 40px rgba(0, 0, 0, 0.45),
-    0 0 0 1px rgba(255, 255, 255, 0.04),
-    inset 0 1px 0 rgba(255, 255, 255, 0.06);
-  padding: 20px 22px 22px;
-  text-align: center;
+.login-site-footer__social {
+  margin-bottom: 14px;
+  max-width: 560px;
+  margin-left: auto;
+  margin-right: auto;
 }
 
-.login-footer__inner::before {
-  content: '';
-  display: block;
-  width: 48px;
-  height: 3px;
-  margin: 0 auto 18px;
-  border-radius: 999px;
-  background: linear-gradient(90deg, transparent, rgba(56, 189, 248, 0.65), rgba(129, 140, 248, 0.5), transparent);
-  opacity: 0.9;
-}
-
-.login-footer__status {
-  margin-bottom: 16px;
-}
-
-.login-footer__status .status-page-link--login {
-  margin-top: 0;
-}
-
-.login-footer__social {
-  margin-bottom: 16px;
-}
-
-.login-footer__legal {
-  font-size: 13px;
+.login-site-footer__legal {
+  max-width: 560px;
+  margin-left: auto;
+  margin-right: auto;
   line-height: 1.65;
-  color: rgba(241, 245, 249, 0.72);
 }
 
-.login-footer__legal a {
-  color: #7dd3fc;
+.login-site-footer__legal a {
+  color: rgba(125, 211, 252, 0.95);
   text-decoration: none;
 }
 
-.login-footer__legal a:hover {
+.login-site-footer__legal a:hover {
   color: #bae6fd;
   text-decoration: underline;
   text-underline-offset: 2px;
-}
-
-.login-footer__tagline {
-  margin: 18px 0 0;
-  font-size: 12px;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  color: rgba(148, 163, 184, 0.85);
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .login-footer__inner {
-    backdrop-filter: none;
-  }
-}
-
-html.reduce-motion .login-footer__inner {
-  backdrop-filter: none;
 }
 
 /* Remove animation - keep pattern static and tiled */

@@ -112,7 +112,7 @@ export default function Login() {
   return (
     <>
       <div id="login-screen">
-        <div className="login-screen-main">
+        <div className="login-screen-center">
         <div className="login-box">
           {mode === 'signup' && (
             <button
@@ -195,6 +195,7 @@ export default function Login() {
               >
                 Create
               </button>
+              <StatusPageLink variant="login" />
             </>
           ) : (
             <>
@@ -388,6 +389,7 @@ export default function Login() {
               >
                 Sign Up
               </button>
+              <StatusPageLink variant="login" />
             </>
           )}
 
@@ -395,18 +397,12 @@ export default function Login() {
         </div>
         </div>
 
-        <footer className="login-footer" role="contentinfo">
-          <div className="login-footer__inner">
-            <div className="login-footer__status">
-              <StatusPageLink variant="login" />
-            </div>
-            <div className="login-footer__social">
-              <SiteSocialLinks variant="urls" />
-            </div>
-            <div className="login-footer__legal">
-              <SiteLicenseAttribution />
-            </div>
-            <p className="login-footer__tagline">Play. Create. Share.</p>
+        <footer className="login-site-footer" role="contentinfo">
+          <div className="login-site-footer__social">
+            <SiteSocialLinks variant="urls" />
+          </div>
+          <div className="login-site-footer__legal">
+            <SiteLicenseAttribution />
           </div>
         </footer>
       </div>

@@ -28,12 +28,27 @@ function detectRawMobileLayout(): boolean {
   } catch {
     /* ignore */
   }
-  const narrow = window.matchMedia('(max-width: 768px)').matches;
+
+  const maxTablet = window.matchMedia('(max-width: 1024px)').matches;
   const coarse = window.matchMedia('(pointer: coarse)').matches;
+  const noHover = window.matchMedia('(hover: none)').matches;
+
   const ua = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
     navigator.userAgent,
   );
-  return narrow || (coarse && ua);
+  // iPadOS 13+ often uses a desktop "Macintosh" UA with no "iPad" substring — still a touch tablet.
+  const isIpadOs =
+    /iPad/i.test(navigator.userAgent) ||
+    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+
+  // Phones and typical Android tablets (incl. wide landscape): mobile UA + touch primary pointer
+  if (coarse && ua) return true;
+  // iPad / iPadOS "request desktop website": width often > 768px and UA does not match mobile regex
+  if (isIpadOs) return true;
+  // Touch-first device in a tablet-sized viewport (covers odd UAs; avoids desktop mouse setups)
+  if (maxTablet && coarse && noHover) return true;
+
+  return false;
 }
 
 export function MobileBetaProvider({ children }: { children: React.ReactNode }) {
@@ -52,14 +67,17 @@ export function MobileBetaProvider({ children }: { children: React.ReactNode }) 
   useEffect(() => {
     const apply = () => setRawMobile(detectRawMobileLayout());
     apply();
-    const mqNarrow = window.matchMedia('(max-width: 768px)');
+    const mqTablet = window.matchMedia('(max-width: 1024px)');
     const mqCoarse = window.matchMedia('(pointer: coarse)');
+    const mqNoHover = window.matchMedia('(hover: none)');
     const onChange = () => apply();
-    mqNarrow.addEventListener('change', onChange);
+    mqTablet.addEventListener('change', onChange);
     mqCoarse.addEventListener('change', onChange);
+    mqNoHover.addEventListener('change', onChange);
     return () => {
-      mqNarrow.removeEventListener('change', onChange);
+      mqTablet.removeEventListener('change', onChange);
       mqCoarse.removeEventListener('change', onChange);
+      mqNoHover.removeEventListener('change', onChange);
     };
   }, []);
 
