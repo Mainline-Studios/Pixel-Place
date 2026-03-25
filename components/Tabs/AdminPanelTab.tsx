@@ -497,7 +497,7 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
                               setAllUsers((prev) => prev.map((x) => (x.username.toLowerCase() === u.username.toLowerCase() ? updated : x)));
                               await saveUsers([updated]);
                             }}
-                            style={{ background: '#00aaff', padding: '6px 12px', fontSize: '12px' }}
+                            style={{ background: '#38bdf8', padding: '6px 12px', fontSize: '12px' }}
                           >
                             Make admin
                           </button>
