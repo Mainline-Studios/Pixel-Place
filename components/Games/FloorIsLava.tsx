@@ -1,11 +1,7 @@
-import React, { useRef, useEffect, useState, useCallback } from 'react';
+'use client';
 
-// "Floor Is Lava" canvas mini-game with server-synced voting via WebSocket
-// - If NEXT_PUBLIC_VOTE_WS_URL is provided the component will connect to that WebSocket server
-//   and use it as the authoritative vote source (one vote per connection enforced server-side).
-// - If no WS URL is provided the component falls back to local (client-only) voting.
-// - The WebSocket protocol is JSON messages with types:
-//   request_status, status, start_vote, vote_started, cast_vote, vote_update, vote_ended, selected_map, error
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useMobileBeta } from '@/contexts/MobileBetaContext';
 
 const WIDTH = 640;
 const HEIGHT = 360;
@@ -14,8 +10,8 @@ const PLAYER_SIZE = 18;
 const PLATFORM_MIN_W = 60;
 const PLATFORM_MAX_W = 160;
 const PLATFORM_H = 10;
-const VOTE_DURATION = 15; // seconds (voting window)
-const GAME_DURATION = 180; // seconds (3 minutes)
+const VOTE_DURATION = 15; // seconds
+const GAME_DURATION = 180; // seconds
 
 type MapKey = 'house' | 'mountain' | 'city' | 'coral' | 'hotel';
 
@@ -72,26 +68,43 @@ const MAPS: Record<
   },
 };
 
-// Expose WebSocket URL from NEXT_PUBLIC_VOTE_WS_URL (Next.js style env var for client)
+// Expose WebSocket URL from NEXT_PUBLIC_VOTE_WS_URL (client-safe env var pattern)
 const WS_URL =
   typeof process !== 'undefined' && typeof process.env !== 'undefined'
     ? (process.env.NEXT_PUBLIC_VOTE_WS_URL as string | undefined)
     : undefined;
 
-export default function FloorIsLava(): JSX.Element {
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const rafRef = useRef<number | null>(null);
-  const lastTimeRef = useRef<number | null>(null);
+type Votes = Record<MapKey, number>;
 
-  // Game state
+const MAP_KEYS: MapKey[] = ['house', 'mountain', 'city', 'coral', 'hotel'];
+
+type PadKeys = { left: boolean; right: boolean; up: boolean };
+
+const clamp = (v: number, a: number, b: number) => Math.max(a, Math.min(b, v));
+
+export default function FloorIsLava(): JSX.Element {
+  const { isMobileBeta } = useMobileBeta();
+
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const ctxRef = useRef<CanvasRenderingContext2D | null>(null);
+
+  // Render refs (avoid stale closures and heavy state updates)
+  const runningRef = useRef(false);
+  const pausedRef = useRef(false);
+  const gameOverRef = useRef(false);
+  const timeUpRef = useRef(false);
+  const mapRef = useRef(MAPS.house);
+  const selectedMapRef = useRef<MapKey>('house');
+
+  // HUD / game state exposed to UI
   const [running, setRunning] = useState(false);
   const [paused, setPaused] = useState(false);
   const [score, setScore] = useState(0);
   const [gameOver, setGameOver] = useState(false);
   const [timeUp, setTimeUp] = useState(false);
 
-  // Voting state (client view)
-  const [votes, setVotes] = useState<Record<MapKey, number>>({
+  const [selectedMap, setSelectedMap] = useState<MapKey>('house');
+  const [votes, setVotes] = useState<Votes>({
     house: 0,
     mountain: 0,
     city: 0,
@@ -103,18 +116,16 @@ export default function FloorIsLava(): JSX.Element {
     votesRef.current = votes;
   }, [votes]);
 
-  const [voted, setVoted] = useState<boolean>(false); // prevents repeated cast attempts from same client
   const [votingActive, setVotingActive] = useState(false);
   const [voteTimeLeft, setVoteTimeLeft] = useState(0);
-  const voteTimerRef = useRef<number | null>(null);
-
-  const [selectedMap, setSelectedMap] = useState<MapKey>('house');
+  const [voted, setVoted] = useState(false);
+  const voteEndAtRef = useRef<number | null>(null);
 
   // WebSocket
   const wsRef = useRef<WebSocket | null>(null);
   const [wsConnected, setWsConnected] = useState(false);
 
-  // Player & world
+  // Player & world refs
   const playerRef = useRef({
     pos: { x: WIDTH / 2 - PLAYER_SIZE / 2, y: 60 },
     vel: { x: 0, y: 0 },
@@ -126,14 +137,32 @@ export default function FloorIsLava(): JSX.Element {
   const elapsedRef = useRef(0);
   const lavaBoostedRef = useRef(false);
 
-  const keys = useRef<{ left: boolean; right: boolean; up: boolean }>({
-    left: false,
-    right: false,
-    up: false,
-  });
+  // Controls
+  const keysRef = useRef<PadKeys>({ left: false, right: false, up: false });
 
-  // Reset game and apply selected map modifiers
+  // Score rate limiting (canvas physics runs ~60fps)
+  const scoreRef = useRef(0);
+  const lastScoreSetRef = useRef(0);
+
+  useEffect(() => {
+    selectedMapRef.current = selectedMap;
+    mapRef.current = MAPS[selectedMap];
+  }, [selectedMap]);
+
+  const syncFlags = useCallback(() => {
+    runningRef.current = running;
+    pausedRef.current = paused;
+    gameOverRef.current = gameOver;
+    timeUpRef.current = timeUp;
+  }, [running, paused, gameOver, timeUp]);
+  useEffect(() => {
+    syncFlags();
+  }, [syncFlags]);
+
   const resetGame = useCallback(() => {
+    const key = selectedMapRef.current;
+    const map = MAPS[key];
+
     const p = playerRef.current;
     p.pos.x = WIDTH / 2 - PLAYER_SIZE / 2;
     p.pos.y = 40;
@@ -148,65 +177,267 @@ export default function FloorIsLava(): JSX.Element {
     ];
 
     lavaYRef.current = HEIGHT - 24;
-    baseLavaSpeedRef.current = 15 * (MAPS[selectedMap].lavaSpeedMod ?? 1);
+    baseLavaSpeedRef.current = 15 * (map.lavaSpeedMod ?? 1);
     elapsedRef.current = 0;
     lavaBoostedRef.current = false;
+
+    scoreRef.current = 0;
+    lastScoreSetRef.current = 0;
     setScore(0);
+
     setGameOver(false);
     setTimeUp(false);
-  }, [selectedMap]);
 
+    // If reset is called, ensure game isn't paused/over internally.
+    runningRef.current = false;
+    pausedRef.current = false;
+    gameOverRef.current = false;
+    timeUpRef.current = false;
+    setRunning(false);
+    setPaused(false);
+  }, []);
+
+  // Keyboard + focus
   useEffect(() => {
-    // keyboard handlers
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') keys.current.left = true;
-      if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') keys.current.right = true;
-      if (e.key === 'ArrowUp' || e.key === 'w' || e.key === 'W' || e.key === ' ') keys.current.up = true;
-      if (e.key === 'p' || e.key === 'P') setPaused((p) => !p);
+      if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') keysRef.current.left = true;
+      if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') keysRef.current.right = true;
+      if (e.key === 'ArrowUp' || e.key === 'w' || e.key === 'W' || e.key === ' ')
+        keysRef.current.up = true;
+      if (e.key === 'p' || e.key === 'P') {
+        setPaused((p) => {
+          const next = !p;
+          pausedRef.current = next;
+          return next;
+        });
+      }
     };
     const handleKeyUp = (e: KeyboardEvent) => {
-      if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') keys.current.left = false;
-      if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') keys.current.right = false;
-      if (e.key === 'ArrowUp' || e.key === 'w' || e.key === 'W' || e.key === ' ') keys.current.up = false;
+      if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') keysRef.current.left = false;
+      if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') keysRef.current.right = false;
+      if (e.key === 'ArrowUp' || e.key === 'w' || e.key === 'W' || e.key === ' ') keysRef.current.up = false;
     };
+
     window.addEventListener('keydown', handleKeyDown);
     window.addEventListener('keyup', handleKeyUp);
     resetGame();
+
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
     };
   }, [resetGame]);
 
-  // WebSocket connection & handlers
+  // Main canvas loop
+  const render = useCallback(() => {
+    const ctx = ctxRef.current;
+    if (!ctx) return;
+
+    const map = mapRef.current;
+    const p = playerRef.current;
+
+    // Background
+    ctx.fillStyle = map.bg;
+    ctx.fillRect(0, 0, WIDTH, HEIGHT);
+
+    // Platforms
+    ctx.fillStyle = map.platformColor;
+    for (const pl of platformsRef.current) ctx.fillRect(pl.x, pl.y, pl.w, pl.h);
+
+    // Player
+    ctx.fillStyle = '#ffd166';
+    ctx.fillRect(p.pos.x, p.pos.y, PLAYER_SIZE, PLAYER_SIZE);
+
+    // Lava gradient
+    const lavaY = lavaYRef.current;
+    const grd = ctx.createLinearGradient(0, lavaY, 0, HEIGHT);
+    const [c1, c2] = map.lavaColors;
+    grd.addColorStop(0, c1);
+    grd.addColorStop(1, c2);
+    ctx.fillStyle = grd;
+    ctx.fillRect(0, lavaY, WIDTH, HEIGHT - lavaY);
+  }, []);
+
+  const step = useCallback((dtMs: number) => {
+    if (!runningRef.current || pausedRef.current || gameOverRef.current || timeUpRef.current) return;
+
+    const p = playerRef.current;
+    const plats = platformsRef.current;
+    const dt = dtMs / (1000 / 60); // normalize-ish to original feel
+
+    // Controls
+    if (keysRef.current.left) p.vel.x -= 0.9;
+    if (keysRef.current.right) p.vel.x += 0.9;
+    if (keysRef.current.up && p.onGround) {
+      p.vel.y = -14.5;
+      p.onGround = false;
+    }
+
+    // physics
+    p.vel.y += GRAVITY * dt;
+    p.pos.x += p.vel.x * dt;
+    p.pos.y += p.vel.y * dt;
+    p.vel.x *= 0.88;
+
+    // bounds
+    if (p.pos.x < 0) {
+      p.pos.x = 0;
+      p.vel.x = 0;
+    }
+    if (p.pos.x + PLAYER_SIZE > WIDTH) {
+      p.pos.x = WIDTH - PLAYER_SIZE;
+      p.vel.x = 0;
+    }
+
+    // collisions
+    p.onGround = false;
+    for (let i = 0; i < plats.length; i++) {
+      const pl = plats[i];
+      if (
+        p.pos.x + PLAYER_SIZE > pl.x &&
+        p.pos.x < pl.x + pl.w &&
+        p.pos.y + PLAYER_SIZE > pl.y &&
+        p.pos.y + PLAYER_SIZE - p.vel.y <= pl.y
+      ) {
+        p.pos.y = pl.y - PLAYER_SIZE;
+        p.vel.y = 0;
+        p.onGround = true;
+      }
+    }
+
+    // lava + difficulty
+    lavaYRef.current -= (baseLavaSpeedRef.current * dtMs) / 1000;
+    elapsedRef.current += dtMs / 1000;
+
+    if (!lavaBoostedRef.current && elapsedRef.current >= 30) {
+      lavaBoostedRef.current = true;
+      baseLavaSpeedRef.current = baseLavaSpeedRef.current * 1.4;
+    }
+
+    // win condition (time survived)
+    if (elapsedRef.current >= GAME_DURATION) {
+      timeUpRef.current = true;
+      runningRef.current = false;
+      setTimeUp(true);
+      setRunning(false);
+      return;
+    }
+
+    // gradual scaling
+    if (elapsedRef.current > 120) {
+      baseLavaSpeedRef.current = Math.max(
+        baseLavaSpeedRef.current,
+        48 * (mapRef.current.lavaSpeedMod ?? 1),
+      );
+    } else if (elapsedRef.current > 40) {
+      baseLavaSpeedRef.current = Math.max(
+        baseLavaSpeedRef.current,
+        36 * (mapRef.current.lavaSpeedMod ?? 1),
+      );
+    } else if (elapsedRef.current > 20) {
+      baseLavaSpeedRef.current = Math.max(
+        baseLavaSpeedRef.current,
+        24 * (mapRef.current.lavaSpeedMod ?? 1),
+      );
+    }
+
+    const riseDelta = (baseLavaSpeedRef.current * dtMs) / 1000;
+    for (let i = 0; i < plats.length; i++) plats[i].y += riseDelta;
+    p.pos.y += riseDelta;
+
+    platformsRef.current = plats.filter((pl) => pl.y < HEIGHT + 100);
+
+    // spawn platforms with map frequency modifier
+    const freqMod = mapRef.current.platformFrequencyMod ?? 1;
+    if (Math.random() < 0.02 * freqMod) {
+      const w = Math.round(PLATFORM_MIN_W + Math.random() * (PLATFORM_MAX_W - PLATFORM_MIN_W));
+      const x = Math.round(Math.random() * (WIDTH - w));
+      const y = -20 - Math.random() * 80;
+      plats.push({ x, y, w, h: PLATFORM_H });
+    }
+
+    // score
+    const currentScore = Math.max(0, Math.floor((HEIGHT - lavaYRef.current) * 2));
+    scoreRef.current = currentScore;
+    const now = Date.now();
+    if (now - lastScoreSetRef.current > 180) {
+      lastScoreSetRef.current = now;
+      setScore(currentScore);
+    }
+
+    // game over
+    if (p.pos.y + PLAYER_SIZE >= lavaYRef.current) {
+      gameOverRef.current = true;
+      runningRef.current = false;
+      setGameOver(true);
+      setRunning(false);
+    }
+  }, []);
+
   useEffect(() => {
-    if (!WS_URL) return; // skip if not configured
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    ctxRef.current = ctx;
+
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    canvas.width = Math.floor(WIDTH * dpr);
+    canvas.height = Math.floor(HEIGHT * dpr);
+    canvas.style.width = `${WIDTH}px`;
+    canvas.style.height = `${HEIGHT}px`;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+    let raf = 0;
+    let lastTs: number | null = null;
+
+    const loop = (ts: number) => {
+      if (!lastTs) lastTs = ts;
+      const dt = ts - lastTs;
+      lastTs = ts;
+      step(dt);
+      render();
+      raf = requestAnimationFrame(loop);
+    };
+
+    raf = requestAnimationFrame(loop);
+    return () => cancelAnimationFrame(raf);
+  }, [render, step]);
+
+  // WebSocket vote server
+  useEffect(() => {
+    if (!WS_URL) return;
 
     let ws: WebSocket;
     try {
       ws = new WebSocket(WS_URL);
-    } catch (err) {
-      console.warn('Failed to create WebSocket to', WS_URL, err);
+    } catch (e) {
+      console.warn('Failed to create WebSocket to', WS_URL, e);
       return;
     }
+
     wsRef.current = ws;
 
     ws.addEventListener('open', () => {
       setWsConnected(true);
-      // ask server for current votes/status
       ws.send(JSON.stringify({ type: 'request_status' }));
     });
 
     ws.addEventListener('message', (ev) => {
       try {
         const data = JSON.parse(ev.data);
-        if (!data || !data.type) return;
+        if (!data?.type) return;
+
         switch (data.type) {
           case 'status': {
             setVotingActive(Boolean(data.votingActive));
             setVoteTimeLeft(Number(data.voteTimeLeft) || 0);
-            if (data.votes) setVotes((prev) => ({ ...prev, ...(data.votes as any) }));
-            if (data.selectedMap) setSelectedMap(data.selectedMap);
+            if (data.votes) setVotes(data.votes as Votes);
+            if (data.selectedMap) {
+              const next = data.selectedMap as MapKey;
+              selectedMapRef.current = next;
+              setSelectedMap(next);
+            }
             break;
           }
           case 'vote_started': {
@@ -217,23 +448,27 @@ export default function FloorIsLava(): JSX.Element {
             break;
           }
           case 'vote_update': {
-            if (data.votes) setVotes(data.votes);
+            if (data.votes) setVotes(data.votes as Votes);
             if (typeof data.voteTimeLeft === 'number') setVoteTimeLeft(data.voteTimeLeft);
             break;
           }
           case 'vote_ended': {
             setVotingActive(false);
             setVoteTimeLeft(0);
-            if (data.votes) setVotes(data.votes);
+            if (data.votes) setVotes(data.votes as Votes);
             if (data.selectedMap) {
-              setSelectedMap(data.selectedMap);
+              const next = data.selectedMap as MapKey;
+              selectedMapRef.current = next;
+              setSelectedMap(next);
               setTimeout(() => resetGame(), 80);
             }
             break;
           }
           case 'selected_map': {
             if (data.selectedMap) {
-              setSelectedMap(data.selectedMap);
+              const next = data.selectedMap as MapKey;
+              selectedMapRef.current = next;
+              setSelectedMap(next);
               setTimeout(() => resetGame(), 80);
             }
             break;
@@ -245,8 +480,8 @@ export default function FloorIsLava(): JSX.Element {
           default:
             break;
         }
-      } catch (err) {
-        console.warn('Failed to parse ws message', err);
+      } catch {
+        // ignore invalid messages
       }
     });
 
@@ -254,7 +489,6 @@ export default function FloorIsLava(): JSX.Element {
       setWsConnected(false);
       wsRef.current = null;
     });
-
     ws.addEventListener('error', () => {
       setWsConnected(false);
     });
@@ -262,370 +496,582 @@ export default function FloorIsLava(): JSX.Element {
     return () => {
       try {
         ws.close();
-      } catch (e) {
+      } catch {
         /* ignore */
       }
       wsRef.current = null;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // run once on mount
+  }, [resetGame]);
 
-  // Local fallback voting timer (only if WS not configured)
+  // Local fallback voting (only if WS not configured)
   useEffect(() => {
-    if (WS_URL) return; // skip local timer when using server
+    if (WS_URL) return;
     if (!votingActive) return;
-    if (voteTimerRef.current) window.clearInterval(voteTimerRef.current);
-    voteTimerRef.current = window.setInterval(() => {
-      setVoteTimeLeft((t) => {
-        if (t <= 1) {
-          if (voteTimerRef.current) {
-            window.clearInterval(voteTimerRef.current);
-            voteTimerRef.current = null;
-          }
-          setVotingActive(false);
-          // decide winner locally
-          setVotes((prev) => {
-            const arr = Object.entries(prev) as [MapKey, number][];
-            let max = -1;
-            arr.forEach(([k, v]) => {
-              if (v > max) max = v;
-            });
-            const winners = arr.filter(([k, v]) => v === max).map((a) => a[0]);
-            const pick = winners.length > 0 ? winners[Math.floor(Math.random() * winners.length)] : 'house';
-            setSelectedMap(pick as MapKey);
-            setTimeout(() => resetGame(), 80);
-            return prev;
-          });
-          return 0;
-        }
-        return t - 1;
-      });
-    }, 1000) as unknown as number;
 
-    return () => {
-      if (voteTimerRef.current) {
-        window.clearInterval(voteTimerRef.current);
-        voteTimerRef.current = null;
-      }
-    };
+    const interval = window.setInterval(() => {
+      const endAt = voteEndAtRef.current;
+      if (!endAt) return;
+
+      const remaining = Math.max(0, Math.ceil((endAt - Date.now()) / 1000));
+      setVoteTimeLeft(remaining);
+
+      if (remaining > 0) return;
+
+      window.clearInterval(interval);
+      setVotingActive(false);
+      setVoteTimeLeft(0);
+
+      const currentVotes = votesRef.current;
+      const entries = Object.entries(currentVotes) as [MapKey, number][];
+      let max = -1;
+      for (const [, v] of entries) max = Math.max(max, v);
+      const winners = entries.filter(([, v]) => v === max).map(([k]) => k);
+      const pick = winners.length ? winners[Math.floor(Math.random() * winners.length)] : 'house';
+
+      selectedMapRef.current = pick as MapKey;
+      setSelectedMap(pick as MapKey);
+      resetGame();
+    }, 250);
+
+    return () => window.clearInterval(interval);
   }, [votingActive, resetGame]);
 
-  const startVoting = (duration = VOTE_DURATION) => {
-    if (wsRef.current && wsConnected) {
-      try {
-        wsRef.current.send(JSON.stringify({ type: 'start_vote', duration }));
-      } catch (e) {
-        console.warn(e);
-      }
-      return;
-    }
-    // local fallback
-    setVotes({ house: 0, mountain: 0, city: 0, coral: 0, hotel: 0 });
-    setVoted(false);
-    setVotingActive(true);
-    setVoteTimeLeft(duration);
-  };
-
-  const castVote = (key: MapKey) => {
-    if (!votingActive || voted) return;
-    if (wsRef.current && wsConnected) {
-      try {
-        wsRef.current.send(JSON.stringify({ type: 'cast_vote', map: key }));
-        setVoted(true);
-      } catch (e) {
-        console.warn(e);
-      }
-      return;
-    }
-    // local fallback
-    setVotes((prev) => ({ ...prev, [key]: (prev[key] ?? 0) + 1 }));
-    setVoted(true);
-  };
-
-  // Game loop logic
-  const step = useCallback(
-    (dt: number) => {
-      const p = playerRef.current;
-      const plats = platformsRef.current;
-
-      // Controls
-      if (keys.current.left) p.vel.x -= 0.9;
-      if (keys.current.right) p.vel.x += 0.9;
-      if (keys.current.up && p.onGround) {
-        p.vel.y = -14.5;
-        p.onGround = false;
-      }
-
-      // physics
-      p.vel.y += GRAVITY * (dt / (1000 / 60));
-      p.pos.x += p.vel.x * (dt / (1000 / 60));
-      p.pos.y += p.vel.y * (dt / (1000 / 60));
-
-      p.vel.x *= 0.88;
-
-      if (p.pos.x < 0) {
-        p.pos.x = 0;
-        p.vel.x = 0;
-      }
-      if (p.pos.x + PLAYER_SIZE > WIDTH) {
-        p.pos.x = WIDTH - PLAYER_SIZE;
-        p.vel.x = 0;
-      }
-
-      // collisions
-      p.onGround = false;
-      for (let i = 0; i < plats.length; i++) {
-        const pl = plats[i];
-        if (
-          p.pos.x + PLAYER_SIZE > pl.x &&
-          p.pos.x < pl.x + pl.w &&
-          p.pos.y + PLAYER_SIZE > pl.y &&
-          p.pos.y + PLAYER_SIZE - p.vel.y <= pl.y
-        ) {
-          p.pos.y = pl.y - PLAYER_SIZE;
-          p.vel.y = 0;
-          p.onGround = true;
+  const startVoting = useCallback(
+    (duration = VOTE_DURATION) => {
+      if (WS_URL && wsRef.current && wsConnected) {
+        try {
+          wsRef.current.send(JSON.stringify({ type: 'start_vote', duration }));
+        } catch {
+          /* ignore */
         }
+        return;
       }
 
-      // lava
-      lavaYRef.current -= (baseLavaSpeedRef.current * dt) / 1000;
-      elapsedRef.current += dt / 1000;
-
-      // One-time 30s difficulty increase
-      if (!lavaBoostedRef.current && elapsedRef.current >= 30) {
-        lavaBoostedRef.current = true;
-        baseLavaSpeedRef.current = baseLavaSpeedRef.current * 1.4;
-      }
-
-      // Check for game duration win
-      if (!timeUp && elapsedRef.current >= GAME_DURATION) {
-        setTimeUp(true);
-        setRunning(false);
-        return; // stop further physics for this frame
-      }
-
-      // Gradual difficulty scaling
-      if (elapsedRef.current > 120)
-        baseLavaSpeedRef.current = Math.max(
-          baseLavaSpeedRef.current,
-          48 * (MAPS[selectedMap].lavaSpeedMod ?? 1)
-        );
-      else if (elapsedRef.current > 40)
-        baseLavaSpeedRef.current = Math.max(
-          baseLavaSpeedRef.current,
-          36 * (MAPS[selectedMap].lavaSpeedMod ?? 1)
-        );
-      else if (elapsedRef.current > 20)
-        baseLavaSpeedRef.current = Math.max(
-          baseLavaSpeedRef.current,
-          24 * (MAPS[selectedMap].lavaSpeedMod ?? 1)
-        );
-
-      const riseDelta = (baseLavaSpeedRef.current * dt) / 1000;
-      for (let i = 0; i < plats.length; i++) plats[i].y += riseDelta;
-      p.pos.y += riseDelta;
-
-      platformsRef.current = plats.filter((pl) => pl.y < HEIGHT + 100);
-
-      // spawn platforms with map frequency modifier
-      const freqMod = MAPS[selectedMap].platformFrequencyMod ?? 1;
-      if (Math.random() < 0.02 * freqMod) {
-        const w = Math.round(PLATFORM_MIN_W + Math.random() * (PLATFORM_MAX_W - PLATFORM_MIN_W));
-        const x = Math.round(Math.random() * (WIDTH - w));
-        const y = -20 - Math.random() * 80;
-        platformsRef.current.push({ x, y, w, h: PLATFORM_H });
-      }
-
-      const currentScore = Math.max(0, Math.floor((HEIGHT - lavaYRef.current) * 2));
-      setScore(currentScore);
-
-      if (p.pos.y + PLAYER_SIZE >= lavaYRef.current) {
-        setGameOver(true);
-        setRunning(false);
-      }
+      setVotes({ house: 0, mountain: 0, city: 0, coral: 0, hotel: 0 });
+      votesRef.current = { house: 0, mountain: 0, city: 0, coral: 0, hotel: 0 };
+      setVoted(false);
+      setVotingActive(true);
+      setVoteTimeLeft(duration);
+      voteEndAtRef.current = Date.now() + duration * 1000;
     },
-    // selectedMap and timeUp are dependencies used in the step function
-    [selectedMap, timeUp]
+    [wsConnected],
   );
 
-  const render = useCallback(
-    () => {
-      const canvas = canvasRef.current;
-      if (!canvas) return;
-      const ctx = canvas.getContext('2d');
-      if (!ctx) return;
-
-      // Background based on selected map
-      ctx.fillStyle = MAPS[selectedMap].bg;
-      ctx.fillRect(0, 0, WIDTH, HEIGHT);
-
-      // Draw platforms
-      ctx.fillStyle = MAPS[selectedMap].platformColor;
-      platformsRef.current.forEach((pl) => ctx.fillRect(pl.x, pl.y, pl.w, pl.h));
-
-      // Player
-      const p = playerRef.current;
-      ctx.fillStyle = '#ffd166';
-      ctx.fillRect(p.pos.x, p.pos.y, PLAYER_SIZE, PLAYER_SIZE);
-
-      // Lava gradient from selected map
-      const lavaY = lavaYRef.current;
-      const grd = ctx.createLinearGradient(0, lavaY, 0, HEIGHT);
-      const [c1, c2] = MAPS[selectedMap].lavaColors;
-      grd.addColorStop(0, c1);
-      grd.addColorStop(1, c2);
-      ctx.fillStyle = grd;
-      ctx.fillRect(0, lavaY, WIDTH, HEIGHT - lavaY);
-
-      // HUD
-      ctx.fillStyle = 'white';
-      ctx.font = '14px monospace';
-      ctx.fillText('Floor is Lava - ' + MAPS[selectedMap].displayName, 10, 20);
-      ctx.fillText('Score: ' + score, 10, 40);
-
-      if (paused) {
-        ctx.fillStyle = 'rgba(0,0,0,0.6)';
-        ctx.fillRect(0, 0, WIDTH, HEIGHT);
-        ctx.fillStyle = 'white';
-        ctx.font = '28px monospace';
-        ctx.textAlign = 'center';
-        ctx.fillText('Paused', WIDTH / 2, HEIGHT / 2);
-        ctx.textAlign = 'left';
+  const castVote = useCallback(
+    (key: MapKey) => {
+      if (!votingActive || voted) return;
+      if (WS_URL && wsRef.current && wsConnected) {
+        try {
+          wsRef.current.send(JSON.stringify({ type: 'cast_vote', map: key }));
+          setVoted(true);
+        } catch {
+          /* ignore */
+        }
+        return;
       }
 
-      if (gameOver) {
-        ctx.fillStyle = 'rgba(0,0,0,0.6)';
-        ctx.fillRect(0, 0, WIDTH, HEIGHT);
-        ctx.fillStyle = 'white';
-        ctx.font = '22px monospace';
-        ctx.textAlign = 'center';
-        ctx.fillText('You fell in the lava!', WIDTH / 2, HEIGHT / 2 - 10);
-        ctx.fillText('Final score: ' + score, WIDTH / 2, HEIGHT / 2 + 24);
-        ctx.textAlign = 'left';
-      }
-
-      if (timeUp) {
-        ctx.fillStyle = 'rgba(0,0,0,0.6)';
-        ctx.fillRect(0, 0, WIDTH, HEIGHT);
-        ctx.fillStyle = '#a6f0a6';
-        ctx.font = '22px monospace';
-        ctx.textAlign = 'center';
-        ctx.fillText('You survived!', WIDTH / 2, HEIGHT / 2 - 10);
-        ctx.fillStyle = 'white';
-        ctx.fillText('Final score: ' + score, WIDTH / 2, HEIGHT / 2 + 24);
-        ctx.textAlign = 'left';
-      }
+      setVotes((prev) => {
+        const next = { ...prev, [key]: (prev[key] ?? 0) + 1 };
+        votesRef.current = next;
+        return next;
+      });
+      setVoted(true);
     },
-    [score, paused, gameOver, selectedMap, timeUp]
+    [votingActive, voted, wsConnected],
   );
 
-  const gameLoop = useCallback(
-    (time: number) => {
-      if (!lastTimeRef.current) lastTimeRef.current = time;
-      const dt = time - lastTimeRef.current;
-      lastTimeRef.current = time;
-      if (!paused && running && !gameOver && !timeUp) step(dt);
-      render();
-      rafRef.current = requestAnimationFrame(gameLoop);
-    },
-    [paused, running, gameOver, step, render, timeUp]
-  );
-
-  useEffect(() => {
-    rafRef.current = requestAnimationFrame(gameLoop);
-    return () => {
-      if (rafRef.current) cancelAnimationFrame(rafRef.current);
-    };
-  }, [gameLoop]);
-
-  const start = () => {
+  const startGame = useCallback(() => {
     resetGame();
     setRunning(true);
     setPaused(false);
-  };
-  const stop = () => {
+    runningRef.current = true;
+    pausedRef.current = false;
+  }, [resetGame]);
+
+  const stopGame = useCallback(() => {
     setRunning(false);
     setPaused(false);
-  };
-  const togglePause = () => setPaused((p) => !p);
+    runningRef.current = false;
+    pausedRef.current = false;
+  }, []);
 
-  return (
-    <div style={{ display: 'flex', gap: 12, color: '#fff', fontFamily: 'monospace' }}>
-      <div style={{ border: '2px solid #333', width: WIDTH, height: HEIGHT, background: '#000' }}>
-        <canvas ref={canvasRef} width={WIDTH} height={HEIGHT} />
-      </div>
+  const togglePause = useCallback(() => {
+    setPaused((p) => {
+      const next = !p;
+      pausedRef.current = next;
+      return next;
+    });
+  }, []);
 
-      <div style={{ minWidth: 320 }}>
-        <h3>Floor is Lava</h3>
-        <p>Vote for the next map, then press Start to play the selected map.</p>
-
-        <div style={{ marginBottom: 8 }}>
-          <button onClick={() => start()} disabled={running} style={{ padding: '8px 12px', marginRight: 6 }}>
-            Start
+  const overlay = useMemo(() => {
+    if (gameOver) {
+      return (
+        <>
+          <div style={{ fontSize: 28, fontWeight: 800, color: '#ff6b6b', marginBottom: 8 }}>
+            💀 You fell in the lava
+          </div>
+          <div style={{ fontSize: 16, color: 'rgba(255,255,255,0.85)', marginBottom: 16 }}>
+            Final score: <strong>{score}</strong>
+          </div>
+          <button
+            onClick={startGame}
+            style={{
+              padding: '12px 28px',
+              fontSize: 16,
+              fontWeight: 800,
+              background: 'linear-gradient(135deg, #ff4d4d, #991b1b)',
+              border: 'none',
+              borderRadius: 12,
+              color: '#fff',
+              cursor: 'pointer',
+              boxShadow: '0 10px 30px rgba(255,77,77,0.25)',
+            }}
+          >
+            Play Again
           </button>
-          <button onClick={() => stop()} disabled={!running} style={{ padding: '8px 12px', marginRight: 6 }}>
-            Stop
+        </>
+      );
+    }
+    if (timeUp) {
+      return (
+        <>
+          <div style={{ fontSize: 28, fontWeight: 800, color: '#a6f0a6', marginBottom: 8 }}>
+            🌋 You survived!
+          </div>
+          <div style={{ fontSize: 16, color: 'rgba(255,255,255,0.85)', marginBottom: 16 }}>
+            Final score: <strong>{score}</strong>
+          </div>
+          <button
+            onClick={startGame}
+            style={{
+              padding: '12px 28px',
+              fontSize: 16,
+              fontWeight: 800,
+              background: 'linear-gradient(135deg, #00f5d4, #0099cc)',
+              border: 'none',
+              borderRadius: 12,
+              color: '#fff',
+              cursor: 'pointer',
+              boxShadow: '0 10px 30px rgba(0,245,212,0.22)',
+            }}
+          >
+            Play Again
           </button>
-          <button onClick={() => { resetGame(); }} style={{ padding: '8px 12px' }}>
-            Reset
+        </>
+      );
+    }
+    if (paused && running) {
+      return (
+        <>
+          <div style={{ fontSize: 36, fontWeight: 900, color: '#ffd166', marginBottom: 8 }}>Paused</div>
+          <div style={{ fontSize: 14, color: 'rgba(255,255,255,0.78)', marginBottom: 18 }}>
+            Press Pause again or use the `P` key.
+          </div>
+          <button
+            onClick={togglePause}
+            style={{
+              padding: '12px 28px',
+              fontSize: 16,
+              fontWeight: 800,
+              background: 'linear-gradient(135deg, rgba(0,212,255,0.95), rgba(247,37,133,0.75))',
+              border: 'none',
+              borderRadius: 12,
+              color: '#fff',
+              cursor: 'pointer',
+              boxShadow: '0 10px 30px rgba(0,212,255,0.22)',
+            }}
+          >
+            Resume
+          </button>
+        </>
+      );
+    }
+    return null;
+  }, [gameOver, running, score, startGame, timeUp, paused, togglePause]);
+
+  const mapVotingCard = useMemo(() => {
+    return (
+      <div
+        style={{
+          background: 'rgba(15,22,41,0.9)',
+          borderRadius: 12,
+          padding: 16,
+          border: '1px solid rgba(255,255,255,0.08)',
+        }}
+      >
+        <div style={{ fontSize: 18, fontWeight: 900, color: '#fff', marginBottom: 8 }}>Map Voting</div>
+        <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.7)', marginBottom: 12, lineHeight: 1.3 }}>
+          Vote for the next map, then start the game.
+        </div>
+
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 12 }}>
+          <button
+            type="button"
+            onClick={() => startVoting(VOTE_DURATION)}
+            disabled={votingActive}
+            style={{
+              padding: '8px 14px',
+              borderRadius: 10,
+              border: 'none',
+              fontWeight: 800,
+              cursor: votingActive ? 'default' : 'pointer',
+              background: votingActive
+                ? 'rgba(255,255,255,0.08)'
+                : 'linear-gradient(135deg, rgba(255,107,53,0.95), rgba(247,37,133,0.75))',
+              color: '#fff',
+            }}
+          >
+            {votingActive ? 'Voting…' : `Start Vote (${VOTE_DURATION}s)`}
           </button>
         </div>
 
-        <div style={{ marginBottom: 10 }}>
-          <button onClick={() => togglePause()} style={{ padding: '6px 10px' }}>
+        {votingActive ? (
+          <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.75)', marginBottom: 10 }}>
+            Ends in <strong style={{ color: '#ffd166' }}>{voteTimeLeft}s</strong>
+          </div>
+        ) : (
+          <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.65)', marginBottom: 10 }}>
+            {WS_URL ? (wsConnected ? 'Connected to vote server.' : 'Vote server disconnected.') : 'Local vote mode.'}
+          </div>
+        )}
+
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 10 }}>
+          {MAP_KEYS.map((k) => {
+            const isSelected = selectedMap === k;
+            const votedClass = voted && isSelected ? '#ffd166' : '#00f5d4';
+            return (
+              <button
+                key={k}
+                type="button"
+                onClick={() => castVote(k)}
+                disabled={!votingActive || voted}
+                style={{
+                  width: '100%',
+                  textAlign: 'left',
+                  padding: '10px 12px',
+                  borderRadius: 10,
+                  border: `1px solid ${isSelected ? 'rgba(255,209,102,0.65)' : 'rgba(255,255,255,0.10)'}`,
+                  background: isSelected ? 'rgba(255, 209, 102, 0.12)' : 'rgba(0,0,0,0.18)',
+                  color: '#fff',
+                  cursor: !votingActive || voted ? 'default' : 'pointer',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+                  <div style={{ fontWeight: 900 }}>{MAPS[k].displayName}</div>
+                  <div style={{ fontWeight: 800, color: votedClass }}>
+                    {votes[k]} vote{votes[k] !== 1 ? 's' : ''}
+                  </div>
+                </div>
+                {isSelected && <div style={{ marginTop: 2, fontSize: 12, color: '#ffd166' }}>(current)</div>}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }, [castVote, selectedMap, startVoting, voted, votingActive, votes, voteTimeLeft, wsConnected]);
+
+  const controlsCard = useMemo(() => {
+    return (
+      <div
+        style={{
+          background: 'rgba(15,22,41,0.9)',
+          borderRadius: 12,
+          padding: 16,
+          border: '1px solid rgba(255,255,255,0.08)',
+        }}
+      >
+        <div style={{ fontSize: 18, fontWeight: 900, color: '#fff', marginBottom: 8 }}>Game Controls</div>
+
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 12 }}>
+          <button
+            type="button"
+            onClick={startGame}
+            disabled={running}
+            style={{
+              padding: '10px 14px',
+              borderRadius: 12,
+              border: 'none',
+              fontWeight: 900,
+              cursor: running ? 'default' : 'pointer',
+              background: running ? 'rgba(255,255,255,0.08)' : 'linear-gradient(135deg, #00d4ff, #0099cc)',
+              color: '#fff',
+            }}
+          >
+            {running ? 'Running' : 'Start'}
+          </button>
+          <button
+            type="button"
+            onClick={stopGame}
+            disabled={!running}
+            style={{
+              padding: '10px 14px',
+              borderRadius: 12,
+              border: '1px solid rgba(255,255,255,0.12)',
+              fontWeight: 900,
+              cursor: !running ? 'default' : 'pointer',
+              background: 'rgba(0,0,0,0.20)',
+              color: '#fff',
+            }}
+          >
+            Stop
+          </button>
+          <button
+            type="button"
+            onClick={togglePause}
+            disabled={!running}
+            style={{
+              padding: '10px 14px',
+              borderRadius: 12,
+              border: '1px solid rgba(255,255,255,0.12)',
+              fontWeight: 900,
+              cursor: !running ? 'default' : 'pointer',
+              background: paused ? 'rgba(255, 209, 102, 0.18)' : 'rgba(0,0,0,0.20)',
+              color: '#fff',
+            }}
+          >
             {paused ? 'Resume' : 'Pause'}
           </button>
         </div>
 
-        <div style={{ marginBottom: 12 }}>
-          <strong>Selected map:</strong> {MAPS[selectedMap].displayName}
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+          <button
+            type="button"
+            onClick={() => {
+              resetGame();
+            }}
+            style={{
+              padding: '10px 14px',
+              borderRadius: 12,
+              border: '1px solid rgba(255,255,255,0.12)',
+              fontWeight: 900,
+              cursor: 'pointer',
+              background: 'rgba(0,0,0,0.20)',
+              color: '#fff',
+            }}
+          >
+            Reset
+          </button>
         </div>
 
-        <div style={{ marginBottom: 8 }}>
-          <strong>Map voting</strong>
-          <div style={{ marginTop: 6 }}>
-            {(['house', 'mountain', 'city', 'coral', 'hotel'] as MapKey[]).map((k) => (
-              <div key={k} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-                <button onClick={() => castVote(k)} disabled={!votingActive || voted} style={{ padding: '6px 10px' }}>
-                  {MAPS[k].displayName}
-                </button>
-                <div style={{ minWidth: 60 }}>
-                  {votes[k]} vote{votes[k] !== 1 ? 's' : ''}
-                </div>
-                {selectedMap === k && <div style={{ color: '#ffd166' }}>(current)</div>}
-              </div>
-            ))}
+        <div style={{ marginTop: 14, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <div>
+            <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.55)' }}>Score</div>
+            <div style={{ fontSize: 16, fontWeight: 900, color: '#ffd166' }}>{score}</div>
           </div>
-          <div style={{ marginTop: 6 }}>
-            <button
-              onClick={() => startVoting(VOTE_DURATION)}
-              disabled={votingActive}
-              style={{ padding: '6px 10px', marginRight: 6 }}
-            >
-              {`Start Vote (${VOTE_DURATION}s)`}
-            </button>
-            {votingActive && <span>Voting ends in {voteTimeLeft}s</span>}
-            {!votingActive && (
-              <small style={{ marginLeft: 6 }}>{WS_URL ? 'Connects to vote server' : 'Local vote (no server configured)'}</small>
-            )}
-          </div>
-          <div style={{ marginTop: 6 }}>
-            <small>Vote server: {WS_URL ? (wsConnected ? 'connected' : 'disconnected') : 'not configured'}</small>
+          <div>
+            <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.55)' }}>Status</div>
+            <div style={{ fontSize: 15, fontWeight: 800, color: 'rgba(255,255,255,0.85)' }}>
+              {gameOver ? 'Game Over' : timeUp ? 'Survived' : running ? (paused ? 'Paused' : 'Running') : 'Stopped'}
+            </div>
           </div>
         </div>
 
-        <div>
-          <strong>Score:</strong> {score}
-        </div>
-        <div>
-          <strong>Status:</strong>{' '}
-          {gameOver ? 'Game Over' : timeUp ? 'Finished (Survived)' : running ? (paused ? 'Paused' : 'Running') : 'Stopped'}
-        </div>
-        <div style={{ marginTop: 6 }}>
-          <small>Game duration: {GAME_DURATION}s</small>
+        <div style={{ marginTop: 12, fontSize: 12, color: 'rgba(255,255,255,0.65)', lineHeight: 1.35 }}>
+          Map: <strong style={{ color: '#fff' }}>{MAPS[selectedMap].displayName}</strong> • Game duration:{' '}
+          <strong style={{ color: '#fff' }}>{GAME_DURATION}s</strong>
         </div>
       </div>
+    );
+  }, [gameOver, paused, resetGame, running, score, startGame, stopGame, timeUp, selectedMap, togglePause]);
+
+  const overlayVisible = Boolean(overlay);
+
+  return (
+    <div
+      style={{
+        fontFamily: 'system-ui, sans-serif',
+        minHeight: '100%',
+        background: 'linear-gradient(180deg, #0a0e1a 0%, #0f1629 100%)',
+        padding: isMobileBeta ? 12 : 24,
+        position: 'relative',
+      }}
+    >
+      <h2
+        style={{
+          margin: '0 0 16px 0',
+          fontSize: 28,
+          fontWeight: 900,
+          background: 'linear-gradient(90deg, #ff6b35, #f72585)',
+          WebkitBackgroundClip: 'text',
+          WebkitTextFillColor: 'transparent',
+          letterSpacing: '-0.5px',
+          display: 'flex',
+          alignItems: 'baseline',
+          gap: 10,
+        }}
+      >
+        🔥 Floor Is Lava
+      </h2>
+      <p style={{ margin: '0 0 20px 0', color: 'rgba(255,255,255,0.7)', fontSize: 14 }}>
+        Jump from platform to platform. The lava rises until you fall (or survive the full round).
+      </p>
+
+      <div
+        style={{
+          display: 'flex',
+          gap: 24,
+          flexWrap: 'wrap',
+          flexDirection: isMobileBeta ? 'column' : 'row',
+          alignItems: isMobileBeta ? 'stretch' : undefined,
+        }}
+      >
+        <div
+          style={{
+            padding: 4,
+            background: 'linear-gradient(135deg, rgba(255,107,53,0.28), rgba(247,37,133,0.18))',
+            borderRadius: 12,
+            boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
+          }}
+        >
+          <div style={{ borderRadius: 10, overflow: 'hidden', position: 'relative' }}>
+            {overlayVisible && (
+              <div
+                style={{
+                  position: 'absolute',
+                  inset: 0,
+                  background: 'rgba(0,0,0,0.85)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  zIndex: 100,
+                  padding: 16,
+                }}
+              >
+                {overlay}
+              </div>
+            )}
+            <canvas
+              ref={canvasRef}
+              style={{
+                display: 'block',
+                background: '#000',
+                width: WIDTH,
+                height: HEIGHT,
+                imageRendering: 'pixelated',
+              }}
+            />
+          </div>
+        </div>
+
+        <div
+          style={{
+            width: isMobileBeta ? '100%' : 280,
+            maxWidth: '100%',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 16,
+          }}
+        >
+          {mapVotingCard}
+          {controlsCard}
+        </div>
+      </div>
+
+      {isMobileBeta && (
+        <div
+          role="group"
+          aria-label="Move"
+          style={{
+            position: 'fixed',
+            bottom: 'max(20px, env(safe-area-inset-bottom, 12px))',
+            left: 14,
+            zIndex: 400,
+            display: 'grid',
+            gridTemplateColumns: '52px 52px 52px',
+            gap: 8,
+            filter: 'drop-shadow(0 6px 20px rgba(0,0,0,0.5))',
+          }}
+        >
+          <span style={{ width: 52, height: 52 }} aria-hidden />
+          <PadBtn
+            label="↑"
+            onDown={() => (keysRef.current.up = true)}
+            onUp={() => (keysRef.current.up = false)}
+          />
+          <span style={{ width: 52, height: 52 }} aria-hidden />
+          <PadBtn
+            label="←"
+            onDown={() => (keysRef.current.left = true)}
+            onUp={() => (keysRef.current.left = false)}
+          />
+          <span style={{ width: 52, height: 52 }} aria-hidden />
+          <PadBtn
+            label="→"
+            onDown={() => (keysRef.current.right = true)}
+            onUp={() => (keysRef.current.right = false)}
+          />
+          <span style={{ width: 52, height: 52 }} aria-hidden />
+          <PadBtn
+            label="↓"
+            onDown={() => {
+              /* no-op (reserved) */
+            }}
+            onUp={() => {
+              /* no-op */
+            }}
+          />
+          <span style={{ width: 52, height: 52 }} aria-hidden />
+        </div>
+      )}
     </div>
   );
 }
+
+function PadBtn({
+  label,
+  onDown,
+  onUp,
+}: {
+  label: string;
+  onDown: () => void;
+  onUp: () => void;
+}) {
+  const padCell: React.CSSProperties = {
+    width: 52,
+    height: 52,
+    borderRadius: 12,
+    border: '2px solid rgba(0,212,255,0.45)',
+    background: 'rgba(8,16,32,0.92)',
+    color: '#e8f4ff',
+    fontSize: 20,
+    fontWeight: 800,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    touchAction: 'none',
+    userSelect: 'none',
+    WebkitUserSelect: 'none',
+    cursor: 'pointer',
+    padding: 0,
+  };
+
+  return (
+    <button
+      type="button"
+      style={padCell}
+      aria-label={
+        label === '↑' ? 'Jump' : label === '↓' ? 'Down (no action)' : label === '←' ? 'Left' : 'Right'
+      }
+      onPointerDown={(e) => {
+        e.preventDefault();
+        onDown();
+        (e.currentTarget as HTMLButtonElement).setPointerCapture(e.pointerId);
+      }}
+      onPointerUp={(e) => {
+        onUp();
+        try {
+          (e.currentTarget as HTMLButtonElement).releasePointerCapture(e.pointerId);
+        } catch {
+          /* ignore */
+        }
+      }}
+      onPointerCancel={() => onUp()}
+      onLostPointerCapture={() => onUp()}
+    >
+      {label}
+    </button>
+  );
+}
+
