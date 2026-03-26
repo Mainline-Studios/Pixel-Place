@@ -36,18 +36,18 @@ body:
     attributes:
       label: What tab / area should change? (select all that apply)
       options:
-        - Login / Signup
-        - Dashboard
-        - Games tab / game picker
-        - Showdown
-        - HistoriMac
-        - Studio (Game Studio / builder)
-        - Settings
-        - Coins / Store
-        - Friends
-        - Admin panel
-        - Gameplay area (describe below)
-        - Other (describe below)
+        - label: Login / Signup
+        - label: Dashboard
+        - label: Games tab / game picker
+        - label: Showdown
+        - label: HistoriMac
+        - label: Studio (Game Studio / builder)
+        - label: Settings
+        - label: Coins / Store
+        - label: Friends
+        - label: Admin panel
+        - label: Gameplay area (describe below)
+        - label: Other (describe below)
     validations:
       required: true
 

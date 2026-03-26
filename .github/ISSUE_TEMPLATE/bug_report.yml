@@ -36,18 +36,18 @@ body:
     attributes:
       label: What tab / area is affected? (select all that apply)
       options:
-        - Login / Signup
-        - Dashboard
-        - Games tab / game picker
-        - Showdown
-        - HistoriMac
-        - Studio (Game Studio / builder)
-        - Settings
-        - Coins / Store
-        - Friends
-        - Admin panel
-        - Gameplay area (describe below)
-        - Other (describe below)
+        - label: Login / Signup
+        - label: Dashboard
+        - label: Games tab / game picker
+        - label: Showdown
+        - label: HistoriMac
+        - label: Studio (Game Studio / builder)
+        - label: Settings
+        - label: Coins / Store
+        - label: Friends
+        - label: Admin panel
+        - label: Gameplay area (describe below)
+        - label: Other (describe below)
     validations:
       required: true
 
@@ -111,11 +111,11 @@ body:
     attributes:
       label: Account context (select one or more)
       options:
-        - Signed in
-        - Signed out
-        - Admin (admin)
-        - Head admin (head_admin)
-        - Regular user
+        - label: Signed in
+        - label: Signed out
+        - label: Admin (admin)
+        - label: Head admin (head_admin)
+        - label: Regular user
     validations:
       required: false
 
@@ -144,9 +144,9 @@ body:
     attributes:
       label: Checklist
       options:
-        - I searched existing issues for duplicates
-        - I included steps to reproduce
-        - I included relevant evidence
+        - label: I searched existing issues for duplicates
+        - label: I included steps to reproduce
+        - label: I included relevant evidence
     validations:
       required: false
 
