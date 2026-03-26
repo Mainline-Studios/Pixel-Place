@@ -294,6 +294,32 @@ textarea {
   text-underline-offset: 2px;
 }
 
+.login-site-footer__brand-kit {
+  margin-bottom: 12px;
+}
+
+.brand-kit-download-link {
+  display: inline-block;
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--accent, #7dd3fc);
+  text-decoration: none;
+}
+
+.brand-kit-download-link:hover {
+  color: var(--accent-hover, #e0f2fe);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.brand-kit-download-link--login {
+  color: rgba(125, 211, 252, 0.95);
+}
+
+.brand-kit-download-link--login:hover {
+  color: #bae6fd;
+}
+
 /* Remove animation - keep pattern static and tiled */
 
 /* Status page CTA — dashboard footer + login (matches panels, obvious click/hover) */

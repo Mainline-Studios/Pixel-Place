@@ -9,6 +9,7 @@ import Sidebar from './Sidebar';
 import FloatingParticles from '../FloatingParticles';
 import ScrollToTop from '../ScrollToTop';
 import SiteSocialLinks from '../SiteSocialLinks';
+import BrandKitDownloadLink from '../BrandKitDownloadLink';
 import SiteLicenseAttribution from '../SiteLicenseAttribution';
 import StatusPageLink from '../StatusPageLink';
 import PyxTrainCta from '../PyxTrainCta';
@@ -145,6 +146,9 @@ export default function Dashboard({ user }: DashboardProps) {
         </div>
         <div style={{ marginBottom: 16, maxWidth: 720, marginLeft: 'auto', marginRight: 'auto' }}>
           <SiteSocialLinks variant="urls" />
+        </div>
+        <div style={{ marginBottom: 14 }}>
+          <BrandKitDownloadLink variant="dashboard" />
         </div>
         <div style={{ marginBottom: 14, lineHeight: 1.65, maxWidth: 640, marginLeft: 'auto', marginRight: 'auto' }}>
           <SiteLicenseAttribution />

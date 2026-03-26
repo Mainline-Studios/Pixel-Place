@@ -5,6 +5,7 @@ import { useUser } from '@/contexts/UserContext';
 import { useSound } from '@/contexts/SoundContext';
 import BanScreen from './BanScreen';
 import SiteSocialLinks from './SiteSocialLinks';
+import BrandKitDownloadLink from './BrandKitDownloadLink';
 import SiteLicenseAttribution from './SiteLicenseAttribution';
 import PyxTrainCta from './PyxTrainCta';
 import StatusPageLink from './StatusPageLink';
@@ -437,6 +438,9 @@ export default function Login() {
         <footer className="login-site-footer" role="contentinfo">
           <div className="login-site-footer__social">
             <SiteSocialLinks variant="urls" />
+          </div>
+          <div className="login-site-footer__brand-kit">
+            <BrandKitDownloadLink variant="login" />
           </div>
           <div className="login-site-footer__legal">
             <SiteLicenseAttribution />
