@@ -2,6 +2,7 @@ export const dynamic = 'force-static';
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getFirestoreInstance, COLLECTIONS, getDocument, setDocument } from '@/lib/firestore';
+import { requireAdmin } from '@/lib/middleware';
 
 /**
  * POST /api/backend/features
@@ -14,6 +15,9 @@ import { getFirestoreInstance, COLLECTIONS, getDocument, setDocument } from '@/l
  */
 export async function POST(request: NextRequest) {
   try {
+    const auth = requireAdmin(request);
+    if (auth.error) return auth.error;
+
     const db = getFirestoreInstance();
     if (!db) return NextResponse.json({ error: 'DB unavailable' }, { status: 503 });
 

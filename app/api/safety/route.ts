@@ -2,6 +2,7 @@ export const dynamic = 'force-static';
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getFirestoreInstance, COLLECTIONS, getDocument, setDocument } from '@/lib/firestore';
+import { requireAuth, requireOwnerOrAdmin } from '@/lib/middleware';
 
 const BREAK_DURATION_MS = 30 * 60 * 1000;
 const BREAK_REWARD = 35;
@@ -84,8 +85,18 @@ function applyBreakCompletion(data: any, now: number) {
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-    const username = searchParams.get('username');
+    const usernameParam = searchParams.get('username') || '';
 
+    if (usernameParam && typeof usernameParam !== 'string') {
+      return NextResponse.json({ error: 'Invalid username' }, { status: 400 });
+    }
+
+    const auth = usernameParam
+      ? requireOwnerOrAdmin(request, usernameParam)
+      : requireAuth(request);
+    if (auth.error) return auth.error;
+
+    const username = usernameParam || auth.user?.username || '';
     if (!username) {
       return NextResponse.json({ error: 'Username required' }, { status: 400 });
     }
@@ -175,12 +186,17 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Database not available' }, { status: 503 });
     }
 
-    const userSafetyRef = db.collection(COLLECTIONS.USER_SAFETY).doc(username.toLowerCase());
+    const auth = requireOwnerOrAdmin(request, username);
+    if (auth.error) return auth.error;
+    // Never trust the client-provided username; use the authenticated identity.
+    const usernameSafe = auth.user.username;
+
+    const userSafetyRef = db.collection(COLLECTIONS.USER_SAFETY).doc(usernameSafe.toLowerCase());
     const userSafety = await userSafetyRef.get();
     const today = new Date().toDateString();
     const now = Date.now();
     
-    let currentData = normalizeSafetyData(userSafety.exists ? userSafety.data() : null, username, today);
+    let currentData = normalizeSafetyData(userSafety.exists ? userSafety.data() : null, usernameSafe, today);
     currentData = applyDailyReset(currentData, today);
 
     const breakResult = applyBreakCompletion(currentData, now);
@@ -215,7 +231,7 @@ export async function POST(request: NextRequest) {
         };
       }
 
-      await setDocument(COLLECTIONS.USER_SAFETY, username.toLowerCase(), currentData);
+      await setDocument(COLLECTIONS.USER_SAFETY, usernameSafe.toLowerCase(), currentData);
 
       return NextResponse.json({ 
         success: true, 
@@ -251,7 +267,7 @@ export async function POST(request: NextRequest) {
         lastUpdated: now
       };
 
-      await setDocument(COLLECTIONS.USER_SAFETY, username.toLowerCase(), currentData);
+      await setDocument(COLLECTIONS.USER_SAFETY, usernameSafe.toLowerCase(), currentData);
 
       return NextResponse.json({ 
         success: true, 
@@ -261,7 +277,7 @@ export async function POST(request: NextRequest) {
       });
     } else if (action === 'dismissReminder') {
       // Dismiss break reminder (don't award points)
-      await setDocument(COLLECTIONS.USER_SAFETY, username.toLowerCase(), {
+      await setDocument(COLLECTIONS.USER_SAFETY, usernameSafe.toLowerCase(), {
         ...currentData,
         lastBreakReminder: now,
         lastUpdated: now
@@ -270,7 +286,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: true });
     } else if (action === 'updateSafetyPoints') {
       // Update safety points (for purchases)
-      await setDocument(COLLECTIONS.USER_SAFETY, username.toLowerCase(), {
+      await setDocument(COLLECTIONS.USER_SAFETY, usernameSafe.toLowerCase(), {
         ...currentData,
         safetyPoints: safetyPoints || 0,
         lastUpdated: now

@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getDocument, setDocument, queryDocuments, COLLECTIONS } from '@/lib/firestore';
 import { hashPassword } from '@/lib/auth';
 import { getAdminAccounts } from '@/lib/adminAccounts';
+import { requireAdmin } from '@/lib/middleware';
 import { User } from '@/types';
 
 function userFromDoc(doc: any): User {
@@ -25,37 +26,34 @@ function userFromDoc(doc: any): User {
 
 // API endpoint to add coins directly (for free coins, admin grants, etc.)
 export async function POST(request: NextRequest) {
+  const auth = requireAdmin(request);
+  if (auth.error) return auth.error;
+
   try {
     const { userId, coins, setAmount } = await request.json();
+    const username = typeof userId === 'string' ? userId.trim() : '';
+    const delta = typeof coins === 'number' ? coins : Number.NaN;
+    const target = typeof setAmount === 'number' ? setAmount : Number.NaN;
 
-    if (!userId || (!coins && !setAmount)) {
+    if (!username || (!Number.isFinite(delta) && !Number.isFinite(target))) {
       return NextResponse.json(
         { error: 'Invalid parameters' },
         { status: 400 }
       );
     }
 
-    // Only allow free coins for specific users (like 6767kid)
-    const allowedFreeUsers = ['6767kid'];
-    if (!allowedFreeUsers.includes(userId)) {
-      return NextResponse.json(
-        { error: 'Free coins not available for this user' },
-        { status: 403 }
-      );
-    }
-
     // Get user from Firestore
-    const existingUsers = await queryDocuments(COLLECTIONS.USERS, 'username_lower', '==', userId.toLowerCase());
+    const existingUsers = await queryDocuments(COLLECTIONS.USERS, 'username_lower', '==', username.toLowerCase());
     let userDoc = existingUsers.length > 0 ? existingUsers[0] : null;
 
     if (!userDoc) {
       // User doesn't exist yet - create them (admin list from env only)
       const adminAccounts = getAdminAccounts();
-      const adminAccount = adminAccounts.find(a => a.username.toLowerCase() === userId.toLowerCase());
+      const adminAccount = adminAccounts.find(a => a.username.toLowerCase() === username.toLowerCase());
       
       if (adminAccount) {
         // Create the admin user in Firestore — never store raw password
-        const initialCoins = setAmount !== undefined ? setAmount : (coins || 0);
+        const initialCoins = Number.isFinite(target) ? target : delta;
         const password_hash = await hashPassword(adminAccount.password);
         const newUserData = {
           username: adminAccount.username,
@@ -76,7 +74,7 @@ export async function POST(request: NextRequest) {
         await setDocument(COLLECTIONS.USERS, adminAccount.username.toLowerCase(), newUserData);        
         return NextResponse.json({
           success: true,
-          message: `Created user and set coins to ${initialCoins} for ${userId}`,
+          message: `Created user and set coins to ${initialCoins} for ${username}`,
           newBalance: initialCoins
         });
       }
@@ -89,7 +87,7 @@ export async function POST(request: NextRequest) {
 
     // Update existing user's coin balance
     const user = userFromDoc(userDoc);
-    const newCoins = setAmount !== undefined ? setAmount : (user.coins + coins);
+    const newCoins = Number.isFinite(target) ? target : (user.coins + delta);
     
     await setDocument(COLLECTIONS.USERS, userDoc.id, {
       coins: newCoins,
@@ -97,7 +95,7 @@ export async function POST(request: NextRequest) {
     });
     return NextResponse.json({
       success: true,
-      message: setAmount !== undefined ? `Set coins to ${setAmount} for ${userId}` : `Added ${coins} coins to ${userId}`,
+      message: Number.isFinite(target) ? `Set coins to ${target} for ${username}` : `Added ${delta} coins to ${username}`,
       newBalance: newCoins    });
   } catch (error: any) {
     console.error('Add coins error:', error);

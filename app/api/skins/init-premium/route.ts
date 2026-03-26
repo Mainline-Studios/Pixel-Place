@@ -3,6 +3,7 @@ export const dynamic = 'force-static';
 import { NextRequest, NextResponse } from 'next/server';
 import { getFirestoreInstance, COLLECTIONS, getDocument, setDocument } from '@/lib/firestore';
 import { Skin } from '@/types';
+import { requireAdmin } from '@/lib/middleware';
 
 /**
  * POST /api/skins/init-premium
@@ -10,6 +11,9 @@ import { Skin } from '@/types';
  */
 export async function POST(request: NextRequest) {
   try {
+    const auth = requireAdmin(request);
+    if (auth.error) return auth.error;
+
     const db = getFirestoreInstance();
     if (!db) {
       return NextResponse.json({ error: 'Database not available' }, { status: 503 });

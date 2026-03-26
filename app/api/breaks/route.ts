@@ -2,6 +2,7 @@ export const dynamic = 'force-static';
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getFirestoreInstance, COLLECTIONS, getDocument, setDocument } from '@/lib/firestore';
+import { requireAuth, requireOwnerOrAdmin } from '@/lib/middleware';
 
 /**
  * GET /api/breaks?username=xxx
@@ -10,11 +11,16 @@ import { getFirestoreInstance, COLLECTIONS, getDocument, setDocument } from '@/l
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-    const username = searchParams.get('username');
+    const usernameParam = searchParams.get('username') || '';
 
-    if (!username) {
-      return NextResponse.json({ error: 'Username required' }, { status: 400 });
-    }
+    const auth = usernameParam
+      ? requireOwnerOrAdmin(request, usernameParam)
+      : requireAuth(request);
+    if (auth.error) return auth.error;
+
+    const username = usernameParam || auth.user.username;
+
+    if (!username) return NextResponse.json({ error: 'Username required' }, { status: 400 });
 
     const user = await getDocument(COLLECTIONS.USERS, username.toLowerCase());
     if (!user) {
@@ -68,7 +74,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Database not available' }, { status: 503 });
     }
 
-    const user = await getDocument(COLLECTIONS.USERS, username.toLowerCase());
+    const auth = requireOwnerOrAdmin(request, username);
+    if (auth.error) return auth.error;
+    const usernameSafe = auth.user.username;
+
+    const user = await getDocument(COLLECTIONS.USERS, usernameSafe.toLowerCase());
     if (!user) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
@@ -104,7 +114,7 @@ export async function POST(request: NextRequest) {
     const newBreaksTaken = breaksTakenToday + 1;
 
     // Update user
-    await setDocument(COLLECTIONS.USERS, username.toLowerCase(), {
+    await setDocument(COLLECTIONS.USERS, usernameSafe.toLowerCase(), {
       ...user,
       safetyPoints: newSafetyPoints,
       breaksTakenToday: newBreaksTaken,

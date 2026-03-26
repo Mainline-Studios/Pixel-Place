@@ -2,16 +2,22 @@ export const dynamic = 'force-static';
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getFirestoreInstance, COLLECTIONS, getDocument, setDocument } from '@/lib/firestore';
+import { requireAuth } from '@/lib/middleware';
 
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-    const username = searchParams.get('username');
-    const unreadOnly = searchParams.get('unreadOnly') === 'true';
+    const auth = requireAuth(request);
+    if (auth.error) return auth.error;
 
-    if (!username) {
-      return NextResponse.json({ error: 'Username required' }, { status: 400 });
+    const usernameParam = searchParams.get('username') || '';
+    const username = usernameParam || auth.user.username;
+
+    const isAdmin = auth.user.role === 'admin' || auth.user.role === 'head_admin';
+    if (!isAdmin && usernameParam && usernameParam.toLowerCase() !== auth.user.username.toLowerCase()) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
+    const unreadOnly = searchParams.get('unreadOnly') === 'true';
 
     const db = getFirestoreInstance();
     if (!db) {
@@ -43,6 +49,10 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const { action, username, notificationId, ...notificationData } = await request.json();
+    const auth = requireAuth(request);
+    if (auth.error) return auth.error;
+    const isAdmin = auth.user.role === 'admin' || auth.user.role === 'head_admin';
+    const requesterLower = auth.user.username.toLowerCase();
 
     const db = getFirestoreInstance();
     if (!db) {
@@ -50,6 +60,10 @@ export async function POST(request: NextRequest) {
     }
 
     if (action === 'create') {
+      if (!username) return NextResponse.json({ error: 'Username required' }, { status: 400 });
+      if (!isAdmin && username.toLowerCase() !== requesterLower) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      }
       // Create new notification
       const notification = {
         username,
@@ -70,6 +84,10 @@ export async function POST(request: NextRequest) {
       // Mark notification as read
       const notification = await getDocument(COLLECTIONS.NOTIFICATIONS, notificationId);
       if (notification) {
+        const notifUsernameLower = (notification.username_lower || notification.username || '').toLowerCase();
+        if (!isAdmin && notifUsernameLower && notifUsernameLower !== requesterLower) {
+          return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+        }
         await setDocument(COLLECTIONS.NOTIFICATIONS, notificationId, {
           ...notification,
           read: true,
@@ -78,6 +96,9 @@ export async function POST(request: NextRequest) {
       }
       return NextResponse.json({ success: true });
     } else if (action === 'markAllRead' && username) {
+      if (!isAdmin && username.toLowerCase() !== requesterLower) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      }
       // Mark all notifications as read for user
       const notificationsRef = db.collection(COLLECTIONS.NOTIFICATIONS)
         .where('username', '==', username)

@@ -72,6 +72,9 @@ export async function verifyPassword(password: string, hash: string): Promise<bo
 
 // Generate JWT token
 export function generateToken(user: AuthUser): string {
+  if (process.env.NODE_ENV === 'production' && isUnsafeJwtSecret()) {
+    throw new Error('JWT_SECRET is not configured securely');
+  }
   return jwt.sign(
     {
       id: user.id,

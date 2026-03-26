@@ -2,11 +2,12 @@ export const dynamic = 'force-static';
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getFirestoreInstance, COLLECTIONS, setDocument } from '@/lib/firestore';
+import { requireAuth } from '@/lib/middleware';
 
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-    const username = searchParams.get('username');
+    const username = searchParams.get('username') || '';
     const limit = parseInt(searchParams.get('limit') || '50');
 
     const db = getFirestoreInstance();
@@ -19,6 +20,12 @@ export async function GET(request: NextRequest) {
       .limit(limit);
 
     if (username) {
+      const auth = requireAuth(request);
+      if (auth.error) return auth.error;
+      const isAdmin = auth.user.role === 'admin' || auth.user.role === 'head_admin';
+      if (!isAdmin && username.toLowerCase() !== auth.user.username.toLowerCase()) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      }
       query = query.where('username', '==', username);
     }
 
@@ -41,6 +48,13 @@ export async function POST(request: NextRequest) {
 
     if (!username || !type) {
       return NextResponse.json({ error: 'Username and type required' }, { status: 400 });
+    }
+
+    const auth = requireAuth(request);
+    if (auth.error) return auth.error;
+    const isAdmin = auth.user.role === 'admin' || auth.user.role === 'head_admin';
+    if (!isAdmin && username.toLowerCase() !== auth.user.username.toLowerCase()) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
     const db = getFirestoreInstance();

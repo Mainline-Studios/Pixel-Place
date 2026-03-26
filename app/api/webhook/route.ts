@@ -16,6 +16,7 @@ export const runtime = 'nodejs';
 export async function POST(request: NextRequest) {
   const body = await request.text();
   const signature = request.headers.get('stripe-signature');
+  const isProd = process.env.NODE_ENV === 'production';
 
   if (!signature) {
     return NextResponse.json(
@@ -24,17 +25,22 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // Skip signature verification in development if webhook secret is not set
-  if (!webhookSecret || webhookSecret === 'whsec_your_webhook_secret_here') {
-    console.warn('Webhook secret not configured, skipping verification');
-    // In development, you can process the webhook without verification
-    // In production, always verify the signature
+  const webhookConfigured = !!webhookSecret && webhookSecret !== 'whsec_your_webhook_secret_here';
+  const stripeConfigured = !!stripe;
+  const canVerify = webhookConfigured && stripeConfigured;
+
+  // In production we never accept unverified webhooks.
+  if (isProd && !canVerify) {
+    console.error('Stripe webhook rejected in production: missing STRIPE_SECRET_KEY or STRIPE_WEBHOOK_SECRET');
+    return NextResponse.json(
+      { error: 'Stripe webhook is not configured on the server' },
+      { status: 500 }
+    );
   }
 
-  // Skip signature verification in development if webhook secret is not set
-  if (!webhookSecret || webhookSecret === 'whsec_your_webhook_secret_here' || !stripe) {
+  // Development fallback only: process JSON directly when Stripe secrets are unset.
+  if (!canVerify) {
     console.warn('Webhook secret not configured or Stripe not set up, processing without verification');
-    // In development, parse the event without verification
     try {
       const event = JSON.parse(body);
       if (event.type === 'checkout.session.completed') {

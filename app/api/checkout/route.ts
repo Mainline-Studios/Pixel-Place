@@ -2,6 +2,7 @@ export const dynamic = 'force-static';
 
 import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
+import { requireAuth } from '@/lib/middleware';
 
 const stripeSecretKey = process.env.STRIPE_SECRET_KEY || '';
 
@@ -26,6 +27,9 @@ const COIN_PACKS: { [key: string]: { coins: number; amount: number; bundle?: boo
 
 export async function POST(request: NextRequest) {
   try {
+    const auth = requireAuth(request);
+    if (auth.error) return auth.error;
+
     // Check if Stripe is configured
     if (!stripe || !stripeSecretKey) {
       return NextResponse.json(
@@ -34,9 +38,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { priceId, userId, coins, bundle } = await request.json();
+    const { priceId, bundle } = await request.json();
 
-    if (!priceId || !userId) {
+    if (!priceId) {
       return NextResponse.json(
         { error: 'Missing required parameters' },
         { status: 400 }
@@ -49,6 +53,11 @@ export async function POST(request: NextRequest) {
         { error: 'Invalid price ID' },
         { status: 400 }
       );
+    }
+
+    // Prevent non-admin users from purchasing admin-only bundles.
+    if (priceId === 'price_admin_1000000' && auth.user.role !== 'admin' && auth.user.role !== 'head_admin') {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
     // For holiday bundles, check if it's the right month
@@ -87,7 +96,7 @@ export async function POST(request: NextRequest) {
       success_url: `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/?success=true&session_id={CHECKOUT_SESSION_ID}#coins`,
       cancel_url: `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/?canceled=true#coins`,
       metadata: {
-        userId: userId,
+        userId: auth.user.username,
         coins: pack.coins.toString(),
         priceId: priceId,
         bundle: pack.bundle ? 'true' : 'false',

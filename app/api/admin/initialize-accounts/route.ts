@@ -86,7 +86,7 @@ export async function POST(request: NextRequest) {
     
     return NextResponse.json({ 
       success: true, 
-      message: `Processed ${ADMIN_ACCOUNTS_LIST.length} admin accounts`,
+      message: `Processed ${adminAccounts.length} admin accounts`,
       results 
     });
   } catch (error: any) {

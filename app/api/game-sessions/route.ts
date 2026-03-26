@@ -2,6 +2,7 @@ export const dynamic = 'force-static';
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getFirestoreInstance, COLLECTIONS, setDocument, getDocument, queryDocuments, deleteDocument } from '@/lib/firestore';
+import { requireAuth } from '@/lib/middleware';
 
 interface GameSession {
   sessionId: string;
@@ -42,6 +43,12 @@ export async function GET(request: NextRequest) {
     }
 
     if (username) {
+      const auth = requireAuth(request);
+      if (auth.error) return auth.error;
+      const isAdmin = auth.user.role === 'admin' || auth.user.role === 'head_admin';
+      if (!isAdmin && username.toLowerCase() !== auth.user.username.toLowerCase()) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      }
       // Get all sessions where user is a player
       const allSessions = await queryDocuments(COLLECTIONS.GAME_SESSIONS, 'status', '==', 'waiting');
       const userSessions = allSessions.filter((s: any) => 
@@ -81,17 +88,28 @@ export async function POST(request: NextRequest) {
   try {
     const { action, sessionId, gameId, hostUsername, username } = await request.json();
 
+    const auth = requireAuth(request);
+    if (auth.error) return auth.error;
+    const isAdmin = auth.user.role === 'admin' || auth.user.role === 'head_admin';
+    const requester = auth.user.username;
+
     if (action === 'create') {
       if (!gameId || !hostUsername) {
         return NextResponse.json({ error: 'gameId and hostUsername required' }, { status: 400 });
       }
 
+      if (!isAdmin && hostUsername.toLowerCase() !== requester.toLowerCase()) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      }
+
+      const hostUsernameSafe = isAdmin ? hostUsername : requester;
+
       const newSessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
       const sessionData = {
         session_id: newSessionId,
         game_id: gameId,
-        host_username: hostUsername,
-        players: [hostUsername],
+        host_username: hostUsernameSafe,
+        players: [hostUsernameSafe],
         max_players: 4,
         status: 'waiting',
         created_at: Date.now()
@@ -100,9 +118,9 @@ export async function POST(request: NextRequest) {
       await setDocument(COLLECTIONS.GAME_SESSIONS, newSessionId, sessionData);
 
       // Update host's presence
-      await setDocument(COLLECTIONS.PRESENCE, hostUsername.toLowerCase(), {
-        username: hostUsername,
-        username_lower: hostUsername.toLowerCase(),
+      await setDocument(COLLECTIONS.PRESENCE, hostUsernameSafe.toLowerCase(), {
+        username: hostUsernameSafe,
+        username_lower: hostUsernameSafe.toLowerCase(),
         is_online: true,
         current_session_id: newSessionId,
         last_seen: Date.now(),
@@ -117,6 +135,12 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'sessionId and username required' }, { status: 400 });
       }
 
+      if (!isAdmin && username.toLowerCase() !== requester.toLowerCase()) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      }
+
+      const usernameSafe = isAdmin ? username : requester;
+
       const session = await getDocument(COLLECTIONS.GAME_SESSIONS, sessionId);
       if (!session) {
         return NextResponse.json({ error: 'Session not found' }, { status: 404 });
@@ -127,7 +151,7 @@ export async function POST(request: NextRequest) {
       }
 
       const players = session.players || [];
-      if (players.includes(username)) {
+      if (players.includes(usernameSafe)) {
         return NextResponse.json({ success: true, session: formatSession(session) });
       }
 
@@ -135,7 +159,7 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'Session is full' }, { status: 400 });
       }
 
-      players.push(username);
+      players.push(usernameSafe);
       await setDocument(COLLECTIONS.GAME_SESSIONS, sessionId, {
         ...session,
         players: players,
@@ -143,9 +167,9 @@ export async function POST(request: NextRequest) {
       });
 
       // Update player's presence
-      await setDocument(COLLECTIONS.PRESENCE, username.toLowerCase(), {
-        username: username,
-        username_lower: username.toLowerCase(),
+      await setDocument(COLLECTIONS.PRESENCE, usernameSafe.toLowerCase(), {
+        username: usernameSafe,
+        username_lower: usernameSafe.toLowerCase(),
         is_online: true,
         current_session_id: sessionId,
         last_seen: Date.now(),
@@ -160,12 +184,18 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'sessionId and username required' }, { status: 400 });
       }
 
+      if (!isAdmin && username.toLowerCase() !== requester.toLowerCase()) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      }
+
+      const usernameSafe = isAdmin ? username : requester;
+
       const session = await getDocument(COLLECTIONS.GAME_SESSIONS, sessionId);
       if (!session) {
         return NextResponse.json({ error: 'Session not found' }, { status: 404 });
       }
 
-      const players = (session.players || []).filter((p: string) => p !== username);
+      const players = (session.players || []).filter((p: string) => p !== usernameSafe);
       
       if (players.length === 0) {
         // Delete session if no players left
@@ -180,9 +210,9 @@ export async function POST(request: NextRequest) {
       }
 
       // Update player's presence
-      await setDocument(COLLECTIONS.PRESENCE, username.toLowerCase(), {
-        username: username,
-        username_lower: username.toLowerCase(),
+      await setDocument(COLLECTIONS.PRESENCE, usernameSafe.toLowerCase(), {
+        username: usernameSafe,
+        username_lower: usernameSafe.toLowerCase(),
         is_online: true,
         current_session_id: null,
         last_seen: Date.now(),
@@ -197,12 +227,18 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'sessionId and username required' }, { status: 400 });
       }
 
+      if (!isAdmin && username.toLowerCase() !== requester.toLowerCase()) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      }
+
+      const usernameSafe = isAdmin ? username : requester;
+
       const session = await getDocument(COLLECTIONS.GAME_SESSIONS, sessionId);
       if (!session) {
         return NextResponse.json({ error: 'Session not found' }, { status: 404 });
       }
 
-      if (session.host_username !== username) {
+      if (session.host_username !== usernameSafe) {
         return NextResponse.json({ error: 'Only host can start the game' }, { status: 403 });
       }
 

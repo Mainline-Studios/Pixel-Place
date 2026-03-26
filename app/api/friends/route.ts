@@ -2,6 +2,7 @@ export const dynamic = 'force-static';
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getDocument, setDocument, queryDocuments, getDocuments, COLLECTIONS, getFirestoreInstance } from '@/lib/firestore';
+import { requireAuth, requireOwnerOrAdmin } from '@/lib/middleware';
 import { User, FriendRequest } from '@/types';
 
 function userFromDoc(doc: any): User {
@@ -35,11 +36,14 @@ function friendRequestFromDoc(doc: any): FriendRequest {
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-    const username = searchParams.get('username');
+    const usernameParam = searchParams.get('username') || '';
 
-    if (!username) {
-      return NextResponse.json({ error: 'Username is required' }, { status: 400 });
-    }
+    const auth = usernameParam ? requireOwnerOrAdmin(request, usernameParam) : requireAuth(request);
+    if (auth.error) return auth.error;
+
+    const username = usernameParam || auth.user.username;
+
+    if (!username) return NextResponse.json({ error: 'Username is required' }, { status: 400 });
 
     const userDoc = await getDocument(COLLECTIONS.USERS, username.toLowerCase());
     if (!userDoc) {
@@ -97,6 +101,27 @@ export async function POST(request: NextRequest) {
 
     if (!action || !fromUsername || !toUsername) {
       return NextResponse.json({ error: 'Missing required parameters' }, { status: 400 });
+    }
+
+    const auth = requireAuth(request);
+    if (auth.error) return auth.error;
+
+    const requester = auth.user.username;
+    const requesterLower = requester.toLowerCase();
+    const fromLower = fromUsername.toLowerCase();
+    const toLower = toUsername.toLowerCase();
+    const isAdmin = auth.user.role === 'admin' || auth.user.role === 'head_admin';
+
+    if (!isAdmin) {
+      if (action === 'send' && fromLower !== requesterLower) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      }
+      if ((action === 'accept' || action === 'decline') && toLower !== requesterLower) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      }
+      if (action === 'remove' && fromLower !== requesterLower && toLower !== requesterLower) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      }
     }
 
     if (fromUsername.toLowerCase() === toUsername.toLowerCase()) {
