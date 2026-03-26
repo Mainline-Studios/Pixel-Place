@@ -1,0 +1,130 @@
+name: Feature request
+description: Suggest an improvement or new feature
+title: "[Feature]: "
+labels: ["enhancement"]
+assignees: []
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the suggestion.
+        Please fill out the structured fields below so we can evaluate and implement it faster.
+
+  - type: dropdown
+    id: built_in_or_usermade
+    attributes:
+      label: Built-in vs Usermade
+      description: Should this be part of core Pixel Place, or is it something for user projects?
+      options:
+        - Built-in (core Pixel Place functionality)
+        - Usermade (Game Studio / user-authored projects)
+        - Not sure / could apply to both
+    validations:
+      required: true
+
+  - type: input
+    id: summary
+    attributes:
+      label: Short summary
+      description: One sentence describing the feature request.
+      placeholder: e.g. Add a “download brand kit” button to the login footer
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: affected_tabs
+    attributes:
+      label: What tab / area should change? (select all that apply)
+      options:
+        - Login / Signup
+        - Dashboard
+        - Games tab / game picker
+        - Showdown
+        - HistoriMac
+        - Studio (Game Studio / builder)
+        - Settings
+        - Coins / Store
+        - Friends
+        - Admin panel
+        - Gameplay area (describe below)
+        - Other (describe below)
+    validations:
+      required: true
+
+  - type: textarea
+    id: gameplay_area_other
+    attributes:
+      label: If “Gameplay area” or “Other”, describe the area
+    validations:
+      required: false
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: The problem (current behavior)
+      placeholder: What is frustrating or missing?
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed solution
+      placeholder: What should happen instead?
+    validations:
+      required: true
+
+  - type: textarea
+    id: uiux
+    attributes:
+      label: UI/UX details (if applicable)
+      placeholder: Buttons, layout, controls, or mockups/links
+    validations:
+      required: false
+
+  - type: textarea
+    id: replication
+    attributes:
+      label: How to replicate / test (for others)
+      placeholder: Steps a maintainer can follow to verify or reproduce the issue / validate the feature.
+    validations:
+      required: false
+
+  - type: textarea
+    id: acceptance_criteria
+    attributes:
+      label: Acceptance criteria
+      placeholder: Define “done” (specific checks / expected behavior).
+    validations:
+      required: true
+
+  - type: dropdown
+    id: complexity
+    attributes:
+      label: Complexity
+      options:
+        - Small (easy/quick)
+        - Medium
+        - Large (bigger change)
+    validations:
+      required: true
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priority
+      options:
+        - Low (nice-to-have)
+        - Medium
+        - High (should do soon)
+    validations:
+      required: true
+
+  - type: textarea
+    id: additional_notes
+    attributes:
+      label: Additional notes / links
+      placeholder: Screenshots, recordings, references, related issues
+    validations:
+      required: false
+

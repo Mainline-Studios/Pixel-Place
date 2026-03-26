@@ -1,0 +1,152 @@
+name: Bug report
+description: Report a reproducible issue (with steps and affected tab)
+title: "[Bug]: "
+labels: ["bug"]
+assignees: []
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a bug.
+        Please use the fields below so we can reproduce and fix it quickly.
+
+  - type: dropdown
+    id: built_in_or_usermade
+    attributes:
+      label: Built-in vs Usermade
+      description: Does this happen in core Pixel Place content, or user projects?
+      options:
+        - Built-in (core Pixel Place functionality)
+        - Usermade (Game Studio / user-authored projects)
+        - Not sure
+    validations:
+      required: true
+
+  - type: input
+    id: summary
+    attributes:
+      label: Short summary
+      description: One sentence describing the bug.
+      placeholder: e.g. Safety points update works only for the first purchase
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: affected_tabs
+    attributes:
+      label: What tab / area is affected? (select all that apply)
+      options:
+        - Login / Signup
+        - Dashboard
+        - Games tab / game picker
+        - Showdown
+        - HistoriMac
+        - Studio (Game Studio / builder)
+        - Settings
+        - Coins / Store
+        - Friends
+        - Admin panel
+        - Gameplay area (describe below)
+        - Other (describe below)
+    validations:
+      required: true
+
+  - type: textarea
+    id: gameplay_area_other
+    attributes:
+      label: If “Gameplay area” or “Other”, describe the area
+      placeholder: e.g. “Floor Is Lava → in-game shop”, “Editor → publish screen”
+    validations:
+      required: false
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: How to replicate (step-by-step)
+      placeholder: |
+        1. Go to ...
+        2. Click ...
+        3. Observe ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual result
+      placeholder: What happened?
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected result
+      placeholder: What did you expect to happen?
+    validations:
+      required: true
+
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Evidence (screenshots / video / logs)
+      placeholder: |
+        - Screenshots or video link:
+        - Console errors (paste text):
+        - Network/response details (if relevant):
+    validations:
+      required: false
+
+  - type: input
+    id: environment
+    attributes:
+      label: Environment (optional)
+      description: OS, browser, device; include versions if relevant.
+      placeholder: e.g. iPadOS 17, Safari 17.1
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: account_context
+    attributes:
+      label: Account context (select one or more)
+      options:
+        - Signed in
+        - Signed out
+        - Admin (admin)
+        - Head admin (head_admin)
+        - Regular user
+    validations:
+      required: false
+
+  - type: input
+    id: username_or_project
+    attributes:
+      label: Username / Project name (optional)
+      description: If this is usermade, include the user project name.
+    validations:
+      required: false
+
+  - type: dropdown
+    id: severity
+    attributes:
+      label: Severity
+      options:
+        - Minor (annoying, workaround exists)
+        - Major (blocks normal play)
+        - Blocks testing / release
+        - Security or privacy concern
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Checklist
+      options:
+        - I searched existing issues for duplicates
+        - I included steps to reproduce
+        - I included relevant evidence
+    validations:
+      required: false
+
