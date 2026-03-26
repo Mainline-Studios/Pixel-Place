@@ -13,6 +13,7 @@ import { useSecretTheme } from '@/contexts/SecretThemeContext';
 import { useMobileBeta } from '@/contexts/MobileBetaContext';
 import { useAccessibility, type ColorBlindMode } from '@/contexts/AccessibilityContext';
 import { STYLE_OPTIONS } from '@/lib/styleTheme';
+import { formatGenderForDisplay } from '@/lib/formatGenderDisplay';
 
 interface SettingsTabProps {
   user: User;
@@ -80,7 +81,7 @@ export default function SettingsTab({ user, editMode, onToggleEditMode }: Settin
           <br />
           Role: {escapeHTML(user.role)}
           <br />
-          Gender: Boy
+          Gender: {escapeHTML(formatGenderForDisplay(user.gender))}
           <br />
           Coins: {coins.toLocaleString('en-US')}
           <br />

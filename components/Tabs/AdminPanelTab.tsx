@@ -6,6 +6,7 @@ import { User, Report, Ban, GameSubmission, UserMadeGame, DeviceRecord, Hardware
 import { getUsers, getReports, banUser, unbanUser, updateReportStatus, saveBannedUsers, saveUsers, ADMIN_ACCOUNTS_LIST, getBanAppeals, updateBanAppealStatus, getMessagesAPI, sendMessage, getGameSubmissions, saveUserMadeGame, deleteGameSubmission, getHardwareBans, addHardwareBan as addHardwareBanApi, removeHardwareBan, getDevicesForUser, getAppealMessagesAdmin } from '@/lib/storage';
 import { subscribeToUsers, subscribeToBans } from '@/lib/firestoreClient';
 import { FilteredUsername } from '@/components/FilteredText';
+import { formatGenderForDisplay } from '@/lib/formatGenderDisplay';
 
 interface AdminPanelTabProps {
   user: User;
@@ -476,7 +477,8 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
                       {u.role === 'admin' && <span style={{ color: '#ff4d4d', marginLeft: '8px' }}>👑 ADMIN</span>}
                       </div>
                       <div className="smalltext">
-                        Role: {u.role} • Coins: {u.coins} • Gender: Boy
+                        Role: {u.role} • Coins: {u.coins} • Gender:{' '}
+                        {formatGenderForDisplay(u.gender)}
                       </div>
                       <button
                         type="button"

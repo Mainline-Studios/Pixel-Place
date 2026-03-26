@@ -853,6 +853,26 @@ body.has-urgent-game-banner {
   justify-content: center;
 }
 
+.gender-identity-select-wrap {
+  margin-top: 14px;
+  width: 100%;
+  max-width: 100%;
+}
+
+.gender-identity-select-label {
+  display: block;
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 8px;
+  text-align: left;
+}
+
+select.gender-identity-select {
+  width: 100%;
+  max-width: 100%;
+}
+
 .gender-btn {
   width: 60px;
   height: 60px;

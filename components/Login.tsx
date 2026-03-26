@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useId } from 'react';
 import { useUser } from '@/contexts/UserContext';
 import { useSound } from '@/contexts/SoundContext';
 import BanScreen from './BanScreen';
@@ -8,12 +8,21 @@ import SiteSocialLinks from './SiteSocialLinks';
 import SiteLicenseAttribution from './SiteLicenseAttribution';
 import PyxTrainCta from './PyxTrainCta';
 import StatusPageLink from './StatusPageLink';
+import {
+  DEFAULT_EXTENDED_GENDER,
+  GENDER_FEMALE,
+  GENDER_IDENTITY_OPTIONS,
+  GENDER_MALE,
+  coerceExtendedGenderForSelect,
+  isExtendedGenderBranch,
+} from '@/lib/genderIdentityOptions';
 
 export default function Login() {
+  const genderSvgId = useId().replace(/[^a-zA-Z0-9_-]/g, '_');
   const [mode, setMode] = useState<'signin' | 'signup'>('signin');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const [gender, setGender] = useState<'Male' | 'Female' | 'Other' | ''>('');
+  const [gender, setGender] = useState<string>('');
   const [birthMonth, setBirthMonth] = useState('');
   const [birthDay, setBirthDay] = useState('');
   const [birthYear, setBirthYear] = useState('');
@@ -260,12 +269,12 @@ export default function Login() {
                 <div className="gender-buttons">
                   <button
                     type="button"
-                    className={`gender-btn gender-male ${gender === 'Male' ? 'selected' : ''}`}
+                    className={`gender-btn gender-male ${gender === GENDER_MALE ? 'selected' : ''}`}
                     onClick={() => {
-                      if (gender === 'Male') {
+                      if (gender === GENDER_MALE) {
                         setGender('');
                       } else {
-                        setGender('Male');
+                        setGender(GENDER_MALE);
                       }
                     }}
                   >
@@ -285,12 +294,12 @@ export default function Login() {
                   </button>
                   <button
                     type="button"
-                    className={`gender-btn gender-female ${gender === 'Female' ? 'selected' : ''}`}
+                    className={`gender-btn gender-female ${gender === GENDER_FEMALE ? 'selected' : ''}`}
                     onClick={() => {
-                      if (gender === 'Female') {
+                      if (gender === GENDER_FEMALE) {
                         setGender('');
                       } else {
-                        setGender('Female');
+                        setGender(GENDER_FEMALE);
                       }
                     }}
                   >
@@ -310,18 +319,26 @@ export default function Login() {
                   </button>
                   <button
                     type="button"
-                    className={`gender-btn gender-other ${gender === 'Other' ? 'selected' : ''}`}
+                    className={`gender-btn gender-other ${isExtendedGenderBranch(gender) ? 'selected' : ''}`}
                     onClick={() => {
-                      if (gender === 'Other') {
+                      if (isExtendedGenderBranch(gender)) {
                         setGender('');
                       } else {
-                        setGender('Other');
+                        setGender(DEFAULT_EXTENDED_GENDER);
                       }
                     }}
+                    aria-expanded={isExtendedGenderBranch(gender)}
+                    aria-haspopup="listbox"
                   >
-                    <svg className="gender-symbol" viewBox="0 0 100 100" width="40" height="40">
+                    <svg className="gender-symbol" viewBox="0 0 100 100" width="40" height="40" aria-hidden>
                       <defs>
-                        <linearGradient id="rainbowGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                        <linearGradient
+                          id={`${genderSvgId}-rainbow`}
+                          x1="0%"
+                          y1="0%"
+                          x2="100%"
+                          y2="0%"
+                        >
                           <stop offset="0%" stopColor="#ff0000" />
                           <stop offset="16.66%" stopColor="#ff7f00" />
                           <stop offset="33.33%" stopColor="#ffff00" />
@@ -330,15 +347,15 @@ export default function Login() {
                           <stop offset="83.33%" stopColor="#4b0082" />
                           <stop offset="100%" stopColor="#9400d3" />
                         </linearGradient>
-                        <clipPath id="leftHalfOther">
+                        <clipPath id={`${genderSvgId}-left`}>
                           <rect x="0" y="0" width="50" height="100" />
                         </clipPath>
-                        <clipPath id="rightHalfOther">
+                        <clipPath id={`${genderSvgId}-right`}>
                           <rect x="50" y="0" width="50" height="100" />
                         </clipPath>
                       </defs>
                       {/* Left half - Male symbol (clipped) */}
-                      <g clipPath="url(#leftHalfOther)">
+                      <g clipPath={`url(#${genderSvgId}-left)`}>
                         <circle cx="50" cy="15" r="11" fill="currentColor" />
                         <rect x="38" y="26" width="24" height="24" fill="currentColor" />
                         <line x1="38" y1="36" x2="24" y2="36" stroke="currentColor" strokeWidth="8" strokeLinecap="round" />
@@ -349,7 +366,7 @@ export default function Login() {
                         <circle cx="56" cy="78" r="5" fill="currentColor" />
                       </g>
                       {/* Right half - Female symbol (clipped) */}
-                      <g clipPath="url(#rightHalfOther)">
+                      <g clipPath={`url(#${genderSvgId}-right)`}>
                         <circle cx="50" cy="15" r="11" fill="currentColor" />
                         <path d="M 36 26 L 50 52 L 64 26 Z" fill="currentColor" />
                         <line x1="64" y1="30" x2="76" y2="40" stroke="currentColor" strokeWidth="8" strokeLinecap="round" />
@@ -364,6 +381,26 @@ export default function Login() {
                     </svg>
                   </button>
                 </div>
+                {isExtendedGenderBranch(gender) && (
+                  <div className="gender-identity-select-wrap">
+                    <label htmlFor="gender-identity-select" className="gender-identity-select-label">
+                      Identity (optional)
+                    </label>
+                    <select
+                      id="gender-identity-select"
+                      className="birthday-select gender-identity-select"
+                      value={coerceExtendedGenderForSelect(gender)}
+                      onChange={(e) => setGender(e.target.value)}
+                      aria-label="Gender identity"
+                    >
+                      {GENDER_IDENTITY_OPTIONS.map((o) => (
+                        <option key={o.value} value={o.value}>
+                          {o.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
               </div>
 
               <div className="terms-text">
