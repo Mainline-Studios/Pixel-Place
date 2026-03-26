@@ -12,10 +12,6 @@ import GymPumpEngine from '../Games/GymPumpEngine';
 import Hypnosia from '../Games/Hypnosia';
 import UnderwaterOddyseySeries from '../Games/UnderwaterOddyseySeries';
 import Showdown from '../Games/Showdown';
-import SuperShowdown from '../Games/SuperShowdown';
-import SuperShowdown2 from '../Games/SuperShowdown2';
-import SuperShowdown2D from '../Games/SuperShowdown2D';
-import InsaneShowdown from '../Games/InsaneShowdown';
 import CelestialSeriesExploration from '../Games/CelestialSeriesExploration';
 import RedRover from '../Games/RedRover';
 import JungleJourneySeries from '../Games/JungleJourneySeries';
@@ -102,43 +98,6 @@ const games: GameInfo[] = [
     category: 'Action',
     is3D: false,
     component: Showdown,
-  },
-  {
-    id: 'superShowdown',
-    name: 'Super Showdown',
-    description: '3D arena combat with original powers and entities!',
-    icon: '⚔️',
-    thumbnail: '/images/games/showdown.svg',
-    category: 'Action',
-    component: SuperShowdown,
-  },
-  {
-    id: 'superShowdown2',
-    name: 'Super Showdown 2',
-    description: 'New powers: mud, parasite, harmony, regen, hex, lunar, soleil, doppelganger!',
-    icon: '⚔️',
-    thumbnail: '/images/games/showdown.svg',
-    category: 'Action',
-    component: SuperShowdown2,
-  },
-  {
-    id: 'superShowdown2D',
-    name: 'Super Showdown 2D',
-    description: '2D arena combat — fast-paced pixel brawling!',
-    icon: '⚔️',
-    thumbnail: '/images/games/showdown.svg',
-    category: 'Action',
-    is3D: false,
-    component: SuperShowdown2D,
-  },
-  {
-    id: 'insaneShowdown',
-    name: 'Insane Showdown',
-    description: 'Combined arena — all powers, whirlpools, black holes, doppelgangers!',
-    icon: '⚔️',
-    thumbnail: '/images/games/showdown.svg',
-    category: 'Action',
-    component: InsaneShowdown,
   },
   {
     id: 'celestialSeries',

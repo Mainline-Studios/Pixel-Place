@@ -31,24 +31,6 @@ export const BUILTIN_GAMES: PublishedGame[] = [
     thumbnail: undefined,
   },
   {
-    title: 'Super Showdown 2',
-    desc: 'Epic arena battles with powerful abilities!',
-    owner: 'System',
-    ts: Date.now() - 86400000 * 5,
-    playable: true,
-    gameCode: 'builtin_superShowdown2',
-    thumbnail: undefined,
-  },
-  {
-    title: 'Super Showdown',
-    desc: 'Original arena combat experience!',
-    owner: 'System',
-    ts: Date.now() - 86400000 * 4,
-    playable: true,
-    gameCode: 'builtin_superShowdown',
-    thumbnail: undefined,
-  },
-  {
     title: 'Red Rover',
     desc: 'Classic team-based multiplayer game!',
     owner: 'System',
@@ -84,15 +66,6 @@ export const BUILTIN_GAMES: PublishedGame[] = [
     gameCode: 'builtin_floorIsLava',
     thumbnail: undefined,
   },
-  {
-    title: 'Insane Showdown',
-    desc: 'Ultimate combined arena battle experience!',
-    owner: 'System',
-    ts: Date.now() - 86400000 * 0.25,
-    playable: true,
-    gameCode: 'builtin_insaneShowdown',
-    thumbnail: undefined,
-  },
   // Note: HideAndSeek, GhostInTheDark, and CityLife are HTML files, not React components
   // They can be added later if converted to React components
   {
@@ -102,15 +75,6 @@ export const BUILTIN_GAMES: PublishedGame[] = [
     ts: Date.now() - 86400000 * 11,
     playable: true,
     gameCode: 'builtin_celestialSeries',
-    thumbnail: undefined,
-  },
-  {
-    title: 'Super Showdown 2D',
-    desc: '2D arena battles with powerful abilities!',
-    owner: 'System',
-    ts: Date.now() - 86400000 * 14,
-    playable: true,
-    gameCode: 'builtin_superShowdown2D',
     thumbnail: undefined,
   },
   // Note: InternationalSportsHQ and MusicalMayhem are not React components

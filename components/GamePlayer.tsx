@@ -283,11 +283,8 @@ export default function GamePlayer({ game, onClose }: GamePlayerProps) {
             case 'underwaterOdyssey':
               GameComponent = (await import('@/components/Games/UnderwaterOddyseySeries')).default;
               break;
-            case 'superShowdown2':
-              GameComponent = (await import('@/components/Games/SuperShowdown2')).default;
-              break;
-            case 'superShowdown':
-              GameComponent = (await import('@/components/Games/SuperShowdown')).default;
+            case 'oceanlifePro':
+              GameComponent = (await import('@/components/Games/UnderwaterOddyseySeries')).default;
               break;
             case 'redRover':
               GameComponent = (await import('@/components/Games/RedRover')).default;
@@ -297,9 +294,6 @@ export default function GamePlayer({ game, onClose }: GamePlayerProps) {
               break;
             case 'floorIsLava':
               GameComponent = (await import('@/components/Games/FloorIsLava')).default;
-              break;
-            case 'insaneShowdown':
-              GameComponent = (await import('@/components/Games/InsaneShowdown')).default;
               break;
             case 'hideAndSeek':
               GameComponent = (await import('@/components/Games/HideAndSeek')).default;
@@ -312,9 +306,6 @@ export default function GamePlayer({ game, onClose }: GamePlayerProps) {
               break;
             case 'celestialSeries':
               GameComponent = (await import('@/components/Games/CelestialSeriesExploration')).default;
-              break;
-            case 'superShowdown2D':
-              GameComponent = (await import('@/components/Games/SuperShowdown2D')).default;
               break;
             case 'gameStudio':
               GameComponent = (await import('@/components/Games/GameStudio')).default;
