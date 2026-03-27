@@ -714,18 +714,18 @@ export default function FloorIsLava(): JSX.Element {
       if (remaining > 0) return;
 
       window.clearInterval(interval);
-      setVotingActive(false);
+          setVotingActive(false);
       setVoteTimeLeft(0);
 
       const currentVotes = votesRef.current;
       const entries = Object.entries(currentVotes) as [MapKey, number][];
-      let max = -1;
+            let max = -1;
       for (const [, v] of entries) max = Math.max(max, v);
       const winners = entries.filter(([, v]) => v === max).map(([k]) => k);
       const pick = winners.length ? winners[Math.floor(Math.random() * winners.length)] : 'house';
 
       selectedMapRef.current = pick as MapKey;
-      setSelectedMap(pick as MapKey);
+            setSelectedMap(pick as MapKey);
       resetGame();
     }, 250);
 
@@ -735,19 +735,19 @@ export default function FloorIsLava(): JSX.Element {
   const startVoting = useCallback(
     (duration = VOTE_DURATION) => {
       if (WS_URL && wsRef.current && wsConnected) {
-        try {
-          wsRef.current.send(JSON.stringify({ type: 'start_vote', duration }));
+      try {
+        wsRef.current.send(JSON.stringify({ type: 'start_vote', duration }));
         } catch {
           /* ignore */
-        }
-        return;
       }
+      return;
+    }
 
-      setVotes({ house: 0, mountain: 0, city: 0, coral: 0, hotel: 0 });
+    setVotes({ house: 0, mountain: 0, city: 0, coral: 0, hotel: 0 });
       votesRef.current = { house: 0, mountain: 0, city: 0, coral: 0, hotel: 0 };
-      setVoted(false);
-      setVotingActive(true);
-      setVoteTimeLeft(duration);
+    setVoted(false);
+    setVotingActive(true);
+    setVoteTimeLeft(duration);
       voteEndAtRef.current = Date.now() + duration * 1000;
     },
     [wsConnected],
@@ -755,23 +755,23 @@ export default function FloorIsLava(): JSX.Element {
 
   const castVote = useCallback(
     (key: MapKey) => {
-      if (!votingActive || voted) return;
+    if (!votingActive || voted) return;
       if (WS_URL && wsRef.current && wsConnected) {
-        try {
-          wsRef.current.send(JSON.stringify({ type: 'cast_vote', map: key }));
-          setVoted(true);
+      try {
+        wsRef.current.send(JSON.stringify({ type: 'cast_vote', map: key }));
+        setVoted(true);
         } catch {
           /* ignore */
-        }
-        return;
       }
+      return;
+    }
 
       setVotes((prev) => {
         const next = { ...prev, [key]: (prev[key] ?? 0) + 1 };
         votesRef.current = next;
         return next;
       });
-      setVoted(true);
+    setVoted(true);
     },
     [votingActive, voted, wsConnected],
   );
@@ -1179,7 +1179,7 @@ export default function FloorIsLava(): JSX.Element {
                 }}
               >
                 {overlay}
-              </div>
+        </div>
             )}
             <canvas
               ref={canvasRef}
@@ -1193,7 +1193,7 @@ export default function FloorIsLava(): JSX.Element {
                 cursor: selectedMap === 'mountain' ? 'crosshair' : 'default',
               }}
             />
-          </div>
+        </div>
         </div>
 
         <div
@@ -1207,8 +1207,8 @@ export default function FloorIsLava(): JSX.Element {
         >
           {mapVotingCard}
           {controlsCard}
+          </div>
         </div>
-      </div>
 
       {isMobileBeta && (
         <div

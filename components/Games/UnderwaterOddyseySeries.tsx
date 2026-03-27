@@ -51,8 +51,16 @@ export default function UnderwaterOddyseySeries() {
   useEffect(() => {
     const canvas = canvasRef.current!;
     const ctx = canvas.getContext('2d')!;
-    let width = (canvas.width = canvas.clientWidth = 960);
-    let height = (canvas.height = canvas.clientHeight = 640);
+    const DPR = Math.max(1, Math.floor(window.devicePixelRatio || 1));
+    const cssWidth = 960;
+    const cssHeight = 640;
+    canvas.style.width = `${cssWidth}px`;
+    canvas.style.height = `${cssHeight}px`;
+    let width = (canvas.width = cssWidth * DPR);
+    let height = (canvas.height = cssHeight * DPR);
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+    width = cssWidth;
+    height = cssHeight;
 
     const player: Vec & {
       vx: number;
