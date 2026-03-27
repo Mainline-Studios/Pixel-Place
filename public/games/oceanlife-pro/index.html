@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>OceanLife Pro</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { width: 100%; height: 100%; overflow: hidden; background: #061422; font-family: Inter, Arial, sans-serif; color: #fff; }
+    #root { width: 100%; height: 100%; position: relative; }
+    #hud {
+      position: absolute;
+      top: 12px;
+      left: 12px;
+      width: min(360px, calc(100vw - 24px));
+      background: rgba(6, 20, 34, 0.82);
+      border: 1px solid rgba(255, 255, 255, 0.16);
+      border-radius: 12px;
+      padding: 12px;
+      backdrop-filter: blur(10px);
+      z-index: 20;
+    }
+    #hud h1 { font-size: 18px; margin-bottom: 8px; color: #8fe7ff; }
+    .row { margin-bottom: 10px; }
+    .row label { display: block; font-size: 12px; color: rgba(255,255,255,0.8); margin-bottom: 6px; }
+    .row input[type="range"] { width: 100%; }
+    .btns { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    button {
+      padding: 8px 10px;
+      border: 1px solid rgba(255,255,255,0.2);
+      border-radius: 8px;
+      background: linear-gradient(180deg, #0da3d8, #0a7db0);
+      color: white;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    #tip {
+      position: absolute;
+      left: 50%;
+      bottom: 14px;
+      transform: translateX(-50%);
+      background: rgba(0,0,0,0.45);
+      border: 1px solid rgba(255,255,255,0.2);
+      border-radius: 999px;
+      padding: 8px 14px;
+      font-size: 12px;
+      color: rgba(255,255,255,0.9);
+      z-index: 20;
+      white-space: nowrap;
+    }
+    canvas { display: block; width: 100%; height: 100%; }
+  </style>
+</head>
+<body>
+  <div id="root">
+    <div id="hud">
+      <h1>🏖 OceanLife Pro</h1>
+      <div class="row">
+        <label for="waveIntensity">Wave Intensity <span id="waveIntensityVal">1.2</span></label>
+        <input id="waveIntensity" type="range" min="0.2" max="3" step="0.1" value="1.2" />
+      </div>
+      <div class="row">
+        <label for="waveSpeed">Wave Speed <span id="waveSpeedVal">1.0x</span></label>
+        <input id="waveSpeed" type="range" min="0.2" max="3" step="0.1" value="1.0" />
+      </div>
+      <div class="row">
+        <label for="peopleCount">People <span id="peopleCountVal">8</span></label>
+        <input id="peopleCount" type="range" min="0" max="20" step="1" value="8" />
+      </div>
+      <div class="btns">
+        <button id="bigWaveBtn">Generate Big Wave</button>
+        <button id="randomBtn">Randomize</button>
+      </div>
+    </div>
+    <div id="tip">WASD / Arrows move camera • Drag to orbit • Scroll to zoom</div>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+  <script>
+    const config = { waveIntensity: 1.2, waveSpeed: 1.0, peopleCount: 8 };
+
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x86cfeb);
+    scene.fog = new THREE.FogExp2(0x86cfeb, 0.012);
+
+    const camera = new THREE.PerspectiveCamera(56, window.innerWidth / window.innerHeight, 0.1, 2500);
+    camera.position.set(0, 28, 84);
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    document.getElementById('root').appendChild(renderer.domElement);
+
+    const controls = new THREE.OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.08;
+    controls.target.set(0, 0, -10);
+    controls.minDistance = 5;
+    controls.maxDistance = 320;
+
+    const amb = new THREE.AmbientLight(0x406080, 0.65);
+    scene.add(amb);
+    const sun = new THREE.DirectionalLight(0xffffff, 1.4);
+    sun.position.set(60, 90, 40);
+    sun.castShadow = true;
+    sun.shadow.mapSize.set(2048, 2048);
+    scene.add(sun);
+    const sky = new THREE.HemisphereLight(0x87ceeb, 0xf0e2ad, 0.5);
+    scene.add(sky);
+
+    const sandGeo = new THREE.PlaneGeometry(220, 120, 48, 24);
+    sandGeo.rotateX(-Math.PI / 2);
+    const sandPos = sandGeo.attributes.position.array;
+    for (let i = 0; i < sandPos.length; i += 3) {
+      const x = sandPos[i], z = sandPos[i + 2];
+      sandPos[i + 1] = Math.sin(x * 0.05) * 0.25 + Math.sin(z * 0.08 + x * 0.03) * 0.15;
+    }
+    sandGeo.computeVertexNormals();
+    const sand = new THREE.Mesh(
+      sandGeo,
+      new THREE.MeshStandardMaterial({ color: 0xe7d2b5, roughness: 0.95, metalness: 0 })
+    );
+    sand.position.set(0, -0.5, -62);
+    sand.receiveShadow = true;
+    scene.add(sand);
+
+    const wetSand = new THREE.Mesh(
+      new THREE.PlaneGeometry(200, 30),
+      new THREE.MeshStandardMaterial({ color: 0xb79d83, roughness: 0.65, metalness: 0.12 })
+    );
+    wetSand.rotation.x = -Math.PI / 2;
+    wetSand.position.set(0, -0.48, -20);
+    wetSand.receiveShadow = true;
+    scene.add(wetSand);
+
+    const waterGeo = new THREE.PlaneGeometry(180, 110, 120, 80);
+    waterGeo.rotateX(-Math.PI / 2);
+    const waterPos = waterGeo.attributes.position.array;
+    for (let i = 0; i < waterPos.length; i += 3) waterPos[i + 2] += 37;
+    const waterMat = new THREE.MeshPhongMaterial({
+      color: 0x006a9e,
+      specular: 0xaaddff,
+      shininess: 120,
+      transparent: true,
+      opacity: 0.9,
+      side: THREE.DoubleSide,
+    });
+    const water = new THREE.Mesh(waterGeo, waterMat);
+    water.position.y = -0.2;
+    water.receiveShadow = true;
+    scene.add(water);
+    const waterBase = waterPos.slice();
+
+    const people = [];
+    function spawnPeople() {
+      while (people.length) scene.remove(people.pop());
+      for (let i = 0; i < config.peopleCount; i++) {
+        const g = new THREE.Group();
+        const body = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.22, 0.24, 0.7, 12),
+          new THREE.MeshStandardMaterial({ color: 0xe1b692, roughness: 0.7 })
+        );
+        body.position.y = 0.35;
+        const head = new THREE.Mesh(
+          new THREE.SphereGeometry(0.18, 12, 10),
+          new THREE.MeshStandardMaterial({ color: 0xe7c4a4, roughness: 0.6 })
+        );
+        head.position.y = 0.88;
+        g.add(body, head);
+        g.castShadow = true;
+        g.position.set((Math.random() - 0.5) * 90, -0.2, -40 + Math.random() * 95);
+        g.userData.phase = Math.random() * Math.PI * 2;
+        g.userData.speed = 0.2 + Math.random() * 0.5;
+        scene.add(g);
+        people.push(g);
+      }
+    }
+    spawnPeople();
+
+    function setLabel(id, text) { document.getElementById(id).textContent = text; }
+    document.getElementById('waveIntensity').addEventListener('input', (e) => {
+      config.waveIntensity = parseFloat(e.target.value);
+      setLabel('waveIntensityVal', config.waveIntensity.toFixed(1));
+    });
+    document.getElementById('waveSpeed').addEventListener('input', (e) => {
+      config.waveSpeed = parseFloat(e.target.value);
+      setLabel('waveSpeedVal', config.waveSpeed.toFixed(1) + 'x');
+    });
+    document.getElementById('peopleCount').addEventListener('input', (e) => {
+      config.peopleCount = parseInt(e.target.value, 10);
+      setLabel('peopleCountVal', String(config.peopleCount));
+      spawnPeople();
+    });
+    document.getElementById('bigWaveBtn').addEventListener('click', () => {
+      wavePulse = 2.8;
+      wavePulseT = 1.6;
+    });
+    document.getElementById('randomBtn').addEventListener('click', () => {
+      config.waveIntensity = +(0.4 + Math.random() * 2.2).toFixed(1);
+      config.waveSpeed = +(0.4 + Math.random() * 2.2).toFixed(1);
+      document.getElementById('waveIntensity').value = String(config.waveIntensity);
+      document.getElementById('waveSpeed').value = String(config.waveSpeed);
+      setLabel('waveIntensityVal', config.waveIntensity.toFixed(1));
+      setLabel('waveSpeedVal', config.waveSpeed.toFixed(1) + 'x');
+    });
+
+    const move = { f: false, b: false, l: false, r: false, u: false, d: false };
+    window.addEventListener('keydown', (e) => {
+      if (e.code === 'KeyW' || e.code === 'ArrowUp') move.f = true;
+      if (e.code === 'KeyS' || e.code === 'ArrowDown') move.b = true;
+      if (e.code === 'KeyA' || e.code === 'ArrowLeft') move.l = true;
+      if (e.code === 'KeyD' || e.code === 'ArrowRight') move.r = true;
+      if (e.code === 'KeyQ' || e.code === 'Space') move.u = true;
+      if (e.code === 'KeyE' || e.code === 'ShiftLeft') move.d = true;
+    });
+    window.addEventListener('keyup', (e) => {
+      if (e.code === 'KeyW' || e.code === 'ArrowUp') move.f = false;
+      if (e.code === 'KeyS' || e.code === 'ArrowDown') move.b = false;
+      if (e.code === 'KeyA' || e.code === 'ArrowLeft') move.l = false;
+      if (e.code === 'KeyD' || e.code === 'ArrowRight') move.r = false;
+      if (e.code === 'KeyQ' || e.code === 'Space') move.u = false;
+      if (e.code === 'KeyE' || e.code === 'ShiftLeft') move.d = false;
+    });
+
+    let t = 0;
+    let wavePulse = 0;
+    let wavePulseT = 0;
+    function animate() {
+      requestAnimationFrame(animate);
+      const dt = 0.016;
+      t += dt;
+
+      if (wavePulseT > 0) {
+        wavePulseT -= dt;
+      } else {
+        wavePulse = Math.max(0, wavePulse - dt * 3.2);
+      }
+
+      for (let i = 0; i < waterPos.length; i += 3) {
+        const x = waterBase[i];
+        const z = waterBase[i + 2];
+        const base =
+          Math.sin(x * 0.032 + t * config.waveSpeed * 1.8) * config.waveIntensity * 0.9 +
+          Math.sin(z * 0.028 + t * config.waveSpeed * 1.35) * config.waveIntensity * 0.7 +
+          Math.sin((x + z) * 0.02 + t * config.waveSpeed) * config.waveIntensity * 0.45;
+        const shore = Math.max(0, 1 - (z + 30) / 60);
+        waterPos[i + 1] = base + shore * Math.sin(x * 0.05 + t * 2.3) * config.waveIntensity * 0.6 + wavePulse * 0.35;
+      }
+      water.geometry.attributes.position.needsUpdate = true;
+      water.geometry.computeVertexNormals();
+
+      people.forEach((p) => {
+        p.userData.phase += dt * p.userData.speed;
+        p.position.x += Math.cos(p.userData.phase * 0.9) * dt * 2.1;
+        p.position.z += Math.sin(p.userData.phase) * dt * 1.8;
+        p.position.x = Math.max(-90, Math.min(90, p.position.x));
+        p.position.z = Math.max(-55, Math.min(85, p.position.z));
+        p.rotation.y = Math.atan2(Math.cos(p.userData.phase * 0.9), Math.sin(p.userData.phase));
+      });
+
+      const speed = 0.9;
+      const fwd = new THREE.Vector3();
+      camera.getWorldDirection(fwd);
+      fwd.y = 0;
+      fwd.normalize();
+      const right = new THREE.Vector3().crossVectors(fwd, new THREE.Vector3(0, 1, 0)).normalize();
+      if (move.f) { camera.position.addScaledVector(fwd, speed); controls.target.addScaledVector(fwd, speed); }
+      if (move.b) { camera.position.addScaledVector(fwd, -speed); controls.target.addScaledVector(fwd, -speed); }
+      if (move.l) { camera.position.addScaledVector(right, -speed); controls.target.addScaledVector(right, -speed); }
+      if (move.r) { camera.position.addScaledVector(right, speed); controls.target.addScaledVector(right, speed); }
+      if (move.u) { camera.position.y += speed; controls.target.y += speed; }
+      if (move.d) { camera.position.y = Math.max(2, camera.position.y - speed); controls.target.y = Math.max(0, controls.target.y - speed); }
+
+      controls.update();
+      renderer.render(scene, camera);
+    }
+    animate();
+
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+  </script>
+</body>
+</html>
+

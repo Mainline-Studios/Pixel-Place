@@ -11,6 +11,7 @@ import GameErrorBoundary from '../GameErrorBoundary';
 import GymPumpEngine from '../Games/GymPumpEngine';
 import Hypnosia from '../Games/Hypnosia';
 import UnderwaterOddyseySeries from '../Games/UnderwaterOddyseySeries';
+import OceanLifePro from '../Games/OceanLifePro';
 import Showdown from '../Games/Showdown';
 import CelestialSeriesExploration from '../Games/CelestialSeriesExploration';
 import RedRover from '../Games/RedRover';
@@ -87,7 +88,7 @@ const games: GameInfo[] = [
     icon: '🐠',
     thumbnail: '/images/games/underwater-odyssey.svg',
     category: 'Adventure',
-    component: UnderwaterOddyseySeries,
+    component: OceanLifePro,
   },
   {
     id: 'showdown',
