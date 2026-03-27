@@ -12,6 +12,7 @@ import GymPumpEngine from '../Games/GymPumpEngine';
 import Hypnosia from '../Games/Hypnosia';
 import UnderwaterOddyseySeries from '../Games/UnderwaterOddyseySeries';
 import OceanLifePro from '../Games/OceanLifePro';
+import BaseballDiamond from '../Games/BaseballDiamond';
 import Showdown from '../Games/Showdown';
 import CelestialSeriesExploration from '../Games/CelestialSeriesExploration';
 import RedRover from '../Games/RedRover';
@@ -99,6 +100,14 @@ const games: GameInfo[] = [
     category: 'Action',
     is3D: false,
     component: Showdown,
+  },
+  {
+    id: 'baseballDiamond',
+    name: 'Baseball Diamond',
+    description: 'Rule-based baseball with counts, innings, outs, walks, and base-running.',
+    icon: '⚾',
+    category: 'Sports',
+    component: BaseballDiamond,
   },
   {
     id: 'celestialSeries',

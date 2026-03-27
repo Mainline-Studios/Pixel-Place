@@ -31,6 +31,15 @@ export const BUILTIN_GAMES: PublishedGame[] = [
     thumbnail: undefined,
   },
   {
+    title: 'Baseball Diamond',
+    desc: 'Rule-based baseball with innings, counts, outs, and base-running.',
+    owner: 'System',
+    ts: Date.now() - 86400000 * 5.25,
+    playable: true,
+    gameCode: 'builtin_baseballDiamond',
+    thumbnail: undefined,
+  },
+  {
     title: 'Red Rover',
     desc: 'Classic team-based multiplayer game!',
     owner: 'System',

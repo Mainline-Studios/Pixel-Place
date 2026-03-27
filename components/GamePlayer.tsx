@@ -286,6 +286,9 @@ export default function GamePlayer({ game, onClose }: GamePlayerProps) {
             case 'oceanlifePro':
               GameComponent = (await import('@/components/Games/OceanLifePro')).default;
               break;
+            case 'baseballDiamond':
+              GameComponent = (await import('@/components/Games/BaseballDiamond')).default;
+              break;
             case 'redRover':
               GameComponent = (await import('@/components/Games/RedRover')).default;
               break;
