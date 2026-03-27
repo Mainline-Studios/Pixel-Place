@@ -308,7 +308,7 @@ export default function BaseballDiamond() {
       if (e.code === 'Space') {
         e.preventDefault();
         swing();
-      } else if (e.code === 'KeyP') {
+      } else if (e.code === 'KeyL') {
         e.preventDefault();
         startPitch();
       }
@@ -334,7 +334,19 @@ export default function BaseballDiamond() {
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
       ctx.clearRect(0, 0, w, h);
-      ctx.fillStyle = '#173f1f';
+      // Grass base + mowing stripe pattern
+      ctx.fillStyle = '#154a1f';
+      ctx.fillRect(0, 0, w, h);
+      for (let i = 0; i < 18; i++) {
+        const y0 = (i / 18) * h;
+        ctx.fillStyle = i % 2 === 0 ? 'rgba(255,255,255,0.035)' : 'rgba(0,0,0,0.03)';
+        ctx.fillRect(0, y0, w, h / 18 + 1);
+      }
+      // subtle vignette for depth
+      const vg = ctx.createRadialGradient(w * 0.5, h * 0.56, 70, w * 0.5, h * 0.56, w * 0.65);
+      vg.addColorStop(0, 'rgba(0,0,0,0)');
+      vg.addColorStop(1, 'rgba(0,0,0,0.26)');
+      ctx.fillStyle = vg;
       ctx.fillRect(0, 0, w, h);
 
       // Infield diamond
@@ -355,12 +367,27 @@ export default function BaseballDiamond() {
       ctx.lineTo(basesPos[3].x, basesPos[3].y);
       ctx.closePath();
       ctx.fill();
+      ctx.strokeStyle = 'rgba(0,0,0,0.16)';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+
+      // Foul lines
+      ctx.strokeStyle = 'rgba(255,255,255,0.74)';
+      ctx.lineWidth = 2.5;
+      ctx.beginPath();
+      ctx.moveTo(cx, cy + r);
+      ctx.lineTo(cx + r * 1.65, cy);
+      ctx.moveTo(cx, cy + r);
+      ctx.lineTo(cx - r * 1.65, cy);
+      ctx.stroke();
 
       // Bases
       const renderBase = (x: number, y: number, lit: boolean) => {
         ctx.save();
         ctx.translate(x, y);
         ctx.rotate(Math.PI / 4);
+        ctx.shadowColor = lit ? 'rgba(255,255,170,0.45)' : 'rgba(0,0,0,0.18)';
+        ctx.shadowBlur = lit ? 10 : 4;
         ctx.fillStyle = lit ? '#fff7b3' : '#ffffff';
         ctx.fillRect(-9, -9, 18, 18);
         ctx.strokeStyle = '#111';
@@ -376,6 +403,11 @@ export default function BaseballDiamond() {
       ctx.beginPath();
       ctx.arc(cx, cy - 52, 18, 0, Math.PI * 2);
       ctx.fill();
+      ctx.strokeStyle = 'rgba(255,255,255,0.3)';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.arc(cx, cy - 52, 27, 0, Math.PI * 2);
+      ctx.stroke();
       renderBase(cx, cy + 108, false);
 
       // Strike zone
@@ -401,6 +433,11 @@ export default function BaseballDiamond() {
         ctx.beginPath();
         ctx.arc(x, y, 6, 0, Math.PI * 2);
         ctx.fill();
+        ctx.strokeStyle = 'rgba(0,0,0,0.38)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.arc(x + 1.6, y - 1.4, 2.3, 0, Math.PI * 2);
+        ctx.stroke();
       }
     };
 
@@ -477,7 +514,7 @@ export default function BaseballDiamond() {
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
           <button className="pixel-button" type="button" onClick={startPitch} disabled={pitch.active || gameOver}>
-            Pitch (P)
+            Pitch (L)
           </button>
           <button className="pixel-button" type="button" onClick={swing} disabled={!pitch.active || gameOver}>
             Swing (Space)
