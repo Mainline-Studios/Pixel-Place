@@ -4,10 +4,8 @@ import { useState, useEffect } from 'react';
 import { User, CoinPack } from '@/types';
 import { getTabContent } from '@/lib/storage';
 import { apiUrl } from '@/lib/apiBaseUrl';
-import { authenticatedFetch } from '@/lib/api';
 import { useUser } from '@/contexts/UserContext';
 import { getPayPortalCheckoutUrl } from '@/lib/payPortal';
-import { loadStripe } from '@stripe/stripe-js';
 import HolidayBundle from '@/components/HolidayBundle';
 
 interface CoinsTabProps {
@@ -29,10 +27,6 @@ const adminCoinPack: CoinPack = {
   priceLabel: '$5.00',
   stripePriceId: 'price_admin_1000000'
 };
-
-const stripePublishableKey = (process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || '').trim();
-/** No placeholder key in repo — Stripe loads only when env is set. */
-const stripePromise = stripePublishableKey ? loadStripe(stripePublishableKey) : null;
 
 // Helper function to format numbers with commas
 const formatNumber = (num: number): string => {
@@ -118,47 +112,14 @@ export default function CoinsTab({ user, editMode }: CoinsTabProps) {
       return;
     }
 
-    // Admin pack special handling - free for 6767kid, $5 for other admins
+    // Admin pack — Pixel Place Pay (1M coins, server-priced for admins)
     if (pack.stripePriceId === 'price_admin_1000000' && (user.role === 'admin' || user.role === 'head_admin')) {
-      if (!confirm(`Buy ${formatNumber(pack.coins)} Coins for ${pack.priceLabel}?\nCurrent balance: ${formatNumber(bal)}`)) {
+      if (!confirm(`Buy ${formatNumber(pack.coins)} Coins for ${pack.priceLabel}?\nOpens Pixel Place Pay.\nCurrent balance: ${formatNumber(bal)}`)) {
         return;
       }
 
       setLoading(pack.stripePriceId);
-
-      try {
-        // Create checkout session for $5
-        const response = await authenticatedFetch(apiUrl('/api/checkout'), {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            priceId: pack.stripePriceId,
-            bundle: pack.stripePriceId === 'holiday_bundle',
-          }),
-        });
-
-        const data = await response.json();
-
-        if (!response.ok) {
-          throw new Error(data.error || 'Failed to create checkout session');
-        }
-
-        const stripe = stripePromise ? await stripePromise : null;
-        if (!stripe) {
-          throw new Error('Stripe is not configured (set NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY).');
-        }
-
-        const { error } = await stripe.redirectToCheckout({
-          sessionId: data.sessionId,
-        });
-
-        if (error) {
-          throw error;
-        }
-      } catch (error: any) {
-        console.error('Checkout error:', error);
-        // Silent error - no alert        setLoading(null);
-      }
+      window.location.href = getPayPortalCheckoutUrl(pack.coins);
       return;
     }
 
@@ -198,7 +159,7 @@ export default function CoinsTab({ user, editMode }: CoinsTabProps) {
           ))}
         </div>
         <div className="smalltext">
-          Buy opens Pixel Place Pay (secure checkout). If you are already signed in on pixelplaceofficial.com, you stay signed in there. Coins credit automatically after payment.
+          Buy opens Pixel Place Pay: you get a payment reference and instructions. Coins are added after payment is confirmed.
         </div>
       </div>
       

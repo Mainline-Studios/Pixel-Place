@@ -105,3 +105,30 @@ export function getPayPortalCoinsPath(coins: number): string {
 export function getPayPortalCheckoutUrl(coins: number): string {
   return `${getPayPortalOrigin()}${getPayPortalCoinsPath(coins)}`;
 }
+
+const HOLIDAY_MONTHS = [2, 3, 7, 10, 12];
+
+function isHolidayMonthClient(): boolean {
+  return HOLIDAY_MONTHS.includes(new Date().getMonth() + 1);
+}
+
+/** Whether create-order may succeed (server enforces holiday month for 8,500). */
+export function isPayOrderAmountAllowed(coins: number, role?: string): boolean {
+  if (!Number.isInteger(coins) || coins < 100) return false;
+  if (coins >= 100 && coins <= 10000) return true;
+  if (coins === 8500) return true;
+  if (coins === 1000000 && (role === 'admin' || role === 'head_admin')) return true;
+  return false;
+}
+
+/** Display estimate; server is authoritative. */
+export function clientEstimatePayUsdLabel(coins: number, role?: string): string | null {
+  if (coins === 1000000 && (role === 'admin' || role === 'head_admin')) {
+    return formatUsdFromCents(500);
+  }
+  if (coins === 8500 && isHolidayMonthClient()) {
+    return formatUsdFromCents(3000);
+  }
+  const c = pixelPayCentsForCoins(coins);
+  return c != null ? formatUsdFromCents(c) : null;
+}

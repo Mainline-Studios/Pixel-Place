@@ -50,5 +50,4 @@ export function getOrInitFirebaseApp(): FirebaseApp | null {
   }
 }
 
-// Stripe (server): STRIPE_SECRET_KEY, NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY, STRIPE_WEBHOOK_SECRET, NEXT_PUBLIC_BASE_URL
-// See STRIPE_FIREHUB.md and .env.example.
+// Pixel Place Pay: orders + fulfillment run in Cloud Functions; optional PIXEL_PAY_INSTRUCTIONS in functions/.env.

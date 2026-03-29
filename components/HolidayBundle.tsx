@@ -4,8 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { User } from '@/types';
 import { useUser } from '@/contexts/UserContext';
 import { getSkins, getAccessories, saveSkins, saveAccessories } from '@/lib/storage';
-import { apiUrl } from '@/lib/apiBaseUrl';
-import { authenticatedFetch } from '@/lib/api';
+import { getPayPortalCheckoutUrl } from '@/lib/payPortal';
 
 const getCurrentHoliday = () => {
     const month = new Date().getMonth() + 1;
@@ -49,7 +48,7 @@ export default function HolidayBundle({ user, onClose }: HolidayBundleProps) {
         }
     };
 
-    const handlePurchase = async () => {
+    const handlePurchase = () => {
         if (hasPurchased) return;
 
         // Free bundle for 6767kid
@@ -76,59 +75,10 @@ export default function HolidayBundle({ user, onClose }: HolidayBundleProps) {
             return;
         }
 
-        try {
-            const response = await authenticatedFetch(apiUrl('/api/checkout'), {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    priceId: 'holiday_bundle',
-                    bundle: true,
-                }),
-            });
-
-            if (!response.ok) {
-                throw new Error('Failed to create checkout session');
-            }
-
-            const data = await response.json();
-            if (data.url) {
-                window.location.href = data.url;
-            } else if (data.error) {
-                // For testing/development, directly add coins if Stripe isn't configured
-                if (data.error.includes('not configured')) {
-                    const { getUsers, saveUsers } = await import('@/lib/storage');
-                    const users = await getUsers();
-                    const userIndex = users.findIndex(u => u.username === user.username);
-                    if (userIndex !== -1) {
-                        users[userIndex].coins = (users[userIndex].coins || 0) + 8500;
-                        await saveUsers(users);
-                        updateUser({ coins: users[userIndex].coins });
-                        setHasPurchased(true);
-                        savePurchaseState(true, false, null);
-                        alert('Bundle purchased! (Development mode - Stripe not configured)');
-                    }
-                } else {
-                    alert(`Error: ${data.error}`);
-                }
-            }
-        } catch (error: any) {
-            console.error('Purchase error:', error);
-            // For development, allow direct purchase
-            if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
-                const { getUsers, saveUsers } = await import('@/lib/storage');
-                const users = await getUsers();
-                const userIndex = users.findIndex(u => u.username === user.username);
-                if (userIndex !== -1 && confirm('Server not available. Add bundle in development mode?')) {
-                    users[userIndex].coins = (users[userIndex].coins || 0) + 8500;
-                    await saveUsers(users);
-                    updateUser({ coins: users[userIndex].coins });
-                    setHasPurchased(true);
-                    savePurchaseState(true, false, null);
-                }
-            } else {
-                alert('Error processing purchase. Please try again.');
-            }
+        if (!confirm('Open Pixel Place Pay to buy the holiday bundle (8,500 coins)?')) {
+            return;
         }
+        window.location.href = getPayPortalCheckoutUrl(8500);
     };
 
     if (!holiday) {
