@@ -2,13 +2,14 @@
 
 import React, { useCallback, useEffect, useState } from 'react';
 import { loadStripe } from '@stripe/stripe-js';
+import type { Stripe } from '@stripe/stripe-js';
 import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js';
 import { authenticatedFetch } from '@/lib/api';
 import { apiUrl } from '@/lib/apiBaseUrl';
 import { clientEstimatePayUsdLabel } from '@/lib/payPortal';
 
-const publishableKey = (process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || '').trim();
-const stripePromise = publishableKey ? loadStripe(publishableKey) : null;
+/** Optional: local Next dev. Production uses GET /api/pixel-pay/stripe-publishable-key (first-party). */
+const buildTimePublishableKey = (process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || '').trim();
 
 function PayForm({
   onPaid,
@@ -61,7 +62,7 @@ function PayForm({
         <PaymentElement />
       </div>
       <button type="submit" className="embedded-stripe-pay__submit" disabled={!stripe || submitting}>
-        {submitting ? 'Processing…' : 'Pay securely'}
+        {submitting ? 'Processing…' : 'Complete payment'}
       </button>
     </form>
   );
@@ -76,6 +77,10 @@ export type EmbeddedStripePayProps = {
 };
 
 export default function EmbeddedStripePay({ coins, role, onClose, onPaid }: EmbeddedStripePayProps) {
+  const [stripePromise, setStripePromise] = useState<Promise<Stripe | null> | null>(() =>
+    buildTimePublishableKey ? loadStripe(buildTimePublishableKey) : null
+  );
+  const [keyLoadErr, setKeyLoadErr] = useState<string | null>(null);
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [loadErr, setLoadErr] = useState<string | null>(null);
   const [payErr, setPayErr] = useState('');
@@ -85,7 +90,36 @@ export default function EmbeddedStripePay({ coins, role, onClose, onPaid }: Embe
   }, [onPaid]);
 
   useEffect(() => {
+    if (buildTimePublishableKey) return;
     let cancelled = false;
+    setKeyLoadErr(null);
+    (async () => {
+      try {
+        const res = await fetch(apiUrl('/api/pixel-pay/stripe-publishable-key'));
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          throw new Error((data as { error?: string }).error || 'Pixel Place Pay is unavailable right now.');
+        }
+        const pk = String((data as { publishableKey?: string }).publishableKey || '').trim();
+        if (!pk.startsWith('pk_')) {
+          throw new Error('Pixel Place Pay is unavailable right now.');
+        }
+        if (!cancelled) setStripePromise(loadStripe(pk));
+      } catch (e: unknown) {
+        if (!cancelled) {
+          setKeyLoadErr(e instanceof Error ? e.message : 'Pixel Place Pay is unavailable right now.');
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoadErr(null);
+    setClientSecret(null);
     (async () => {
       try {
         const res = await authenticatedFetch(apiUrl('/api/pixel-pay/create-payment-intent'), {
@@ -111,13 +145,21 @@ export default function EmbeddedStripePay({ coins, role, onClose, onPaid }: Embe
 
   const estimate = clientEstimatePayUsdLabel(coins, role);
 
-  if (!publishableKey || !stripePromise) {
+  if (keyLoadErr) {
     return (
       <div className="embedded-stripe-pay">
-        <p className="embedded-stripe-pay__warn">Payments are not configured. Set NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY when building the app.</p>
+        <p className="embedded-stripe-pay__err">{keyLoadErr}</p>
         <button type="button" className="embedded-stripe-pay__cancel" onClick={onClose}>
           Close
         </button>
+      </div>
+    );
+  }
+
+  if (!stripePromise) {
+    return (
+      <div className="embedded-stripe-pay">
+        <p className="embedded-stripe-pay__loading">Connecting to Pixel Place Pay…</p>
       </div>
     );
   }
@@ -136,7 +178,7 @@ export default function EmbeddedStripePay({ coins, role, onClose, onPaid }: Embe
   if (!clientSecret) {
     return (
       <div className="embedded-stripe-pay">
-        <p className="embedded-stripe-pay__loading">Preparing secure checkout…</p>
+        <p className="embedded-stripe-pay__loading">Preparing checkout…</p>
       </div>
     );
   }
@@ -147,7 +189,8 @@ export default function EmbeddedStripePay({ coins, role, onClose, onPaid }: Embe
         <strong>{coins.toLocaleString('en-US')}</strong> Pixel Coins · <strong>{estimate ?? '—'}</strong>
       </p>
       <p className="embedded-stripe-pay__legal">
-        Card and bank payments are processed by Stripe. Your full card or bank login details are not sent to Pixel Place servers.
+        You are checking out on Pixel Place. Card and bank details are handled by our payment partner for security; Pixel Place never
+        receives or stores your full card number.
       </p>
       <Elements
         stripe={stripePromise}

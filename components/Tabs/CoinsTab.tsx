@@ -217,7 +217,7 @@ export default function CoinsTab({ user, editMode }: CoinsTabProps) {
             aria-labelledby="coins-pay-title"
           >
             <h3 id="coins-pay-title" style={{ margin: '0 0 16px', color: '#f1f5f9', fontSize: '1.25rem' }}>
-              Complete payment
+              Pixel Place Pay
             </h3>
             <EmbeddedStripePay
               coins={embedCoins}

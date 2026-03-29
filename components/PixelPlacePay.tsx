@@ -29,7 +29,9 @@ export function PayPortalLanding() {
             {origin}/100Pixelcoins
           </strong>
         </p>
-        <p className="pixel-place-pay__hint">Amounts from 100 to 10,000 coins (plus seasonal bundles). Processing is handled securely by Stripe.</p>
+        <p className="pixel-place-pay__hint">
+          Amounts from 100 to 10,000 coins (plus seasonal bundles). Checkout is on Pixel Place; your card or bank details are protected by industry-standard encryption.
+        </p>
       </div>
       <style jsx global>{landingCss}</style>
     </div>

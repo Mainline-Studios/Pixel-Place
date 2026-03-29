@@ -785,7 +785,7 @@ export default function HolidayBundle({ user, onClose }: HolidayBundleProps) {
                     aria-labelledby="holiday-stripe-pay-title"
                 >
                     <h3 id="holiday-stripe-pay-title" style={{ margin: '0 0 16px', color: '#f1f5f9', fontSize: '1.25rem' }}>
-                        Holiday bundle — complete payment
+                        Holiday bundle — Pixel Place Pay
                     </h3>
                     <EmbeddedStripePay
                         coins={8500}

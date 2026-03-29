@@ -66,6 +66,11 @@ function getStripe(): Stripe | null {
   return key ? new Stripe(key, { apiVersion: '2023-10-16' }) : null;
 }
 
+/** Publishable key is safe to expose; served only from our API (no NEXT_PUBLIC build var required). */
+function getStripePublishableKey(): string {
+  return (process.env.STRIPE_PUBLISHABLE_KEY || '').trim();
+}
+
 async function creditCoinsForPaymentIntent(
   db: admin.firestore.Firestore,
   usersCollection: string,
@@ -163,6 +168,16 @@ export function mountStripeEmbeddedWebhook(
 }
 
 export function mountStripeEmbeddedPayRoutes(app: express.Application, _db: admin.firestore.Firestore): void {
+  app.get('/pixel-pay/stripe-publishable-key', (_req: Request, res: Response) => {
+    const pk = getStripePublishableKey();
+    if (!pk || !pk.startsWith('pk_')) {
+      return res.status(503).json({
+        error: 'Pixel Place Pay is not configured. Set STRIPE_PUBLISHABLE_KEY in the server environment.',
+      });
+    }
+    return res.json({ publishableKey: pk });
+  });
+
   app.post('/pixel-pay/create-payment-intent', async (req: Request, res: Response) => {
     try {
       const auth = requireAuth(req, res);
