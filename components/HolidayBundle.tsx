@@ -48,7 +48,7 @@ export default function HolidayBundle({ user, onClose }: HolidayBundleProps) {
         }
     };
 
-    const handlePurchase = () => {
+    const handlePurchase = async () => {
         if (hasPurchased) return;
 
         // Free bundle for 6767kid
