@@ -5,8 +5,8 @@ import { User, CoinPack } from '@/types';
 import { getTabContent } from '@/lib/storage';
 import { apiUrl } from '@/lib/apiBaseUrl';
 import { useUser } from '@/contexts/UserContext';
-import { getPayPortalCheckoutUrl } from '@/lib/payPortal';
 import HolidayBundle from '@/components/HolidayBundle';
+import EmbeddedStripePay from '@/components/EmbeddedStripePay';
 
 interface CoinsTabProps {
   user: User;
@@ -38,6 +38,7 @@ export default function CoinsTab({ user, editMode }: CoinsTabProps) {
   const bal = typeof user.coins === 'number' ? user.coins : 0;
   const [loading, setLoading] = useState<string | null>(null);
   const [showHolidayBundle, setShowHolidayBundle] = useState(false);
+  const [embedCoins, setEmbedCoins] = useState<number | null>(null);
 
   // Check if holiday bundle is available
   const getCurrentHoliday = () => {
@@ -45,12 +46,23 @@ export default function CoinsTab({ user, editMode }: CoinsTabProps) {
     return [2, 3, 7, 10, 12].includes(month); // Valentine, Easter, Summer, Halloween, Christmas
   };
 
-  // Check for successful payment
+  // Check for successful payment (Stripe return URL may include payment_intent)
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     const successParam = urlParams.get('success');
     const canceledParam = urlParams.get('canceled');
-    
+    const stripeReturn = urlParams.get('payment_intent');
+
+    if (stripeReturn) {
+      window.history.replaceState({}, '', window.location.pathname + (window.location.hash || '#coins'));
+      setTimeout(async () => {
+        const { getUsers } = await import('@/lib/storage');
+        const users = await getUsers();
+        const updatedUser = users.find((u) => u.username === user.username);
+        if (updatedUser) updateUser({ coins: updatedUser.coins });
+      }, 1800);
+    }
+
     if (successParam === 'true') {
       // Silent success - no alert
       // Clear URL params and ensure we stay on coins tab
@@ -112,24 +124,29 @@ export default function CoinsTab({ user, editMode }: CoinsTabProps) {
       return;
     }
 
-    // Admin pack — Pixel Place Pay (1M coins, server-priced for admins)
+    // Admin pack — in-app Stripe (1M coins)
     if (pack.stripePriceId === 'price_admin_1000000' && (user.role === 'admin' || user.role === 'head_admin')) {
-      if (!confirm(`Buy ${formatNumber(pack.coins)} Coins for ${pack.priceLabel}?\nOpens Pixel Place Pay.\nCurrent balance: ${formatNumber(bal)}`)) {
+      if (!confirm(`Buy ${formatNumber(pack.coins)} Coins for ${pack.priceLabel}?\nPay in the window that opens.\nCurrent balance: ${formatNumber(bal)}`)) {
         return;
       }
-
-      setLoading(pack.stripePriceId);
-      window.location.href = getPayPortalCheckoutUrl(pack.coins);
+      setLoading(null);
+      setEmbedCoins(pack.coins);
       return;
     }
 
-    // Regular purchases: open Pixel Place Pay on the pay subdomain (same session via shared cookie)
-    if (!confirm(`Buy ${formatNumber(pack.coins)} Coins for ${pack.priceLabel}?\nYou will continue on Pixel Place Pay.\nCurrent balance: ${formatNumber(bal)}`)) {
+    if (!confirm(`Buy ${formatNumber(pack.coins)} Coins for ${pack.priceLabel}?\nPay with card or bank in the next step.\nCurrent balance: ${formatNumber(bal)}`)) {
       return;
     }
 
-    setLoading(pack.stripePriceId);
-    window.location.href = getPayPortalCheckoutUrl(pack.coins);
+    setLoading(null);
+    setEmbedCoins(pack.coins);
+  };
+
+  const refreshCoinsAfterPay = async () => {
+    const { getUsers } = await import('@/lib/storage');
+    const users = await getUsers();
+    const updatedUser = users.find((u) => u.username === user.username);
+    if (updatedUser) updateUser({ coins: updatedUser.coins });
   };
 
   return (
@@ -159,9 +176,61 @@ export default function CoinsTab({ user, editMode }: CoinsTabProps) {
           ))}
         </div>
         <div className="smalltext">
-          Buy opens Pixel Place Pay: you get a payment reference and instructions. Coins are added after payment is confirmed.
+          Pay with card or bank in-app (Stripe). Coins credit automatically after the payment succeeds.
         </div>
       </div>
+
+      {embedCoins !== null && (
+        <div
+          className="coins-pay-overlay"
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 20000,
+            background: 'rgba(0,0,0,0.75)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: 16,
+          }}
+          onClick={() => setEmbedCoins(null)}
+          onKeyDown={(e) => e.key === 'Escape' && setEmbedCoins(null)}
+          role="presentation"
+        >
+          <div
+            className="coins-pay-modal"
+            style={{
+              maxWidth: 460,
+              width: '100%',
+              maxHeight: '90vh',
+              overflow: 'auto',
+              borderRadius: 16,
+              padding: 24,
+              background: '#1a1d29',
+              border: '1px solid rgba(255,255,255,0.12)',
+              boxShadow: '0 20px 60px rgba(0,0,0,0.5)',
+            }}
+            onClick={(e) => e.stopPropagation()}
+            onKeyDown={(e) => e.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="coins-pay-title"
+          >
+            <h3 id="coins-pay-title" style={{ margin: '0 0 16px', color: '#f1f5f9', fontSize: '1.25rem' }}>
+              Complete payment
+            </h3>
+            <EmbeddedStripePay
+              coins={embedCoins}
+              role={user.role}
+              onClose={() => setEmbedCoins(null)}
+              onPaid={async () => {
+                setEmbedCoins(null);
+                await refreshCoinsAfterPay();
+              }}
+            />
+          </div>
+        </div>
+      )}
       
       {/* Holiday Bundle */}
       {getCurrentHoliday() && (

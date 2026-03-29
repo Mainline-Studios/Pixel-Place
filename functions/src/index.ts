@@ -42,7 +42,7 @@ const COLLECTIONS = {
   PRESENCE: 'presence',
   GAME_SESSIONS: 'game_sessions',
   STATUS_PAGE: 'status_page',
-  PAYMENT_ORDERS: 'payment_orders',
+  STRIPE_PAYMENT_CREDITS: 'stripe_payment_credits',
 };
 
 /** Public status page payload (mirrors status-site/status.json). */
@@ -134,7 +134,7 @@ async function readStatusPagePayload(): Promise<typeof DEFAULT_STATUS_PAGE> {
 }
 
 import { requireAuth, requireAdmin, requireOwnerOrAdmin, getAuthFromRequest, isAdmin, getJwtSecret } from './authMiddleware';
-import { mountPixelPayRoutes } from './pixelPayOrders';
+import { mountStripeEmbeddedWebhook, mountStripeEmbeddedPayRoutes } from './stripeEmbeddedPay';
 
 const DEVICE_ID_MAX = 128;
 const LABEL_MAX = 64;
@@ -234,9 +234,11 @@ app.use((req, res, next) => {
   next();
 });
 
+mountStripeEmbeddedWebhook(app, db, COLLECTIONS.USERS, COLLECTIONS.STRIPE_PAYMENT_CREDITS);
+
 app.use(express.json());
 
-mountPixelPayRoutes(app, db, COLLECTIONS.USERS, COLLECTIONS.PAYMENT_ORDERS);
+mountStripeEmbeddedPayRoutes(app, db);
 
 // Liveness only — do not expose whether JWT_SECRET is configured (reconnaissance aid).
 const sendJwtCheck = (_req: any, res: any) => {
