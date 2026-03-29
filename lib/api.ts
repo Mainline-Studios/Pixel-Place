@@ -1,19 +1,75 @@
-// Helper function to get auth token from localStorage
+const AUTH_STORAGE_KEY = 'pixelPlaceAuthToken';
+
+/** Cookie shared across *.pixelplaceofficial.com so pay.* can use the same session as the main app. */
+function getSharedAuthCookieDomain(): string | null {
+  if (typeof window === 'undefined') return null;
+  const h = window.location.hostname.toLowerCase();
+  if (h === 'localhost' || h === '127.0.0.1' || h.endsWith('.localhost')) return null;
+  if (h.endsWith('pixelplaceofficial.com')) return '.pixelplaceofficial.com';
+  return null;
+}
+
+function readAuthTokenFromCookie(): string | null {
+  if (typeof document === 'undefined') return null;
+  const m = document.cookie.match(new RegExp(`(?:^|; )${AUTH_STORAGE_KEY.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}=([^;]*)`));
+  if (!m) return null;
+  try {
+    return decodeURIComponent(m[1]);
+  } catch {
+    return null;
+  }
+}
+
+/** Decode username from JWT payload (client-only; server still verifies). */
+export function decodeJwtUsernameFromToken(token: string): string | null {
+  const parts = token.split('.');
+  if (parts.length !== 3) return null;
+  try {
+    const b64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+    const json = JSON.parse(atob(b64)) as { username?: string; exp?: number };
+    if (typeof json.exp === 'number' && Date.now() / 1000 >= json.exp) return null;
+    return typeof json.username === 'string' ? json.username : null;
+  } catch {
+    return null;
+  }
+}
+
+// Helper function to get auth token from localStorage or shared cookie (pay subdomain)
 export function getAuthToken(): string | null {
   if (typeof window === 'undefined') return null;
-  return localStorage.getItem('pixelPlaceAuthToken');
+  const ls = localStorage.getItem(AUTH_STORAGE_KEY);
+  if (ls) return ls;
+  const fromCookie = readAuthTokenFromCookie();
+  if (fromCookie) {
+    try {
+      localStorage.setItem(AUTH_STORAGE_KEY, fromCookie);
+    } catch {
+      /* quota / private mode */
+    }
+    return fromCookie;
+  }
+  return null;
 }
 
 // Helper function to save auth token
 export function setAuthToken(token: string): void {
   if (typeof window === 'undefined') return;
-  localStorage.setItem('pixelPlaceAuthToken', token);
+  localStorage.setItem(AUTH_STORAGE_KEY, token);
+  const domain = getSharedAuthCookieDomain();
+  const maxAge = 60 * 60 * 24 * 7;
+  const secure = window.location.protocol === 'https:' ? '; Secure' : '';
+  if (domain) {
+    document.cookie = `${AUTH_STORAGE_KEY}=${encodeURIComponent(token)}; Path=/; Domain=${domain}; Max-Age=${maxAge}; SameSite=Lax${secure}`;
+  }
 }
 
 // Helper function to remove auth token
 export function removeAuthToken(): void {
   if (typeof window === 'undefined') return;
-  localStorage.removeItem('pixelPlaceAuthToken');
+  localStorage.removeItem(AUTH_STORAGE_KEY);
+  const secure = window.location.protocol === 'https:' ? '; Secure' : '';
+  document.cookie = `${AUTH_STORAGE_KEY}=; Path=/; Max-Age=0; SameSite=Lax${secure}`;
+  document.cookie = `${AUTH_STORAGE_KEY}=; Path=/; Domain=.pixelplaceofficial.com; Max-Age=0; SameSite=Lax${secure}`;
 }
 
 /**

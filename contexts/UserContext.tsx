@@ -6,7 +6,7 @@ import { initializeStorage, getUsers, saveUsers, ADMIN_ACCOUNTS_LIST, isUserBann
 import { subscribeToUser } from '@/lib/firestoreClient';
 import { apiUrl } from '@/lib/apiBaseUrl';
 import { containsEmoji } from '@/lib/utils';
-import { setAuthToken, removeAuthToken } from '@/lib/api';
+import { setAuthToken, removeAuthToken, getAuthToken, decodeJwtUsernameFromToken } from '@/lib/api';
 import { getDeviceFingerprint } from '@/lib/deviceFingerprint';
 import LoadingScreenWithGame from '@/components/LoadingScreenWithGame';
 
@@ -39,7 +39,12 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
   const getInitialUser = async (): Promise<User | null> => {
     if (typeof window === 'undefined') return null;
     try {
-      const savedUsername = sessionStorage.getItem('pixelPlaceLoggedInUser');
+      let savedUsername = sessionStorage.getItem('pixelPlaceLoggedInUser');
+      if (!savedUsername) {
+        const t = getAuthToken();
+        const fromJwt = t ? decodeJwtUsernameFromToken(t) : null;
+        if (fromJwt) savedUsername = fromJwt;
+      }
       if (savedUsername) {
         const users = await getUsers();
         const found = users.find(u => u.username === savedUsername);

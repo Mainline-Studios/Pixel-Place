@@ -26,7 +26,23 @@
         {"source": "/settings", "destination": "/index.html"},
         {"source": "/studio", "destination": "/index.html"},
         {"source": "/studio/**", "destination": "/index.html"},
-        {"source": "/donation", "destination": "/index.html"}
+        {"source": "/donation", "destination": "/index.html"},
+        {"source": "**", "destination": "/index.html"}
+      ],
+      "headers": [
+        {"source": "sitemap.xml", "headers": [{"key": "Content-Type", "value": "application/xml"}, {"key": "Cache-Control", "value": "public, max-age=3600"}]},
+        {"source": "robots.txt", "headers": [{"key": "Content-Type", "value": "text/plain"}, {"key": "Cache-Control", "value": "public, max-age=3600"}]}
+      ]
+    },
+    {
+      "target": "pay",
+      "predeploy": ["npm run build"],
+      "public": "out",
+      "cleanUrls": true,
+      "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
+      "rewrites": [
+        {"source": "/api/**", "function": "api"},
+        {"source": "**", "destination": "/index.html"}
       ],
       "headers": [
         {"source": "sitemap.xml", "headers": [{"key": "Content-Type", "value": "application/xml"}, {"key": "Cache-Control", "value": "public, max-age=3600"}]},

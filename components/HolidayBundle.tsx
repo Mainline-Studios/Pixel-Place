@@ -5,6 +5,7 @@ import { User } from '@/types';
 import { useUser } from '@/contexts/UserContext';
 import { getSkins, getAccessories, saveSkins, saveAccessories } from '@/lib/storage';
 import { apiUrl } from '@/lib/apiBaseUrl';
+import { authenticatedFetch } from '@/lib/api';
 
 const getCurrentHoliday = () => {
     const month = new Date().getMonth() + 1;
@@ -76,15 +77,13 @@ export default function HolidayBundle({ user, onClose }: HolidayBundleProps) {
         }
 
         try {
-            const response = await fetch(apiUrl('/api/checkout'), {
+            const response = await authenticatedFetch(apiUrl('/api/checkout'), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     priceId: 'holiday_bundle',
-                    userId: user.username,
-                    coins: 8500,
-                    bundle: true
-                })
+                    bundle: true,
+                }),
             });
 
             if (!response.ok) {

@@ -14,6 +14,8 @@ import { User } from '@/types';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import KonamiCodeEasterEgg from '@/components/KonamiCodeEasterEgg';
 import UrgentGameBanner from '@/components/UrgentGameBanner';
+import PixelPlacePay, { PayPortalInvalid, PayPortalLanding } from '@/components/PixelPlacePay';
+import { getPayPortalClientState, getPayPortalOrigin, isPayPortalHostname, type PayPortalClientState } from '@/lib/payPortal';
 
 function AppContent() {
   const { user, bannedSession, clearBannedSession, deviceBannedSession, clearDeviceBannedSession, isRestoring } = useUser();
@@ -28,6 +30,19 @@ function AppContent() {
     return true;
   });
   const prevUserRef = React.useRef<User | null>(null);
+  const [payPortal, setPayPortal] = useState<PayPortalClientState>(() => getPayPortalClientState());
+
+  useEffect(() => {
+    setPayPortal(getPayPortalClientState());
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const path = (window.location.pathname || '').replace(/\/$/, '') || '/';
+    if (path === '/pay' && !isPayPortalHostname(window.location.hostname)) {
+      window.location.replace(`${getPayPortalOrigin()}/`);
+    }
+  }, []);
 
   useEffect(() => {
     if (user && !prevUserRef.current) {
@@ -48,6 +63,16 @@ function AppContent() {
       }
     };
   }, [user]);
+
+  if (payPortal.kind === 'checkout') {
+    return <PixelPlacePay coins={payPortal.coins} />;
+  }
+  if (payPortal.kind === 'landing') {
+    return <PayPortalLanding />;
+  }
+  if (payPortal.kind === 'invalid') {
+    return <PayPortalInvalid path={payPortal.path} />;
+  }
 
   return (
     <>

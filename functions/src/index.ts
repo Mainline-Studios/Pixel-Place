@@ -133,6 +133,7 @@ async function readStatusPagePayload(): Promise<typeof DEFAULT_STATUS_PAGE> {
 }
 
 import { requireAuth, requireAdmin, requireOwnerOrAdmin, getAuthFromRequest, isAdmin, getJwtSecret } from './authMiddleware';
+import { mountStripeWebhook, mountStripePaymentRoutes } from './stripePayments';
 
 const DEVICE_ID_MAX = 128;
 const LABEL_MAX = 64;
@@ -220,7 +221,6 @@ function userFromDoc(doc: admin.firestore.DocumentSnapshot): any {
 
 const app = express();
 app.use(cors({ origin: true }));
-app.use(express.json());
 
 // Cloud Functions URL is .../api - requests to .../api/users have path /api/users
 // Strip /api so our routes match /users, /skins, etc. (Hosting rewrite may leave path as /api/...)
@@ -232,6 +232,13 @@ app.use((req, res, next) => {
   }
   next();
 });
+
+// Stripe webhook must see raw body — before express.json()
+mountStripeWebhook(app, db, COLLECTIONS.USERS);
+
+app.use(express.json());
+
+mountStripePaymentRoutes(app, db);
 
 // Liveness only — do not expose whether JWT_SECRET is configured (reconnaissance aid).
 const sendJwtCheck = (_req: any, res: any) => {
