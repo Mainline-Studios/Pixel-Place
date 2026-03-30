@@ -7,6 +7,7 @@ import { useUser } from '@/contexts/UserContext';
 import { useSound } from '@/contexts/SoundContext';
 import { getSkins, saveSkins, getAccessories, saveAccessories } from '@/lib/storage';
 import { apiUrl } from '@/lib/apiBaseUrl';
+import { authenticatedFetch } from '@/lib/api';
 import { escapeHTML } from '@/lib/utils';
 import Avatar3DViewer from '@/components/Avatar3DViewer';
 import Skin2DPreview from '@/components/Skin2DPreview';
@@ -395,10 +396,20 @@ export default function AvatarShopTab({ user, editMode }: AvatarShopTabProps) {
 
     if (confirm(`Buy ${skin.name} for ${formattedPrice} Coins?\nYour balance: ${formattedUserCoins}`)) {
       try {
-        const newCoins = (user.coins || 0) - price;        const newOwnedSkins = [...(user.ownedSkins || []), skin.id];
-        
-        // Save purchase to backend - updateUser already saves and updates state
-        await updateUser({ coins: newCoins, ownedSkins: newOwnedSkins });
+        const res = await authenticatedFetch(apiUrl('/api/purchase-item'), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ itemId: skin.id, itemType: 'skin' }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          if (data.error === 'Not enough coins') alert('Not enough coins!');
+          return;
+        }
+        await updateUser({
+          coins: data.newCoins,
+          ownedSkins: data.ownedSkins,
+        });
         playPurchase();
       } catch (error) {
         // Silent error handling
@@ -446,9 +457,20 @@ export default function AvatarShopTab({ user, editMode }: AvatarShopTabProps) {
       : `Buy ${accessory.name} for ${price} Coins? Your balance: ${userCoins.toLocaleString()}`;
     if (!confirm(msg)) return;
     try {
-      const newCoins = userCoins - price;
-      const newOwned = [...(user.ownedAccessories || []), accessory.id];
-      await updateUser({ coins: newCoins, ownedAccessories: newOwned });
+      const res = await authenticatedFetch(apiUrl('/api/purchase-item'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ itemId: accessory.id, itemType: 'accessory' }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        if (data.error === 'Not enough coins') alert('Not enough coins!');
+        return;
+      }
+      await updateUser({
+        coins: data.newCoins,
+        ownedAccessories: data.ownedAccessories,
+      });
       playPurchase();
     } catch {
       // Silent error handling
