@@ -317,7 +317,17 @@ app.post('/users', async (req, res) => {
       : (existingData?.password_hash ?? '');
     const callerIsAdmin = isAdmin(auth);
     const safeRole = callerIsAdmin ? (u.role || existingData?.role || 'user') : (existingData?.role || 'user');
-    const safeCoins = callerIsAdmin ? (u.coins ?? existingData?.coins ?? 10) : (existingData?.coins ?? u.coins ?? 10);
+    const safeCoins = callerIsAdmin ? (u.coins ?? existingData?.coins ?? 10) : (existingData?.coins ?? 10);
+    const safeOwnedSkins = callerIsAdmin ? (u.ownedSkins || existingData?.owned_skins || ['starter_classic']) : (existingData?.owned_skins || ['starter_classic']);
+    const safeEquippedSkin = callerIsAdmin
+      ? (u.equippedSkin || existingData?.equipped_skin || 'starter_classic')
+      : (safeOwnedSkins.includes(u.equippedSkin) ? u.equippedSkin : (existingData?.equipped_skin || 'starter_classic'));
+    const safeOwnedAccessories = callerIsAdmin ? (u.ownedAccessories || existingData?.owned_accessories || []) : (existingData?.owned_accessories || []);
+    const safeEquippedAccessories = callerIsAdmin ? (u.equippedAccessories || existingData?.equipped_accessories || {}) : (existingData?.equipped_accessories || {});
+    const safeOwnedServers = callerIsAdmin ? (u.ownedServers || existingData?.owned_servers || []) : (existingData?.owned_servers || []);
+    const safeFriends = callerIsAdmin ? (u.friends || existingData?.friends || []) : (existingData?.friends || []);
+    const safeFriendRequests = callerIsAdmin ? (u.friendRequests || existingData?.friend_requests || []) : (existingData?.friend_requests || []);
+    const safeSentFriendRequests = callerIsAdmin ? (u.sentFriendRequests || existingData?.sent_friend_requests || []) : (existingData?.sent_friend_requests || []);
     const data = {
       username: u.username,
       username_lower: id,
@@ -325,14 +335,14 @@ app.post('/users', async (req, res) => {
       gender: u.gender || '',
       role: safeRole,
       coins: safeCoins,
-      owned_skins: u.ownedSkins || ['starter_classic'],
-      equipped_skin: u.equippedSkin || 'starter_classic',
-      owned_accessories: u.ownedAccessories || [],
-      equipped_accessories: u.equippedAccessories || {},
-      owned_servers: u.ownedServers || [],
-      friends: u.friends || [],
-      friend_requests: u.friendRequests || [],
-      sent_friend_requests: u.sentFriendRequests || [],
+      owned_skins: safeOwnedSkins,
+      equipped_skin: safeEquippedSkin,
+      owned_accessories: safeOwnedAccessories,
+      equipped_accessories: safeEquippedAccessories,
+      owned_servers: safeOwnedServers,
+      friends: safeFriends,
+      friend_requests: safeFriendRequests,
+      sent_friend_requests: safeSentFriendRequests,
       is_donor: (safeRole === 'admin' || safeRole === 'head_admin') ? 1 : 0,
       updated_at: Date.now(),
     };
@@ -370,7 +380,16 @@ app.put('/users', async (req, res) => {
       : (existingData.password_hash ?? '');
     const callerIsAdmin = isAdmin(auth);
     const safeRole = callerIsAdmin ? (u.role || existingData.role || 'user') : (existingData.role || 'user');
-    const safeCoins = callerIsAdmin ? (u.coins ?? existingData.coins ?? 10) : (existingData.coins ?? u.coins ?? 10);
+    const safeCoins = callerIsAdmin ? (u.coins ?? existingData.coins ?? 10) : (existingData.coins ?? 10);
+    const safeOwnedSkins = callerIsAdmin ? (u.ownedSkins || existingData.owned_skins || []) : (existingData.owned_skins || []);
+    const safeEquippedSkin = callerIsAdmin
+      ? (u.equippedSkin || existingData.equipped_skin || '')
+      : (safeOwnedSkins.includes(u.equippedSkin) ? u.equippedSkin : (existingData.equipped_skin || ''));
+    const safeOwnedAccessories = callerIsAdmin ? (u.ownedAccessories || existingData.owned_accessories || []) : (existingData.owned_accessories || []);
+    const safeEquippedAccessories = callerIsAdmin ? (u.equippedAccessories || existingData.equipped_accessories || {}) : (existingData.equipped_accessories || {});
+    const safeFriends = callerIsAdmin ? (u.friends || existingData.friends || []) : (existingData.friends || []);
+    const safeFriendRequests = callerIsAdmin ? (u.friendRequests || existingData.friend_requests || []) : (existingData.friend_requests || []);
+    const safeSentFriendRequests = callerIsAdmin ? (u.sentFriendRequests || existingData.sent_friend_requests || []) : (existingData.sent_friend_requests || []);
     await ref.set({
       username: u.username,
       username_lower: id,
@@ -378,13 +397,13 @@ app.put('/users', async (req, res) => {
       gender: u.gender,
       role: safeRole,
       coins: safeCoins,
-      owned_skins: u.ownedSkins || [],
-      equipped_skin: u.equippedSkin || '',
-      owned_accessories: u.ownedAccessories || [],
-      equipped_accessories: u.equippedAccessories || {},
-      friends: u.friends || [],
-      friend_requests: u.friendRequests || [],
-      sent_friend_requests: u.sentFriendRequests || [],
+      owned_skins: safeOwnedSkins,
+      equipped_skin: safeEquippedSkin,
+      owned_accessories: safeOwnedAccessories,
+      equipped_accessories: safeEquippedAccessories,
+      friends: safeFriends,
+      friend_requests: safeFriendRequests,
+      sent_friend_requests: safeSentFriendRequests,
       is_donor: (safeRole === 'admin' || safeRole === 'head_admin') ? 1 : 0,
       updated_at: Date.now(),
     }, { merge: true });
@@ -396,6 +415,71 @@ app.put('/users', async (req, res) => {
     res.status(500).json({ error: 'Failed to update user' });
   }
 });
+
+// POST /purchase-item — atomic server-side purchase (skins, accessories)
+const MIN_SKIN_PRICE = 10;
+const purchaseItemHandler = async (req: any, res: any) => {
+  try {
+    const auth = requireAuth(req, res);
+    if (!auth) return;
+    const { itemId, itemType } = req.body || {};
+    if (!itemId || typeof itemId !== 'string') return res.status(400).json({ error: 'itemId required' });
+    if (!itemType || (itemType !== 'skin' && itemType !== 'accessory')) {
+      return res.status(400).json({ error: 'itemType must be skin or accessory' });
+    }
+
+    const userId = auth.username.toLowerCase();
+    const userRef = db.collection(COLLECTIONS.USERS).doc(userId);
+
+    let catalogPrice: number;
+    if (itemType === 'skin') {
+      const catDoc = await db.collection(COLLECTIONS.SKINS_CATALOG).doc('catalog').get();
+      const skins: any[] = catDoc.data()?.skins || FALLBACK_SKINS;
+      const skin = skins.find((s: any) => s.id === itemId);
+      if (!skin) return res.status(404).json({ error: 'Skin not found in catalog' });
+      catalogPrice = Math.max(typeof skin.price === 'number' ? skin.price : 0, MIN_SKIN_PRICE);
+    } else {
+      const catDoc = await db.collection(COLLECTIONS.ACCESSORIES_CATALOG).doc('catalog').get();
+      const accessories: any[] = catDoc.data()?.accessories || [];
+      const accessory = accessories.find((a: any) => a.id === itemId);
+      if (!accessory) return res.status(404).json({ error: 'Accessory not found in catalog' });
+      catalogPrice = typeof accessory.price === 'number' ? accessory.price : 0;
+    }
+
+    const result = await db.runTransaction(async (tx) => {
+      const userSnap = await tx.get(userRef);
+      if (!userSnap.exists) return { error: 'User not found', status: 404 };
+      const userData = userSnap.data()!;
+      const currentCoins = typeof userData.coins === 'number' ? userData.coins : 0;
+
+      if (itemType === 'skin') {
+        const ownedSkins: string[] = Array.isArray(userData.owned_skins) ? userData.owned_skins : [];
+        if (ownedSkins.includes(itemId)) return { error: 'Already owned', status: 409 };
+        if (currentCoins < catalogPrice) return { error: 'Not enough coins', status: 400 };
+        const newCoins = currentCoins - catalogPrice;
+        const newOwned = [...ownedSkins, itemId];
+        tx.update(userRef, { coins: newCoins, owned_skins: newOwned, updated_at: Date.now() });
+        return { ok: true, newCoins, ownedSkins: newOwned };
+      } else {
+        const ownedAccessories: string[] = Array.isArray(userData.owned_accessories) ? userData.owned_accessories : [];
+        if (ownedAccessories.includes(itemId)) return { error: 'Already owned', status: 409 };
+        if (currentCoins < catalogPrice) return { error: 'Not enough coins', status: 400 };
+        const newCoins = currentCoins - catalogPrice;
+        const newOwned = [...ownedAccessories, itemId];
+        tx.update(userRef, { coins: newCoins, owned_accessories: newOwned, updated_at: Date.now() });
+        return { ok: true, newCoins, ownedAccessories: newOwned };
+      }
+    });
+
+    if ('error' in result) return res.status(result.status).json({ error: result.error });
+    return res.json({ success: true, ...result });
+  } catch (e) {
+    console.error('Purchase item error:', e);
+    res.status(500).json({ error: 'Purchase failed' });
+  }
+};
+app.post('/purchase-item', purchaseItemHandler);
+app.post('/api/purchase-item', purchaseItemHandler);
 
 // GET/POST /skins
 app.get('/skins', async (_req, res) => {
