@@ -1,6 +1,10 @@
 /** @type {import('next').NextConfig} */
+const isFirebaseAppHostingBuild =
+  process.env.NEXT_PRIVATE_STANDALONE === 'true' ||
+  typeof process.env.FRAMEWORK_VERSION === 'string';
+
 const nextConfig = {
-  output: 'export',
+  ...(isFirebaseAppHostingBuild ? {} : { output: 'export' }),
   images: {
     unoptimized: true
   },
