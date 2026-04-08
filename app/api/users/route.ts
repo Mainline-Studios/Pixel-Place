@@ -57,8 +57,9 @@ export async function POST(request: NextRequest) {
   try {
     const newUser: User = await request.json();
     const targetLower = (newUser.username || '').toLowerCase();
+    const callerIsAdmin = authResult.user.role === 'admin' || authResult.user.role === 'head_admin';
     const selfOnly = targetLower === authResult.user.username.toLowerCase();
-    if (!selfOnly && authResult.user.role !== 'admin' && authResult.user.role !== 'head_admin') {
+    if (!selfOnly && !callerIsAdmin) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
     // Check if user exists (case-insensitive)
@@ -76,6 +77,10 @@ export async function POST(request: NextRequest) {
         ownedAccessories: newUser.ownedAccessories !== undefined ? newUser.ownedAccessories : existingUser.ownedAccessories,
         sentFriendRequests: newUser.sentFriendRequests !== undefined ? newUser.sentFriendRequests : existingUser.sentFriendRequests
       };
+      if (!callerIsAdmin) {
+        updatedUser.role = existingUser.role;
+        updatedUser.coins = existingUser.coins;
+      }
       const newPasswordPlain = typeof newUser.password === 'string' && newUser.password.length > 0 ? newUser.password : null;
       const password_hash = newPasswordPlain ? await hashPassword(newPasswordPlain) : (existing.password_hash || existing.password || '');
       
@@ -111,8 +116,8 @@ export async function POST(request: NextRequest) {
         username_lower: newUser.username.toLowerCase(),
         password_hash,
         gender: newUser.gender || '',
-        role: newUser.role || 'user',
-        coins: newUser.coins || 0,
+        role: callerIsAdmin ? (newUser.role || 'user') : 'user',
+        coins: callerIsAdmin ? (newUser.coins || 0) : 0,
         owned_skins: newUser.ownedSkins || [],
         equipped_skin: newUser.equippedSkin || '',
         owned_accessories: newUser.ownedAccessories || [],
@@ -149,8 +154,9 @@ export async function PUT(request: NextRequest) {
   try {
     const updatedUser: User = await request.json();
     const targetLower = (updatedUser.username || '').toLowerCase();
+    const callerIsAdmin = authResult.user.role === 'admin' || authResult.user.role === 'head_admin';
     const selfOnly = targetLower === authResult.user.username.toLowerCase();
-    if (!selfOnly && authResult.user.role !== 'admin' && authResult.user.role !== 'head_admin') {
+    if (!selfOnly && !callerIsAdmin) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
     const existingUsers = await queryDocuments(COLLECTIONS.USERS, 'username_lower', '==', updatedUser.username.toLowerCase());
@@ -159,6 +165,11 @@ export async function PUT(request: NextRequest) {
     }
     
     const existing = existingUsers[0];
+    const existingUser = userFromDoc(existing);
+    if (!callerIsAdmin) {
+      updatedUser.role = existingUser.role;
+      updatedUser.coins = existingUser.coins;
+    }
     const newPasswordPlain = typeof updatedUser.password === 'string' && updatedUser.password.length > 0 ? updatedUser.password : null;
     const password_hash = newPasswordPlain ? await hashPassword(newPasswordPlain) : (existing.password_hash || existing.password || '');
     
