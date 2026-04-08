@@ -49,7 +49,13 @@ function PayForm({
         onPaid();
         return;
       }
-      onPaid();
+      if (paymentIntent?.status === 'requires_action' || paymentIntent?.status === 'requires_payment_method' || paymentIntent?.status === 'requires_confirmation') {
+        onError('Payment requires additional steps. Please try again.');
+        setSubmitting(false);
+        return;
+      }
+      onError('Payment was not confirmed. Please try again or contact support.');
+      setSubmitting(false);
     } catch (err: unknown) {
       onError(err instanceof Error ? err.message : 'Payment failed');
       setSubmitting(false);
