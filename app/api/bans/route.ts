@@ -2,6 +2,7 @@ export const dynamic = 'force-static';
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getDocuments, setDocument, deleteDocument, queryDocuments, COLLECTIONS } from '@/lib/firestore';
+import { requireAdmin } from '@/lib/middleware';
 import { Ban } from '@/types';
 
 function banFromDoc(doc: any): Ban {
@@ -48,6 +49,8 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
+  const authResult = requireAdmin(request);
+  if (authResult.error) return authResult.error;
   try {
     const newBan: Ban = await request.json();
     
@@ -76,6 +79,8 @@ export async function POST(request: NextRequest) {
 }
 
 export async function DELETE(request: NextRequest) {
+  const authResult = requireAdmin(request);
+  if (authResult.error) return authResult.error;
   try {
     const { searchParams } = new URL(request.url);
     const username = searchParams.get('username');
