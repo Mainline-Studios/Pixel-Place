@@ -106,7 +106,7 @@ export function getPayPortalCheckoutUrl(coins: number): string {
   return `${getPayPortalOrigin()}${getPayPortalCoinsPath(coins)}`;
 }
 
-const HOLIDAY_MONTHS = [2, 3, 7, 10, 12];
+const HOLIDAY_MONTHS = [2, 3, 4, 7, 8, 10, 12];
 
 function isHolidayMonthClient(): boolean {
   return HOLIDAY_MONTHS.includes(new Date().getMonth() + 1);
