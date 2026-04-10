@@ -198,6 +198,32 @@ const FALLBACK_SKINS = [
   { id: 'starter_classic', name: 'Starter Classic', price: 0, use3d: true, colors: { head: '#f4c2a1', torso: '#4d536f', arm: '#3a3f56', legs: '#3a3f56' } },
 ];
 
+/** Non-admins may only equip a skin they already own. */
+function validateEquippedChoice(requested: unknown, ownedSkins: string[], fallback: string): string {
+  if (typeof requested !== 'string' || !requested) return fallback;
+  if (Array.isArray(ownedSkins) && ownedSkins.includes(requested)) return requested;
+  return fallback;
+}
+
+/** Non-admins may only equip accessories they already own. */
+function validateEquippedAccessories(
+  requested: unknown,
+  ownedAccessories: unknown[],
+  fallback: Record<string, unknown>
+): Record<string, unknown> {
+  if (!requested || typeof requested !== 'object' || Array.isArray(requested)) return fallback;
+  const ownedIds = new Set(
+    (Array.isArray(ownedAccessories) ? ownedAccessories : []).map((a: any) => (typeof a === 'string' ? a : a?.id)).filter(Boolean)
+  );
+  if (ownedIds.size === 0) return fallback;
+  const result: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(requested as Record<string, unknown>)) {
+    if (typeof v === 'string' && ownedIds.has(v)) result[k] = v;
+    else if (fallback[k] !== undefined) result[k] = fallback[k];
+  }
+  return result;
+}
+
 /** Build user for API response. Never expose password/hash to client. */
 function userFromDoc(doc: admin.firestore.DocumentSnapshot): any {
   const d = doc.data();
@@ -318,6 +344,26 @@ app.post('/users', async (req, res) => {
     const callerIsAdmin = isAdmin(auth);
     const safeRole = callerIsAdmin ? (u.role || existingData?.role || 'user') : (existingData?.role || 'user');
     const safeCoins = callerIsAdmin ? (u.coins ?? existingData?.coins ?? 10) : (existingData?.coins ?? u.coins ?? 10);
+
+    const safeOwnedSkins = callerIsAdmin
+      ? (u.ownedSkins || existingData?.owned_skins || ['starter_classic'])
+      : (existingData?.owned_skins || ['starter_classic']);
+    const safeEquippedSkin = callerIsAdmin
+      ? (u.equippedSkin || existingData?.equipped_skin || 'starter_classic')
+      : validateEquippedChoice(u.equippedSkin, safeOwnedSkins, existingData?.equipped_skin || 'starter_classic');
+    const safeOwnedAccessories = callerIsAdmin
+      ? (u.ownedAccessories || existingData?.owned_accessories || [])
+      : (existingData?.owned_accessories || []);
+    const safeEquippedAccessories = callerIsAdmin
+      ? (u.equippedAccessories || existingData?.equipped_accessories || {})
+      : validateEquippedAccessories(u.equippedAccessories, safeOwnedAccessories, existingData?.equipped_accessories || {});
+    const safeOwnedServers = callerIsAdmin
+      ? (u.ownedServers || existingData?.owned_servers || [])
+      : (existingData?.owned_servers || []);
+    const safeFriends = callerIsAdmin ? (u.friends || existingData?.friends || []) : (existingData?.friends || []);
+    const safeFriendRequests = callerIsAdmin ? (u.friendRequests || existingData?.friend_requests || []) : (existingData?.friend_requests || []);
+    const safeSentFriendRequests = callerIsAdmin ? (u.sentFriendRequests || existingData?.sent_friend_requests || []) : (existingData?.sent_friend_requests || []);
+
     const data = {
       username: u.username,
       username_lower: id,
@@ -325,14 +371,14 @@ app.post('/users', async (req, res) => {
       gender: u.gender || '',
       role: safeRole,
       coins: safeCoins,
-      owned_skins: u.ownedSkins || ['starter_classic'],
-      equipped_skin: u.equippedSkin || 'starter_classic',
-      owned_accessories: u.ownedAccessories || [],
-      equipped_accessories: u.equippedAccessories || {},
-      owned_servers: u.ownedServers || [],
-      friends: u.friends || [],
-      friend_requests: u.friendRequests || [],
-      sent_friend_requests: u.sentFriendRequests || [],
+      owned_skins: safeOwnedSkins,
+      equipped_skin: safeEquippedSkin,
+      owned_accessories: safeOwnedAccessories,
+      equipped_accessories: safeEquippedAccessories,
+      owned_servers: safeOwnedServers,
+      friends: safeFriends,
+      friend_requests: safeFriendRequests,
+      sent_friend_requests: safeSentFriendRequests,
       is_donor: (safeRole === 'admin' || safeRole === 'head_admin') ? 1 : 0,
       updated_at: Date.now(),
     };
@@ -371,6 +417,23 @@ app.put('/users', async (req, res) => {
     const callerIsAdmin = isAdmin(auth);
     const safeRole = callerIsAdmin ? (u.role || existingData.role || 'user') : (existingData.role || 'user');
     const safeCoins = callerIsAdmin ? (u.coins ?? existingData.coins ?? 10) : (existingData.coins ?? u.coins ?? 10);
+
+    const safeOwnedSkins = callerIsAdmin
+      ? (u.ownedSkins || existingData.owned_skins || [])
+      : (existingData.owned_skins || []);
+    const safeEquippedSkin = callerIsAdmin
+      ? (u.equippedSkin || existingData.equipped_skin || '')
+      : validateEquippedChoice(u.equippedSkin, safeOwnedSkins, existingData.equipped_skin || '');
+    const safeOwnedAccessories = callerIsAdmin
+      ? (u.ownedAccessories || existingData.owned_accessories || [])
+      : (existingData.owned_accessories || []);
+    const safeEquippedAccessories = callerIsAdmin
+      ? (u.equippedAccessories || existingData.equipped_accessories || {})
+      : validateEquippedAccessories(u.equippedAccessories, safeOwnedAccessories, existingData.equipped_accessories || {});
+    const safeFriends = callerIsAdmin ? (u.friends || existingData.friends || []) : (existingData.friends || []);
+    const safeFriendRequests = callerIsAdmin ? (u.friendRequests || existingData.friend_requests || []) : (existingData.friend_requests || []);
+    const safeSentFriendRequests = callerIsAdmin ? (u.sentFriendRequests || existingData.sent_friend_requests || []) : (existingData.sent_friend_requests || []);
+
     await ref.set({
       username: u.username,
       username_lower: id,
@@ -378,13 +441,13 @@ app.put('/users', async (req, res) => {
       gender: u.gender,
       role: safeRole,
       coins: safeCoins,
-      owned_skins: u.ownedSkins || [],
-      equipped_skin: u.equippedSkin || '',
-      owned_accessories: u.ownedAccessories || [],
-      equipped_accessories: u.equippedAccessories || {},
-      friends: u.friends || [],
-      friend_requests: u.friendRequests || [],
-      sent_friend_requests: u.sentFriendRequests || [],
+      owned_skins: safeOwnedSkins,
+      equipped_skin: safeEquippedSkin,
+      owned_accessories: safeOwnedAccessories,
+      equipped_accessories: safeEquippedAccessories,
+      friends: safeFriends,
+      friend_requests: safeFriendRequests,
+      sent_friend_requests: safeSentFriendRequests,
       is_donor: (safeRole === 'admin' || safeRole === 'head_admin') ? 1 : 0,
       updated_at: Date.now(),
     }, { merge: true });
