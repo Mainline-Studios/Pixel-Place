@@ -57,10 +57,19 @@ export async function POST(request: NextRequest) {
   try {
     const newUser: User = await request.json();
     const targetLower = (newUser.username || '').toLowerCase();
+    const isCallerAdmin = authResult.user.role === 'admin' || authResult.user.role === 'head_admin';
     const selfOnly = targetLower === authResult.user.username.toLowerCase();
-    if (!selfOnly && authResult.user.role !== 'admin' && authResult.user.role !== 'head_admin') {
+    if (!selfOnly && !isCallerAdmin) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
+
+    // Non-admins cannot escalate their own role, coins, or donor status
+    if (!isCallerAdmin) {
+      delete (newUser as any).role;
+      delete (newUser as any).coins;
+      delete (newUser as any).isDonor;
+    }
+
     // Check if user exists (case-insensitive)
     const existingUsers = await queryDocuments(COLLECTIONS.USERS, 'username_lower', '==', newUser.username.toLowerCase());
     const existing = existingUsers.length > 0 ? existingUsers[0] : null;
@@ -149,8 +158,9 @@ export async function PUT(request: NextRequest) {
   try {
     const updatedUser: User = await request.json();
     const targetLower = (updatedUser.username || '').toLowerCase();
+    const isCallerAdmin = authResult.user.role === 'admin' || authResult.user.role === 'head_admin';
     const selfOnly = targetLower === authResult.user.username.toLowerCase();
-    if (!selfOnly && authResult.user.role !== 'admin' && authResult.user.role !== 'head_admin') {
+    if (!selfOnly && !isCallerAdmin) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
     const existingUsers = await queryDocuments(COLLECTIONS.USERS, 'username_lower', '==', updatedUser.username.toLowerCase());
@@ -159,6 +169,13 @@ export async function PUT(request: NextRequest) {
     }
     
     const existing = existingUsers[0];
+
+    // Non-admins cannot change privileged fields
+    if (!isCallerAdmin) {
+      updatedUser.role = (existing.role || 'user') as 'admin' | 'user' | 'head_admin';
+      updatedUser.coins = typeof existing.coins === 'number' ? existing.coins : 0;
+    }
+
     const newPasswordPlain = typeof updatedUser.password === 'string' && updatedUser.password.length > 0 ? updatedUser.password : null;
     const password_hash = newPasswordPlain ? await hashPassword(newPasswordPlain) : (existing.password_hash || existing.password || '');
     
