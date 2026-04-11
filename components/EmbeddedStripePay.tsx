@@ -41,15 +41,16 @@ function PayForm({
         setSubmitting(false);
         return;
       }
-      if (paymentIntent?.status === 'succeeded') {
+      if (paymentIntent?.status === 'succeeded' || paymentIntent?.status === 'processing') {
         onPaid();
         return;
       }
-      if (paymentIntent?.status === 'processing') {
-        onPaid();
-        return;
-      }
-      onPaid();
+      onError(
+        paymentIntent?.status
+          ? `Payment not completed (status: ${paymentIntent.status}). Please try again.`
+          : 'Payment was not confirmed. Please try again.'
+      );
+      setSubmitting(false);
     } catch (err: unknown) {
       onError(err instanceof Error ? err.message : 'Payment failed');
       setSubmitting(false);
