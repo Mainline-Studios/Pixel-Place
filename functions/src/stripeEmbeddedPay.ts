@@ -160,6 +160,7 @@ export function mountStripeEmbeddedWebhook(
         await creditCoinsForPaymentIntent(db, usersCollection, processedCollection, event.data.object as Stripe.PaymentIntent);
       } catch (e) {
         console.error('[stripe] webhook credit error', e);
+        return res.status(500).json({ error: 'Failed to credit coins — Stripe should retry' });
       }
     }
 
