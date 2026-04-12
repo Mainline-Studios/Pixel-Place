@@ -68,9 +68,13 @@ export async function POST(request: NextRequest) {
     if (existing) {
       // Update existing user — never store raw password; hash only when new password provided
       const existingUser = userFromDoc(existing);
+      const isCallerAdmin = authResult.user.role === 'admin' || authResult.user.role === 'head_admin';
       const updatedUser = {
         ...existingUser,
         ...newUser,
+        // Non-admins cannot change privileged fields on their own profile
+        role: isCallerAdmin ? (newUser.role || existingUser.role) : existingUser.role,
+        coins: isCallerAdmin ? (newUser.coins ?? existingUser.coins) : existingUser.coins,
         friends: newUser.friends !== undefined ? newUser.friends : existingUser.friends,
         ownedSkins: newUser.ownedSkins !== undefined ? newUser.ownedSkins : existingUser.ownedSkins,
         ownedAccessories: newUser.ownedAccessories !== undefined ? newUser.ownedAccessories : existingUser.ownedAccessories,
@@ -106,13 +110,14 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'Password required (min 6 characters)' }, { status: 400 });
       }
       const password_hash = await hashPassword(newUser.password);
+      const isCallerAdmin = authResult.user.role === 'admin' || authResult.user.role === 'head_admin';
       const userData = {
         username: newUser.username,
         username_lower: newUser.username.toLowerCase(),
         password_hash,
         gender: newUser.gender || '',
-        role: newUser.role || 'user',
-        coins: newUser.coins || 0,
+        role: isCallerAdmin ? (newUser.role || 'user') : 'user',
+        coins: isCallerAdmin ? (newUser.coins || 0) : 0,
         owned_skins: newUser.ownedSkins || [],
         equipped_skin: newUser.equippedSkin || '',
         owned_accessories: newUser.ownedAccessories || [],
@@ -159,6 +164,10 @@ export async function PUT(request: NextRequest) {
     }
     
     const existing = existingUsers[0];
+    const existingUser = userFromDoc(existing);
+    const isCallerAdmin = authResult.user.role === 'admin' || authResult.user.role === 'head_admin';
+    const safeRole = isCallerAdmin ? (updatedUser.role || existingUser.role) : existingUser.role;
+    const safeCoins = isCallerAdmin ? (updatedUser.coins ?? existingUser.coins) : existingUser.coins;
     const newPasswordPlain = typeof updatedUser.password === 'string' && updatedUser.password.length > 0 ? updatedUser.password : null;
     const password_hash = newPasswordPlain ? await hashPassword(newPasswordPlain) : (existing.password_hash || existing.password || '');
     
@@ -167,8 +176,8 @@ export async function PUT(request: NextRequest) {
       username_lower: updatedUser.username.toLowerCase(),
       password_hash,
       gender: updatedUser.gender,
-      role: updatedUser.role,
-      coins: updatedUser.coins,
+      role: safeRole,
+      coins: safeCoins,
       owned_skins: updatedUser.ownedSkins || [],
       equipped_skin: updatedUser.equippedSkin || '',
       owned_accessories: updatedUser.ownedAccessories || [],
@@ -177,10 +186,10 @@ export async function PUT(request: NextRequest) {
       friends: updatedUser.friends || [],
       friend_requests: updatedUser.friendRequests || [],
       sent_friend_requests: updatedUser.sentFriendRequests || [],
-      is_donor: (updatedUser.role === 'admin' || updatedUser.role === 'head_admin') ? 1 : 0,
+      is_donor: (safeRole === 'admin' || safeRole === 'head_admin') ? 1 : 0,
       updated_at: Date.now()
     });
-    const outUser = { ...updatedUser, password: '' };
+    const outUser = { ...updatedUser, password: '', role: safeRole, coins: safeCoins };
     return NextResponse.json(outUser);
   } catch (error) {
     console.error('Error updating user:', error);
