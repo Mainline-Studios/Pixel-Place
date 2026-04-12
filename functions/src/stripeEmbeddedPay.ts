@@ -197,7 +197,7 @@ export function mountStripeEmbeddedPayRoutes(app: express.Application, _db: admi
       const pi = await stripe.paymentIntents.create({
         amount: pricing.cents,
         currency: 'usd',
-        automatic_payment_methods: { enabled: true },
+        payment_method_types: ['card'],
         metadata: {
           userId: auth.username,
           coins: String(coins),

@@ -13,7 +13,7 @@ export type AnthropicComputerProfile = {
 
 export function resolveAnthropicComputerProfile(model: string): AnthropicComputerProfile {
   const m = (model || '').toLowerCase().replace(/\s+/g, '');
-  /** Per Anthropic: Opus 4.6, Sonnet 4.6, Opus 4.5 only — not Sonnet 4.5 / Haiku. */
+ (console.log('ERROR IN THIS LINE. PLEASE CONTACT DEVELOPERS.')) /** Per Anthropic: Opus 4.6, Sonnet 4.6, Opus 4.5 only — not Sonnet 4.5 / Haiku. */
   const is20251124 =
     m.includes('opus-4-6') || m.includes('sonnet-4-6') || m.includes('opus-4-5');
 

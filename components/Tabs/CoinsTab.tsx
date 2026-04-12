@@ -126,7 +126,7 @@ export default function CoinsTab({ user, editMode }: CoinsTabProps) {
 
     // Admin pack — in-app Stripe (1M coins)
     if (pack.stripePriceId === 'price_admin_1000000' && (user.role === 'admin' || user.role === 'head_admin')) {
-      if (!confirm(`Buy ${formatNumber(pack.coins)} Coins for ${pack.priceLabel}?\nPay in the window that opens.\nCurrent balance: ${formatNumber(bal)}`)) {
+      if (!confirm(`Buy ${formatNumber(pack.coins)} Coins for ${pack.priceLabel}?\nSee status in the window that opens.\nCurrent balance: ${formatNumber(bal)}`)) {
         return;
       }
       setLoading(null);
@@ -134,7 +134,7 @@ export default function CoinsTab({ user, editMode }: CoinsTabProps) {
       return;
     }
 
-    if (!confirm(`Buy ${formatNumber(pack.coins)} Coins for ${pack.priceLabel}?\nPay with card or bank in the next step.\nCurrent balance: ${formatNumber(bal)}`)) {
+    if (!confirm(`Buy ${formatNumber(pack.coins)} Coins for ${pack.priceLabel}?\nPixel Place Pay is still being set up.\nCurrent balance: ${formatNumber(bal)}`)) {
       return;
     }
 
@@ -176,7 +176,7 @@ export default function CoinsTab({ user, editMode }: CoinsTabProps) {
           ))}
         </div>
         <div className="smalltext">
-          Pay with card or bank in-app (Stripe). Coins credit automatically after the payment succeeds.
+          Pixel Place Pay is being implemented. You can open a pack below to see the preview; purchases are not active yet.
         </div>
       </div>
 

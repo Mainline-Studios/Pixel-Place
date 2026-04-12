@@ -6,13 +6,28 @@ import { getSkins, getAccessories } from '@/lib/storage';
 import Avatar3DViewer from '@/components/Avatar3DViewer';
 import { useUser } from '@/contexts/UserContext';
 import { useMobileBeta } from '@/contexts/MobileBetaContext';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, type CSSProperties } from 'react';
 
 interface TopBarProps {
   currentTab: TabType;
   onTabChange: (tab: TabType) => void;
   user: User;
 }
+
+const coinChipStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: '6px',
+  padding: '6px 12px',
+  background: 'linear-gradient(135deg, rgba(255, 193, 7, 0.2) 0%, rgba(255, 152, 0, 0.15) 100%)',
+  borderRadius: '20px',
+  border: '1px solid rgba(255, 193, 7, 0.3)',
+  fontSize: '14px',
+  fontWeight: 600,
+  color: '#ffc107',
+  cursor: 'pointer',
+  fontFamily: 'inherit',
+};
 
 const TABS: { key: TabType; label: string; shortcut?: string; adminOnly?: boolean }[] = [
   { key: 'games', label: 'Games', shortcut: 'G' },
@@ -121,23 +136,16 @@ export default function TopBar({ currentTab, onTabChange, user }: TopBarProps) {
             ))}
         </div>
         <div className="userbox" style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              padding: '6px 12px',
-              background: 'linear-gradient(135deg, rgba(255, 193, 7, 0.2) 0%, rgba(255, 152, 0, 0.15) 100%)',
-              borderRadius: '20px',
-              border: '1px solid rgba(255, 193, 7, 0.3)',
-              fontSize: '14px',
-              fontWeight: 600,
-              color: '#ffc107',
-            }}
+          <button
+            type="button"
+            className="topbar-coin-balance"
+            onClick={() => onTabChange('coins')}
+            title="Buy Pixel Coins — open Pixel Coins tab"
+            style={coinChipStyle}
           >
             <span style={{ fontSize: '16px' }}>🪙</span>
             <span>{(user.coins ?? 0).toLocaleString()}</span>
-          </div>
+          </button>
           <div
             className="avatar-top"
             onClick={handleLogout}

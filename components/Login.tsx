@@ -7,7 +7,6 @@ import BanScreen from './BanScreen';
 import SiteSocialLinks from './SiteSocialLinks';
 import BrandKitDownloadLink from './BrandKitDownloadLink';
 import SiteLicenseAttribution from './SiteLicenseAttribution';
-import PyxTrainCta from './PyxTrainCta';
 import StatusPageLink from './StatusPageLink';
 import {
   DEFAULT_EXTENDED_GENDER,
@@ -147,10 +146,6 @@ export default function Login() {
             <span>PIXEL</span>
             <span>PLACE</span>
           </h1>
-
-          <div style={{ width: '100%', maxWidth: 440, margin: '0 auto 18px' }}>
-            <PyxTrainCta />
-          </div>
 
           {mode === 'signin' ? (
             <>

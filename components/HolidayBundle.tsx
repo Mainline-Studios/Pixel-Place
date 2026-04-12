@@ -532,7 +532,7 @@ export default function HolidayBundle({ user, onClose }: HolidayBundleProps) {
             return;
         }
 
-        if (!confirm('Buy the holiday bundle (8,500 coins) with card or bank in the next step?')) {
+        if (!confirm('Open holiday bundle checkout? Pixel Place Pay is still being implemented — purchase is not active yet.')) {
             return;
         }
         setShowStripePay(true);

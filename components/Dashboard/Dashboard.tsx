@@ -12,7 +12,6 @@ import SiteSocialLinks from '../SiteSocialLinks';
 import BrandKitDownloadLink from '../BrandKitDownloadLink';
 import SiteLicenseAttribution from '../SiteLicenseAttribution';
 import StatusPageLink from '../StatusPageLink';
-import PyxTrainCta from '../PyxTrainCta';
 import { useSecretTheme } from '@/contexts/SecretThemeContext';
 import GamesTab from '../Tabs/GamesTab';
 import CreateTab from '../Tabs/CreateTab';
@@ -104,9 +103,6 @@ export default function Dashboard({ user }: DashboardProps) {
         onTabChange={handleTabChange}
         user={user}
       />
-      <div className="pyx-train-cta-bar" aria-label="Train Pyx AI">
-        <PyxTrainCta />
-      </div>
       <div className="body-row">
         <div className="body-inner">
           <Sidebar user={user} />

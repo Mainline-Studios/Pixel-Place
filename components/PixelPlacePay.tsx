@@ -21,7 +21,7 @@ export function PayPortalLanding() {
       <div className="pixel-place-pay__card">
         <div className="pixel-place-pay__brand">Pixel Place Pay</div>
         <p className="pixel-place-pay__lead">
-          Pay for Pixel Coins in your browser — card or bank (where available). Sign in, then enter payment details on this page.
+          Buy Pixel Coins from your browser once Pixel Place Pay goes live. Sign in on the main app to see your balance.
         </p>
         <p className="pixel-place-pay__mono">
           Example:{' '}
@@ -30,7 +30,7 @@ export function PayPortalLanding() {
           </strong>
         </p>
         <p className="pixel-place-pay__hint">
-          Amounts from 100 to 10,000 coins (plus seasonal bundles). Checkout is on Pixel Place; your card or bank details are protected by industry-standard encryption.
+          Amounts from 100 to 10,000 coins (plus seasonal bundles). Checkout is being implemented — thanks for your patience.
         </p>
       </div>
       <style jsx global>{landingCss}</style>
@@ -97,7 +97,7 @@ export default function PixelPlacePay({ coins }: { coins: number }) {
         <div className="pixel-place-pay__card pixel-place-pay__card--wide">
           <div className="pixel-place-pay__brand">Pixel Place Pay</div>
           <p className="pixel-place-pay__lead">Sign in to buy {formatCoins(coins)} Pixel Coins.</p>
-          <p className="pixel-place-pay__hint">You will enter card or bank details below after signing in — without leaving Pixel Place.</p>
+          <p className="pixel-place-pay__hint">Pixel Place Pay is being implemented; you will see a status message after signing in.</p>
           <div className="pixel-place-pay__login">
             <Login />
           </div>
