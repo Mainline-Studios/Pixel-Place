@@ -295,6 +295,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
         }
         return { success: false, message: authData.error || 'Invalid credentials.', ban: authData.ban };
       }
+      return { success: false, message: authData.error || 'Login failed. Please try again.' };
     } catch (_e) {
       return { success: false, message: 'Could not reach server. Try again when online.' };
     }
