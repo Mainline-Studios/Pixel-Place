@@ -1,0 +1,6 @@
+scripts:
+  # App Hosting's Next.js adapter expects a server bundle (.next/standalone),
+  # but this repository intentionally uses static export (output: 'export').
+  # Override build/run so App Hosting skips adapter-specific server bundling.
+  buildCommand: npm run build
+  runCommand: npx serve -s out -l tcp://0.0.0.0:${PORT:-8080}
