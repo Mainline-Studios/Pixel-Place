@@ -1,6 +1,8 @@
 /** @type {import('next').NextConfig} */
+const isAppHostingStandaloneBuild = process.env.NEXT_PRIVATE_STANDALONE === 'true';
+
 const nextConfig = {
-  output: 'export',
+  output: isAppHostingStandaloneBuild ? 'standalone' : 'export',
   images: {
     unoptimized: true
   },
