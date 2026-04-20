@@ -1,6 +1,9 @@
 /** @type {import('next').NextConfig} */
+const isAppHostingBuild = process.env.NEXT_PRIVATE_STANDALONE === 'true';
+
 const nextConfig = {
-  output: 'export',
+  // Firebase App Hosting requires standalone server output for its adapter.
+  output: isAppHostingBuild ? undefined : 'export',
   images: {
     unoptimized: true
   },
