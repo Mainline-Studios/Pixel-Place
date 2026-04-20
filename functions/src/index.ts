@@ -469,7 +469,7 @@ async function getAdminAccountsFromFirestore(): Promise<{ username: string; pass
 // POST /auth (login, register)
 app.post('/auth', async (req, res) => {
   try {
-    const { username, password, action, gender, role, coins, deviceId, deviceLabel } = req.body;
+    const { username, password, action, gender, deviceId, deviceLabel } = req.body;
     if (!username || !password) return res.status(400).json({ error: 'Username and password required' });
 
     if (action === 'login') {
