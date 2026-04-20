@@ -1,6 +1,9 @@
 /** @type {import('next').NextConfig} */
+const isAppHostingBuild = process.env.NEXT_PRIVATE_STANDALONE === 'true';
+
 const nextConfig = {
-  output: 'export',
+  // Firebase App Hosting requires standalone output artifacts for the adapter pipeline.
+  output: isAppHostingBuild ? 'standalone' : 'export',
   images: {
     unoptimized: true
   },
