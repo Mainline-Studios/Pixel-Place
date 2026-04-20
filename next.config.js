@@ -1,6 +1,11 @@
 /** @type {import('next').NextConfig} */
+const isFirebaseAppHostingBuild =
+  process.env.NEXT_PRIVATE_STANDALONE === 'true' ||
+  Boolean(process.env.FIREBASE_WEBAPP_CONFIG);
+
 const nextConfig = {
-  output: 'export',
+  // App Hosting needs Next.js standalone artifacts; static export omits them.
+  ...(isFirebaseAppHostingBuild ? {} : { output: 'export' }),
   images: {
     unoptimized: true
   },
