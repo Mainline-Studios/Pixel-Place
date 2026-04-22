@@ -57,8 +57,9 @@ export async function POST(request: NextRequest) {
   try {
     const newUser: User = await request.json();
     const targetLower = (newUser.username || '').toLowerCase();
+    const callerIsAdmin = authResult.user.role === 'admin' || authResult.user.role === 'head_admin';
     const selfOnly = targetLower === authResult.user.username.toLowerCase();
-    if (!selfOnly && authResult.user.role !== 'admin' && authResult.user.role !== 'head_admin') {
+    if (!selfOnly && !callerIsAdmin) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
     // Check if user exists (case-insensitive)
@@ -68,6 +69,17 @@ export async function POST(request: NextRequest) {
     if (existing) {
       // Update existing user — never store raw password; hash only when new password provided
       const existingUser = userFromDoc(existing);
+
+      // Non-admins cannot escalate role, coins, or inventory fields
+      if (!callerIsAdmin) {
+        newUser.role = existingUser.role;
+        newUser.coins = existingUser.coins;
+        newUser.ownedSkins = existingUser.ownedSkins;
+        newUser.ownedAccessories = existingUser.ownedAccessories;
+        newUser.ownedServers = existingUser.ownedServers;
+        newUser.isDonor = existingUser.isDonor;
+      }
+
       const updatedUser = {
         ...existingUser,
         ...newUser,
@@ -149,8 +161,9 @@ export async function PUT(request: NextRequest) {
   try {
     const updatedUser: User = await request.json();
     const targetLower = (updatedUser.username || '').toLowerCase();
+    const callerIsAdmin = authResult.user.role === 'admin' || authResult.user.role === 'head_admin';
     const selfOnly = targetLower === authResult.user.username.toLowerCase();
-    if (!selfOnly && authResult.user.role !== 'admin' && authResult.user.role !== 'head_admin') {
+    if (!selfOnly && !callerIsAdmin) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
     const existingUsers = await queryDocuments(COLLECTIONS.USERS, 'username_lower', '==', updatedUser.username.toLowerCase());
@@ -159,6 +172,18 @@ export async function PUT(request: NextRequest) {
     }
     
     const existing = existingUsers[0];
+    const existingUser = userFromDoc(existing);
+
+    // Non-admins cannot escalate role, coins, or inventory fields
+    if (!callerIsAdmin) {
+      updatedUser.role = existingUser.role;
+      updatedUser.coins = existingUser.coins;
+      updatedUser.ownedSkins = existingUser.ownedSkins;
+      updatedUser.ownedAccessories = existingUser.ownedAccessories;
+      updatedUser.ownedServers = existingUser.ownedServers;
+      updatedUser.isDonor = existingUser.isDonor;
+    }
+
     const newPasswordPlain = typeof updatedUser.password === 'string' && updatedUser.password.length > 0 ? updatedUser.password : null;
     const password_hash = newPasswordPlain ? await hashPassword(newPasswordPlain) : (existing.password_hash || existing.password || '');
     
