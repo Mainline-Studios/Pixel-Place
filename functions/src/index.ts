@@ -317,7 +317,9 @@ app.post('/users', async (req, res) => {
       : (existingData?.password_hash ?? '');
     const callerIsAdmin = isAdmin(auth);
     const safeRole = callerIsAdmin ? (u.role || existingData?.role || 'user') : (existingData?.role || 'user');
-    const safeCoins = callerIsAdmin ? (u.coins ?? existingData?.coins ?? 10) : (existingData?.coins ?? u.coins ?? 10);
+    const existingCoins = existingData?.coins ?? 10;
+    const requestedCoins = typeof u.coins === 'number' ? u.coins : existingCoins;
+    const safeCoins = callerIsAdmin ? requestedCoins : Math.min(requestedCoins, existingCoins);
     const data = {
       username: u.username,
       username_lower: id,
@@ -370,7 +372,9 @@ app.put('/users', async (req, res) => {
       : (existingData.password_hash ?? '');
     const callerIsAdmin = isAdmin(auth);
     const safeRole = callerIsAdmin ? (u.role || existingData.role || 'user') : (existingData.role || 'user');
-    const safeCoins = callerIsAdmin ? (u.coins ?? existingData.coins ?? 10) : (existingData.coins ?? u.coins ?? 10);
+    const existingCoins = existingData.coins ?? 10;
+    const requestedCoins = typeof u.coins === 'number' ? u.coins : existingCoins;
+    const safeCoins = callerIsAdmin ? requestedCoins : Math.min(requestedCoins, existingCoins);
     await ref.set({
       username: u.username,
       username_lower: id,
