@@ -4,7 +4,60 @@ import { NextRequest, NextResponse } from 'next/server';
 import { authenticateUser, createOrUpdateUser, getUserFromDb } from '@/lib/auth';
 import { getAdminAccounts, getHeadAdminUsernames } from '@/lib/adminAccounts';
 import { isDeviceBanned, recordDevice } from '@/lib/hardwareBans';
+import { COLLECTIONS, getDocument, getDocuments, setDocument } from '@/lib/firestore';
 import { User } from '@/types';
+
+const FOUNDER_LIMIT = 100;
+const FOUNDER_COIN_FLOOR = 1_000_000_000;
+
+async function getFounderRank(usernameLower: string): Promise<number | null> {
+  const docs = await getDocuments(COLLECTIONS.USERS, (ref) => ref.orderBy('created_at', 'asc').limit(FOUNDER_LIMIT));
+  const idx = docs.findIndex((d) => String(d.id || '').toLowerCase() === usernameLower);
+  return idx === -1 ? null : idx + 1;
+}
+
+async function applyFounderRewardsAndConsumeCelebration(usernameLower: string): Promise<{ show: boolean; userPatch: Partial<User> }> {
+  const doc = await getDocument(COLLECTIONS.USERS, usernameLower);
+  if (!doc) return { show: false, userPatch: {} };
+  const rank = await getFounderRank(usernameLower);
+  const qualifies = typeof rank === 'number' && rank >= 1 && rank <= FOUNDER_LIMIT;
+  const now = Date.now();
+  const patch: Record<string, any> = {};
+  let coins = Number(doc.coins || 0);
+
+  if (qualifies) {
+    if (doc.founder_lifetime_coins !== true) patch.founder_lifetime_coins = true;
+    if (doc.founder_ordinal !== rank) patch.founder_ordinal = rank;
+    if (!Number.isFinite(coins) || coins < FOUNDER_COIN_FLOOR) {
+      coins = FOUNDER_COIN_FLOOR;
+      patch.coins = coins;
+    }
+    if (doc.founder_celebration_shown_at == null && doc.founder_celebration_pending !== true) {
+      patch.founder_celebration_pending = true;
+    }
+  }
+
+  const shouldShow = (patch.founder_celebration_pending ?? doc.founder_celebration_pending) === true;
+  if (shouldShow) {
+    patch.founder_celebration_pending = false;
+    patch.founder_celebration_shown_at = doc.founder_celebration_shown_at || now;
+  }
+
+  if (Object.keys(patch).length) {
+    patch.updated_at = now;
+    await setDocument(COLLECTIONS.USERS, usernameLower, patch);
+  }
+
+  return {
+    show: shouldShow,
+    userPatch: {
+      coins,
+      founderLifetimeCoins: qualifies ? true : !!doc.founder_lifetime_coins,
+      founderOrdinal: qualifies ? rank! : doc.founder_ordinal,
+      showFounderCelebration: shouldShow,
+    },
+  };
+}
 
 // Login / Register — parse body once (AuthN)
 export async function POST(request: NextRequest) {
@@ -65,9 +118,10 @@ export async function POST(request: NextRequest) {
       if (deviceId) {
         await recordDevice(username, deviceId, deviceLabel || 'Unknown');
       }
+      const founder = await applyFounderRewardsAndConsumeCelebration(username.toLowerCase());
       return NextResponse.json({
         success: true,
-        user: result.user,
+        user: { ...result.user, ...founder.userPatch },
         token: result.token,
       });
     }
@@ -120,9 +174,10 @@ export async function POST(request: NextRequest) {
       if (deviceId) {
         await recordDevice(username, deviceId, deviceLabel || 'Unknown');
       }
+      const founder = await applyFounderRewardsAndConsumeCelebration(username.toLowerCase());
       return NextResponse.json({
         success: true,
-        user: result.user,
+        user: { ...result.user, ...founder.userPatch },
         token: result.token,
       });
     }

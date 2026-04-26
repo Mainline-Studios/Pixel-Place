@@ -53,7 +53,9 @@ function userFromDoc(doc: any): User {
               }
             })()
           : []),
-    isDonor: doc.is_donor === 1 || doc.is_donor === true
+    isDonor: doc.is_donor === 1 || doc.is_donor === true,
+    founderLifetimeCoins: doc.founder_lifetime_coins === true,
+    founderOrdinal: typeof doc.founder_ordinal === 'number' ? doc.founder_ordinal : undefined,
   };
 }
 
@@ -193,6 +195,10 @@ export async function createOrUpdateUser(user: User, password?: string): Promise
         friend_requests: user.friendRequests || [],
         sent_friend_requests: user.sentFriendRequests || [],
         is_donor: user.isDonor ? 1 : 0,
+        founder_lifetime_coins: false,
+        founder_ordinal: null,
+        founder_celebration_pending: false,
+        founder_celebration_shown_at: null,
         created_at: Date.now(),
         updated_at: Date.now()
       });

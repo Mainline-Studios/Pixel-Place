@@ -139,9 +139,81 @@ import { mountStripeEmbeddedWebhook, mountStripeEmbeddedPayRoutes } from './stri
 
 const DEVICE_ID_MAX = 128;
 const LABEL_MAX = 64;
+const FOUNDER_LIMIT = 100;
+const FOUNDER_COIN_FLOOR = 1_000_000_000;
 
 function sanitizeDeviceId(id: string): string {
   return String(id).slice(0, DEVICE_ID_MAX).replace(/[^a-zA-Z0-9_-]/g, '');
+}
+
+function founderRankFromTopUsers(topUsers: admin.firestore.QueryDocumentSnapshot[], usernameLower: string): number | null {
+  const idx = topUsers.findIndex((d) => d.id === usernameLower);
+  if (idx === -1) return null;
+  return idx + 1;
+}
+
+async function getFounderRank(usernameLower: string): Promise<number | null> {
+  const q = await db.collection(COLLECTIONS.USERS).orderBy('created_at', 'asc').limit(FOUNDER_LIMIT).get();
+  return founderRankFromTopUsers(q.docs, usernameLower);
+}
+
+/**
+ * Ensure founder reward fields are correct for top 100 users.
+ * Returns latest user data and whether the one-time celebration should show this login.
+ */
+async function applyFounderRewardsAndConsumeCelebration(
+  usernameLower: string,
+  currentData: any
+): Promise<{ data: any; showCelebration: boolean }> {
+  let data = { ...(currentData || {}) };
+  let changed = false;
+
+  const rank = await getFounderRank(usernameLower);
+  const qualifies = typeof rank === 'number' && rank >= 1 && rank <= FOUNDER_LIMIT;
+  const now = Date.now();
+
+  if (qualifies) {
+    if (data.founder_lifetime_coins !== true) {
+      data.founder_lifetime_coins = true;
+      changed = true;
+    }
+    if (data.founder_ordinal !== rank) {
+      data.founder_ordinal = rank;
+      changed = true;
+    }
+    const coinsNow = Number(data.coins || 0);
+    if (!Number.isFinite(coinsNow) || coinsNow < FOUNDER_COIN_FLOOR) {
+      data.coins = FOUNDER_COIN_FLOOR;
+      changed = true;
+    }
+    if (data.founder_celebration_shown_at == null && data.founder_celebration_pending !== true) {
+      data.founder_celebration_pending = true;
+      changed = true;
+    }
+  }
+
+  const showCelebration = data.founder_celebration_pending === true;
+  if (showCelebration) {
+    data.founder_celebration_pending = false;
+    data.founder_celebration_shown_at = data.founder_celebration_shown_at || now;
+    changed = true;
+  }
+
+  if (changed) {
+    await db.collection(COLLECTIONS.USERS).doc(usernameLower).set(
+      {
+        founder_lifetime_coins: !!data.founder_lifetime_coins,
+        founder_ordinal: data.founder_ordinal ?? null,
+        founder_celebration_pending: !!data.founder_celebration_pending,
+        founder_celebration_shown_at: data.founder_celebration_shown_at ?? null,
+        coins: data.coins ?? 0,
+        updated_at: now,
+      },
+      { merge: true }
+    );
+  }
+
+  return { data, showCelebration };
 }
 
 async function isDeviceBanned(deviceId: string): Promise<boolean> {
@@ -252,6 +324,8 @@ function userFromDoc(doc: admin.firestore.DocumentSnapshot): any {
     friendRequests: d.friend_requests || [],
     sentFriendRequests: d.sent_friend_requests || [],
     isDonor: d.is_donor === 1,
+    founderLifetimeCoins: d.founder_lifetime_coins === true,
+    founderOrdinal: typeof d.founder_ordinal === 'number' ? d.founder_ordinal : undefined,
   };
 }
 
@@ -585,7 +659,15 @@ app.post('/auth', async (req, res) => {
       }
       if (!match) return res.status(401).json({ error: 'Invalid credentials' });
       if (deviceId) await recordDevice(username, deviceId, deviceLabel || 'Unknown');
-      const user = userFromDoc(doc);
+      const founder = await applyFounderRewardsAndConsumeCelebration(username.toLowerCase(), d);
+      const user = {
+        ...userFromDoc(doc),
+        coins: founder.data.coins ?? d.coins ?? 0,
+        founderLifetimeCoins: founder.data.founder_lifetime_coins === true,
+        founderOrdinal:
+          typeof founder.data.founder_ordinal === 'number' ? founder.data.founder_ordinal : undefined,
+        showFounderCelebration: founder.showCelebration,
+      };
       const token = jwt.sign({ username: user.username, role: user.role }, getJwtSecret(), { expiresIn: '7d' });
       return res.json({ success: true, user, token });
     }
@@ -637,12 +719,25 @@ app.post('/auth', async (req, res) => {
         friend_requests: [],
         sent_friend_requests: [],
         is_donor: 0,
+        founder_lifetime_coins: false,
+        founder_ordinal: null,
+        founder_celebration_pending: false,
+        founder_celebration_shown_at: null,
         created_at: Date.now(),
         updated_at: Date.now(),
       };
       await db.collection(COLLECTIONS.USERS).doc(id).set(userData);
       if (deviceId) await recordDevice(username, deviceId, deviceLabel || 'Unknown');
-      const user = userFromDoc(await db.collection(COLLECTIONS.USERS).doc(id).get());
+      const createdDoc = await db.collection(COLLECTIONS.USERS).doc(id).get();
+      const founder = await applyFounderRewardsAndConsumeCelebration(id, createdDoc.data() || userData);
+      const user = {
+        ...userFromDoc(createdDoc),
+        coins: founder.data.coins ?? createdDoc.data()?.coins ?? 0,
+        founderLifetimeCoins: founder.data.founder_lifetime_coins === true,
+        founderOrdinal:
+          typeof founder.data.founder_ordinal === 'number' ? founder.data.founder_ordinal : undefined,
+        showFounderCelebration: founder.showCelebration,
+      };
       const token = jwt.sign({ username, role: user.role }, getJwtSecret(), { expiresIn: '7d' });
       return res.json({ success: true, user, token });
     }

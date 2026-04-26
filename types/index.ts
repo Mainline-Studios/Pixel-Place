@@ -30,6 +30,9 @@ export interface User {
   currentSessionId?: string; // Current multiplayer session ID
   safetyPoints?: number; // Safety Points currency (earned from breaks)
   isDonor?: boolean; // Donor status for premium features (e.g. unlimited Template in AI Coder)
+  founderLifetimeCoins?: boolean; // First 100 registered users: keep a large coin floor
+  founderOrdinal?: number; // 1..100 registration rank for founder reward
+  showFounderCelebration?: boolean; // One-time popup flag sent by auth login response
 }
 
 export interface FriendRequest {

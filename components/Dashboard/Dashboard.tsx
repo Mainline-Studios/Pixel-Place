@@ -29,6 +29,11 @@ export default function Dashboard({ user }: DashboardProps) {
   const { secretTheme } = useSecretTheme();
   const [currentTab, setCurrentTab] = useState<TabType>('games');
   const [editMode, setEditMode] = useState(false);
+  const [showFounderCelebration, setShowFounderCelebration] = useState<boolean>(!!user?.showFounderCelebration);
+
+  useEffect(() => {
+    if (user?.showFounderCelebration) setShowFounderCelebration(true);
+  }, [user?.showFounderCelebration]);
 
   // Sync tab with URL (path) on load and popstate
   useEffect(() => {
@@ -156,6 +161,52 @@ export default function Dashboard({ user }: DashboardProps) {
         </div>
       </footer>
       <ScrollToTop />
+      {showFounderCelebration && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0,0,0,0.62)',
+            zIndex: 1200,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: 16,
+          }}
+          onClick={() => setShowFounderCelebration(false)}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              width: 'min(560px, 96vw)',
+              borderRadius: 16,
+              border: '1px solid rgba(255,255,255,0.2)',
+              background: 'linear-gradient(180deg, rgba(255,223,99,0.16) 0%, rgba(255,180,70,0.12) 100%), var(--panel-bg)',
+              boxShadow: '0 14px 50px rgba(0,0,0,0.35)',
+              padding: '20px 18px',
+              textAlign: 'center',
+            }}
+          >
+            <div style={{ fontSize: 30, marginBottom: 8 }}>🎉</div>
+            <h2 style={{ margin: 0, fontSize: 24, color: '#ffd166' }}>Founder Reward Unlocked</h2>
+            <p style={{ margin: '10px 0 0', color: 'var(--text)' }}>
+              You are one of the first 100 users of Pixel Place.
+            </p>
+            <p style={{ margin: '8px 0 0', color: 'var(--text-dim)' }}>
+              You now have Pixel Coins for life. Thanks for being an early player!
+            </p>
+            <button
+              className="btn auth-btn"
+              style={{ marginTop: 14 }}
+              onClick={() => setShowFounderCelebration(false)}
+            >
+              Awesome!
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
