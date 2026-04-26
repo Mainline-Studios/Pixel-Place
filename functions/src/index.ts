@@ -4,6 +4,7 @@
  * URL: https://us-central1-pixel-place-823b1.cloudfunctions.net/api
  */
 import path from 'path';
+import { randomUUID } from 'crypto';
 import { config as loadEnv } from 'dotenv';
 
 // Load functions/.env (no deprecated functions.config() - works after March 2026)
@@ -158,7 +159,7 @@ async function getHardwareBanDetails(deviceId: string): Promise<{ reason: string
   if (!doc.exists) return null;
   const d = doc.data()!;
   return {
-    reason: d.reason || 'This device is banned.',
+    reason: d.reason || 'Access from this browser profile is blocked.',
     bannedBy: d.banned_by || 'Administrator',
     bannedAt: d.banned_at || Date.now(),
   };
@@ -191,6 +192,40 @@ async function recordDevice(username: string, deviceId: string, label: string): 
     usernames.push(usernameLower);
     await deviceUsersRef.set({ usernames, updated_at: now });
   }
+}
+
+/**
+ * Expand from one deviceId to every device and username linked through
+ * device_users ↔ user_devices (same account on multiple browsers, shared machines, etc.).
+ */
+async function collectLinkedHardwareNetwork(rootDeviceId: string): Promise<{ deviceIds: string[]; usernames: string[] }> {
+  const root = sanitizeDeviceId(rootDeviceId);
+  const deviceIds = new Set<string>();
+  const usernames = new Set<string>();
+  if (!root) return { deviceIds: [], usernames: [] };
+  deviceIds.add(root);
+  for (let round = 0; round < 32; round++) {
+    const dCount = deviceIds.size;
+    const uCount = usernames.size;
+    for (const d of [...deviceIds]) {
+      const snap = await db.collection(COLLECTIONS.DEVICE_USERS).doc(d).get();
+      const list: string[] = Array.isArray(snap.data()?.usernames) ? snap.data()!.usernames : [];
+      for (const u of list) {
+        const ul = String(u).toLowerCase().trim();
+        if (ul) usernames.add(ul);
+      }
+    }
+    for (const u of [...usernames]) {
+      const snap = await db.collection(COLLECTIONS.USER_DEVICES).doc(u).get();
+      const devs: Array<{ deviceId?: string }> = Array.isArray(snap.data()?.devices) ? snap.data()!.devices : [];
+      for (const row of devs) {
+        const did = sanitizeDeviceId(String(row?.deviceId || ''));
+        if (did) deviceIds.add(did);
+      }
+    }
+    if (deviceIds.size === dCount && usernames.size === uCount) break;
+  }
+  return { deviceIds: [...deviceIds], usernames: [...usernames] };
 }
 
 // Minimal NEW_SKINS fallback (starter skins)
@@ -257,7 +292,13 @@ app.get('/auth/check-device', async (req, res) => {
     const details = await getHardwareBanDetails(deviceId);
     const ban = details
       ? { username: 'This device', reason: details.reason, bannedBy: details.bannedBy, timestamp: details.bannedAt, permanent: true }
-      : { username: 'This device', reason: 'This device is banned.', bannedBy: 'Administrator', timestamp: Date.now(), permanent: true };
+      : {
+          username: 'This device',
+          reason: 'Access from this browser profile is blocked.',
+          bannedBy: 'Administrator',
+          timestamp: Date.now(),
+          permanent: true,
+        };
     return res.json({ banned: true, ban });
   } catch (e) {
     res.json({ banned: false });
@@ -483,8 +524,18 @@ app.post('/auth', async (req, res) => {
               timestamp: details.bannedAt,
               permanent: true,
             }
-          : { username: 'This device', reason: 'This device is banned.', bannedBy: 'Administrator', timestamp: Date.now(), permanent: true };
-        return res.status(401).json({ error: 'This device is banned. You cannot sign in.', deviceBanned: true, ban });
+          : {
+              username: 'This device',
+              reason: 'Access from this browser profile is blocked.',
+              bannedBy: 'Administrator',
+              timestamp: Date.now(),
+              permanent: true,
+            };
+        return res.status(401).json({
+          error: 'Access from this browser profile is blocked. You cannot sign in.',
+          deviceBanned: true,
+          ban,
+        });
       }
       let doc = await db.collection(COLLECTIONS.USERS).doc(username.toLowerCase()).get();
       if (!doc.exists) {
@@ -553,8 +604,18 @@ app.post('/auth', async (req, res) => {
               timestamp: details.bannedAt,
               permanent: true,
             }
-          : { username: 'This device', reason: 'This device is banned.', bannedBy: 'Administrator', timestamp: Date.now(), permanent: true };
-        return res.status(400).json({ error: 'This device is banned. You cannot create new accounts from this device.', deviceBanned: true, ban });
+          : {
+              username: 'This device',
+              reason: 'Access from this browser profile is blocked.',
+              bannedBy: 'Administrator',
+              timestamp: Date.now(),
+              permanent: true,
+            };
+        return res.status(400).json({
+          error: 'Access from this browser profile is blocked. You cannot create new accounts here.',
+          deviceBanned: true,
+          ban,
+        });
       }
       const id = username.toLowerCase();
       const existing = await db.collection(COLLECTIONS.USERS).doc(id).get();
@@ -970,21 +1031,43 @@ const postHardwareBansHandler = async (req: any, res: any) => {
     const { deviceId: rawId, reason } = req.body || {};
     const id = sanitizeDeviceId(typeof rawId === 'string' ? rawId : '');
     if (!id) return res.status(400).json({ error: 'deviceId required' });
-    const usernames: string[] = [];
-    const deviceUsersSnap = await db.collection(COLLECTIONS.DEVICE_USERS).doc(id).get();
-    if (deviceUsersSnap.exists && Array.isArray(deviceUsersSnap.data()?.usernames)) {
-      usernames.push(...deviceUsersSnap.data()!.usernames);
-    }
+
+    const { deviceIds, usernames } = await collectLinkedHardwareNetwork(id);
+    const groupId = randomUUID();
     const now = Date.now();
-    await db.collection(COLLECTIONS.HARDWARE_BANS).doc(id).set({
-      deviceId: id,
-      banned_at: now,
-      banned_by: auth.username,
-      reason: reason || '',
-      linked_usernames: usernames,
-      created_at: now,
-    });
+    const linked = [...usernames];
+    const reasonText = reason || '';
+
+    let batch = db.batch();
+    let n = 0;
+    const flush = async () => {
+      if (n === 0) return;
+      await batch.commit();
+      batch = db.batch();
+      n = 0;
+    };
+    for (const devId of deviceIds) {
+      batch.set(
+        db.collection(COLLECTIONS.HARDWARE_BANS).doc(devId),
+        {
+          deviceId: devId,
+          banned_at: now,
+          banned_by: auth.username,
+          reason: reasonText,
+          linked_usernames: linked,
+          group_id: groupId,
+          root_device_id: id,
+          created_at: now,
+        },
+        { merge: false }
+      );
+      n++;
+      if (n >= 400) await flush();
+    }
+    await flush();
+
     const bannedUsernames: string[] = [];
+    const deviceIdsForBan = deviceIds;
     for (const un of usernames) {
       const banRef = db.collection(COLLECTIONS.BANS).doc(un);
       const banSnap = await banRef.get();
@@ -992,17 +1075,19 @@ const postHardwareBansHandler = async (req: any, res: any) => {
       await banRef.set({
         username: un,
         username_lower: un,
-        reason: reason || `Hardware ban (device ${id.slice(0, 8)}…)`,
+        reason: reasonText || `Hardware ban — all linked browsers/devices (${deviceIds.length} device ids)`,
         banned_by: auth.username,
         banned_at: now,
         expires_at: null,
         permanent: true,
         hardware_ban_device_id: id,
+        hardware_ban_group_id: groupId,
+        hardware_ban_device_ids: deviceIdsForBan,
         created_at: now,
       });
       bannedUsernames.push(un);
     }
-    res.json({ success: true, bannedUsernames });
+    res.json({ success: true, bannedUsernames, bannedDeviceIds: deviceIds, groupId });
   } catch (e) {
     res.status(500).json({ error: 'Failed to add hardware ban' });
   }
@@ -1018,14 +1103,43 @@ const deleteHardwareBansHandler = async (req: any, res: any) => {
     }
     const id = sanitizeDeviceId(deviceId);
     if (!id) return res.status(400).json({ error: 'deviceId required' });
-    await db.collection(COLLECTIONS.HARDWARE_BANS).doc(id).delete();
-    const bansSnap = await db.collection(COLLECTIONS.BANS).where('hardware_ban_device_id', '==', id).get();
+
+    const hwDoc = await db.collection(COLLECTIONS.HARDWARE_BANS).doc(id).get();
+    const groupId = typeof hwDoc.data()?.group_id === 'string' ? hwDoc.data()!.group_id : null;
+
     const unbannedUsernames: string[] = [];
-    for (const d of bansSnap.docs) {
-      const un = d.data()?.username_lower || d.id;
-      unbannedUsernames.push(un);
-      await d.ref.delete();
+
+    if (groupId) {
+      const hwSnap = await db.collection(COLLECTIONS.HARDWARE_BANS).where('group_id', '==', groupId).get();
+      let batch = db.batch();
+      let n = 0;
+      for (const d of hwSnap.docs) {
+        batch.delete(d.ref);
+        n++;
+        if (n >= 400) {
+          await batch.commit();
+          batch = db.batch();
+          n = 0;
+        }
+      }
+      if (n > 0) await batch.commit();
+
+      const bansSnap = await db.collection(COLLECTIONS.BANS).where('hardware_ban_group_id', '==', groupId).get();
+      for (const d of bansSnap.docs) {
+        const un = d.data()?.username_lower || d.id;
+        unbannedUsernames.push(un);
+        await d.ref.delete();
+      }
+    } else {
+      await db.collection(COLLECTIONS.HARDWARE_BANS).doc(id).delete();
+      const bansSnap = await db.collection(COLLECTIONS.BANS).where('hardware_ban_device_id', '==', id).get();
+      for (const d of bansSnap.docs) {
+        const un = d.data()?.username_lower || d.id;
+        unbannedUsernames.push(un);
+        await d.ref.delete();
+      }
     }
+
     res.json({ success: true, unbannedUsernames });
   } catch (e) {
     res.status(500).json({ error: 'Failed to remove hardware ban' });

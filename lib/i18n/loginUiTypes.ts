@@ -1,0 +1,43 @@
+/** Strings for the login screen, signup flow, and legal modals. */
+export interface LoginUiStrings {
+  usernameEmailPhone: string;
+  password: string;
+  atLeast6: string;
+  signIn: string;
+  create: string;
+  signupTitle: string;
+  birthday: string;
+  month: string;
+  day: string;
+  year: string;
+  username: string;
+  notYourName: string;
+  atLeast8: string;
+  signUp: string;
+  termsPrefix: string;
+  termsOfUse: string;
+  termsMiddle: string;
+  privacyPolicy: string;
+  enterUserPass: string;
+  userPassRequired: string;
+  passLength: string;
+  monthNames: string[];
+  backAria: string;
+  languageAria: string;
+  genderOptional: string;
+  identityOptional: string;
+  genderIdentityAria: string;
+  deviceBannedDisplay: string;
+  termsTitle: string;
+  termsClose: string;
+  termsP1: string;
+  termsP2: string;
+  termsP3: string;
+  termsP4: string;
+  privacyTitle: string;
+  privacyClose: string;
+  privacyP1: string;
+  privacyP2: string;
+  privacyP3: string;
+  privacyP4: string;
+}

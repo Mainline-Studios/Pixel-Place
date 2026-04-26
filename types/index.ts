@@ -297,6 +297,10 @@ export interface Ban {
   expiresAt?: number;
   /** If set, this account ban was caused by a hardware ban; unbanning the device will remove it */
   hardwareBanDeviceId?: string;
+  /** Same wave as other hardware_bans docs when an admin bans all linked devices */
+  hardwareBanGroupId?: string;
+  /** All device ids included in that hardware-ban wave (for admin / audit) */
+  hardwareBanDeviceIds?: string[];
 }
 
 /** Device seen on a user account (OS / environment label for display) */
@@ -315,6 +319,9 @@ export interface HardwareBan {
   reason?: string;
   /** Usernames that were banned because of this device (for display) */
   linkedUsernames?: string[];
+  /** Ties multiple device docs to one admin action (remove any device in the group to clear all) */
+  groupId?: string;
+  rootDeviceId?: string;
 }
 
 export interface BanAppeal {

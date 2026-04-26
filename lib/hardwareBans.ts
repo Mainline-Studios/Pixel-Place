@@ -2,15 +2,15 @@
  * Server-side hardware (device) ban helpers.
  * - Check if a device is banned
  * - Record a device for a user (for "Account A has MacOS, Windows")
- * - Add/remove hardware bans and sync account bans
+ * - Add/remove hardware bans: ban every linked device + linked accounts (same network closure)
  */
 
+import { randomUUID } from 'crypto';
 import {
   getDocument,
   setDocument,
   deleteDocument,
   getDocuments,
-  queryDocuments,
   COLLECTIONS,
 } from './firestore';
 import type { Ban } from '@/types';
@@ -20,6 +20,37 @@ const LABEL_MAX = 64;
 
 function sanitizeDeviceId(id: string): string {
   return String(id).slice(0, DEVICE_ID_MAX).replace(/[^a-zA-Z0-9_-]/g, '');
+}
+
+/** Expand device_users ↔ user_devices until no new ids (all browsers/devices tied to those accounts). */
+async function collectLinkedHardwareNetwork(rootDeviceId: string): Promise<{ deviceIds: string[]; usernames: string[] }> {
+  const root = sanitizeDeviceId(rootDeviceId);
+  const deviceIds = new Set<string>();
+  const usernames = new Set<string>();
+  if (!root) return { deviceIds: [], usernames: [] };
+  deviceIds.add(root);
+  for (let round = 0; round < 32; round++) {
+    const dBefore = deviceIds.size;
+    const uBefore = usernames.size;
+    for (const d of [...deviceIds]) {
+      const doc = await getDocument(COLLECTIONS.DEVICE_USERS, d);
+      const list: string[] = Array.isArray(doc?.usernames) ? doc.usernames : [];
+      for (const u of list) {
+        const ul = String(u).toLowerCase().trim();
+        if (ul) usernames.add(ul);
+      }
+    }
+    for (const u of [...usernames]) {
+      const doc = await getDocument(COLLECTIONS.USER_DEVICES, u);
+      const devs: Array<{ deviceId?: string }> = Array.isArray(doc?.devices) ? doc.devices : [];
+      for (const row of devs) {
+        const did = sanitizeDeviceId(String(row?.deviceId || ''));
+        if (did) deviceIds.add(did);
+      }
+    }
+    if (deviceIds.size === dBefore && usernames.size === uBefore) break;
+  }
+  return { deviceIds: [...deviceIds], usernames: [...usernames] };
 }
 
 export async function isDeviceBanned(deviceId: string): Promise<boolean> {
@@ -42,7 +73,6 @@ export async function recordDevice(
   const now = Date.now();
   const usernameLower = username.toLowerCase();
 
-  // user_devices: doc id = username_lower, { devices: [{ deviceId, label, firstSeen, lastSeen }] }
   const userDevicesDoc = await getDocument(COLLECTIONS.USER_DEVICES, usernameLower);
   const devices: Array<{ deviceId: string; label: string; firstSeen: number; lastSeen: number }> =
     Array.isArray(userDevicesDoc?.devices) ? userDevicesDoc.devices : [];
@@ -55,7 +85,6 @@ export async function recordDevice(
   }
   await setDocument(COLLECTIONS.USER_DEVICES, usernameLower, { devices, updated_at: now });
 
-  // device_users: doc id = deviceId, { usernames: string[] }
   const deviceUsersDoc = await getDocument(COLLECTIONS.DEVICE_USERS, id);
   const usernames: string[] = Array.isArray(deviceUsersDoc?.usernames) ? deviceUsersDoc.usernames : [];
   if (!usernames.includes(usernameLower)) {
@@ -80,62 +109,84 @@ export async function getUsernamesForDevice(deviceId: string): Promise<string[]>
   return Array.isArray(doc?.usernames) ? doc.usernames : [];
 }
 
-/** Add a hardware ban: ban this device and ban all accounts that have used it. Reversible. */
+/** Add hardware bans for every device linked to this device’s accounts, and ban those accounts. */
 export async function addHardwareBan(
   deviceId: string,
   bannedBy: string,
   reason?: string
-): Promise<{ bannedUsernames: string[] }> {
+): Promise<{ bannedUsernames: string[]; bannedDeviceIds: string[]; groupId: string }> {
   const id = sanitizeDeviceId(deviceId);
-  if (!id) return { bannedUsernames: [] };
+  if (!id) return { bannedUsernames: [], bannedDeviceIds: [], groupId: '' };
 
-  const usernames = await getUsernamesForDevice(id);
+  const { deviceIds, usernames } = await collectLinkedHardwareNetwork(id);
+  const groupId = randomUUID();
   const now = Date.now();
+  const reasonText = reason || '';
+  const linked = [...usernames];
 
-  await setDocument(COLLECTIONS.HARDWARE_BANS, id, {
-    deviceId: id,
-    banned_at: now,
-    banned_by: bannedBy,
-    reason: reason || '',
-    linked_usernames: usernames,
-    created_at: now,
-  });
+  for (const devId of deviceIds) {
+    await setDocument(COLLECTIONS.HARDWARE_BANS, devId, {
+      deviceId: devId,
+      banned_at: now,
+      banned_by: bannedBy,
+      reason: reasonText,
+      linked_usernames: linked,
+      group_id: groupId,
+      root_device_id: id,
+      created_at: now,
+    });
+  }
 
   const bannedUsernames: string[] = [];
   for (const un of usernames) {
-    const existingBans = await queryDocuments(COLLECTIONS.BANS, 'username_lower', '==', un);
-    if (existingBans.length > 0) continue; // already banned
+    const existing = await getDocument(COLLECTIONS.BANS, un);
+    if (existing) continue;
     await setDocument(COLLECTIONS.BANS, un, {
       username: un,
       username_lower: un,
-      reason: reason || `Hardware ban (device ${id.slice(0, 8)}…)`,
+      reason: reasonText || `Hardware ban — all linked browsers/devices (${deviceIds.length} device ids)`,
       banned_by: bannedBy,
       banned_at: now,
       expires_at: null,
       permanent: true,
       hardware_ban_device_id: id,
+      hardware_ban_group_id: groupId,
+      hardware_ban_device_ids: deviceIds,
       created_at: now,
     });
     bannedUsernames.push(un);
   }
 
-  return { bannedUsernames };
+  return { bannedUsernames, bannedDeviceIds: deviceIds, groupId };
 }
 
-/** Remove a hardware ban: unban the device and remove account bans that were only due to this device. */
+/** Remove hardware ban wave (or legacy single device) and related account bans. */
 export async function removeHardwareBan(deviceId: string): Promise<{ unbannedUsernames: string[] }> {
   const id = sanitizeDeviceId(deviceId);
   if (!id) return { unbannedUsernames: [] };
 
-  await deleteDocument(COLLECTIONS.HARDWARE_BANS, id);
+  const hwDoc = await getDocument(COLLECTIONS.HARDWARE_BANS, id);
+  const groupId = typeof hwDoc?.group_id === 'string' ? hwDoc.group_id : null;
 
   const unbannedUsernames: string[] = [];
-  const bans = await getDocuments(COLLECTIONS.BANS, (ref) =>
-    ref.where('hardware_ban_device_id', '==', id)
-  );
-  for (const ban of bans) {
-    await deleteDocument(COLLECTIONS.BANS, ban.id);
-    if (ban.username_lower) unbannedUsernames.push(ban.username_lower);
+
+  if (groupId) {
+    const hwDocs = await getDocuments(COLLECTIONS.HARDWARE_BANS, (ref) => ref.where('group_id', '==', groupId));
+    for (const d of hwDocs) {
+      await deleteDocument(COLLECTIONS.HARDWARE_BANS, d.id);
+    }
+    const banDocs = await getDocuments(COLLECTIONS.BANS, (ref) => ref.where('hardware_ban_group_id', '==', groupId));
+    for (const ban of banDocs) {
+      await deleteDocument(COLLECTIONS.BANS, ban.id);
+      if (ban.username_lower) unbannedUsernames.push(ban.username_lower);
+    }
+  } else {
+    await deleteDocument(COLLECTIONS.HARDWARE_BANS, id);
+    const bans = await getDocuments(COLLECTIONS.BANS, (ref) => ref.where('hardware_ban_device_id', '==', id));
+    for (const ban of bans) {
+      await deleteDocument(COLLECTIONS.BANS, ban.id);
+      if (ban.username_lower) unbannedUsernames.push(ban.username_lower);
+    }
   }
 
   return { unbannedUsernames };
@@ -143,7 +194,15 @@ export async function removeHardwareBan(deviceId: string): Promise<{ unbannedUse
 
 /** List all hardware bans */
 export async function listHardwareBans(): Promise<
-  Array<{ deviceId: string; bannedAt: number; bannedBy: string; reason?: string; linkedUsernames?: string[] }>
+  Array<{
+    deviceId: string;
+    bannedAt: number;
+    bannedBy: string;
+    reason?: string;
+    linkedUsernames?: string[];
+    groupId?: string;
+    rootDeviceId?: string;
+  }>
 > {
   const docs = await getDocuments(COLLECTIONS.HARDWARE_BANS);
   return docs.map((d) => ({
@@ -152,5 +211,7 @@ export async function listHardwareBans(): Promise<
     bannedBy: d.banned_by || '',
     reason: d.reason,
     linkedUsernames: Array.isArray(d.linked_usernames) ? d.linked_usernames : [],
+    groupId: d.group_id,
+    rootDeviceId: d.root_device_id,
   }));
 }

@@ -1,17 +1,58 @@
 /**
- * Client-side device fingerprint for hardware ban tracking.
- * Produces a stable hash (deviceId) and a human-readable label (e.g. "Windows 10", "Mac OS").
- * Safe to call in browser only.
+ * Client-side device id for hardware ban tracking.
+ * Uses a persisted random id so the same browser profile keeps one id across sessions
+ * (not a new id every tab from UA/screen noise).
  */
 
-function simpleHash(str: string): string {
-  let h = 0;
-  for (let i = 0; i < str.length; i++) {
-    const c = str.charCodeAt(i);
-    h = ((h << 5) - h) + c;
-    h = h & h;
+const STORAGE_KEY = 'pixelplace_device_id_v1';
+
+function sanitizeStoredId(raw: string): string {
+  const s = String(raw).slice(0, 128).replace(/[^a-zA-Z0-9_-]/g, '');
+  return s.length >= 8 ? s : '';
+}
+
+function readStoredId(): string | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const a = sanitizeStoredId(localStorage.getItem(STORAGE_KEY) || '');
+    if (a) return a;
+  } catch {
+    /* private mode */
   }
-  return Math.abs(h).toString(36) + str.length.toString(36);
+  try {
+    const b = sanitizeStoredId(sessionStorage.getItem(STORAGE_KEY) || '');
+    if (b) return b;
+  } catch {
+    /* ignore */
+  }
+  return null;
+}
+
+function writeStoredId(id: string): void {
+  try {
+    localStorage.setItem(STORAGE_KEY, id);
+    return;
+  } catch {
+    /* fall through */
+  }
+  try {
+    sessionStorage.setItem(STORAGE_KEY, id);
+  } catch {
+    /* ignore */
+  }
+}
+
+function newDeviceId(): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return sanitizeStoredId(crypto.randomUUID().replace(/-/g, '')) || fallbackId();
+  }
+  return fallbackId();
+}
+
+function fallbackId(): string {
+  const t = typeof performance !== 'undefined' && performance.now ? performance.now() : Date.now();
+  const r = Math.random().toString(36).slice(2, 12);
+  return sanitizeStoredId(`pp_${Math.floor(t)}_${r}`) || 'pp_unknown';
 }
 
 function getLabel(): string {
@@ -28,22 +69,16 @@ function getLabel(): string {
 }
 
 /**
- * Returns a stable device fingerprint and label. Call in browser only.
+ * Returns a stable device id (per browser storage profile) and a human-readable label.
  */
 export function getDeviceFingerprint(): { deviceId: string; label: string } {
-  if (typeof navigator === 'undefined' || typeof screen === 'undefined') {
+  if (typeof window === 'undefined') {
     return { deviceId: 'unknown', label: 'Unknown' };
   }
-  const parts = [
-    navigator.platform || '',
-    navigator.userAgent || '',
-    String(screen.width || 0),
-    String(screen.height || 0),
-    String(screen.colorDepth || 0),
-    navigator.language || '',
-    navigator.hardwareConcurrency ? String(navigator.hardwareConcurrency) : '',
-  ];
-  const deviceId = simpleHash(parts.join('|'));
-  const label = getLabel();
-  return { deviceId, label };
+  let id = readStoredId();
+  if (!id) {
+    id = newDeviceId();
+    if (id) writeStoredId(id);
+  }
+  return { deviceId: id || 'unknown', label: getLabel() };
 }

@@ -9,6 +9,15 @@ import BrandKitDownloadLink from './BrandKitDownloadLink';
 import SiteLicenseAttribution from './SiteLicenseAttribution';
 import StatusPageLink from './StatusPageLink';
 import {
+  LOCALE_CHOICES,
+  applyDocumentLocale,
+  getEffectiveLocale,
+  isSupportedLocale,
+  setStoredLocale,
+  type SupportedLocale,
+} from '@/lib/locale';
+import { getLoginUiStrings } from '@/lib/i18n/loginUi.index';
+import {
   DEFAULT_EXTENDED_GENDER,
   GENDER_FEMALE,
   GENDER_IDENTITY_OPTIONS,
@@ -18,6 +27,7 @@ import {
 } from '@/lib/genderIdentityOptions';
 
 export default function Login() {
+  const [locale, setLocale] = useState<SupportedLocale>('en-US');
   const genderSvgId = useId().replace(/[^a-zA-Z0-9_-]/g, '_');
   const [mode, setMode] = useState<'signin' | 'signup'>('signin');
   const [username, setUsername] = useState('');
@@ -32,15 +42,22 @@ export default function Login() {
   useEffect(() => {
     setMessage('');
   }, []);
+  useEffect(() => {
+    const next = getEffectiveLocale();
+    setLocale(next);
+    applyDocumentLocale(next);
+  }, []);
   const [banInfo, setBanInfo] = useState<{ ban: any; deviceBanned?: boolean } | null>(null);
   const [showTerms, setShowTerms] = useState(false);
   const [showPrivacy, setShowPrivacy] = useState(false);
   const { login, createAccount } = useUser();
   const { playSuccess, playError } = useSound();
+  const text = getLoginUiStrings(locale);
+  const monthNames = text.monthNames;
 
   const handleSignIn = async () => {
     if (!username || !password) {
-      setMessage('Enter both username and password.');
+      setMessage(text.enterUserPass);
       return;
     }
     const result = await login(username, password);
@@ -74,11 +91,11 @@ export default function Login() {
 
   const handleSignUp = async () => {
     if (!username || !password) {
-      setMessage('Username and password are required.');
+      setMessage(text.userPassRequired);
       return;
     }
     if (password.length < 6) {
-      setMessage('Password must be at least 6 characters.');
+      setMessage(text.passLength);
       return;
     }
     const result = await createAccount(username, password, gender);
@@ -107,7 +124,7 @@ export default function Login() {
   };
 
   if (banInfo) {
-    const displayName = banInfo.deviceBanned ? 'This device' : username;
+    const displayName = banInfo.deviceBanned ? text.deviceBannedDisplay : username;
     const ban = banInfo.ban && typeof banInfo.ban === 'object'
       ? {
           ...banInfo.ban,
@@ -136,7 +153,7 @@ export default function Login() {
                 setBirthDay('');
                 setBirthYear('');
               }}
-              aria-label="Back"
+              aria-label={text.backAria}
             >
               ←
             </button>
@@ -146,12 +163,32 @@ export default function Login() {
             <span>PIXEL</span>
             <span>PLACE</span>
           </h1>
+          <div style={{ marginBottom: 10 }}>
+            <select
+              aria-label={text.languageAria}
+              value={locale}
+              onChange={(e) => {
+                const v = e.target.value;
+                if (!isSupportedLocale(v)) return;
+                setLocale(v);
+                setStoredLocale(v);
+                applyDocumentLocale(v);
+              }}
+              style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: '1px solid var(--border)' }}
+            >
+              {LOCALE_CHOICES.map((c) => (
+                <option key={c.value} value={c.value}>
+                  {c.label}
+                </option>
+              ))}
+            </select>
+          </div>
 
           {mode === 'signin' ? (
             <>
               <input
                 id="user"
-                placeholder="Username/Email/Phone"
+                placeholder={text.usernameEmailPhone}
                 value={username}
                 onChange={handleUsernameChange}
                 onKeyPress={(e) => e.key === 'Enter' && handleSignIn()}
@@ -159,12 +196,12 @@ export default function Login() {
               <input
                 id="pass"
                 type="password"
-                placeholder="Password"
+                placeholder={text.password}
                 value={password}
                 onChange={handlePasswordChange}
                 onKeyPress={(e) => e.key === 'Enter' && handleSignIn()}
               />
-              <div className="input-hint">At least 6 characters</div>
+              <div className="input-hint">{text.atLeast6}</div>
               <button 
                 className="btn auth-btn signin-btn" 
                 onClick={(e) => {
@@ -174,7 +211,7 @@ export default function Login() {
                 }}
                 type="button"
               >
-                Sign In
+                {text.signIn}
               </button>
               <button 
                 className="btn auth-btn" 
@@ -198,25 +235,25 @@ export default function Login() {
                   width: '100%'
                 }}
               >
-                Create
+                {text.create}
               </button>
               <StatusPageLink variant="login" />
             </>
           ) : (
             <>
-              <h2 className="signup-title">PIXEL PLACE IS A FUN PLACE TO BE!</h2>
+              <h2 className="signup-title">{text.signupTitle}</h2>
 
               <div className="birthday-section">
-                <label>Birthday</label>
+                <label>{text.birthday}</label>
                 <div className="birthday-inputs">
                   <select
                     value={birthMonth}
                     onChange={(e) => setBirthMonth(e.target.value)}
                     className="birthday-select"
                   >
-                    <option value="">Month</option>
+                    <option value="">{text.month}</option>
                     {Array.from({ length: 12 }, (_, i) => (
-                      <option key={i + 1} value={i + 1}>{['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'][i]}</option>
+                      <option key={i + 1} value={i + 1}>{monthNames[i]}</option>
                     ))}
                   </select>
                   <select
@@ -224,7 +261,7 @@ export default function Login() {
                     onChange={(e) => setBirthDay(e.target.value)}
                     className="birthday-select"
                   >
-                    <option value="">Day</option>
+                    <option value="">{text.day}</option>
                     {Array.from({ length: 31 }, (_, i) => (
                       <option key={i + 1} value={i + 1}>{i + 1}</option>
                     ))}
@@ -234,7 +271,7 @@ export default function Login() {
                     onChange={(e) => setBirthYear(e.target.value)}
                     className="birthday-select"
                   >
-                    <option value="">Year</option>
+                    <option value="">{text.year}</option>
                     {Array.from({ length: 100 }, (_, i) => {
                       const year = new Date().getFullYear() - i;
                       return <option key={year} value={year}>{year}</option>;
@@ -245,23 +282,23 @@ export default function Login() {
 
               <input
                 id="user"
-                placeholder="Username"
+                placeholder={text.username}
                 value={username}
                 onChange={handleUsernameChange}
               />
-              <div className="input-hint">not you name!</div>
+              <div className="input-hint">{text.notYourName}</div>
 
               <input
                 id="pass"
                 type="password"
-                placeholder="Password"
+                placeholder={text.password}
                 value={password}
                 onChange={handlePasswordChange}
               />
-              <div className="input-hint">At least 8 characters</div>
+              <div className="input-hint">{text.atLeast8}</div>
 
               <div className="gender-section">
-                <label>Gender (Optional)</label>
+                <label>{text.genderOptional}</label>
                 <div className="gender-buttons">
                   <button
                     type="button"
@@ -380,14 +417,14 @@ export default function Login() {
                 {isExtendedGenderBranch(gender) && (
                   <div className="gender-identity-select-wrap">
                     <label htmlFor="gender-identity-select" className="gender-identity-select-label">
-                      Identity (optional)
+                      {text.identityOptional}
                     </label>
                     <select
                       id="gender-identity-select"
                       className="birthday-select gender-identity-select"
                       value={coerceExtendedGenderForSelect(gender)}
                       onChange={(e) => setGender(e.target.value)}
-                      aria-label="Gender identity"
+                      aria-label={text.genderIdentityAria}
                     >
                       {GENDER_IDENTITY_OPTIONS.map((o) => (
                         <option key={o.value} value={o.value}>
@@ -400,13 +437,13 @@ export default function Login() {
               </div>
 
               <div className="terms-text">
-                By clicking Sign Up, you are agreeing to the{' '}
+                {text.termsPrefix}
                 <a href="#" className="terms-link" onClick={(e) => { e.preventDefault(); setShowTerms(true); }}>
-                  Terms of Use
+                  {text.termsOfUse}
                 </a>
-                {' '}including the arbitration clause and you are acknowledging the{' '}
+                {text.termsMiddle}
                 <a href="#" className="terms-link" onClick={(e) => { e.preventDefault(); setShowPrivacy(true); }}>
-                  Privacy Policy
+                  {text.privacyPolicy}
                 </a>
                 .
               </div>
@@ -420,7 +457,7 @@ export default function Login() {
                 }}
                 type="button"
               >
-                Sign Up
+                {text.signUp}
               </button>
               <StatusPageLink variant="login" />
             </>
@@ -448,20 +485,17 @@ export default function Login() {
         <div className="modal-overlay" onClick={() => setShowTerms(false)}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
-              <h2>Terms of Use</h2>
+              <h2>{text.termsTitle}</h2>
               <button className="modal-close" onClick={() => setShowTerms(false)}>×</button>
             </div>
             <div className="modal-body">
-              <p>We want everyone to have fun while staying safe. You can be any age to play, but it&apos;s important that you follow the rules and listen to your parents or guardians when using the game. Playing fairly and safely helps make the game enjoyable for everyone.</p>
-
-              <p>When you create an account or play the game, you promise to be honest and not try to cheat, hack, or do anything that might ruin the experience for other players. You should never share your password with anyone, and if you notice something wrong or unsafe, you should tell a parent or guardian right away. It&apos;s important to be kind to other players, don&apos;t use mean or hurtful words, and respect everyone in the game.</p>
-
-              <p>Any items, points, or rewards you earn in the game are only for use inside the game and don&apos;t have real-world money value. We may change, remove, or give new items at any time to keep the game fair and fun. Sometimes the game might not work perfectly, but we do our best to make it safe, fun, and reliable.</p>
-
-              <p>By playing, you agree that we can make changes to the game or rules to improve the experience, and that you will follow the updated rules when we do. Your parents or guardians may need to help you understand or follow these rules, and we encourage them to supervise your play. The most important rule is to have fun while being safe, respectful, and fair to everyone in the game.</p>
+              <p>{text.termsP1}</p>
+              <p>{text.termsP2}</p>
+              <p>{text.termsP3}</p>
+              <p>{text.termsP4}</p>
             </div>
             <div className="modal-footer">
-              <button className="btn auth-btn" onClick={() => setShowTerms(false)}>Close</button>
+              <button className="btn auth-btn" onClick={() => setShowTerms(false)}>{text.termsClose}</button>
             </div>
           </div>
         </div>
@@ -472,20 +506,17 @@ export default function Login() {
         <div className="modal-overlay" onClick={() => setShowPrivacy(false)}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
-              <h2>Privacy Policy</h2>
+              <h2>{text.privacyTitle}</h2>
               <button className="modal-close" onClick={() => setShowPrivacy(false)}>×</button>
             </div>
             <div className="modal-body">
-              <p>We care about your privacy and want to keep your information safe while you play our game. We may collect some information, like your username, game progress, or device information, to help the game work properly and make it more fun. We do not collect personal information like your full name, address, or payment details unless your parents or guardians provide it with permission.</p>
-
-              <p>Any information we collect is used only to make the game better and to keep players safe. We may use it to save your progress, let you connect with friends, or send important updates about the game. We never sell or share your personal information with other companies for advertising or marketing purposes.</p>
-
-              <p>We may share information with our service providers who help run the game, but only as needed to provide the game and keep it secure. Your parents or guardians can access, review, or request deletion of your information at any time by contacting us. We also take reasonable steps to protect your data from loss, theft, or misuse.</p>
-
-              <p>By playing the game, you agree that we can collect and use information as described here. We may update this Privacy Policy from time to time, and when we do, we will make sure parents and players know about the changes. The goal is always to make the game safe, fun, and respectful for everyone.</p>
+              <p>{text.privacyP1}</p>
+              <p>{text.privacyP2}</p>
+              <p>{text.privacyP3}</p>
+              <p>{text.privacyP4}</p>
             </div>
             <div className="modal-footer">
-              <button className="btn auth-btn" onClick={() => setShowPrivacy(false)}>Close</button>
+              <button className="btn auth-btn" onClick={() => setShowPrivacy(false)}>{text.privacyClose}</button>
             </div>
           </div>
         </div>
