@@ -1,0 +1,62 @@
+{
+  "version": 1,
+  "name": "Pixel Place Day-One Starter Pack",
+  "artDirection": "Semi-stylized outdoor — bright, cohesive, non-photoreal (matches textures/manifest.json pixelplace-v1).",
+  "environmentTextures": {
+    "count": 10,
+    "resolution": 512,
+    "mapsPerMaterial": ["albedo", "normal", "roughness", "ao"],
+    "ids": [
+      "dirt",
+      "sand",
+      "rock",
+      "water_calm",
+      "grass_meadow",
+      "grass_lush",
+      "grass_dry",
+      "grass_patchy",
+      "cobble",
+      "moss_flagstone"
+    ],
+    "generateCommand": "cd frontend && npm run environment-pack:generate",
+    "manifest": "/assets/textures/environment/environment_pack_v1.json"
+  },
+  "characterSkins": {
+    "count": 5,
+    "theme": "starter-day-one-v1",
+    "ids": [
+      "starter_coral_pop",
+      "starter_mint_arcade",
+      "starter_butter_sky",
+      "starter_lilac_quest",
+      "starter_teal_trail"
+    ],
+    "source": "lib/newCatalog.ts → STARTER_DAY_ONE_SKINS"
+  },
+  "props": {
+    "count": 15,
+    "list": [
+      { "category": "tree" },
+      { "category": "furniture", "variant": "chair" },
+      { "category": "furniture", "variant": "table" },
+      { "category": "interactive", "variant": "chest" },
+      { "category": "interactive", "variant": "crystal_pedestal" },
+      { "category": "starter", "preset": "barrel" },
+      { "category": "starter", "preset": "crate" },
+      { "category": "starter", "preset": "bush" },
+      { "category": "starter", "preset": "rock_pile" },
+      { "category": "starter", "preset": "street_lamp" },
+      { "category": "starter", "preset": "bench" },
+      { "category": "starter", "preset": "fountain" },
+      { "category": "starter", "preset": "hay_bale" },
+      { "category": "starter", "preset": "sign_post" },
+      { "category": "starter", "preset": "flower_patch" }
+    ],
+    "api": "createGameProp(THREE, spec) — see lib/props/factory.ts"
+  },
+  "buildings": {
+    "count": 3,
+    "styles": ["cottage", "shop", "tower"],
+    "api": "createGameProp(THREE, { category: 'building', style: 'cottage' | 'shop' | 'tower' })"
+  }
+}

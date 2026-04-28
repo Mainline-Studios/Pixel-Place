@@ -1,0 +1,16 @@
+{
+  "title": "Friends",
+  "tabFriends": "Friends",
+  "tabRequests": "Requests",
+  "tabSearch": "Search",
+  "online": "Online",
+  "offline": "Offline",
+  "messagePlaceholder": "Type a message…",
+  "send": "Send",
+  "noFriends": "No friends yet.",
+  "searchPlaceholder": "Search players…",
+  "addFriend": "Add friend",
+  "pending": "Pending",
+  "accept": "Accept",
+  "decline": "Decline"
+}

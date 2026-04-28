@@ -1,0 +1,369 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+/// Core user profile — aligns with frontend `User` shape; JSON arrays for gradual migration off Firestore.
+model User {
+  id            String   @id @default(cuid())
+  username      String   @unique
+  usernameLower String   @unique @map("username_lower")
+  passwordHash  String?  @map("password_hash")
+  email         String?  @unique
+  gender        String   @default("")
+  googleId      String?  @unique @map("google_id")
+  appleId       String?  @unique @map("apple_id")
+
+  role         String @default("user")
+  coins        Int @default(0)
+  safetyPoints Int @default(0) @map("safety_points")
+
+  ownedSkins           Json @default("[]") @map("owned_skins")
+  equippedSkin         String @default("") @map("equipped_skin")
+  ownedFaces           Json @default("[]") @map("owned_faces")
+  equippedFace         String? @map("equipped_face")
+  ownedAccessories     Json @default("[]") @map("owned_accessories")
+  equippedAccessories   Json @default("[]") @map("equipped_accessories")
+
+  friends            Json @default("[]")
+  friendRequests      Json @default("[]") @map("friend_requests")
+  sentFriendRequests  Json @default("[]") @map("sent_friend_requests")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  profile          UserProfile?
+  progress         UserProgress?
+  pixelStats       PixelStats?
+  achievements     UserAchievement[]
+  engagement       UserEngagement?
+  inventoryItems   UserInventoryItem[]
+
+  factionsCreated      Faction[]             @relation("FactionCreatedBy")
+  factionInvitesCreated FactionInvite[]
+  factionMember        FactionMember?
+  factionMessages      FactionChatMessage[]
+  territoryPlacements  TerritoryCell[]
+  userSeasonScores     UserSeasonScore[]
+
+  plan                   String    @default("free")
+  stripeCustomerId       String?   @unique @map("stripe_customer_id")
+  stripeSubscriptionId   String?   @unique @map("stripe_subscription_id")
+  subscriptionStatus     String?   @map("subscription_status")
+  subscriptionPeriodEnd  DateTime? @map("subscription_period_end")
+  billingEntitlements    Json      @default("{}") @map("billing_entitlements")
+
+  abuseLockedUntil          DateTime? @map("abuse_locked_until")
+  abuseCooldownMultiplier   Float     @default(1) @map("abuse_cooldown_multiplier")
+  abuseSuspicionScore       Float     @default(0) @map("abuse_suspicion_score")
+  abuseSuspicionUpdatedAt   DateTime? @map("abuse_suspicion_updated_at")
+  abuseCaptchaRequiredUntil DateTime? @map("abuse_captcha_required_until")
+  abuseLastTerritoryClaimAt DateTime? @map("abuse_last_territory_claim_at")
+
+  deviceFingerprints DeviceFingerprintLink[]
+  abuseFlags         AbuseReviewFlag[]
+  consent            UserConsent?
+
+  /** Curated / younger-audience experience: stricter surfacing of games & creation. */
+  safeModeEnabled         Boolean   @default(false) @map("safe_mode_enabled")
+  /** Educational / brand-safe bias for discoverability (client filters). */
+  educationalModeEnabled  Boolean   @default(false) @map("educational_mode_enabled")
+  /** SHA-256 hex of uppercase family pairing code; plain code shown once when generated. */
+  familyLinkCodeHash      String?   @map("family_link_code_hash") @db.VarChar(64)
+  familyLinkCodeExpiresAt DateTime? @map("family_link_code_expires_at")
+
+  verifiedCreator      Boolean   @default(false) @map("verified_creator")
+  verifiedCreatorAt    DateTime? @map("verified_creator_at")
+  verifiedCreatorLabel String?   @map("verified_creator_label") @db.VarChar(64)
+
+  familyAsParent FamilyLink[] @relation("FamilyParent")
+  familyAsChild  FamilyLink?  @relation("FamilyChild")
+
+  @@map("users")
+}
+
+model FamilyLink {
+  id           String   @id @default(cuid())
+  parentUserId String   @map("parent_user_id")
+  childUserId  String   @unique @map("child_user_id")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  parent User @relation("FamilyParent", fields: [parentUserId], references: [id], onDelete: Cascade)
+  child  User @relation("FamilyChild", fields: [childUserId], references: [id], onDelete: Cascade)
+
+  @@index([parentUserId])
+  @@map("family_links")
+}
+
+/// GDPR / ePrivacy consent records (versions align with LEGAL_TERMS_VERSION / LEGAL_PRIVACY_VERSION env).
+model UserConsent {
+  userId           String   @id @map("user_id")
+  termsVersion     String   @default("1") @map("terms_version")
+  privacyVersion   String   @default("1") @map("privacy_version")
+  analyticsCookies Boolean  @default(false) @map("analytics_cookies")
+  marketingCookies Boolean  @default(false) @map("marketing_cookies")
+  consentedAt      DateTime @default(now()) @map("consented_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_consents")
+}
+
+/// Ties a browser fingerprint hash to users (shared multi-account signals).
+model DeviceFingerprintLink {
+  id              String   @id @default(cuid())
+  fingerprintHash String   @map("fingerprint_hash") @db.VarChar(64)
+  userId          String   @map("user_id")
+  createdAt       DateTime @default(now()) @map("created_at")
+  lastSeenAt      DateTime @default(now()) @map("last_seen_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([fingerprintHash, userId])
+  @@index([fingerprintHash])
+  @@map("device_fingerprint_links")
+}
+
+/// Automated abuse flags for moderator queues / dashboards.
+model AbuseReviewFlag {
+  id            String    @id @default(cuid())
+  userId      String    @map("user_id")
+  reason      String    @db.VarChar(160)
+  scoreSnapshot Float   @map("score_snapshot")
+  metadata    Json      @default("{}")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  resolvedAt  DateTime? @map("resolved_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@map("abuse_review_flags")
+}
+
+model Season {
+  id       String    @id @default(cuid())
+  slug     String    @unique
+  name     String
+  startsAt DateTime  @map("starts_at")
+  endsAt   DateTime? @map("ends_at")
+  isActive Boolean   @default(false) @map("is_active")
+  /** Optional label for themed events (e.g. winter_hunt). */
+  eventTag String? @map("event_tag")
+
+  territoryCells TerritoryCell[]
+  userScores     UserSeasonScore[]
+  factionScores  FactionSeasonScore[]
+
+  @@map("seasons")
+}
+
+model Faction {
+  id          String @id @default(cuid())
+  name        String
+  tag         String @unique @db.VarChar(4)
+  color       String @default("#6366f1")
+  createdById String @map("created_by_id")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  createdBy User @relation("FactionCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+
+  members   FactionMember[]
+  invites   FactionInvite[]
+  territory TerritoryCell[]
+  scores    FactionSeasonScore[]
+  messages  FactionChatMessage[]
+
+  @@map("factions")
+}
+
+/// One faction membership per user (globally).
+model FactionMember {
+  userId    String @id @map("user_id")
+  factionId String @map("faction_id")
+  role      String @default("member")
+  joinedAt  DateTime @default(now()) @map("joined_at")
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  faction Faction @relation(fields: [factionId], references: [id], onDelete: Cascade)
+
+  @@unique([factionId, userId])
+  @@index([factionId])
+  @@map("faction_members")
+}
+
+model FactionInvite {
+  id          String @id @default(cuid())
+  code        String @unique @db.VarChar(16)
+  factionId   String @map("faction_id")
+  createdById String @map("created_by_id")
+  expiresAt   DateTime? @map("expires_at")
+  maxUses     Int @default(50) @map("max_uses")
+  useCount    Int @default(0) @map("use_count")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  faction   Faction @relation(fields: [factionId], references: [id], onDelete: Cascade)
+  createdBy User    @relation(fields: [createdById], references: [id], onDelete: Cascade)
+
+  @@index([factionId])
+  @@map("faction_invites")
+}
+
+model TerritoryCell {
+  seasonId         String @map("season_id")
+  canvasId         String @map("canvas_id")
+  x                Int
+  y                Int
+  factionId        String @map("faction_id")
+  placedByUserId   String? @map("placed_by_user_id")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  season   Season  @relation(fields: [seasonId], references: [id], onDelete: Cascade)
+  faction  Faction @relation(fields: [factionId], references: [id], onDelete: Cascade)
+  placedBy User?   @relation(fields: [placedByUserId], references: [id], onDelete: SetNull)
+
+  @@id([seasonId, canvasId, x, y])
+  @@index([seasonId, factionId])
+  @@index([seasonId, canvasId])
+  @@map("territory_cells")
+}
+
+model UserSeasonScore {
+  userId          String @map("user_id")
+  seasonId        String @map("season_id")
+  pixelsPlaced    Int @default(0) @map("pixels_placed")
+  tilesCaptured   Int @default(0) @map("tiles_captured")
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  season Season @relation(fields: [seasonId], references: [id], onDelete: Cascade)
+
+  @@id([userId, seasonId])
+  @@index([seasonId, pixelsPlaced(sort: Desc)])
+  @@map("user_season_scores")
+}
+
+model FactionSeasonScore {
+  factionId          String @map("faction_id")
+  seasonId           String @map("season_id")
+  tilesOwned         Int @default(0) @map("tiles_owned")
+  pixelsFromMembers  Int @default(0) @map("pixels_from_members")
+
+  faction Faction @relation(fields: [factionId], references: [id], onDelete: Cascade)
+  season  Season  @relation(fields: [seasonId], references: [id], onDelete: Cascade)
+
+  @@id([factionId, seasonId])
+  @@index([seasonId, tilesOwned(sort: Desc)])
+  @@map("faction_season_scores")
+}
+
+model FactionChatMessage {
+  id        String   @id @default(cuid())
+  factionId String   @map("faction_id")
+  userId    String   @map("user_id")
+  body      String   @db.VarChar(2000)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  faction Faction @relation(fields: [factionId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([factionId, createdAt])
+  @@map("faction_chat_messages")
+}
+
+model UserProfile {
+  userId      String  @id @map("user_id")
+  displayName String? @map("display_name")
+  bio         String?
+  avatarUrl   String? @map("avatar_url")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_profiles")
+}
+
+model UserProgress {
+  userId String @id @map("user_id")
+  xp     Int    @default(0)
+  level  Int    @default(1)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_progress")
+}
+
+model PixelStats {
+  userId       String    @id @map("user_id")
+  pixelsPlaced Int       @default(0) @map("pixels_placed")
+  lastPlacedAt DateTime? @map("last_placed_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("pixel_stats")
+}
+
+model Achievement {
+  id          String  @id
+  name        String
+  description String
+  iconKey     String  @default("star") @map("icon_key")
+  xpReward    Int     @default(0) @map("xp_reward")
+  requirement Json
+
+  users UserAchievement[]
+
+  @@map("achievements")
+}
+
+model UserAchievement {
+  userId        String @map("user_id")
+  achievementId String @map("achievement_id")
+  unlockedAt    DateTime @default(now()) @map("unlocked_at")
+
+  user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  achievement   Achievement   @relation(fields: [achievementId], references: [id], onDelete: Cascade)
+
+  @@id([userId, achievementId])
+  @@map("user_achievements")
+}
+
+model UserEngagement {
+  userId             String  @id @map("user_id")
+  currentStreak      Int     @default(0) @map("current_streak")
+  longestStreak      Int     @default(0) @map("longest_streak")
+  lastActiveDate     String? @map("last_active_date")
+  lastDailyClaimDate String? @map("last_daily_claim_date")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_engagement")
+}
+
+model CatalogItem {
+  id          String  @id
+  name        String
+  description String?
+  type        String
+  metadata    Json    @default("{}")
+
+  owners UserInventoryItem[]
+
+  @@map("catalog_items")
+}
+
+model UserInventoryItem {
+  userId     String   @map("user_id")
+  itemId     String   @map("item_id")
+  quantity   Int      @default(1)
+  equipped   Boolean  @default(false)
+  acquiredAt DateTime @default(now()) @map("acquired_at")
+
+  user User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  item CatalogItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  @@id([userId, itemId])
+  @@map("user_inventory_items")
+}

@@ -1,0 +1,9 @@
+{
+  "title": "Take a break",
+  "bodyPlaytime": "You've been playing for a while. Consider taking a break.",
+  "bodyActive": "Break in progress.",
+  "remaining": "Time left",
+  "takeBreak": "Start break",
+  "dismiss": "Dismiss",
+  "breaksLeft": "Breaks left today: {{count}}"
+}

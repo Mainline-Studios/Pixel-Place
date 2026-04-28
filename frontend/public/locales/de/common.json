@@ -1,0 +1,43 @@
+{
+  "loading": "Laden…",
+  "save": "Speichern",
+  "cancel": "Abbrechen",
+  "close": "Schließen",
+  "yes": "Ja",
+  "no": "Nein",
+  "ok": "OK",
+  "back": "Zurück",
+  "next": "Weiter",
+  "error": "Fehler",
+  "success": "Erfolg",
+  "free": "Kostenlos",
+  "equip": "Anlegen",
+  "equipped": "Angelegt",
+  "buy": "Kaufen",
+  "logout": "Abmelden",
+  "role": "Rolle",
+  "gender": "Geschlecht",
+  "coins": "Münzen",
+  "unknownTab": "Unbekannter Tab",
+  "currency": {
+    "coins": "Pixel-Münzen",
+    "safetyPoints": "Sicherheitspunkte"
+  },
+  "genderLabels": {
+    "male": "Männlich",
+    "female": "Weiblich",
+    "other": "Andere",
+    "na": "k. A."
+  },
+  "cookieConsent": {
+    "title": "Cookies & Datenschutz",
+    "body": "Wir nutzen notwendige Cookies für den Betrieb. Mit deiner Zustimmung optional weitere (z. B. Analyse). Du kannst die Auswahl jederzeit in den Einstellungen ändern.",
+    "privacyLink": "Datenschutzerklärung",
+    "termsLink": "Nutzungsbedingungen",
+    "necessary": "Unbedingt erforderlich (immer an)",
+    "analytics": "Analyse & Verbesserung",
+    "marketing": "Personalisierung (falls genutzt)",
+    "necessaryOnly": "Nur notwendige",
+    "saveChoice": "Auswahl speichern"
+  }
+}

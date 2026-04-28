@@ -1,0 +1,20 @@
+{
+  "games": "Spiele",
+  "studio": "Spielstudio",
+  "avatarShop": "Avatar-Shop",
+  "coins": "Pixel-Münzen",
+  "premium": "Premium",
+  "progression": "Fortschritt",
+  "factions": "Fraktionen",
+  "parent": "Eltern",
+  "friends": "Freunde",
+  "settings": "Einstellungen",
+  "studioShortcut": "C",
+  "gamesShortcut": "G",
+  "avatarShortcut": "V",
+  "coinsShortcut": "P",
+  "friendsShortcut": "F",
+  "settingsShortcut": "O",
+  "pressPrefix": "Drücke",
+  "pressSuffix": "um den Tab zu wechseln"
+}

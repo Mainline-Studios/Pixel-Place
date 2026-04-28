@@ -1,0 +1,43 @@
+{
+  "loading": "Chargement…",
+  "save": "Enregistrer",
+  "cancel": "Annuler",
+  "close": "Fermer",
+  "yes": "Oui",
+  "no": "Non",
+  "ok": "OK",
+  "back": "Retour",
+  "next": "Suivant",
+  "error": "Erreur",
+  "success": "Succès",
+  "free": "Gratuit",
+  "equip": "Équiper",
+  "equipped": "Équipé",
+  "buy": "Acheter",
+  "logout": "Se déconnecter",
+  "role": "Rôle",
+  "gender": "Genre",
+  "coins": "Pièces",
+  "unknownTab": "Onglet inconnu",
+  "currency": {
+    "coins": "Pièces Pixel",
+    "safetyPoints": "Points sécurité"
+  },
+  "genderLabels": {
+    "male": "Homme",
+    "female": "Femme",
+    "other": "Autre",
+    "na": "N/A"
+  },
+  "cookieConsent": {
+    "title": "Cookies et confidentialité",
+    "body": "Cookies nécessaires pour le service. Avec votre accord, cookies optionnels pour l’analyse. Modifiable dans les paramètres.",
+    "privacyLink": "Politique de confidentialité",
+    "termsLink": "Conditions d'utilisation",
+    "necessary": "Strictement nécessaires (toujours actives)",
+    "analytics": "Analytique et amélioration",
+    "marketing": "Contenu personnalisé (si utilisé)",
+    "necessaryOnly": "Nécessaires uniquement",
+    "saveChoice": "Enregistrer le choix"
+  }
+}

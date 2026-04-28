@@ -1,0 +1,20 @@
+{
+  "games": "游戏",
+  "studio": "游戏工作室",
+  "avatarShop": "头像商店",
+  "coins": "像素币",
+  "premium": "会员",
+  "progression": "进度",
+  "factions": "派系",
+  "parent": "家长",
+  "friends": "好友",
+  "settings": "设置",
+  "studioShortcut": "C",
+  "gamesShortcut": "G",
+  "avatarShortcut": "V",
+  "coinsShortcut": "P",
+  "friendsShortcut": "F",
+  "settingsShortcut": "O",
+  "pressPrefix": "按",
+  "pressSuffix": "切换标签"
+}

@@ -1,50 +1,27 @@
 {
-    "name": "pixel-place",
-    "version": "0.1.0",
-    "private": true,
-    "scripts": {
-        "dev": "node server-integrated.js",
-        "dev:next": "next dev -p 3000",
-        "server": "node server.js",
-        "build": "next build",
-        "start": "next start",
-        "lint": "next lint",
-        "deploy": "npm run build && cd functions && npm run build && cd .. && firebase deploy",
-        "deploy:hosting": "npm run build && firebase deploy --only hosting"
-    },
-    "dependencies": {
-        "@genkit-ai/googleai": "^1.28.0",
-        "@google/generative-ai": "^0.24.1",
-        "@opentelemetry/api": "^1.9.0",
-        "@stripe/stripe-js": "^2.4.0",
-        "@types/bcryptjs": "^2.4.6",
-        "@types/jsonwebtoken": "^9.0.10",
-        "bcryptjs": "^3.0.3",
-        "better-sqlite3": "^12.5.0",
-        "firebase": "^12.8.0",
-        "firebase-admin": "^13.6.0",
-        "genkit": "^1.28.0",
-        "jsonwebtoken": "^9.0.3",
-        "next": "^14.2.5",
-        "react": "^18.3.1",
-        "react-dom": "^18.3.1",
-        "socket.io": "^4.7.2",
-        "socket.io-client": "^4.7.2",
-        "stripe": "^14.21.0",
-        "three": "^0.168.0"
-    },
-    "devDependencies": {
-        "@types/node": "^20.14.12",
-        "@types/react": "^18.3.3",
-        "@types/react-dom": "^18.3.0",
-        "@types/three": "^0.168.0",
-        "autoprefixer": "^10.4.19",
-        "eslint": "^8.57.0",
-        "eslint-config-next": "^14.2.5",
-        "firebase-tools": "^15.5.1",
-        "ignore-loader": "^0.1.2",
-        "postcss": "^8.4.40",
-        "tailwindcss": "^3.4.7",
-        "typescript": "^5.5.4"
-    }
+  "name": "pixel-place",
+  "version": "0.1.0",
+  "private": true,
+  "workspaces": [
+    "frontend",
+    "backend",
+    "studio"
+  ],
+  "scripts": {
+    "dev": "concurrently -n web,api -c cyan,magenta \"npm run dev -w frontend\" \"npm run dev -w backend\"",
+    "dev:web": "npm run dev -w frontend",
+    "dev:studio": "npm run dev -w studio",
+    "build:studio:embed": "npm run build:embed -w studio && node studio/scripts/copy-dist.mjs",
+    "dev:api": "npm run dev -w backend",
+    "dev:next": "npm run dev:next -w frontend",
+    "build": "npm run build -w frontend",
+    "build:api": "npm run build -w backend",
+    "start": "npm run start -w frontend",
+    "lint": "npm run lint -w frontend",
+    "deploy": "npm run build -w frontend && cd functions && npm run build && cd .. && firebase deploy",
+    "deploy:hosting": "npm run build -w frontend && firebase deploy --only hosting"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1"
+  }
 }

@@ -1,0 +1,10 @@
+{
+  "friends": "Friends",
+  "coins": "Coins",
+  "settings": "Settings",
+  "roleLabel": "Role: {{role}}",
+  "genderBoy": "Gender: Boy",
+  "genderGirl": "Gender: Girl",
+  "genderOther": "Gender: Other",
+  "genderNA": "Gender: N/A"
+}

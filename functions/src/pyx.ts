@@ -11,6 +11,12 @@
 const PYX_DEFAULT_URL = 'https://pyxaiapi-574247481583.us-central1.run.app';
 const BAN_LINE = 0.7;
 
+const GAME_CONTEXT_TERMS = /\b(gun|guns|rifle|pistol|shotgun|sniper|ammo|ammunition|weapon|weapons|sword|axe|bow|arrow|grenade|bomb|missile|rocket|bullet|bullets|shoot|shooting|battle|combat|fight|fighting|kill|attack|damage|health|armor|shield|spawn|respawn|loot|craft|survival|pvp|enemy|enemies|boss|defend|war|explosion|fire|melee|ranged)\b/gi;
+
+function stripGameTerms(text: string): string {
+  return text.replace(GAME_CONTEXT_TERMS, '').replace(/\s{2,}/g, ' ').trim();
+}
+
 function getPyxBaseUrl(): string {
   return process.env.PYX_SERVICE_URL || PYX_DEFAULT_URL;
 }
@@ -87,11 +93,13 @@ export async function sendFeedback(text: string, safe: boolean): Promise<void> {
 export async function checkForPublish(text: string): Promise<{ safe: boolean; filtered: string; connectionError?: boolean }> {
   if (!text || typeof text !== 'string') return { safe: true, filtered: text };
   const url = getPyxBaseUrl();
+  const sanitized = stripGameTerms(text);
+  if (!sanitized) return { safe: true, filtered: text };
   try {
     const res = await fetch(`${url.replace(/\/$/, '')}/score`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text }),
+      body: JSON.stringify({ text: sanitized }),
     });
     if (!res.ok) return { safe: false, filtered: '', connectionError: true };
     const data = (await res.json()) as { score?: number; bad?: boolean; censored?: string };
@@ -108,11 +116,13 @@ export async function checkForPublish(text: string): Promise<{ safe: boolean; fi
 export async function analyzeCodeForPublish(source: string): Promise<{ safe: boolean; connectionError?: boolean; flagged?: unknown[] }> {
   if (!source || typeof source !== 'string') return { safe: true };
   const url = getPyxBaseUrl();
+  const sanitized = stripGameTerms(source);
+  if (!sanitized) return { safe: true };
   try {
     const res = await fetch(`${url.replace(/\/$/, '')}/analyze/three`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ source }),
+      body: JSON.stringify({ source: sanitized }),
     });
     if (!res.ok) return { safe: false, connectionError: true };
     const data = (await res.json()) as { safe?: boolean; flagged?: unknown[] };

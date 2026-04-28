@@ -1,0 +1,21 @@
+{
+  "title": "Contrôle parental",
+  "subtitle": "Liez un compte avec un code, puis gérez les modes sécurisé et éducatif.",
+  "linkTitle": "Lier un compte",
+  "linkDescription": "L’enfant génère un code dans Réglages.",
+  "childUsername": "Nom d’utilisateur de l’enfant",
+  "pairCode": "Code d’appairage",
+  "linkButton": "Lier",
+  "linkFailed": "Échec de la liaison.",
+  "linkOk": "Lié à {{name}}.",
+  "childrenTitle": "Comptes liés",
+  "childrenDescription": "Activez ou désactivez les modes sécurisé et éducatif.",
+  "noChildren": "Aucun compte lié pour l’instant.",
+  "linkedAt": "Lié le {{date}}",
+  "safeOn": "Mode sécurisé : oui",
+  "safeOff": "Mode sécurisé : non",
+  "eduOn": "Éducatif : oui",
+  "eduOff": "Éducatif : non",
+  "updateFailed": "Mise à jour impossible.",
+  "updated": "Enregistré."
+}

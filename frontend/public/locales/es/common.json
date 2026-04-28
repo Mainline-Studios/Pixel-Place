@@ -1,0 +1,43 @@
+{
+  "loading": "Cargando…",
+  "save": "Guardar",
+  "cancel": "Cancelar",
+  "close": "Cerrar",
+  "yes": "Sí",
+  "no": "No",
+  "ok": "Aceptar",
+  "back": "Atrás",
+  "next": "Siguiente",
+  "error": "Error",
+  "success": "Éxito",
+  "free": "Gratis",
+  "equip": "Equipar",
+  "equipped": "Equipado",
+  "buy": "Comprar",
+  "logout": "Cerrar sesión",
+  "role": "Rol",
+  "gender": "Género",
+  "coins": "Monedas",
+  "unknownTab": "Pestaña desconocida",
+  "currency": {
+    "coins": "Monedas Pixel",
+    "safetyPoints": "Puntos de seguridad"
+  },
+  "genderLabels": {
+    "male": "Hombre",
+    "female": "Mujer",
+    "other": "Otro",
+    "na": "N/D"
+  },
+  "cookieConsent": {
+    "title": "Cookies y privacidad",
+    "body": "Usamos cookies necesarias para el servicio. Con tu permiso, cookies opcionales para analítica. Puedes cambiarlo en ajustes.",
+    "privacyLink": "Política de privacidad",
+    "termsLink": "Términos del servicio",
+    "necessary": "Estrictamente necesarias (siempre activas)",
+    "analytics": "Analítica y mejora",
+    "marketing": "Contenido personalizado (si aplica)",
+    "necessaryOnly": "Solo necesarias",
+    "saveChoice": "Guardar elección"
+  }
+}

@@ -5,7 +5,7 @@ module.exports = {
       name: 'pixel-place',
       script: 'npm',
       args: 'start',
-      cwd: './',
+      cwd: './frontend',
       instances: 1,
       autorestart: true,
       watch: false,
@@ -18,6 +18,7 @@ module.exports = {
     {
       name: 'socket-server',
       script: 'server.js',
+      cwd: './frontend',
       instances: 1,
       autorestart: true,
       watch: false,

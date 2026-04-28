@@ -1,0 +1,21 @@
+{
+  "title": "Parent controls",
+  "subtitle": "Link a young person’s account with a pairing code, then manage Safe Mode and educational catalog settings.",
+  "linkTitle": "Link an account",
+  "linkDescription": "The child generates a code in Settings → Family pairing. Enter their username and the code once.",
+  "childUsername": "Child’s username",
+  "pairCode": "Pairing code",
+  "linkButton": "Link account",
+  "linkFailed": "Could not link. Check username, code, and expiry.",
+  "linkOk": "Linked to {{name}}.",
+  "childrenTitle": "Linked accounts",
+  "childrenDescription": "Toggle Safe Mode (curated games, no open Studio) and Educational mode (calmer game list).",
+  "noChildren": "No linked accounts yet.",
+  "linkedAt": "Linked {{date}}",
+  "safeOn": "Safe Mode: on",
+  "safeOff": "Safe Mode: off",
+  "eduOn": "Educational: on",
+  "eduOff": "Educational: off",
+  "updateFailed": "Could not update child settings.",
+  "updated": "Saved."
+}

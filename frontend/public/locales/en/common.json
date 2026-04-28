@@ -1,0 +1,43 @@
+{
+  "loading": "Loading…",
+  "save": "Save",
+  "cancel": "Cancel",
+  "close": "Close",
+  "yes": "Yes",
+  "no": "No",
+  "ok": "OK",
+  "back": "Back",
+  "next": "Next",
+  "error": "Error",
+  "success": "Success",
+  "free": "Free",
+  "equip": "Equip",
+  "equipped": "Equipped",
+  "buy": "Buy",
+  "logout": "Log out",
+  "role": "Role",
+  "gender": "Gender",
+  "coins": "Coins",
+  "unknownTab": "Unknown tab",
+  "currency": {
+    "coins": "Pixel Coins",
+    "safetyPoints": "Safety Points"
+  },
+  "genderLabels": {
+    "male": "Male",
+    "female": "Female",
+    "other": "Other",
+    "na": "N/A"
+  },
+  "cookieConsent": {
+    "title": "Cookies & privacy",
+    "body": "We use strictly necessary cookies to run the app. With your permission, we also use optional cookies to understand usage and improve the product. You can change this anytime in settings.",
+    "privacyLink": "Privacy Policy",
+    "termsLink": "Terms of Service",
+    "necessary": "Strictly necessary (always on)",
+    "analytics": "Analytics & product improvement",
+    "marketing": "Personalized content (if ever used)",
+    "necessaryOnly": "Necessary only",
+    "saveChoice": "Save my choices"
+  }
+}

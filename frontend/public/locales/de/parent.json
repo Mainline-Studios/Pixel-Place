@@ -1,0 +1,21 @@
+{
+  "title": "Elternsteuerung",
+  "subtitle": "Konto mit Code verknüpfen und Safe Mode / Bildungs-Modus steuern.",
+  "linkTitle": "Konto verknüpfen",
+  "linkDescription": "Das Kind erzeugt unter Einstellungen einen Code.",
+  "childUsername": "Benutzername des Kindes",
+  "pairCode": "Pairing-Code",
+  "linkButton": "Verknüpfen",
+  "linkFailed": "Verknüpfung fehlgeschlagen.",
+  "linkOk": "Mit {{name}} verknüpft.",
+  "childrenTitle": "Verknüpfte Konten",
+  "childrenDescription": "Safe Mode und Bildungs-Modus umschalten.",
+  "noChildren": "Noch keine verknüpften Konten.",
+  "linkedAt": "Verknüpft {{date}}",
+  "safeOn": "Safe Mode: an",
+  "safeOff": "Safe Mode: aus",
+  "eduOn": "Bildung: an",
+  "eduOff": "Bildung: aus",
+  "updateFailed": "Aktualisierung fehlgeschlagen.",
+  "updated": "Gespeichert."
+}

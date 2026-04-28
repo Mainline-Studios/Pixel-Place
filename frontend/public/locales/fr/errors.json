@@ -1,0 +1,7 @@
+{
+  "offlineSignIn": "Signed in offline. Data stored locally.",
+  "generic": "Something went wrong.",
+  "network": "Network error. Try again.",
+  "forbidden": "Forbidden",
+  "notFound": "Not found"
+}

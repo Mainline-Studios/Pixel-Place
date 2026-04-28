@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "artStyle": "pixelplace-v1",
+  "description": "Semi-realistic stylized hybrid; bright, not oversaturated; not photorealistic.",
+  "standardResolution": 512,
+  "heroResolution": 1024,
+  "format": "image/png",
+  "colorSpace": "srgb",
+  "categories": ["environment", "characters", "props", "ui", "shared"],
+  "namingPattern": "{asset}_{role}_{width}.png",
+  "examplePaths": [
+    "environment/base/pp_env_grass_meadow_albedo_512.png",
+    "environment/variants/pp_env_grass_lush_albedo_512.png",
+    "environment/base/skybox/pp_env_sky_py_albedo_512.png",
+    "environment/grass_field_albedo_512.png",
+    "characters/hero_default_albedo_1024.png",
+    "props/coin_collectible_albedo_512.png",
+    "ui/hud_panel_corner_512.png"
+  ]
+}

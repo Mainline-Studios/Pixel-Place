@@ -1,0 +1,5 @@
+{
+  "title": "Waiting Room: {{game}}",
+  "players": "Players ({{count}})",
+  "quickMessages": "Quick Messages:"
+}

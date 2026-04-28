@@ -1,0 +1,10 @@
+{
+  "title": "Pixel Coins",
+  "balance": "Balance",
+  "buyPack": "Buy {{coins}} Coins for {{price}}?\nCurrent balance: {{balance}}",
+  "buyPackFree": "Get {{coins}} Coins for FREE?\nCurrent balance: {{balance}}",
+  "processing": "Processing…",
+  "stripeUnavailable": "Payments unavailable.",
+  "packsTitle": "Coin packs",
+  "infoTitle": "About Pixel Coins"
+}

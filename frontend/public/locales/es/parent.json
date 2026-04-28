@@ -1,0 +1,21 @@
+{
+  "title": "Controles parentales",
+  "subtitle": "Vincula una cuenta con un código y gestiona modos seguro y educativo.",
+  "linkTitle": "Vincular cuenta",
+  "linkDescription": "El menor genera un código en Ajustes.",
+  "childUsername": "Usuario del menor",
+  "pairCode": "Código",
+  "linkButton": "Vincular",
+  "linkFailed": "No se pudo vincular.",
+  "linkOk": "Vinculado a {{name}}.",
+  "childrenTitle": "Cuentas vinculadas",
+  "childrenDescription": "Activa o desactiva modos seguro y educativo.",
+  "noChildren": "Aún no hay cuentas vinculadas.",
+  "linkedAt": "Vinculado {{date}}",
+  "safeOn": "Seguro: sí",
+  "safeOff": "Seguro: no",
+  "eduOn": "Educativo: sí",
+  "eduOff": "Educativo: no",
+  "updateFailed": "No se pudo actualizar.",
+  "updated": "Guardado."
+}

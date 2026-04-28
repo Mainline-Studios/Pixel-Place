@@ -1,0 +1,21 @@
+{
+  "title": "家长控制",
+  "subtitle": "用配对码关联账号，并管理安全模式与教育模式。",
+  "linkTitle": "关联账号",
+  "linkDescription": "孩子在「设置」中生成配对码。",
+  "childUsername": "孩子用户名",
+  "pairCode": "配对码",
+  "linkButton": "关联",
+  "linkFailed": "关联失败。",
+  "linkOk": "已关联 {{name}}。",
+  "childrenTitle": "已关联账号",
+  "childrenDescription": "切换安全模式与教育模式。",
+  "noChildren": "暂无关联账号。",
+  "linkedAt": "关联于 {{date}}",
+  "safeOn": "安全模式：开",
+  "safeOff": "安全模式：关",
+  "eduOn": "教育模式：开",
+  "eduOff": "教育模式：关",
+  "updateFailed": "更新失败。",
+  "updated": "已保存。"
+}

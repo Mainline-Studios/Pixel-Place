@@ -2,7 +2,7 @@ services:
   - type: web
     name: pixel-place
     env: node
-    buildCommand: npm install && npm run build
+    buildCommand: npm install && npm run build -w frontend
     startCommand: npm start
     envVars:
       - key: NODE_ENV
@@ -20,7 +20,7 @@ services:
     name: socket-server
     env: node
     buildCommand: npm install
-    startCommand: node server.js
+    startCommand: node frontend/server.js
     envVars:
       - key: NODE_ENV
         value: production

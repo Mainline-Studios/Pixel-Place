@@ -1,0 +1,43 @@
+{
+  "loading": "加载中…",
+  "save": "保存",
+  "cancel": "取消",
+  "close": "关闭",
+  "yes": "是",
+  "no": "否",
+  "ok": "确定",
+  "back": "返回",
+  "next": "下一步",
+  "error": "错误",
+  "success": "成功",
+  "free": "免费",
+  "equip": "装备",
+  "equipped": "已装备",
+  "buy": "购买",
+  "logout": "退出登录",
+  "role": "角色",
+  "gender": "性别",
+  "coins": "金币",
+  "unknownTab": "未知标签",
+  "currency": {
+    "coins": "像素币",
+    "safetyPoints": "安全分"
+  },
+  "genderLabels": {
+    "male": "男",
+    "female": "女",
+    "other": "其他",
+    "na": "无"
+  },
+  "cookieConsent": {
+    "title": "Cookie 与隐私",
+    "body": "我们使用必要的 Cookie 运行应用；在你同意后也会使用可选的分析类 Cookie。可在设置中随时更改。",
+    "privacyLink": "隐私政策",
+    "termsLink": "服务条款",
+    "necessary": "严格必要（始终开启）",
+    "analytics": "分析与改进",
+    "marketing": "个性化内容（如有）",
+    "necessaryOnly": "仅必要",
+    "saveChoice": "保存选择"
+  }
+}

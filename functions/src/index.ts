@@ -75,6 +75,11 @@ app.use((req, res, next) => {
   next();
 });
 
+// Health check
+app.get('/health', (_req, res) => {
+  res.json({ ok: true, ts: Date.now() });
+});
+
 // GET/POST /users
 app.get('/users', async (_req, res) => {
   try {
@@ -92,10 +97,9 @@ app.post('/users', async (req, res) => {
     const id = (u.username || '').toLowerCase();
     if (!id) return res.status(400).json({ error: 'Username required' });
     const existing = await db.collection(COLLECTIONS.USERS).doc(id).get();
-    const data = {
+    const data: Record<string, any> = {
       username: u.username,
       username_lower: id,
-      password_hash: u.password || '',
       gender: u.gender || '',
       role: u.role || 'user',
       coins: u.coins ?? 10,
@@ -110,6 +114,12 @@ app.post('/users', async (req, res) => {
       is_donor: (u.role === 'admin' || u.role === 'head_admin') ? 1 : 0,
       updated_at: Date.now(),
     };
+    // Only overwrite password_hash if a non-empty password is provided
+    if (u.password) {
+      data.password_hash = u.password;
+    } else if (!existing.exists) {
+      data.password_hash = '';
+    }
     if (existing.exists) {
       await db.collection(COLLECTIONS.USERS).doc(id).set(data, { merge: true });
     } else {
@@ -130,10 +140,9 @@ app.put('/users', async (req, res) => {
     const ref = db.collection(COLLECTIONS.USERS).doc(id);
     const existing = await ref.get();
     if (!existing.exists) return res.status(404).json({ error: 'User not found' });
-    await ref.set({
+    const updateData: Record<string, any> = {
       username: u.username,
       username_lower: id,
-      password_hash: u.password,
       gender: u.gender,
       role: u.role,
       coins: u.coins,
@@ -146,7 +155,11 @@ app.put('/users', async (req, res) => {
       sent_friend_requests: u.sentFriendRequests || [],
       is_donor: (u.role === 'admin' || u.role === 'head_admin') ? 1 : 0,
       updated_at: Date.now(),
-    }, { merge: true });
+    };
+    if (u.password) {
+      updateData.password_hash = u.password;
+    }
+    await ref.set(updateData, { merge: true });
     res.json(u);
   } catch (e) {
     res.status(500).json({ error: 'Failed to update user' });
@@ -360,7 +373,8 @@ app.get('/games', async (req, res) => {
         gameType: data.game_type,
         fileContent: data.file_content,
         fileType: data.file_type,
-        gameCode: data.game_code || undefined
+        gameCode: data.game_code || undefined,
+        thumbnail: data.thumbnail || undefined
       };
     });
     res.json(games);
@@ -372,7 +386,7 @@ app.post('/games', async (req, res) => {
   try {
     const game = req.body;
     const gameId = game.id || `game_${Date.now()}`;
-    await db.collection(COLLECTIONS.GAMES).doc(gameId).set({
+    const doc: Record<string, any> = {
       id: gameId,
       title: game.title,
       description: game.desc || '',
@@ -388,10 +402,32 @@ app.post('/games', async (req, res) => {
       game_code: game.gameCode || null,
       created_at: Date.now(),
       updated_at: Date.now()
-    }, { merge: true });
+    };
+    if (game.thumbnail) doc.thumbnail = game.thumbnail;
+    await db.collection(COLLECTIONS.GAMES).doc(gameId).set(doc, { merge: true });
     res.json({ success: true, game: { ...game, id: gameId, ts: game.ts || Date.now() } });
   } catch (e) {
     res.status(500).json({ error: 'Failed to save game' });
+  }
+});
+app.delete('/games', async (req, res) => {
+  try {
+    const id = req.query.id as string;
+    if (!id) return res.status(400).json({ error: 'Game ID required' });
+    await db.collection(COLLECTIONS.GAMES).doc(id).delete();
+    res.json({ success: true });
+  } catch (e) {
+    res.status(500).json({ error: 'Failed to delete game' });
+  }
+});
+app.post('/games/delete', async (req, res) => {
+  try {
+    const id = req.body.id as string;
+    if (!id) return res.status(400).json({ error: 'Game ID required' });
+    await db.collection(COLLECTIONS.GAMES).doc(id).delete();
+    res.json({ success: true });
+  } catch (e) {
+    res.status(500).json({ error: 'Failed to delete game' });
   }
 });
 

@@ -1,0 +1,151 @@
+{
+  "version": 1,
+  "resolution": 512,
+  "seamless": true,
+  "lightDirectionWorld": {
+    "x": 0.55,
+    "y": 0.72,
+    "z": 0.42
+  },
+  "description": "Procedural starter pack: semi-stylized cohesive outdoor set. Replace with authored art as needed.",
+  "pathsRoot": "/assets/textures/environment",
+  "terrain": [
+    {
+      "id": "dirt",
+      "subfolder": "base",
+      "baseName": "pp_env_dirt",
+      "kind": "terrain",
+      "maps": [
+        "albedo",
+        "normal",
+        "roughness",
+        "ao"
+      ]
+    },
+    {
+      "id": "sand",
+      "subfolder": "base",
+      "baseName": "pp_env_sand",
+      "kind": "terrain",
+      "maps": [
+        "albedo",
+        "normal",
+        "roughness",
+        "ao"
+      ]
+    },
+    {
+      "id": "rock",
+      "subfolder": "base",
+      "baseName": "pp_env_rock",
+      "kind": "terrain",
+      "maps": [
+        "albedo",
+        "normal",
+        "roughness",
+        "ao"
+      ]
+    },
+    {
+      "id": "water_calm",
+      "subfolder": "base",
+      "baseName": "pp_env_water_calm",
+      "kind": "water",
+      "maps": [
+        "albedo",
+        "normal",
+        "roughness",
+        "ao"
+      ]
+    },
+    {
+      "id": "grass_meadow",
+      "subfolder": "base",
+      "baseName": "pp_env_grass_meadow",
+      "kind": "terrain",
+      "maps": [
+        "albedo",
+        "normal",
+        "roughness",
+        "ao"
+      ]
+    },
+    {
+      "id": "grass_lush",
+      "subfolder": "variants",
+      "baseName": "pp_env_grass_lush",
+      "kind": "terrain",
+      "maps": [
+        "albedo",
+        "normal",
+        "roughness",
+        "ao"
+      ]
+    },
+    {
+      "id": "grass_dry",
+      "subfolder": "variants",
+      "baseName": "pp_env_grass_dry",
+      "kind": "terrain",
+      "maps": [
+        "albedo",
+        "normal",
+        "roughness",
+        "ao"
+      ]
+    },
+    {
+      "id": "grass_patchy",
+      "subfolder": "variants",
+      "baseName": "pp_env_grass_patchy",
+      "kind": "terrain",
+      "maps": [
+        "albedo",
+        "normal",
+        "roughness",
+        "ao"
+      ]
+    },
+    {
+      "id": "cobble",
+      "subfolder": "variants",
+      "baseName": "pp_env_cobble",
+      "kind": "terrain",
+      "maps": [
+        "albedo",
+        "normal",
+        "roughness",
+        "ao"
+      ]
+    },
+    {
+      "id": "moss_flagstone",
+      "subfolder": "variants",
+      "baseName": "pp_env_moss_flagstone",
+      "kind": "terrain",
+      "maps": [
+        "albedo",
+        "normal",
+        "roughness",
+        "ao"
+      ]
+    }
+  ],
+  "skybox": {
+    "subfolder": "base/skybox",
+    "faces": [
+      "px",
+      "nx",
+      "py",
+      "ny",
+      "pz",
+      "nz"
+    ],
+    "maps": [
+      "albedo",
+      "normal",
+      "roughness",
+      "ao"
+    ]
+  }
+}

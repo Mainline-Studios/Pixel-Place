@@ -1,0 +1,20 @@
+{
+  "games": "Jeux",
+  "studio": "Studio de jeux",
+  "avatarShop": "Boutique avatar",
+  "coins": "Pièces Pixel",
+  "premium": "Premium",
+  "progression": "Progression",
+  "factions": "Factions",
+  "parent": "Parents",
+  "friends": "Amis",
+  "settings": "Paramètres",
+  "studioShortcut": "C",
+  "gamesShortcut": "G",
+  "avatarShortcut": "V",
+  "coinsShortcut": "P",
+  "friendsShortcut": "F",
+  "settingsShortcut": "O",
+  "pressPrefix": "Appuyez sur",
+  "pressSuffix": "pour changer d’onglet"
+}

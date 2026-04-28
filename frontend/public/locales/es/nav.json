@@ -1,0 +1,20 @@
+{
+  "games": "Juegos",
+  "studio": "Estudio de juegos",
+  "avatarShop": "Tienda de avatar",
+  "coins": "Monedas Pixel",
+  "premium": "Premium",
+  "progression": "Progreso",
+  "factions": "Facciones",
+  "parent": "Padres",
+  "friends": "Amigos",
+  "settings": "Ajustes",
+  "studioShortcut": "C",
+  "gamesShortcut": "G",
+  "avatarShortcut": "V",
+  "coinsShortcut": "P",
+  "friendsShortcut": "F",
+  "settingsShortcut": "O",
+  "pressPrefix": "Pulsa",
+  "pressSuffix": "para cambiar de pestaña"
+}
