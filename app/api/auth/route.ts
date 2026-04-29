@@ -48,15 +48,15 @@ async function applyFounderRewardsAndConsumeCelebration(usernameLower: string): 
     await setDocument(COLLECTIONS.USERS, usernameLower, patch);
   }
 
-  return {
-    show: shouldShow,
-    userPatch: {
-      coins,
-      founderLifetimeCoins: qualifies ? true : !!doc.founder_lifetime_coins,
-      founderOrdinal: qualifies ? rank! : doc.founder_ordinal,
-      showFounderCelebration: shouldShow,
-    },
+  const userPatch: Partial<User> = {
+    founderLifetimeCoins: qualifies ? true : !!doc.founder_lifetime_coins,
+    founderOrdinal: qualifies ? rank! : doc.founder_ordinal,
+    showFounderCelebration: shouldShow,
   };
+  if (patch.coins !== undefined) {
+    userPatch.coins = coins;
+  }
+  return { show: shouldShow, userPatch };
 }
 
 // Login / Register — parse body once (AuthN)
