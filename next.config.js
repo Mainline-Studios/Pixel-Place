@@ -1,6 +1,11 @@
 /** @type {import('next').NextConfig} */
+const isAppHostingBuild =
+  process.env.NEXT_PRIVATE_STANDALONE === 'true' ||
+  typeof process.env.FIREBASE_WEBAPP_CONFIG === 'string';
+
 const nextConfig = {
-  output: 'export',
+  // App Hosting expects standalone server artifacts, while static Hosting uses export.
+  output: isAppHostingBuild ? 'standalone' : 'export',
   images: {
     unoptimized: true
   },
