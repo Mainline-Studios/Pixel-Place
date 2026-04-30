@@ -53,13 +53,30 @@ export async function downloadSignedPpaf(user: User): Promise<DownloadPpafResult
   }
   const payload = buildPpafAccountPayload(user);
 
-  const tryBrowserSign = async (): Promise<DownloadPpafResult | null> => {
-    const stored = getStoredPpafKeys();
-    if (!stored) return null;
+  const tryBrowserSign = async (): Promise<DownloadPpafResult> => {
+    let stored = getStoredPpafKeys();
+    let restorationBlockToSave: string | undefined;
+    if (!stored) {
+      try {
+        const generated = await generatePpafKeyPairInBrowser();
+        setStoredPpafKeys(generated.privatePem, generated.publicPem);
+        stored = getStoredPpafKeys();
+        restorationBlockToSave = generated.restorationBlock;
+      } catch (e) {
+        return {
+          ok: false,
+          error:
+            e instanceof Error ? e.message : 'Could not create signing keys in this browser.',
+        };
+      }
+    }
+    if (!stored) {
+      return { ok: false, error: 'No signing keys available in this browser.' };
+    }
     try {
       const doc = await signPpafDocumentWithPrivateKey(payload, stored.privatePem);
       triggerPpafFileDownload(doc, user.username || 'account');
-      return { ok: true };
+      return restorationBlockToSave ? { ok: true, restorationBlockToSave } : { ok: true };
     } catch (e) {
       return {
         ok: false,
