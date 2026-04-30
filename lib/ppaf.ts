@@ -7,14 +7,17 @@ import { buildPpafAccountPayload } from '@/lib/privacyExport';
 /** MIME type for `.ppaf` downloads (still uses `.ppaf` extension). */
 export const PPAF_MEDIA_TYPE = 'application/vnd.pixelplace.ppaf+json';
 
-export async function downloadSignedPpaf(
-  user: User,
-  onError: (message: string) => void,
-): Promise<void> {
+/** Matches Cloud Function `PPAF_NOT_CONFIGURED_CODE` — show configure instructions in UI. */
+export const PPAF_NOT_CONFIGURED_CODE = 'PPAF_NOT_CONFIGURED';
+
+export type DownloadPpafResult =
+  | { ok: true }
+  | { ok: false; error: string; code?: string };
+
+export async function downloadSignedPpaf(user: User): Promise<DownloadPpafResult> {
   const token = getAuthToken();
   if (!token) {
-    onError('Sign in again to download a signed backup.');
-    return;
+    return { ok: false, error: 'Sign in again to download a signed backup.' };
   }
   const payload = buildPpafAccountPayload(user);
   try {
@@ -26,10 +29,14 @@ export async function downloadSignedPpaf(
       },
       body: JSON.stringify({ payload }),
     });
-    const data = (await res.json().catch(() => ({}))) as { error?: string } & Record<string, unknown>;
+    const data = (await res.json().catch(() => ({}))) as {
+      error?: string;
+      code?: string;
+    };
     if (!res.ok) {
-      onError(typeof data.error === 'string' ? data.error : 'Could not create signed backup.');
-      return;
+      const err = typeof data.error === 'string' ? data.error : 'Could not create signed backup.';
+      const code = typeof data.code === 'string' ? data.code : undefined;
+      return { ok: false, error: err, code };
     }
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: PPAF_MEDIA_TYPE });
     const a = document.createElement('a');
@@ -39,8 +46,9 @@ export async function downloadSignedPpaf(
     a.rel = 'noopener';
     a.click();
     URL.revokeObjectURL(a.href);
+    return { ok: true };
   } catch {
-    onError('Network error while creating backup.');
+    return { ok: false, error: 'Network error while creating backup.' };
   }
 }
 
@@ -86,7 +94,10 @@ async function verifyEd25519Local(doc: Record<string, unknown>, pem: string): Pr
  */
 export async function verifyPpafFile(
   parsed: unknown,
-): Promise<{ ok: true; payload: Record<string, unknown> } | { ok: false; error: string }> {
+): Promise<
+  | { ok: true; payload: Record<string, unknown> }
+  | { ok: false; error: string; code?: string }
+> {
   if (!parsed || typeof parsed !== 'object') {
     return { ok: false, error: 'Invalid file (not JSON).' };
   }
@@ -113,10 +124,11 @@ export async function verifyPpafFile(
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ document: parsed }),
     });
-    const j = (await res.json()) as { valid?: boolean; error?: string };
+    const j = (await res.json()) as { valid?: boolean; error?: string; code?: string };
     if (j.valid) {
       return { ok: true, payload: doc.payload as Record<string, unknown> };
     }
+    const code = typeof j.code === 'string' ? j.code : undefined;
     return {
       ok: false,
       error:
@@ -124,6 +136,7 @@ export async function verifyPpafFile(
         (pem
           ? 'Signature invalid — file may be corrupted or edited.'
           : 'Could not verify backup. Add NEXT_PUBLIC_PPAF_ED25519_PUBLIC_KEY for offline checks, or stay online.'),
+      code,
     };
   } catch {
     return {

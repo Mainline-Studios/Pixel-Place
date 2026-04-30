@@ -7,10 +7,12 @@ import { navigateToTab } from '@/lib/routing';
 import {
   downloadSignedPpaf,
   mergePpafPayloadIntoUserUpdates,
+  PPAF_NOT_CONFIGURED_CODE,
   verifyPpafFile,
 } from '@/lib/ppaf';
 import { clearSiteTranslationCache } from '@/lib/siteTranslationCache';
 import LocalizeText from '@/components/LocalizeText';
+import PpafConfigurePanel from '@/components/PpafConfigurePanel';
 
 interface SafetyPrivacyPanelProps {
   user: User;
@@ -20,6 +22,15 @@ export default function SafetyPrivacyPanel({ user }: SafetyPrivacyPanelProps) {
   const { setUser, updateUser } = useUser();
   const ppafInputRef = useRef<HTMLInputElement>(null);
   const [ppafBusy, setPpafBusy] = useState(false);
+  const [ppafNeedsConfigureBanner, setPpafNeedsConfigureBanner] = useState(false);
+  const [ppafConfigureOpen, setPpafConfigureOpen] = useState(false);
+
+  const scrollToConfigure = () => {
+    setPpafConfigureOpen(true);
+    requestAnimationFrame(() => {
+      document.getElementById('ppaf-configure-block')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    });
+  };
 
   const handleSignOut = () => {
     if (
@@ -35,7 +46,17 @@ export default function SafetyPrivacyPanel({ user }: SafetyPrivacyPanelProps) {
   const handleDownloadPpaf = async () => {
     setPpafBusy(true);
     try {
-      await downloadSignedPpaf(user, (msg) => alert(msg));
+      const r = await downloadSignedPpaf(user);
+      if (!r.ok) {
+        if (r.code === PPAF_NOT_CONFIGURED_CODE) {
+          setPpafNeedsConfigureBanner(true);
+          scrollToConfigure();
+        } else {
+          alert(r.error);
+        }
+        return;
+      }
+      setPpafNeedsConfigureBanner(false);
     } finally {
       setPpafBusy(false);
     }
@@ -56,7 +77,12 @@ export default function SafetyPrivacyPanel({ user }: SafetyPrivacyPanelProps) {
 
     const verified = await verifyPpafFile(parsed);
     if (!verified.ok) {
-      alert(verified.error);
+      if (verified.code === PPAF_NOT_CONFIGURED_CODE) {
+        setPpafNeedsConfigureBanner(true);
+        scrollToConfigure();
+      } else {
+        alert(verified.error);
+      }
       return;
     }
 
@@ -101,6 +127,38 @@ export default function SafetyPrivacyPanel({ user }: SafetyPrivacyPanelProps) {
             <LocalizeText text="Download a signed .ppaf (Pixel Place Account File) — only Pixel Place can issue a valid signature; corrupted edits fail verification." />
           </li>
         </ul>
+
+        {ppafNeedsConfigureBanner && (
+          <div
+            role="alert"
+            style={{
+              marginBottom: 12,
+              padding: '12px 14px',
+              borderRadius: 10,
+              border: '1px solid rgba(251, 191, 36, 0.45)',
+              background: 'rgba(251, 191, 36, 0.1)',
+              fontSize: 14,
+              lineHeight: 1.55,
+            }}
+          >
+            <strong style={{ color: '#fcd34d' }}>Backup signing isn&apos;t configured on the server.</strong>{' '}
+            Add the keys below (see <strong>Configure</strong>), redeploy Functions + hosting, then try again.
+            <div style={{ marginTop: 10, display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+              <button type="button" className="btn" onClick={scrollToConfigure}>
+                Configure
+              </button>
+              <button
+                type="button"
+                className="btn"
+                style={{ opacity: 0.85 }}
+                onClick={() => setPpafNeedsConfigureBanner(false)}
+              >
+                Dismiss
+              </button>
+            </div>
+          </div>
+        )}
+
         <input
           ref={ppafInputRef}
           type="file"
@@ -139,6 +197,8 @@ export default function SafetyPrivacyPanel({ user }: SafetyPrivacyPanelProps) {
             <LocalizeText text="Sign out on this browser" />
           </button>
         </div>
+
+        <PpafConfigurePanel open={ppafConfigureOpen} onToggle={setPpafConfigureOpen} />
       </div>
     </div>
   );

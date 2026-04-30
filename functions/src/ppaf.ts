@@ -9,6 +9,8 @@ import { ppafSigningUtf8 } from './ppafCanonical';
 
 export const PPAF_FORMAT = 'pixel-place-account-file';
 export const PPAF_VERSION = 1;
+/** Client may show deployment instructions when this code is returned. */
+export const PPAF_NOT_CONFIGURED_CODE = 'PPAF_NOT_CONFIGURED';
 
 function loadPrivateKey() {
   const raw = process.env.PPAF_ED25519_PRIVATE_KEY;
@@ -49,9 +51,15 @@ export function signAccountPayload(payload: unknown): { ok: true; doc: Record<st
   };
 }
 
-export function verifyPpafDocument(body: unknown): { ok: true } | { ok: false; error: string } {
+export function verifyPpafDocument(body: unknown): { ok: true } | { ok: false; error: string; code?: string } {
   const pk = loadPrivateKey();
-  if (!pk) return { ok: false, error: 'Server verify unavailable (missing PPAF_ED25519_PRIVATE_KEY)' };
+  if (!pk) {
+    return {
+      ok: false,
+      error: 'Server verify unavailable — add PPAF_ED25519_PRIVATE_KEY to Cloud Functions.',
+      code: PPAF_NOT_CONFIGURED_CODE,
+    };
+  }
   const pub = createPublicKey(pk);
 
   if (!body || typeof body !== 'object') {
@@ -89,7 +97,10 @@ export function postPpafSign(req: Request, res: Response): void {
     return;
   }
   if (!loadPrivateKey()) {
-    res.status(503).json({ error: 'Account backup signing is not configured on this deployment.' });
+    res.status(503).json({
+      error: 'Account backup signing is not configured on this deployment.',
+      code: PPAF_NOT_CONFIGURED_CODE,
+    });
     return;
   }
 
@@ -124,7 +135,7 @@ export function postPpafVerify(req: Request, res: Response): void {
   const doc = req.body?.document ?? req.body;
   const r = verifyPpafDocument(doc);
   if (!r.ok) {
-    res.json({ valid: false, error: r.error });
+    res.json({ valid: false, error: r.error, ...(r.code ? { code: r.code } : {}) });
     return;
   }
   res.json({ valid: true });
