@@ -3,6 +3,15 @@ import { ppafSigningUtf8 } from '@/lib/ppafCanonical';
 import { apiUrl } from '@/lib/apiBaseUrl';
 import { getAuthToken } from '@/lib/api';
 import { buildPpafAccountPayload } from '@/lib/privacyExport';
+import { PPAF_EMBEDDED_PUBLIC_KEY_PEM } from '@/lib/ppafEmbeddedPublicKey';
+
+function getClientPpafPublicKeyPem(): string {
+  const fromEnv =
+    typeof process.env.NEXT_PUBLIC_PPAF_ED25519_PUBLIC_KEY === 'string'
+      ? process.env.NEXT_PUBLIC_PPAF_ED25519_PUBLIC_KEY.trim()
+      : '';
+  return fromEnv || PPAF_EMBEDDED_PUBLIC_KEY_PEM;
+}
 
 /** MIME type for `.ppaf` downloads (still uses `.ppaf` extension). */
 export const PPAF_MEDIA_TYPE = 'application/vnd.pixelplace.ppaf+json';
@@ -103,10 +112,7 @@ export async function verifyPpafFile(
   }
   const doc = parsed as Record<string, unknown>;
 
-  const pem =
-    typeof process.env.NEXT_PUBLIC_PPAF_ED25519_PUBLIC_KEY === 'string'
-      ? process.env.NEXT_PUBLIC_PPAF_ED25519_PUBLIC_KEY.trim()
-      : '';
+  const pem = getClientPpafPublicKeyPem();
 
   if (pem) {
     try {

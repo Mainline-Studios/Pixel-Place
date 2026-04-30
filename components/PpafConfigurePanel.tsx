@@ -38,32 +38,29 @@ export default function PpafConfigurePanel({
       </summary>
       <div style={{ marginTop: 12, fontSize: 13, lineHeight: 1.65, color: 'var(--text-main)' }}>
         <p style={{ margin: '0 0 10px' }}>
-          Signed backups need an Ed25519 key pair on the server. Without{' '}
-          <code style={{ fontSize: 12 }}>PPAF_ED25519_PRIVATE_KEY</code> in Cloud Functions, downloads return “not
-          configured”.
+          Signed backups need the Ed25519 <strong>private</strong> key on Cloud Functions. The app already ships the{' '}
+          <strong>public</strong> key for offline verification. If downloads say “not configured”, the private key is
+          missing from <code style={{ fontSize: 12 }}>functions/.env</code> (see{' '}
+          <code style={{ fontSize: 12 }}>functions/ENV_README.md</code>).
         </p>
         <ol style={{ margin: 0, paddingLeft: '1.25em' }}>
           <li>
-            In the repo root run: <code style={{ fontSize: 12 }}>node scripts/generate-ppaf-keys.mjs</code>
+            Add <code style={{ fontSize: 12 }}>PPAF_ED25519_PRIVATE_KEY</code> to{' '}
+            <code style={{ fontSize: 12 }}>functions/.env</code> (PEM from{' '}
+            <code style={{ fontSize: 12 }}>node scripts/generate-ppaf-keys.mjs</code>, or match the embedded public key in{' '}
+            <code style={{ fontSize: 12 }}>lib/ppafEmbeddedPublicKey.ts</code>).
           </li>
           <li>
-            Put the <strong>private</strong> line into <code style={{ fontSize: 12 }}>functions/.env</code> as{' '}
-            <code style={{ fontSize: 12 }}>PPAF_ED25519_PRIVATE_KEY</code> (same PEM the script prints; use{' '}
-            <code style={{ fontSize: 12 }}>\n</code> escapes if pasting one line).
+            Deploy: <code style={{ fontSize: 12 }}>firebase deploy</code> — deploy reads{' '}
+            <code style={{ fontSize: 12 }}>functions/.env</code> into the cloud (do not commit that file).
           </li>
           <li>
-            Put the <strong>public</strong> line into your Next env (e.g. <code style={{ fontSize: 12 }}>.env.local</code>
-            ) as <code style={{ fontSize: 12 }}>NEXT_PUBLIC_PPAF_ED25519_PUBLIC_KEY</code> so browsers can verify backups
-            offline.
-          </li>
-          <li>
-            Deploy: <code style={{ fontSize: 12 }}>firebase deploy</code> (functions + hosting). See{' '}
-            <code style={{ fontSize: 12 }}>functions/.env.example</code> and <code style={{ fontSize: 12 }}>.env.example</code>
-            .
+            Optional: set <code style={{ fontSize: 12 }}>NEXT_PUBLIC_PPAF_ED25519_PUBLIC_KEY</code> to override the
+            embedded public key after a key rotation.
           </li>
         </ol>
         <p style={{ margin: '10px 0 0', color: 'var(--text-dim)', fontSize: 12 }}>
-          Never commit the private key to git. The public key is safe to ship in the client bundle.
+          Never commit <code style={{ fontSize: 12 }}>functions/.env</code> — it contains secrets.
         </p>
       </div>
     </details>
