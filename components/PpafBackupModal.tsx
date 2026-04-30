@@ -2,12 +2,11 @@
 
 import { useState, useEffect } from 'react';
 import type { User } from '@/types';
-import { downloadSignedPpaf, PPAF_NOT_CONFIGURED_CODE } from '@/lib/ppaf';
+import { downloadSignedPpaf } from '@/lib/ppaf';
 import { PPAF_KEYGEN_COMMAND } from '@/lib/ppafConstants';
 import { parseGeneratePpafKeysOutput } from '@/lib/ppafPasteParser';
 import {
   clearStoredPpafKeys,
-  getStoredPpafKeys,
   hasStoredPpafKeys,
   setStoredPpafKeys,
 } from '@/lib/ppafBrowserKeys';
@@ -32,12 +31,14 @@ export default function PpafBackupModal({
   const [downloadError, setDownloadError] = useState('');
   const [keysSaved, setKeysSaved] = useState(false);
   const [lastRestorationBlock, setLastRestorationBlock] = useState('');
+  const [backupDownloaded, setBackupDownloaded] = useState(false);
 
   useEffect(() => {
     if (open) {
       setPasteError('');
       setGenerateError('');
       setDownloadError('');
+      setBackupDownloaded(false);
       setKeysSaved(hasStoredPpafKeys());
     }
   }, [open]);
@@ -80,7 +81,7 @@ export default function PpafBackupModal({
     const parsed = parseGeneratePpafKeysOutput(paste);
     if (!parsed) {
       setPasteError(
-        'Could not parse output. Paste the full output block that includes "PPAF RESTORATION KEY" and "KEEP THIS SAFE."',
+        'Could not read that key blob. Paste only the long token starting with eyJ… (one line is fine), or the full "PPAF RESTORATION KEY" block, or both legacy PPAF_ED25519_* lines from a terminal.',
       );
       return;
     }
@@ -99,17 +100,19 @@ export default function PpafBackupModal({
 
   const createBackup = async () => {
     setDownloadError('');
+    setBackupDownloaded(false);
     setCreatingBackup(true);
     try {
       const r = await downloadSignedPpaf(user);
       if (!r.ok) {
-        if (r.code === PPAF_NOT_CONFIGURED_CODE && !getStoredPpafKeys()) {
-          setDownloadError(
-            'Server signing is off and no keys are saved here yet. Tap “Generate keys in this browser”, or paste a restoration block and Save pasted keys, then try again.',
-          );
-          return;
-        }
         setDownloadError(r.error);
+        return;
+      }
+      if (r.restorationBlockToSave) {
+        setLastRestorationBlock(r.restorationBlockToSave);
+        setPaste(r.restorationBlockToSave);
+        setKeysSaved(true);
+        setBackupDownloaded(true);
         return;
       }
       onClose();
@@ -156,13 +159,69 @@ export default function PpafBackupModal({
         </div>
         <div className="ai-output" style={{ fontSize: 14, lineHeight: 1.6 }}>
           <p style={{ margin: '0 0 12px', color: 'var(--text-dim)' }}>
-            Signed backups use Ed25519 keys. You can create keys right here—no project folder or terminal needed. Save
-            the restoration block somewhere safe if you might restore on another device. Keys stay in this browser for
-            signing until you clear them.
+            Downloads a cryptographically signed <code style={{ fontSize: 12 }}>.ppaf</code> file. When the deployment
+            signs on the server, you are done in one tap. Otherwise this browser creates signing keys automatically,
+            signs the file, and asks you to stash the restoration token somewhere safe.
           </p>
 
+          {backupDownloaded && (
+            <div
+              role="status"
+              style={{
+                marginBottom: 14,
+                padding: '12px 14px',
+                borderRadius: 8,
+                border: '1px solid rgba(110, 231, 183, 0.35)',
+                background: 'rgba(110, 231, 183, 0.08)',
+                fontSize: 13,
+                color: '#6ee7b7',
+              }}
+            >
+              Backup downloaded. This device just created new signing keys — copy the restoration block below (or use
+              Copy) and save it somewhere secure if you will verify backups or use another browser later.
+              <div style={{ marginTop: 10, display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                <button
+                  type="button"
+                  className="btn"
+                  onClick={() => void copyRestorationBlock(lastRestorationBlock)}
+                  disabled={!lastRestorationBlock}
+                >
+                  Copy restoration block
+                </button>
+                <button
+                  type="button"
+                  className="btn"
+                  style={{ opacity: 0.9 }}
+                  disabled={uiBusy}
+                  onClick={() => {
+                    setBackupDownloaded(false);
+                    void createBackup();
+                  }}
+                >
+                  Create another .ppaf
+                </button>
+                <button type="button" className="btn" style={{ opacity: 0.9 }} onClick={onClose}>
+                  Done
+                </button>
+              </div>
+            </div>
+          )}
+
+          {!backupDownloaded && (
+            <div style={{ marginBottom: 16 }}>
+              <button type="button" className="btn" disabled={uiBusy} onClick={() => void createBackup()}>
+                {creatingBackup ? 'Working…' : 'Create signed .ppaf file'}
+              </button>
+            </div>
+          )}
+
           <div style={{ marginBottom: 14 }}>
-            <strong style={{ display: 'block', marginBottom: 8 }}>1. Generate keys (recommended)</strong>
+            <strong style={{ display: 'block', marginBottom: 8 }}>Optional: device keys &amp; paste</strong>
+            <p style={{ margin: '0 0 10px', fontSize: 13, color: 'var(--text-dim)' }}>
+              Only needed if you want to reuse keys from before, or to prepare before going offline. You can paste{' '}
+              <strong>only</strong> the <code style={{ fontSize: 12 }}>eyJ…</code> token.
+            </p>
+            <strong style={{ display: 'block', marginBottom: 8 }}>Generate new keys here</strong>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
               <button type="button" className="btn" disabled={uiBusy} onClick={() => void generateInBrowser()}>
                 {generating ? 'Generating…' : 'Generate keys in this browser'}
@@ -182,15 +241,14 @@ export default function PpafBackupModal({
               <div style={{ color: 'var(--danger)', fontSize: 13, marginTop: 8 }}>{generateError}</div>
             )}
             <p style={{ margin: '10px 0 0', fontSize: 13, color: 'var(--text-dim)' }}>
-              After you generate, we save the keys here and fill the box below so you can copy the block to a password
-              manager or notes.
+              Saves keys in this browser and fills the box so you can copy the token.
             </p>
           </div>
 
           <div style={{ marginBottom: 14 }}>
-            <strong style={{ display: 'block', marginBottom: 8 }}>2. Or paste keys from elsewhere</strong>
+            <strong style={{ display: 'block', marginBottom: 8 }}>Paste a saved token or block</strong>
             <p style={{ margin: '0 0 8px', fontSize: 13, color: 'var(--text-dim)' }}>
-              If you already ran the developer script or have a saved restoration block, paste it below and tap Save.
+              Paste the single <code style={{ fontSize: 12 }}>eyJ…</code> line, a labeled block, or legacy terminal lines.
             </p>
             <details style={{ marginBottom: 10, fontSize: 13, color: 'var(--text-dim)' }}>
               <summary style={{ cursor: 'pointer', userSelect: 'none' }}>Advanced: run key script in a dev checkout</summary>
@@ -215,13 +273,11 @@ export default function PpafBackupModal({
                 </button>
               </div>
             </details>
-            <strong style={{ display: 'block', marginBottom: 8 }}>Paste restoration output</strong>
+            <strong style={{ display: 'block', marginBottom: 8 }}>Paste here</strong>
             <textarea
               value={paste}
               onChange={(e) => setPaste(e.target.value)}
-              placeholder={
-                'Paste output: PPAF RESTORATION KEY: ... KEEP THIS SAFE.'
-              }
+              placeholder={'eyJ2ZXJzaW9uIjoxLCJhbGd… (one line) or full PPAF RESTORATION KEY block'}
               rows={6}
               style={{
                 width: '100%',
@@ -248,10 +304,9 @@ export default function PpafBackupModal({
                 </button>
               )}
             </div>
-            {keysSaved && (
+            {keysSaved && !backupDownloaded && (
               <p style={{ margin: '10px 0 0', fontSize: 13, color: '#6ee7b7' }}>
-                Keys saved on this device. If the server isn&apos;t configured, your backup will be signed in the
-                browser instead.
+                Keys saved on this device for browser signing when the server does not sign.
               </p>
             )}
           </div>
@@ -274,11 +329,13 @@ export default function PpafBackupModal({
           )}
 
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 8 }}>
-            <button type="button" className="btn" disabled={uiBusy} onClick={() => void createBackup()}>
-              {creatingBackup ? 'Working…' : 'Create signed .ppaf file'}
-            </button>
+            {!backupDownloaded && (
+              <button type="button" className="btn" disabled={uiBusy} onClick={() => void createBackup()}>
+                {creatingBackup ? 'Working…' : 'Create signed .ppaf again'}
+              </button>
+            )}
             <button type="button" className="btn" style={{ opacity: 0.85 }} onClick={onClose}>
-              Cancel
+              {backupDownloaded ? 'Close' : 'Cancel'}
             </button>
             {onOpenConfigure && (
               <button

@@ -96,7 +96,7 @@ export default function SafetyPrivacyPanel({ user }: SafetyPrivacyPanelProps) {
             <LocalizeText text="Use the Safety tab to report harassment, cheating, or impersonation." />
           </li>
           <li>
-            <LocalizeText text="Make a signed .ppaf backup — run the key script on your machine, paste into Pixel Place, then download." />
+            <LocalizeText text="Make a signed .ppaf backup — one tap downloads a verified file; save the restoration token if your browser creates keys." />
           </li>
         </ul>
 

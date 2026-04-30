@@ -4,9 +4,10 @@ import { apiUrl } from '@/lib/apiBaseUrl';
 import { getAuthToken } from '@/lib/api';
 import { buildPpafAccountPayload } from '@/lib/privacyExport';
 import { PPAF_EMBEDDED_PUBLIC_KEY_PEM } from '@/lib/ppafEmbeddedPublicKey';
-import { getStoredPpafKeys } from '@/lib/ppafBrowserKeys';
+import { getStoredPpafKeys, setStoredPpafKeys } from '@/lib/ppafBrowserKeys';
 import { signPpafDocumentWithPrivateKey } from '@/lib/ppafClientSign';
 import { PPAF_DOC_FORMAT } from '@/lib/ppafConstants';
+import { generatePpafKeyPairInBrowser } from '@/lib/ppafGenerateBrowserKeys';
 
 function getClientPpafPublicKeyPem(): string {
   if (typeof window !== 'undefined') {
@@ -42,7 +43,7 @@ export const PPAF_MEDIA_TYPE = 'application/vnd.pixelplace.ppaf+json';
 export const PPAF_NOT_CONFIGURED_CODE = 'PPAF_NOT_CONFIGURED';
 
 export type DownloadPpafResult =
-  | { ok: true }
+  | { ok: true; restorationBlockToSave?: string }
   | { ok: false; error: string; code?: string };
 
 export async function downloadSignedPpaf(user: User): Promise<DownloadPpafResult> {
@@ -88,16 +89,14 @@ export async function downloadSignedPpaf(user: User): Promise<DownloadPpafResult
     const code = typeof data.code === 'string' ? data.code : undefined;
     if (code === PPAF_NOT_CONFIGURED_CODE || res.status === 503) {
       const local = await tryBrowserSign();
-      if (local?.ok) return local;
-      if (local && !local.ok) return { ...local, code };
-      return { ok: false, error: err, code };
+      if (local.ok) return local;
+      return { ok: false, error: local.error, code };
     }
     return { ok: false, error: err, code };
   } catch {
     const local = await tryBrowserSign();
-    if (local?.ok) return local;
-    if (local && !local.ok) return local;
-    return { ok: false, error: 'Network error while creating backup.' };
+    if (local.ok) return local;
+    return { ok: false, error: local.error || 'Network error while creating backup.' };
   }
 }
 
