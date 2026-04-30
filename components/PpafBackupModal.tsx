@@ -207,10 +207,35 @@ export default function PpafBackupModal({
             </div>
           )}
 
+          <div style={{ marginBottom: 14 }}>
+            <strong style={{ display: 'block', marginBottom: 8 }}>Step 1: clone + run key script (terminal path)</strong>
+            <div
+              style={{
+                marginTop: 8,
+                padding: '10px 12px',
+                borderRadius: 8,
+                background: 'var(--panel-soft)',
+                border: '1px solid var(--border)',
+                fontFamily: 'ui-monospace, monospace',
+                fontSize: 13,
+                lineHeight: 1.5,
+              }}
+            >
+              <div>git clone https://github.com/Mainline-Studios/Pixel-Place.git</div>
+              <div>cd Pixel-Place</div>
+              <div>{PPAF_KEYGEN_COMMAND}</div>
+            </div>
+            <div style={{ marginTop: 8 }}>
+              <button type="button" className="btn" style={{ flexShrink: 0 }} onClick={() => void copyCommand()}>
+                Copy keygen command
+              </button>
+            </div>
+          </div>
+
           {!backupDownloaded && (
             <div style={{ marginBottom: 16 }}>
               <button type="button" className="btn" disabled={uiBusy} onClick={() => void createBackup()}>
-                {creatingBackup ? 'Working…' : 'Create signed .ppaf file'}
+                {creatingBackup ? 'Working…' : 'Step 2: Create signed .ppaf file'}
               </button>
             </div>
           )}
@@ -250,29 +275,6 @@ export default function PpafBackupModal({
             <p style={{ margin: '0 0 8px', fontSize: 13, color: 'var(--text-dim)' }}>
               Paste the single <code style={{ fontSize: 12 }}>eyJ…</code> line, a labeled block, or legacy terminal lines.
             </p>
-            <details style={{ marginBottom: 10, fontSize: 13, color: 'var(--text-dim)' }}>
-              <summary style={{ cursor: 'pointer', userSelect: 'none' }}>Advanced: run key script in a dev checkout</summary>
-              <div
-                style={{
-                  display: 'flex',
-                  gap: 8,
-                  flexWrap: 'wrap',
-                  alignItems: 'center',
-                  marginTop: 8,
-                  padding: '10px 12px',
-                  borderRadius: 8,
-                  background: 'var(--panel-soft)',
-                  border: '1px solid var(--border)',
-                  fontFamily: 'ui-monospace, monospace',
-                  fontSize: 13,
-                }}
-              >
-                <code style={{ flex: 1, minWidth: 0, wordBreak: 'break-all' }}>{PPAF_KEYGEN_COMMAND}</code>
-                <button type="button" className="btn" style={{ flexShrink: 0 }} onClick={() => void copyCommand()}>
-                  Copy command
-                </button>
-              </div>
-            </details>
             <strong style={{ display: 'block', marginBottom: 8 }}>Paste here</strong>
             <textarea
               value={paste}

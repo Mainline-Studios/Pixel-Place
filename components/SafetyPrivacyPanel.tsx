@@ -18,6 +18,16 @@ interface SafetyPrivacyPanelProps {
   user: User;
 }
 
+function previewRestoreValue(value: unknown): string {
+  if (value === null) return 'null';
+  if (value === undefined) return 'undefined';
+  if (typeof value === 'string') return value.length > 36 ? `"${value.slice(0, 36)}..."` : `"${value}"`;
+  if (typeof value === 'number' || typeof value === 'boolean') return String(value);
+  if (Array.isArray(value)) return `array(${value.length})`;
+  if (typeof value === 'object') return 'object';
+  return typeof value;
+}
+
 export default function SafetyPrivacyPanel({ user }: SafetyPrivacyPanelProps) {
   const { setUser, updateUser } = useUser();
   const ppafInputRef = useRef<HTMLInputElement>(null);
@@ -66,17 +76,49 @@ export default function SafetyPrivacyPanel({ user }: SafetyPrivacyPanelProps) {
       return;
     }
 
-    if (
-      !confirm(
-        'Restore profile fields from this verified backup? Your password is never loaded from a file. Continue?',
-      )
-    ) {
+    const updates = mergePpafPayloadIntoUserUpdates(payload);
+    const updateEntries = Object.entries(updates).filter(([, value]) => value !== undefined);
+    if (updateEntries.length === 0) {
+      alert('Signature verified, but this backup has no restorable profile fields.');
       return;
     }
 
-    const updates = mergePpafPayloadIntoUserUpdates(payload);
-    await updateUser(updates);
-    alert('Restored data from your .ppaf backup.');
+    const lines = updateEntries.map(([key, value], i) => `${i + 1}. ${key}: ${previewRestoreValue(value)}`);
+    const picked = prompt(
+      `Signature verified.\n\nWhat do you want restored?\n${lines.join(
+        '\n',
+      )}\n\nType numbers (example: 1,3,5) or "all".`,
+      'all',
+    );
+    if (picked === null) return;
+    const choice = picked.trim().toLowerCase();
+
+    const selected = new Set<number>();
+    if (choice === 'all') {
+      for (let i = 1; i <= updateEntries.length; i++) selected.add(i);
+    } else {
+      for (const part of choice.split(',').map((p) => p.trim()).filter(Boolean)) {
+        const n = Number(part);
+        if (Number.isInteger(n) && n >= 1 && n <= updateEntries.length) selected.add(n);
+      }
+    }
+    if (selected.size === 0) {
+      alert('Nothing selected. Restore cancelled.');
+      return;
+    }
+
+    const pickedUpdates: Partial<User> = {};
+    for (const n of selected) {
+      const [key, value] = updateEntries[n - 1];
+      (pickedUpdates as Record<string, unknown>)[key] = value;
+    }
+
+    if (!confirm(`Restore ${selected.size} field(s) from this verified .ppaf backup?`)) {
+      return;
+    }
+
+    await updateUser(pickedUpdates);
+    alert(`Restored ${selected.size} field(s) from your signed .ppaf backup.`);
   };
 
   return (
