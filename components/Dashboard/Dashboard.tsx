@@ -20,6 +20,7 @@ import AvatarShopTab from '../Tabs/AvatarShopTab';
 import CoinsTab from '../Tabs/CoinsTab';
 import FriendsTab from '../Tabs/FriendsTab';
 import SettingsTab from '../Tabs/SettingsTab';
+import ReportTab from '../Tabs/ReportTab';
 
 interface DashboardProps {
   user: User;
@@ -41,7 +42,11 @@ export default function Dashboard({ user }: DashboardProps) {
     if (typeof window === 'undefined') return;
     const sync = () => {
       const tab = pathToTab(window.location.pathname) as TabType;
-      if (['games', 'avatarShop', 'coins', 'friends', 'settings', 'studio', 'donation'].includes(tab)) {
+      if (
+        ['games', 'avatarShop', 'coins', 'friends', 'settings', 'report', 'studio', 'donation'].includes(
+          tab,
+        )
+      ) {
         setCurrentTab(tab);
       }
     };
@@ -61,12 +66,44 @@ export default function Dashboard({ user }: DashboardProps) {
     }
   }, [playTabSwitch]);
 
+  useEffect(() => {
+    const onNavigate = (e: Event) => {
+      const ce = e as CustomEvent<{ tab?: string }>;
+      const tab = ce.detail?.tab as TabType | undefined;
+      if (
+        tab &&
+        [
+          'games',
+          'avatarShop',
+          'coins',
+          'friends',
+          'settings',
+          'report',
+          'studio',
+          'donation',
+        ].includes(tab)
+      ) {
+        handleTabChange(tab);
+      }
+    };
+    window.addEventListener('pixelplace-navigate', onNavigate);
+    return () => window.removeEventListener('pixelplace-navigate', onNavigate);
+  }, [handleTabChange]);
+
   // Keyboard shortcuts: G=Games, C=Studio, V=Avatar Shop, P=Coins, F=Friends, O=Settings (avoid WASD/B/A)
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (e.ctrlKey || e.metaKey || e.altKey || e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
       const key = e.key.toLowerCase();
-      const map: Record<string, TabType> = { g: 'games', c: 'studio', v: 'avatarShop', p: 'coins', f: 'friends', o: 'settings' };
+      const map: Record<string, TabType> = {
+        g: 'games',
+        c: 'studio',
+        v: 'avatarShop',
+        p: 'coins',
+        f: 'friends',
+        o: 'settings',
+        r: 'report',
+      };
       if (map[key]) {
         e.preventDefault();
         handleTabChange(map[key]);
@@ -96,6 +133,8 @@ export default function Dashboard({ user }: DashboardProps) {
             onToggleEditMode={() => setEditMode(!editMode)}
           />
         );
+      case 'report':
+        return <ReportTab user={user} editMode={editMode} />;
       default:
         return (
           <div>
@@ -115,7 +154,7 @@ export default function Dashboard({ user }: DashboardProps) {
       />
       <div className="body-row">
         <div className="body-inner">
-          <Sidebar user={user} />
+          <Sidebar user={user} onNavigate={handleTabChange} />
           <section className="main-card">
             <div
               className="ixel-ace-brand"
@@ -165,7 +204,7 @@ export default function Dashboard({ user }: DashboardProps) {
           </span>
           <span style={{ margin: '0 12px', opacity: 0.5 }}>•</span>
           <span>
-            <LocalizeText text="Press G, S, C, P, F, or O to switch tabs" />
+            <LocalizeText text="Press G, C, V, P, F, O, or R to switch tabs" />
           </span>
         </div>
       </footer>

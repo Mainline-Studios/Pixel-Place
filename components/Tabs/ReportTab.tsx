@@ -62,6 +62,14 @@ export default function ReportTab({ user }: ReportTabProps) {
     <>
       <h2 className="section-title">🚨 Report a User</h2>
 
+      <div className="ai-box" style={{ marginBottom: 16 }}>
+        <div className="ai-label">Safety first</div>
+        <div className="ai-output" style={{ fontSize: 14, lineHeight: 1.65 }}>
+          Reports are reviewed by moderators and kept confidential. If you or someone else is in immediate danger,
+          contact local emergency services — Pixel Place is not a crisis hotline.
+        </div>
+      </div>
+
       <div className="ai-box">
         <div className="ai-label">Submit a Report</div>
         <div className="ai-output">

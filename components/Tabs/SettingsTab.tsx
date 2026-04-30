@@ -14,6 +14,7 @@ import { useMobileBeta } from '@/contexts/MobileBetaContext';
 import { useAccessibility, type ColorBlindMode } from '@/contexts/AccessibilityContext';
 import { STYLE_OPTIONS } from '@/lib/styleTheme';
 import { formatGenderForDisplay } from '@/lib/formatGenderDisplay';
+import SafetyPrivacyPanel from '@/components/SafetyPrivacyPanel';
 
 interface SettingsTabProps {
   user: User;
@@ -88,6 +89,8 @@ export default function SettingsTab({ user, editMode, onToggleEditMode }: Settin
           Equipped Skin: {escapeHTML(equippedSkinName)}
         </div>
       </div>
+
+      <SafetyPrivacyPanel user={user} />
 
       {(user.role === 'admin' || user.role === 'head_admin') && (
         <div className="ai-box">

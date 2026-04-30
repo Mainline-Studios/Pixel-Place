@@ -10,7 +10,7 @@ import { useState, useEffect } from 'react';
 
 interface SidebarProps {
   user: User;
-  onNavigate?: (tab: string) => void;
+  onNavigate?: (tab: 'friends' | 'coins' | 'settings' | 'report') => void;
 }
 
 export default function Sidebar({ user, onNavigate }: SidebarProps) {
@@ -93,6 +93,13 @@ export default function Sidebar({ user, onNavigate }: SidebarProps) {
         style={{ cursor: 'pointer' }}
       >
         <LocalizeText text="Settings" />
+      </div>
+      <div
+        className="sidebar-link"
+        onClick={() => onNavigate?.('report')}
+        style={{ cursor: 'pointer' }}
+      >
+        <LocalizeText text="Safety" />
       </div>
     </aside>
   );

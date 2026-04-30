@@ -38,6 +38,7 @@ const TABS: { key: TabType; label: string; shortcut?: string; adminOnly?: boolea
   { key: 'avatarShop', label: 'Avatar Shop', shortcut: 'V' },
   { key: 'coins', label: 'Pixel Coins', shortcut: 'P' },
   { key: 'friends', label: 'Friends', shortcut: 'F' },
+  { key: 'report', label: 'Safety', shortcut: 'R' },
   { key: 'settings', label: 'Settings', shortcut: 'O' },
 ];
 

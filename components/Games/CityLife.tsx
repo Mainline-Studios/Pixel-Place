@@ -147,6 +147,9 @@
     const keyHint = document.getElementById('key-hint');
 
     let state = null;
+    function escapeHtml(s){
+      return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
     function updateDesc(){
       const p = sel.value;
       desc.textContent = professions[p].desc || '';
@@ -328,7 +331,7 @@
 
       function end(won){
         clearState();
-        if(won){ result.innerHTML = `<span class=\"success\">Success! You performed well as ${p}.</span>`; }
+        if(won){ result.innerHTML = `<span class=\"success\">Success! You performed well as ${escapeHtml(p)}.</span>`; }
         else { result.textContent = `Time's up — you scored ${state.progress || 0}. Try again.` }
         actionBtn.style.display='none';
         keyHint.textContent='';

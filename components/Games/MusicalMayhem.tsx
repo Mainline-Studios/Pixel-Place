@@ -65,6 +65,10 @@ let isHost = false;
 let localInput = { left:false, right:false };
 let lastState = null;
 
+function escapeHtml(s){
+  return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
 function resize(){
   canvas.width = canvas.clientWidth;
   canvas.height = canvas.clientHeight;
@@ -146,7 +150,7 @@ socket.on('room_update', (room)=>{
   // Determine host
   isHost = (room.host === myId);
   roomInfo.textContent = `Room ${room.id} — Host: ${room.hostName} (${room.host}) — Target players: ${room.targetPlayers} — Round: ${room.round}`;
-  playersList.innerHTML = room.players.map(p => `<div>${p.name} ${p.id===room.host? '(host)':''} ${p.eliminated? ' — eliminated':''}</div>`).join('');
+  playersList.innerHTML = room.players.map(p => `<div>${escapeHtml(p.name)} ${p.id===room.host? '(host)':''} ${p.eliminated? ' — eliminated':''}</div>`).join('');
   // only host may start and only when players === targetPlayers
   startBtn.disabled = !(isHost && room.players.length === room.targetPlayers && !room.running);
   roomStatus.textContent = room.running ? 'Game running' : 'Waiting';

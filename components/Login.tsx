@@ -19,6 +19,7 @@ import {
   coerceExtendedGenderForSelect,
   isExtendedGenderBranch,
 } from '@/lib/genderIdentityOptions';
+import { getPasswordStrength } from '@/lib/passwordStrength';
 
 export default function Login() {
   const { locale, setLocale, localeChoices } = useSiteLanguage();
@@ -43,6 +44,7 @@ export default function Login() {
   const { playSuccess, playError } = useSound();
   const text = getLoginUiStrings(locale);
   const monthNames = text.monthNames;
+  const signupPasswordStrength = mode === 'signup' ? getPasswordStrength(password) : null;
 
   const handleSignIn = async () => {
     if (!username || !password) {
@@ -283,6 +285,51 @@ export default function Login() {
                 onChange={handlePasswordChange}
               />
               <div className="input-hint">{text.atLeast8}</div>
+              {signupPasswordStrength && (
+                <div style={{ marginBottom: 12 }} aria-live="polite">
+                  <div
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      marginBottom: 4,
+                    }}
+                  >
+                    <span style={{ fontSize: 12, color: 'var(--text-dim)' }}>Password strength</span>
+                    <span
+                      style={{
+                        fontSize: 12,
+                        fontWeight: 600,
+                        color:
+                          signupPasswordStrength.tier >= 3
+                            ? '#2ecc71'
+                            : signupPasswordStrength.tier >= 2
+                              ? '#f1c40f'
+                              : '#e74c3c',
+                      }}
+                    >
+                      {signupPasswordStrength.label}
+                    </span>
+                  </div>
+                  <div
+                    style={{
+                      height: 6,
+                      borderRadius: 3,
+                      background: 'rgba(0,0,0,0.2)',
+                      overflow: 'hidden',
+                    }}
+                  >
+                    <div
+                      style={{
+                        width: `${signupPasswordStrength.fraction * 100}%`,
+                        height: '100%',
+                        background: 'linear-gradient(90deg, #e74c3c, #f1c40f, #2ecc71)',
+                        transition: 'width 0.2s ease',
+                      }}
+                    />
+                  </div>
+                </div>
+              )}
 
               <div className="gender-section">
                 <label>{text.genderOptional}</label>

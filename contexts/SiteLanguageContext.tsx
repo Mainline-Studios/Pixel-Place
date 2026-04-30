@@ -19,6 +19,7 @@ import {
   isSupportedLocale,
 } from '@/lib/locale';
 import { translateEnglishWithMyMemory } from '@/lib/i18n/mymemoryTranslate';
+import { SITE_TRANSLATION_CACHE_KEY } from '@/lib/siteTranslationCache';
 
 export const SITE_LOCALE_EVENT = 'pixelplace-site-locale';
 
@@ -32,7 +33,7 @@ type SiteLanguageContextValue = {
 
 const SiteLanguageContext = createContext<SiteLanguageContextValue | null>(null);
 
-const CACHE_PREFIX = 'pp_site_tr_v1';
+const CACHE_PREFIX = SITE_TRANSLATION_CACHE_KEY;
 const MAX_CACHE_ENTRIES = 400;
 
 function cacheKey(locale: SupportedLocale, text: string): string {

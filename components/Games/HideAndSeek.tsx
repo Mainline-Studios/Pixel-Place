@@ -467,6 +467,10 @@
       }
     }
 
+    function escapeHtml(s){
+      return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
     // players sidebar
     function renderPlayersList(){
       playersListEl.innerHTML = '';
@@ -486,7 +490,7 @@
         sw.style.background = p.color;
         left.appendChild(sw);
         const txt = document.createElement('div');
-        txt.innerHTML = `<strong style="color: ${i===seekerIndex ? 'var(--accent)' : 'inherit'}">${p.name}${i===seekerIndex ? ' — Seeker' : ''}</strong><div style="font-size:12px;color:var(--muted)">${p.emoji} ${p.found ? 'Found' : (p.hiding ? 'Hidden' : 'Hidden? ')} </div>`;
+        txt.innerHTML = `<strong style="color: ${i===seekerIndex ? 'var(--accent)' : 'inherit'}">${escapeHtml(p.name)}${i===seekerIndex ? ' — Seeker' : ''}</strong><div style="font-size:12px;color:var(--muted)">${escapeHtml(p.emoji)} ${p.found ? 'Found' : (p.hiding ? 'Hidden' : 'Hidden? ')} </div>`;
         left.appendChild(txt);
         const right = document.createElement('div');
         right.style.textAlign = 'right';
@@ -551,7 +555,7 @@
         const left = document.createElement('div'); left.style.display='flex'; left.style.alignItems='center'; left.style.gap='8px';
         const sw = document.createElement('span'); sw.className='color-swatch'; sw.style.background = p.color;
         left.appendChild(sw);
-        const txt = document.createElement('div'); txt.innerHTML = `<strong>${p.name}</strong><div style="font-size:12px;color:var(--muted)">${p.emoji}</div>`;
+        const txt = document.createElement('div'); txt.innerHTML = `<strong>${escapeHtml(p.name)}</strong><div style="font-size:12px;color:var(--muted)">${escapeHtml(p.emoji)}</div>`;
         left.appendChild(txt);
         div.appendChild(left);
         playersListEl.appendChild(div);
