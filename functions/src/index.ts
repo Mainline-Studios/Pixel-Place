@@ -135,6 +135,7 @@ async function readStatusPagePayload(): Promise<typeof DEFAULT_STATUS_PAGE> {
 }
 
 import { requireAuth, requireAdmin, requireOwnerOrAdmin, getAuthFromRequest, isAdmin, getJwtSecret } from './authMiddleware';
+import { postPpafSign, postPpafVerify } from './ppaf';
 import { mountStripeEmbeddedWebhook, mountStripeEmbeddedPayRoutes } from './stripeEmbeddedPay';
 
 const DEVICE_ID_MAX = 128;
@@ -1545,6 +1546,10 @@ app.get('/status-page', getStatusPageHandler);
 app.get('/api/status-page', getStatusPageHandler);
 app.put('/status-page', putStatusPageHandler);
 app.put('/api/status-page', putStatusPageHandler);
+
+// Signed Pixel Place Account File (PPAF) — backup / restore
+['/account/ppaf/sign', '/api/account/ppaf/sign'].forEach((path) => app.post(path, postPpafSign));
+['/account/ppaf/verify', '/api/account/ppaf/verify'].forEach((path) => app.post(path, postPpafVerify));
 
 // 404 for unknown routes (include path debug so we can see what Express received)
 app.use((req: any, res) => {
