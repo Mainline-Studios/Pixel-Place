@@ -40,6 +40,8 @@ export async function generatePpafKeyPairInBrowser(): Promise<PpafBrowserGenerat
   const payload = {
     version: 1,
     algorithm: 'ed25519',
+    generatedAt: new Date().toISOString(),
+    runId: globalThis.crypto?.randomUUID?.() || `run_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`,
     privatePem,
     publicPem,
   };

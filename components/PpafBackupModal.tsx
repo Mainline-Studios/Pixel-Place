@@ -32,6 +32,7 @@ export default function PpafBackupModal({
   const [keysSaved, setKeysSaved] = useState(false);
   const [lastRestorationBlock, setLastRestorationBlock] = useState('');
   const [backupDownloaded, setBackupDownloaded] = useState(false);
+  const [restorationPopupOpen, setRestorationPopupOpen] = useState(false);
 
   useEffect(() => {
     if (open) {
@@ -39,6 +40,7 @@ export default function PpafBackupModal({
       setGenerateError('');
       setDownloadError('');
       setBackupDownloaded(false);
+      setRestorationPopupOpen(false);
       setKeysSaved(hasStoredPpafKeys());
     }
   }, [open]);
@@ -69,6 +71,7 @@ export default function PpafBackupModal({
       setKeysSaved(true);
       setLastRestorationBlock(restorationBlock);
       setPaste(restorationBlock);
+      setRestorationPopupOpen(true);
     } catch (e) {
       setGenerateError(e instanceof Error ? e.message : 'Could not generate keys in this browser.');
     } finally {
@@ -113,6 +116,7 @@ export default function PpafBackupModal({
         setPaste(r.restorationBlockToSave);
         setKeysSaved(true);
         setBackupDownloaded(true);
+        setRestorationPopupOpen(true);
         return;
       }
       onClose();
@@ -231,6 +235,19 @@ export default function PpafBackupModal({
               </button>
             </div>
           </div>
+
+          {lastRestorationBlock && (
+            <div style={{ marginBottom: 14 }}>
+              <button
+                type="button"
+                className="btn"
+                style={{ opacity: 0.92 }}
+                onClick={() => setRestorationPopupOpen(true)}
+              >
+                Open full restoration key popup
+              </button>
+            </div>
+          )}
 
           {!backupDownloaded && (
             <div style={{ marginBottom: 16 }}>
@@ -355,6 +372,73 @@ export default function PpafBackupModal({
           </div>
         </div>
       </div>
+
+      {restorationPopupOpen && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="PPAF restoration key"
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 1400,
+            background: 'rgba(0,0,0,0.82)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: 16,
+          }}
+          onClick={() => setRestorationPopupOpen(false)}
+        >
+          <div
+            className="ai-box"
+            style={{
+              width: 'min(1000px, 100%)',
+              maxHeight: '92vh',
+              overflow: 'auto',
+              margin: 0,
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="ai-label">PPAF restoration key (save this)</div>
+            <div className="ai-output" style={{ fontSize: 14, lineHeight: 1.6 }}>
+              <p style={{ margin: '0 0 10px', color: 'var(--text-dim)' }}>
+                This is intentionally large so the entire token is visible. Keep this safe and private.
+              </p>
+              <textarea
+                readOnly
+                value={lastRestorationBlock}
+                rows={14}
+                style={{
+                  width: '100%',
+                  padding: '10px 12px',
+                  borderRadius: 8,
+                  border: '1px solid var(--border)',
+                  background: 'var(--panel-soft)',
+                  color: 'var(--text-main)',
+                  fontFamily: 'ui-monospace, monospace',
+                  fontSize: 12,
+                  resize: 'vertical',
+                  overflowWrap: 'anywhere',
+                }}
+              />
+              <div style={{ marginTop: 10, display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                <button
+                  type="button"
+                  className="btn"
+                  onClick={() => void copyRestorationBlock(lastRestorationBlock)}
+                  disabled={!lastRestorationBlock}
+                >
+                  Copy restoration block
+                </button>
+                <button type="button" className="btn" style={{ opacity: 0.9 }} onClick={() => setRestorationPopupOpen(false)}>
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

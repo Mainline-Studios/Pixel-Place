@@ -20,6 +20,8 @@ const pubPem = String(publicKey.export({ type: 'spki', format: 'pem' })).trim();
 const payload = {
   version: 1,
   algorithm: 'ed25519',
+  generatedAt: new Date().toISOString(),
+  runId: Math.random().toString(36).slice(2, 12),
   privatePem: privPem,
   publicPem: pubPem,
 };
