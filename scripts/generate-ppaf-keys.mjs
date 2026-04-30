@@ -9,6 +9,8 @@
  *   NEXT_PUBLIC_PPAF_ED25519_PUBLIC_KEY = <PUBLIC PEM only — safe to ship in client>
  *
  * Usage: node scripts/generate-ppaf-keys.mjs
+ *
+ * In the app: Settings → Privacy & safety → Make backup (.ppaf) — copy the command, run it, paste the output, save keys, then create the file.
  */
 import { generateKeyPairSync } from 'crypto';
 

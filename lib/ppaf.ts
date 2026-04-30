@@ -4,13 +4,35 @@ import { apiUrl } from '@/lib/apiBaseUrl';
 import { getAuthToken } from '@/lib/api';
 import { buildPpafAccountPayload } from '@/lib/privacyExport';
 import { PPAF_EMBEDDED_PUBLIC_KEY_PEM } from '@/lib/ppafEmbeddedPublicKey';
+import { getStoredPpafKeys } from '@/lib/ppafBrowserKeys';
+import { signPpafDocumentWithPrivateKey } from '@/lib/ppafClientSign';
+import { PPAF_DOC_FORMAT } from '@/lib/ppafConstants';
 
 function getClientPpafPublicKeyPem(): string {
+  if (typeof window !== 'undefined') {
+    try {
+      const pair = getStoredPpafKeys();
+      if (pair?.publicPem?.trim()) return pair.publicPem.trim();
+    } catch {
+      /* ignore */
+    }
+  }
   const fromEnv =
     typeof process.env.NEXT_PUBLIC_PPAF_ED25519_PUBLIC_KEY === 'string'
       ? process.env.NEXT_PUBLIC_PPAF_ED25519_PUBLIC_KEY.trim()
       : '';
   return fromEnv || PPAF_EMBEDDED_PUBLIC_KEY_PEM;
+}
+
+function triggerPpafFileDownload(doc: Record<string, unknown>, username: string): void {
+  const blob = new Blob([JSON.stringify(doc, null, 2)], { type: PPAF_MEDIA_TYPE });
+  const a = document.createElement('a');
+  const safe = (username || 'account').replace(/[^\w.-]+/g, '_').slice(0, 64);
+  a.href = URL.createObjectURL(blob);
+  a.download = `${safe}.ppaf`;
+  a.rel = 'noopener';
+  a.click();
+  URL.revokeObjectURL(a.href);
 }
 
 /** MIME type for `.ppaf` downloads (still uses `.ppaf` extension). */
@@ -29,6 +51,22 @@ export async function downloadSignedPpaf(user: User): Promise<DownloadPpafResult
     return { ok: false, error: 'Sign in again to download a signed backup.' };
   }
   const payload = buildPpafAccountPayload(user);
+
+  const tryBrowserSign = async (): Promise<DownloadPpafResult | null> => {
+    const stored = getStoredPpafKeys();
+    if (!stored) return null;
+    try {
+      const doc = await signPpafDocumentWithPrivateKey(payload, stored.privatePem);
+      triggerPpafFileDownload(doc, user.username || 'account');
+      return { ok: true };
+    } catch (e) {
+      return {
+        ok: false,
+        error: e instanceof Error ? e.message : 'Could not sign backup in this browser.',
+      };
+    }
+  };
+
   try {
     const res = await fetch(apiUrl('/api/account/ppaf/sign'), {
       method: 'POST',
@@ -41,22 +79,24 @@ export async function downloadSignedPpaf(user: User): Promise<DownloadPpafResult
     const data = (await res.json().catch(() => ({}))) as {
       error?: string;
       code?: string;
-    };
-    if (!res.ok) {
-      const err = typeof data.error === 'string' ? data.error : 'Could not create signed backup.';
-      const code = typeof data.code === 'string' ? data.code : undefined;
+    } & Record<string, unknown>;
+    if (res.ok) {
+      triggerPpafFileDownload(data as Record<string, unknown>, user.username || 'account');
+      return { ok: true };
+    }
+    const err = typeof data.error === 'string' ? data.error : 'Could not create signed backup.';
+    const code = typeof data.code === 'string' ? data.code : undefined;
+    if (code === PPAF_NOT_CONFIGURED_CODE || res.status === 503) {
+      const local = await tryBrowserSign();
+      if (local?.ok) return local;
+      if (local && !local.ok) return { ...local, code };
       return { ok: false, error: err, code };
     }
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: PPAF_MEDIA_TYPE });
-    const a = document.createElement('a');
-    const safe = (user.username || 'account').replace(/[^\w.-]+/g, '_').slice(0, 64);
-    a.href = URL.createObjectURL(blob);
-    a.download = `${safe}.ppaf`;
-    a.rel = 'noopener';
-    a.click();
-    URL.revokeObjectURL(a.href);
-    return { ok: true };
+    return { ok: false, error: err, code };
   } catch {
+    const local = await tryBrowserSign();
+    if (local?.ok) return local;
+    if (local && !local.ok) return local;
     return { ok: false, error: 'Network error while creating backup.' };
   }
 }
@@ -82,7 +122,7 @@ function base64ToBytes(b64: string): Uint8Array {
 }
 
 async function verifyEd25519Local(doc: Record<string, unknown>, pem: string): Promise<boolean> {
-  if (doc.format !== 'pixel-place-account-file') return false;
+  if (doc.format !== PPAF_DOC_FORMAT) return false;
   if (doc.algorithm !== 'ed25519') return false;
   if (typeof doc.signature !== 'string' || typeof doc.issuedAt !== 'string') return false;
   if (doc.payload === null || typeof doc.payload !== 'object') return false;
