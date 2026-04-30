@@ -3,7 +3,9 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import type { HistoriMacVersion } from '@/lib/historiMacVersions';
 import {
+  INFINITE_MAC_DISK_GROUPS,
   INFINITE_MAC_DISK_NAMES,
+  INFINITE_MAC_MACHINE_GROUPS,
   INFINITE_MAC_MACHINES,
   getInfiniteMacMachineSpec,
 } from '@/lib/infiniteMacCatalog';
@@ -167,41 +169,123 @@ export default function HistoriMacCustomPanel({ shellTheme, onRun }: Props) {
               ))}
             </datalist>
             <div>
-              <div style={labelStyle}>Machine</div>
+              <div style={labelStyle}>Machine ({INFINITE_MAC_MACHINES.length} profiles)</div>
               <select
-                aria-label="Emulated Macintosh model"
+                aria-label="Emulated Macintosh model — all Infinite Mac hardware"
+                size={Math.min(18, INFINITE_MAC_MACHINES.length)}
                 value={machine}
                 onChange={(e) => setMachine(e.target.value)}
-                style={{ ...inputStyle, width: '100%', maxWidth: '100%', cursor: 'pointer' }}
+                style={{
+                  ...inputStyle,
+                  width: '100%',
+                  maxWidth: '100%',
+                  cursor: 'pointer',
+                  maxHeight: 'min(42vh, 340px)',
+                  overflowY: 'auto',
+                  fontSize: 13,
+                  lineHeight: 1.35,
+                }}
               >
-                {INFINITE_MAC_MACHINES.map((m) => (
-                  <option key={m.name} value={m.name}>
-                    {m.name}
-                  </option>
+                {INFINITE_MAC_MACHINE_GROUPS.map((group) => (
+                  <optgroup key={group.label} label={group.label}>
+                    {group.machines.map((m) => (
+                      <option key={m.name} value={m.name}>
+                        {m.name}
+                      </option>
+                    ))}
+                  </optgroup>
                 ))}
               </select>
+              <p
+                style={{
+                  margin: '8px 0 0',
+                  fontSize: 11,
+                  lineHeight: 1.45,
+                  color: shellTheme === 'next' ? '#333' : '#666',
+                  fontFamily: shellBodyFont(shellTheme),
+                }}
+              >
+                Names match Infinite Mac’s embed <code style={{ fontSize: 11 }}>machine=</code> exactly (same sections as
+                their UI). The 512K-class Mac is{' '}
+                <strong style={{ fontWeight: 600 }}>Mac 512K (Snow)</strong> — there is no separate “Mac 512K” string
+                upstream.
+              </p>
             </div>
 
             <div>
-              <div style={labelStyle}>Boot disk</div>
+              <div style={labelStyle}>Boot disk ({INFINITE_MAC_DISK_NAMES.length} disks)</div>
+              <select
+                aria-label="Pick boot disk from catalog"
+                size={12}
+                value={INFINITE_MAC_DISK_NAMES.includes(disk1.trim()) ? disk1.trim() : ''}
+                onChange={(e) => setDisk1(e.target.value)}
+                style={{
+                  ...inputStyle,
+                  width: '100%',
+                  boxSizing: 'border-box',
+                  maxHeight: 'min(38vh, 300px)',
+                  overflowY: 'auto',
+                  fontSize: 13,
+                  lineHeight: 1.35,
+                  marginBottom: 8,
+                }}
+              >
+                <option value="">— Scroll groups below or type exact name —</option>
+                {INFINITE_MAC_DISK_GROUPS.map((group) => (
+                  <optgroup key={`boot-${group.label}`} label={group.label}>
+                    {group.disks.map((d) => (
+                      <option key={d} value={d}>
+                        {d}
+                      </option>
+                    ))}
+                  </optgroup>
+                ))}
+              </select>
               <input
-                aria-label="Primary disk name"
+                aria-label="Primary disk name — exact Infinite Mac displayName"
                 list="historimac-custom-disk-list"
                 value={disk1}
                 onChange={(e) => setDisk1(e.target.value)}
-                placeholder="e.g. System 7.1"
+                placeholder="Exact disk string for disk= (can match picker above)"
                 style={{ ...inputStyle, width: '100%', boxSizing: 'border-box' }}
               />
             </div>
 
             <div>
               <div style={labelStyle}>Second disk (optional)</div>
+              <select
+                aria-label="Pick second disk from catalog"
+                size={12}
+                value={disk2.trim() && INFINITE_MAC_DISK_NAMES.includes(disk2.trim()) ? disk2.trim() : ''}
+                onChange={(e) => setDisk2(e.target.value)}
+                style={{
+                  ...inputStyle,
+                  width: '100%',
+                  boxSizing: 'border-box',
+                  maxHeight: 'min(38vh, 300px)',
+                  overflowY: 'auto',
+                  fontSize: 13,
+                  lineHeight: 1.35,
+                  marginBottom: 8,
+                }}
+              >
+                <option value="">— None —</option>
+                {INFINITE_MAC_DISK_GROUPS.map((group) => (
+                  <optgroup key={`disk2-${group.label}`} label={group.label}>
+                    {group.disks.map((d) => (
+                      <option key={`d2-${d}`} value={d}>
+                        {d}
+                      </option>
+                    ))}
+                  </optgroup>
+                ))}
+              </select>
               <input
                 aria-label="Second disk name"
                 list="historimac-custom-disk-list"
                 value={disk2}
                 onChange={(e) => setDisk2(e.target.value)}
-                placeholder="Another volume — empty for single disk"
+                placeholder="Leave empty for one disk"
                 style={{ ...inputStyle, width: '100%', boxSizing: 'border-box' }}
               />
             </div>

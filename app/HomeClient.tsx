@@ -15,6 +15,7 @@ import ErrorBoundary from '@/components/ErrorBoundary';
 import KonamiCodeEasterEgg from '@/components/KonamiCodeEasterEgg';
 import UrgentGameBanner from '@/components/UrgentGameBanner';
 import PixelPlacePay, { PayPortalInvalid, PayPortalLanding } from '@/components/PixelPlacePay';
+import LocalizeText from '@/components/LocalizeText';
 import { getPayPortalClientState, getPayPortalOrigin, isPayPortalHostname, type PayPortalClientState } from '@/lib/payPortal';
 
 function AppContent() {
@@ -94,7 +95,7 @@ function AppContent() {
         />
       ) : !user && isRestoring ? (
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', color: 'var(--text)', fontSize: '18px' }}>
-          Loading…
+          <LocalizeText text="Loading…" />
         </div>
       ) : !user ? (
         <>

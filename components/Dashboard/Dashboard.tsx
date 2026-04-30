@@ -12,6 +12,7 @@ import SiteSocialLinks from '../SiteSocialLinks';
 import BrandKitDownloadLink from '../BrandKitDownloadLink';
 import SiteLicenseAttribution from '../SiteLicenseAttribution';
 import StatusPageLink from '../StatusPageLink';
+import LocalizeText from '@/components/LocalizeText';
 import { useSecretTheme } from '@/contexts/SecretThemeContext';
 import GamesTab from '../Tabs/GamesTab';
 import CreateTab from '../Tabs/CreateTab';
@@ -96,7 +97,11 @@ export default function Dashboard({ user }: DashboardProps) {
           />
         );
       default:
-        return <div>Unknown tab</div>;
+        return (
+          <div>
+            <LocalizeText text="Unknown tab" />
+          </div>
+        );
     }
   };
 
@@ -155,9 +160,13 @@ export default function Dashboard({ user }: DashboardProps) {
           <SiteLicenseAttribution />
         </div>
         <div>
-          <span>Play. Create. Share.</span>
+          <span>
+            <LocalizeText text="Play. Create. Share." />
+          </span>
           <span style={{ margin: '0 12px', opacity: 0.5 }}>•</span>
-          <span>Press G, S, C, P, F, or O to switch tabs</span>
+          <span>
+            <LocalizeText text="Press G, S, C, P, F, or O to switch tabs" />
+          </span>
         </div>
       </footer>
       <ScrollToTop />

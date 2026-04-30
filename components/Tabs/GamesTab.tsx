@@ -6,7 +6,7 @@ import { getUserMadeGames, deleteUserMadeGame } from '@/lib/storage';
 import { subscribeToUserMadeGames } from '@/lib/firestoreClient';
 import { useSecretTheme } from '@/contexts/SecretThemeContext';
 import UserMadeGamePlayer from '../Games/UserMadeGamePlayer';
-import FilteredText, { FilteredUsername } from '../FilteredText';
+import { FilteredUsername } from '../FilteredText';
 import GameErrorBoundary from '../GameErrorBoundary';
 import GymPumpEngine from '../Games/GymPumpEngine';
 import Hypnosia from '../Games/Hypnosia';
@@ -25,6 +25,7 @@ import HistoriMac from '../Games/HistoriMac';
 import { useMobileBeta } from '@/contexts/MobileBetaContext';
 import SquishBubbles from '../Games/SquishBubbles';
 import SquishSlime from '../Games/SquishSlime';
+import LocalizeText, { FilteredThenLocalize } from '@/components/LocalizeText';
 
 interface GamesTabProps {
   user: User;
@@ -325,7 +326,7 @@ export default function GamesTab({ user, editMode }: GamesTabProps) {
               boxShadow: '0 2px 8px rgba(0,0,0,0.3)'
             }}
           >
-            ← Back
+            ← <LocalizeText text="Back" />
           </button>
         )}
         <GameComponent key={selectedGame} {...gameProps} />
@@ -336,26 +337,35 @@ export default function GamesTab({ user, editMode }: GamesTabProps) {
 
   return (
     <>
-      <h2 className="section-title">🎮 Play Games</h2>
+      <h2 className="section-title">
+        🎮 <LocalizeText text="Play Games" as="span" />
+      </h2>
 
       {isMobileBeta && (
         <div
           className="ai-box"
           style={{ marginBottom: 16, borderColor: 'rgba(0, 212, 255, 0.35)', background: 'rgba(0, 40, 60, 0.2)' }}
         >
-          <div className="ai-label">Mobile beta</div>
+          <div className="ai-label">
+            <LocalizeText text="Mobile beta" />
+          </div>
           <div className="ai-output">
-            Simplified layout for phones and tablets. HistoriMac is hidden (needs desktop). Showdown includes
-            an on-screen D-pad. Add <code style={{ fontSize: 12 }}>?desktop=1</code> to the URL to try the
-            full site once.
+            <LocalizeText
+              as="span"
+              text="Simplified layout for phones and tablets. HistoriMac is hidden (needs desktop). Showdown includes an on-screen D-pad. Add "
+            />
+            <code style={{ fontSize: 12 }}>?desktop=1</code>
+            <LocalizeText as="span" text=" to the URL to try the full site once." />
           </div>
         </div>
       )}
       
       <div className="ai-box">
-        <div className="ai-label">Available Games</div>
+        <div className="ai-label">
+          <LocalizeText text="Available Games" />
+        </div>
         <div className="ai-output">
-          Choose a game to play! All games are playable directly in your browser.
+          <LocalizeText text="Choose a game to play! All games are playable directly in your browser." />
         </div>
       </div>
 
@@ -431,7 +441,7 @@ export default function GamesTab({ user, editMode }: GamesTabProps) {
               marginBottom: '8px',
               textAlign: 'center'
             }}>
-              {game.name}
+              <LocalizeText text={game.name} />
             </div>
             <div style={{
               fontSize: '12px',
@@ -439,7 +449,7 @@ export default function GamesTab({ user, editMode }: GamesTabProps) {
               textAlign: 'center',
               marginBottom: '12px'
             }}>
-              {game.category}
+              <LocalizeText text={game.category} />
             </div>
             <div style={{
               fontSize: '13px',
@@ -448,7 +458,7 @@ export default function GamesTab({ user, editMode }: GamesTabProps) {
               lineHeight: '1.6',
               marginBottom: '16px'
             }}>
-              {game.description}
+              <LocalizeText text={game.description} />
             </div>
             <button
               type="button"
@@ -470,21 +480,32 @@ export default function GamesTab({ user, editMode }: GamesTabProps) {
               }}
             >
               <span style={{ fontSize: '18px' }} aria-hidden>▶</span>
-              Play
+              <LocalizeText text="Play" />
             </button>
           </div>
         ))}
       </div>
 
       <div className="ai-box" style={{ marginTop: '24px' }}>
-        <div className="ai-label">Game Instructions</div>
+        <div className="ai-label">
+          <LocalizeText text="Game Instructions" />
+        </div>
         <div className="ai-output" style={{ fontSize: '13px', lineHeight: '1.8' }}>
-          <strong>Gym Pump:</strong> Lift weights, build power, and climb the leaderboard! Use the game controls to play.        </div>
+          <strong>
+            <LocalizeText text="Gym Pump:" as="span" />
+          </strong>{' '}
+          <LocalizeText
+            as="span"
+            text="Lift weights, build power, and climb the leaderboard! Use the game controls to play."
+          />
+        </div>
       </div>
 
       {userMadeGames.length > 0 && (
         <>
-          <h2 className="section-title" style={{ marginTop: '40px' }}>🎨 User-Made Games</h2>
+          <h2 className="section-title" style={{ marginTop: '40px' }}>
+            🎨 <LocalizeText text="User-Made Games" as="span" />
+          </h2>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '20px', marginTop: '20px' }}>
             {userMadeGames.map((game) => (
               <div
@@ -523,7 +544,7 @@ export default function GamesTab({ user, editMode }: GamesTabProps) {
                   marginBottom: '8px',
                   textAlign: 'center'
                 }}>
-                  <FilteredText text={game.title} />
+                  <FilteredThenLocalize text={game.title} />
                 </div>
                 <div style={{
                   fontSize: '12px',
@@ -531,7 +552,7 @@ export default function GamesTab({ user, editMode }: GamesTabProps) {
                   textAlign: 'center',
                   marginBottom: '12px'
                 }}>
-                  User-Made
+                  <LocalizeText text="User-Made" />
                 </div>
                 <div style={{
                   fontSize: '13px',
@@ -540,7 +561,7 @@ export default function GamesTab({ user, editMode }: GamesTabProps) {
                   lineHeight: '1.6',
                   marginBottom: '16px'
                 }}>
-                  <FilteredText text={game.desc || ''} />
+                  <FilteredThenLocalize text={game.desc || ''} />
                 </div>
                 <div style={{
                   fontSize: '11px',
@@ -548,7 +569,8 @@ export default function GamesTab({ user, editMode }: GamesTabProps) {
                   textAlign: 'center',
                   marginBottom: '16px'
                 }}>
-                  By: <FilteredUsername username={game.owner || ''} currentUsername={user.username || ''} />
+                  <LocalizeText text="By:" as="span" />{' '}
+                  <FilteredUsername username={game.owner || ''} currentUsername={user.username || ''} />
                 </div>
                 <div style={{ display: 'flex', gap: '8px' }}>
                   <button
@@ -571,7 +593,7 @@ export default function GamesTab({ user, editMode }: GamesTabProps) {
                     onClick={() => setSelectedUserGame(game)}
                   >
                     <span style={{ fontSize: '18px' }} aria-hidden>▶</span>
-                    Play
+                    <LocalizeText text="Play" />
                   </button>
                   {(user.role === 'admin' || user.role === 'head_admin') && (
                     <button 

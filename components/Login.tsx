@@ -8,14 +8,8 @@ import SiteSocialLinks from './SiteSocialLinks';
 import BrandKitDownloadLink from './BrandKitDownloadLink';
 import SiteLicenseAttribution from './SiteLicenseAttribution';
 import StatusPageLink from './StatusPageLink';
-import {
-  LOCALE_CHOICES,
-  applyDocumentLocale,
-  getEffectiveLocale,
-  isSupportedLocale,
-  setStoredLocale,
-  type SupportedLocale,
-} from '@/lib/locale';
+import { isSupportedLocale } from '@/lib/locale';
+import { useSiteLanguage } from '@/contexts/SiteLanguageContext';
 import { getLoginUiStrings } from '@/lib/i18n/loginUi.index';
 import {
   DEFAULT_EXTENDED_GENDER,
@@ -27,7 +21,7 @@ import {
 } from '@/lib/genderIdentityOptions';
 
 export default function Login() {
-  const [locale, setLocale] = useState<SupportedLocale>('en-US');
+  const { locale, setLocale, localeChoices } = useSiteLanguage();
   const genderSvgId = useId().replace(/[^a-zA-Z0-9_-]/g, '_');
   const [mode, setMode] = useState<'signin' | 'signup'>('signin');
   const [username, setUsername] = useState('');
@@ -41,11 +35,6 @@ export default function Login() {
   // Clear any existing messages on component mount
   useEffect(() => {
     setMessage('');
-  }, []);
-  useEffect(() => {
-    const next = getEffectiveLocale();
-    setLocale(next);
-    applyDocumentLocale(next);
   }, []);
   const [banInfo, setBanInfo] = useState<{ ban: any; deviceBanned?: boolean } | null>(null);
   const [showTerms, setShowTerms] = useState(false);
@@ -171,12 +160,10 @@ export default function Login() {
                 const v = e.target.value;
                 if (!isSupportedLocale(v)) return;
                 setLocale(v);
-                setStoredLocale(v);
-                applyDocumentLocale(v);
               }}
               style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: '1px solid var(--border)' }}
             >
-              {LOCALE_CHOICES.map((c) => (
+              {localeChoices.map((c) => (
                 <option key={c.value} value={c.value}>
                   {c.label}
                 </option>

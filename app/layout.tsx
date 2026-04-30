@@ -3,6 +3,7 @@ import "./globals.css";
 import Script from "next/script";
 import { MobileBetaProvider } from "@/contexts/MobileBetaContext";
 import { UserProvider } from "@/contexts/UserContext";
+import { SiteLanguageProvider } from "@/contexts/SiteLanguageContext";
 import { StyleProvider } from "@/components/StyleProvider";
 import { SecretThemeProvider } from "@/contexts/SecretThemeContext";
 import { SoundProvider } from "@/contexts/SoundContext";
@@ -52,8 +53,10 @@ export default function RootLayout({
               <SoundProvider>
                 <MobileBetaProvider>
                   <UserProvider>
-                    <SoundEffects />
-                    {children}
+                    <SiteLanguageProvider>
+                      <SoundEffects />
+                      {children}
+                    </SiteLanguageProvider>
                   </UserProvider>
                 </MobileBetaProvider>
               </SoundProvider>

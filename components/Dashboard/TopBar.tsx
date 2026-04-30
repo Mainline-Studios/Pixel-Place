@@ -6,6 +6,9 @@ import { getSkins, getAccessories } from '@/lib/storage';
 import Avatar3DViewer from '@/components/Avatar3DViewer';
 import { useUser } from '@/contexts/UserContext';
 import { useMobileBeta } from '@/contexts/MobileBetaContext';
+import { useSiteLanguage } from '@/contexts/SiteLanguageContext';
+import LocalizeText from '@/components/LocalizeText';
+import { isSupportedLocale } from '@/lib/locale';
 import { useState, useEffect, type CSSProperties } from 'react';
 
 interface TopBarProps {
@@ -41,6 +44,7 @@ const TABS: { key: TabType; label: string; shortcut?: string; adminOnly?: boolea
 export default function TopBar({ currentTab, onTabChange, user }: TopBarProps) {
   const { setUser } = useUser();
   const { isMobileBeta } = useMobileBeta();
+  const { locale, setLocale, localeChoices } = useSiteLanguage();
   const [skins, setSkins] = useState<Skin[]>([]);
   const [accessories, setAccessories] = useState<Accessory[]>([]);
 
@@ -128,14 +132,42 @@ export default function TopBar({ currentTab, onTabChange, user }: TopBarProps) {
                 onClick={() => onTabChange(tab.key)}
                 title={tab.shortcut ? `${tab.label} (press ${tab.shortcut})` : tab.label}
               >
-                {tab.label}
+                <LocalizeText text={tab.label} />
                 {tab.shortcut && (
                   <span style={{ opacity: 0.6, fontSize: '11px', marginLeft: '4px', fontWeight: 500 }}>({tab.shortcut})</span>
                 )}
               </button>
             ))}
         </div>
-        <div className="userbox" style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+        <div className="userbox" style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--text-dim, #9aa3b2)' }}>
+            <span className="visually-hidden" style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden' }}>
+              Language
+            </span>
+            <span aria-hidden>🌐</span>
+            <select
+              value={locale}
+              onChange={(e) => {
+                const v = e.target.value;
+                if (isSupportedLocale(v)) setLocale(v);
+              }}
+              style={{
+                maxWidth: 200,
+                padding: '6px 8px',
+                borderRadius: 8,
+                border: '1px solid var(--border, rgba(255,255,255,0.15))',
+                background: 'rgba(0,0,0,0.25)',
+                color: 'inherit',
+                fontSize: 12,
+              }}
+            >
+              {localeChoices.map((c) => (
+                <option key={c.value} value={c.value}>
+                  {c.label}
+                </option>
+              ))}
+            </select>
+          </label>
           <button
             type="button"
             className="topbar-coin-balance"

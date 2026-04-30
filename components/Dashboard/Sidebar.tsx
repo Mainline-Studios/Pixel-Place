@@ -5,6 +5,7 @@ import { getSkins, getAccessories } from '@/lib/storage';
 import Avatar3DViewer from '@/components/Avatar3DViewer';
 import { FilteredUsername } from '@/components/FilteredText';
 import { formatGenderForDisplay } from '@/lib/formatGenderDisplay';
+import LocalizeText from '@/components/LocalizeText';
 import { useState, useEffect } from 'react';
 
 interface SidebarProps {
@@ -65,29 +66,33 @@ export default function Sidebar({ user, onNavigate }: SidebarProps) {
         )}
       </div>
       <div className="info-name"><FilteredUsername username={user.username || ''} currentUsername={user.username || ''} /></div>
-      <div className="info-role">Role: {user.role}</div>
-      <div className="info-gender">Gender: {formatGenderForDisplay(user.gender)}</div>
+      <div className="info-role">
+        <LocalizeText text="Role:" /> {user.role}
+      </div>
+      <div className="info-gender">
+        <LocalizeText text="Gender:" /> {formatGenderForDisplay(user.gender)}
+      </div>
       <div className="sidebar-sep"></div>
       <div 
         className="sidebar-link" 
         onClick={() => onNavigate?.('friends')}
         style={{ cursor: 'pointer' }}
       >
-        Friends
+        <LocalizeText text="Friends" />
       </div>
       <div 
         className="sidebar-link" 
         onClick={() => onNavigate?.('coins')}
         style={{ cursor: 'pointer' }}
       >
-        Coins
+        <LocalizeText text="Coins" />
       </div>
       <div 
         className="sidebar-link" 
         onClick={() => onNavigate?.('settings')}
         style={{ cursor: 'pointer' }}
       >
-        Settings
+        <LocalizeText text="Settings" />
       </div>
     </aside>
   );
