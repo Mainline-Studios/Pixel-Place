@@ -1,6 +1,8 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  output: 'export',
+  // App Hosting's Next adapter requires a server build (.next/standalone).
+  // Keep static export available for legacy workflows behind an explicit opt-in.
+  ...(process.env.NEXT_OUTPUT_EXPORT === '1' ? { output: 'export' } : {}),
   images: {
     unoptimized: true
   },
