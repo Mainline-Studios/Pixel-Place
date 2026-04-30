@@ -1,6 +1,8 @@
 /** @type {import('next').NextConfig} */
+const isFirebaseAppHostingBuild = Boolean(process.env.FIREBASE_WEBAPP_CONFIG);
+
 const nextConfig = {
-  output: 'export',
+  ...(isFirebaseAppHostingBuild ? {} : { output: 'export' }),
   images: {
     unoptimized: true
   },
