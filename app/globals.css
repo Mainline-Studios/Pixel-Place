@@ -33,7 +33,7 @@
     0 0 0 1px rgba(56, 189, 248, 0.1),
     0 0 48px rgba(129, 140, 248, 0.06);
   --nav-height: 68px;
-  --tab-font-size: 14px;
+  --tab-font-size: 12px;
   --head-size: 60px;
   --torso-width: 90px;
   --torso-height: 90px;
@@ -1163,10 +1163,14 @@ select.gender-identity-select {
   width: 100%;
   max-width: 1400px;
   display: grid;
-  grid-template-columns: auto 1fr auto;
+  grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
   padding: 0 22px;
-  gap: 22px;
+  gap: 16px;
+}
+
+.topbar-inner > .header-nav {
+  min-width: 0;
 }
 
 /* Subtle footer / login social text links */
@@ -1326,17 +1330,18 @@ select.gender-identity-select {
   flex-wrap: wrap;
   justify-content: center;
   align-items: center;
-  gap: 6px 8px;
+  gap: 4px 6px;
 }
 
 .header-nav button {
   background: transparent;
   border: 1px solid transparent;
-  padding: 8px 14px;
+  padding: 5px 9px;
   border-radius: 999px;
   font-size: var(--tab-font-size);
   font-weight: 600;
   letter-spacing: 0.01em;
+  line-height: 1.2;
   color: var(--text-dim);
   cursor: pointer;
   transition:

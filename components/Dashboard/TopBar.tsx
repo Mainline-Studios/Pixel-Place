@@ -135,7 +135,7 @@ export default function TopBar({ currentTab, onTabChange, user }: TopBarProps) {
               >
                 <LocalizeText text={tab.label} />
                 {tab.shortcut && (
-                  <span style={{ opacity: 0.6, fontSize: '11px', marginLeft: '4px', fontWeight: 500 }}>({tab.shortcut})</span>
+                  <span style={{ opacity: 0.55, fontSize: '9px', marginLeft: '3px', fontWeight: 500 }}>({tab.shortcut})</span>
                 )}
               </button>
             ))}
