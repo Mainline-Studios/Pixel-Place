@@ -8,12 +8,10 @@ export default function PpafBackupModal({
   user,
   open,
   onClose,
-  onOpenConfigure,
 }: {
   user: User;
   open: boolean;
   onClose: () => void;
-  onOpenConfigure?: () => void;
 }) {
   const [creatingBackup, setCreatingBackup] = useState(false);
   const [downloadError, setDownloadError] = useState('');
@@ -138,19 +136,6 @@ export default function PpafBackupModal({
             <button type="button" className="btn" style={{ opacity: 0.85 }} onClick={onClose}>
               Close
             </button>
-            {onOpenConfigure && (
-              <button
-                type="button"
-                className="btn"
-                style={{ opacity: 0.85 }}
-                onClick={() => {
-                  onOpenConfigure();
-                  onClose();
-                }}
-              >
-                Server deploy help
-              </button>
-            )}
           </div>
         </div>
       </div>

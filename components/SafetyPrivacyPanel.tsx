@@ -182,7 +182,6 @@ export default function SafetyPrivacyPanel({ user }: SafetyPrivacyPanelProps) {
           user={user}
           open={ppafBackupOpen}
           onClose={() => setPpafBackupOpen(false)}
-          onOpenConfigure={() => setPpafConfigureOpen(true)}
         />
       </div>
     </div>
