@@ -1,6 +1,10 @@
 /** @type {import('next').NextConfig} */
+const isFirebaseAppHostingBuild = process.env.NEXT_PRIVATE_STANDALONE === 'true';
+
 const nextConfig = {
-  output: 'export',
+  // Firebase App Hosting's Next adapter forces standalone mode via NEXT_PRIVATE_STANDALONE.
+  // Keep static export for regular Hosting deploys, but disable it for App Hosting builds.
+  ...(isFirebaseAppHostingBuild ? {} : { output: 'export' }),
   images: {
     unoptimized: true
   },
