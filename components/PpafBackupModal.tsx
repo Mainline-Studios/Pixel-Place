@@ -11,6 +11,7 @@ import {
   hasStoredPpafKeys,
   setStoredPpafKeys,
 } from '@/lib/ppafBrowserKeys';
+import { generatePpafKeyPairInBrowser } from '@/lib/ppafGenerateBrowserKeys';
 
 export default function PpafBackupModal({
   user,
@@ -25,13 +26,17 @@ export default function PpafBackupModal({
 }) {
   const [paste, setPaste] = useState('');
   const [pasteError, setPasteError] = useState('');
-  const [busy, setBusy] = useState(false);
+  const [generateError, setGenerateError] = useState('');
+  const [generating, setGenerating] = useState(false);
+  const [creatingBackup, setCreatingBackup] = useState(false);
   const [downloadError, setDownloadError] = useState('');
   const [keysSaved, setKeysSaved] = useState(false);
+  const [lastRestorationBlock, setLastRestorationBlock] = useState('');
 
   useEffect(() => {
     if (open) {
       setPasteError('');
+      setGenerateError('');
       setDownloadError('');
       setKeysSaved(hasStoredPpafKeys());
     }
@@ -42,6 +47,31 @@ export default function PpafBackupModal({
       await navigator.clipboard.writeText(PPAF_KEYGEN_COMMAND);
     } catch {
       setPasteError('Could not copy — select the command and copy manually.');
+    }
+  };
+
+  const copyRestorationBlock = async (block: string) => {
+    try {
+      await navigator.clipboard.writeText(block);
+    } catch {
+      setGenerateError('Could not copy — select the text and copy manually.');
+    }
+  };
+
+  const generateInBrowser = async () => {
+    setGenerateError('');
+    setPasteError('');
+    setGenerating(true);
+    try {
+      const { privatePem, publicPem, restorationBlock } = await generatePpafKeyPairInBrowser();
+      setStoredPpafKeys(privatePem, publicPem);
+      setKeysSaved(true);
+      setLastRestorationBlock(restorationBlock);
+      setPaste(restorationBlock);
+    } catch (e) {
+      setGenerateError(e instanceof Error ? e.message : 'Could not generate keys in this browser.');
+    } finally {
+      setGenerating(false);
     }
   };
 
@@ -63,17 +93,19 @@ export default function PpafBackupModal({
     clearStoredPpafKeys();
     setKeysSaved(false);
     setPasteError('');
+    setLastRestorationBlock('');
+    setPaste('');
   };
 
   const createBackup = async () => {
     setDownloadError('');
-    setBusy(true);
+    setCreatingBackup(true);
     try {
       const r = await downloadSignedPpaf(user);
       if (!r.ok) {
         if (r.code === PPAF_NOT_CONFIGURED_CODE && !getStoredPpafKeys()) {
           setDownloadError(
-            'Server signing is off and no keys are saved here yet. Paste the script output above and tap Save pasted keys, then try again.',
+            'Server signing is off and no keys are saved here yet. Tap “Generate keys in this browser”, or paste a restoration block and Save pasted keys, then try again.',
           );
           return;
         }
@@ -82,9 +114,11 @@ export default function PpafBackupModal({
       }
       onClose();
     } finally {
-      setBusy(false);
+      setCreatingBackup(false);
     }
   };
+
+  const uiBusy = generating || creatingBackup;
 
   if (!open) return null;
 
@@ -122,35 +156,66 @@ export default function PpafBackupModal({
         </div>
         <div className="ai-output" style={{ fontSize: 14, lineHeight: 1.6 }}>
           <p style={{ margin: '0 0 12px', color: 'var(--text-dim)' }}>
-            Signed backups use Ed25519 keys. Generate them on your machine, paste the output here once, then create
-            the file. Keys stay in this browser only.
+            Signed backups use Ed25519 keys. You can create keys right here—no project folder or terminal needed. Save
+            the restoration block somewhere safe if you might restore on another device. Keys stay in this browser for
+            signing until you clear them.
           </p>
 
           <div style={{ marginBottom: 14 }}>
-            <strong style={{ display: 'block', marginBottom: 8 }}>1. Run in your Pixel Place project folder</strong>
-            <div
-              style={{
-                display: 'flex',
-                gap: 8,
-                flexWrap: 'wrap',
-                alignItems: 'center',
-                padding: '10px 12px',
-                borderRadius: 8,
-                background: 'var(--panel-soft)',
-                border: '1px solid var(--border)',
-                fontFamily: 'ui-monospace, monospace',
-                fontSize: 13,
-              }}
-            >
-              <code style={{ flex: 1, minWidth: 0, wordBreak: 'break-all' }}>{PPAF_KEYGEN_COMMAND}</code>
-              <button type="button" className="btn" style={{ flexShrink: 0 }} onClick={() => void copyCommand()}>
-                Copy command
+            <strong style={{ display: 'block', marginBottom: 8 }}>1. Generate keys (recommended)</strong>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
+              <button type="button" className="btn" disabled={uiBusy} onClick={() => void generateInBrowser()}>
+                {generating ? 'Generating…' : 'Generate keys in this browser'}
               </button>
+              {lastRestorationBlock && (
+                <button
+                  type="button"
+                  className="btn"
+                  style={{ opacity: 0.9 }}
+                  onClick={() => void copyRestorationBlock(lastRestorationBlock)}
+                >
+                  Copy restoration block
+                </button>
+              )}
             </div>
+            {generateError && (
+              <div style={{ color: 'var(--danger)', fontSize: 13, marginTop: 8 }}>{generateError}</div>
+            )}
+            <p style={{ margin: '10px 0 0', fontSize: 13, color: 'var(--text-dim)' }}>
+              After you generate, we save the keys here and fill the box below so you can copy the block to a password
+              manager or notes.
+            </p>
           </div>
 
           <div style={{ marginBottom: 14 }}>
-            <strong style={{ display: 'block', marginBottom: 8 }}>2. Paste the terminal output below</strong>
+            <strong style={{ display: 'block', marginBottom: 8 }}>2. Or paste keys from elsewhere</strong>
+            <p style={{ margin: '0 0 8px', fontSize: 13, color: 'var(--text-dim)' }}>
+              If you already ran the developer script or have a saved restoration block, paste it below and tap Save.
+            </p>
+            <details style={{ marginBottom: 10, fontSize: 13, color: 'var(--text-dim)' }}>
+              <summary style={{ cursor: 'pointer', userSelect: 'none' }}>Advanced: run key script in a dev checkout</summary>
+              <div
+                style={{
+                  display: 'flex',
+                  gap: 8,
+                  flexWrap: 'wrap',
+                  alignItems: 'center',
+                  marginTop: 8,
+                  padding: '10px 12px',
+                  borderRadius: 8,
+                  background: 'var(--panel-soft)',
+                  border: '1px solid var(--border)',
+                  fontFamily: 'ui-monospace, monospace',
+                  fontSize: 13,
+                }}
+              >
+                <code style={{ flex: 1, minWidth: 0, wordBreak: 'break-all' }}>{PPAF_KEYGEN_COMMAND}</code>
+                <button type="button" className="btn" style={{ flexShrink: 0 }} onClick={() => void copyCommand()}>
+                  Copy command
+                </button>
+              </div>
+            </details>
+            <strong style={{ display: 'block', marginBottom: 8 }}>Paste restoration output</strong>
             <textarea
               value={paste}
               onChange={(e) => setPaste(e.target.value)}
@@ -209,8 +274,8 @@ export default function PpafBackupModal({
           )}
 
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 8 }}>
-            <button type="button" className="btn" disabled={busy} onClick={() => void createBackup()}>
-              {busy ? 'Working…' : '3. Create signed .ppaf file'}
+            <button type="button" className="btn" disabled={uiBusy} onClick={() => void createBackup()}>
+              {creatingBackup ? 'Working…' : 'Create signed .ppaf file'}
             </button>
             <button type="button" className="btn" style={{ opacity: 0.85 }} onClick={onClose}>
               Cancel

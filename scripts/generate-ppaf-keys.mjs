@@ -10,7 +10,7 @@
  *
  * Usage: node scripts/generate-ppaf-keys.mjs
  *
- * In the app: Settings → Privacy & safety → Make backup (.ppaf) — copy the command, run it, paste the output, save keys, then create the file.
+ * In the app: Settings -> Privacy & safety -> Make backup (.ppaf): use "Generate keys in this browser", or copy this command in a dev checkout, paste output, save keys, then create the file.
  */
 import { generateKeyPairSync } from 'crypto';
 
