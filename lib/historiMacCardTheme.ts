@@ -58,10 +58,21 @@ export const THEME_FONT_CLASSIC_SANS = '"Helvetica Neue", Helvetica, Arial, sans
 /** Run label — Chicago was bitmap; bold condensed sans reads closest on the web */
 export const THEME_FONT_CHICAGO_LIKE = '"Helvetica Neue", Helvetica, Arial, sans-serif';
 
+/** Compact B&W System-era cards (System 1–4 style); System 7+ uses platinum chrome */
+const CLASSIC_SYSTEM_IDS = new Set([
+  'system1',
+  'system20',
+  'system21',
+  'system3',
+  'system32',
+  'system40',
+  'system5',
+]);
+
 export function inferHistoriMacCardTheme(v: HistoriMacVersion): HistoriMacCardTheme {
   if (v.id === 'nextstep1') return 'next';
   if (v.id.startsWith('osx')) return 'aqua';
-  if (v.id === 'system1' || v.id === 'system3' || v.id === 'system5') return 'classic';
+  if (CLASSIC_SYSTEM_IDS.has(v.id)) return 'classic';
   return 'platinum';
 }
 

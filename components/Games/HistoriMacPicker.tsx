@@ -61,6 +61,7 @@ import {
 } from '@/lib/historiMacCardTheme';
 import { historiMacRunUsesImage, historiMacRunImageSrc } from '@/lib/historiMacRunAssets';
 import HistoriMacTimelineStrip from './HistoriMacTimelineStrip';
+import HistoriMacCustomPanel from './HistoriMacCustomPanel';
 import { AQUA_FONT, aquaTrafficLight } from '@/lib/historiMacAquaStyles';
 
 const HISTORIMAC_PLAY_ICON = '/images/games/historimac-play.png';
@@ -499,6 +500,8 @@ export default function HistoriMacPicker({
             />
           </div>
         ) : null}
+
+        <HistoriMacCustomPanel shellTheme={shellTheme} onRun={onPlay} />
 
         {/* Version grid */}
         <section aria-label="Macintosh versions" style={{ width: '100%' }}>

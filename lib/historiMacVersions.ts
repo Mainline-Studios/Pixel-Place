@@ -35,9 +35,10 @@ export type HistoriMacVersion = {
 export const HISTORIMAC_VERSIONS: HistoriMacVersion[] = [
   {
     id: 'system1',
-    label: 'System 1.0',
+    label: 'System 1.0 (Mac 128K)',
     timelineYear: 1984,
-    embedUrl: 'https://infinitemac.org/embed?disk=System+1.0&machine=Mac+128K',
+    embedUrl:
+      'https://infinitemac.org/embed?disk=System+1.0&infinite_hd=true&machine=Mac+128K',
     embedAllow: 'cross-origin-isolated',
     embedWidth: 512,
     embedHeight: 342,
@@ -45,15 +46,64 @@ export const HISTORIMAC_VERSIONS: HistoriMacVersion[] = [
       'The System 1.0 was shipped with the original Macintosh in 1984. It introduced the desktop, menus, and Finder on a 512×342 monochrome display. The Mac 128K had 128 KB of RAM—just enough to run one app at a time with no hard disk. This is where the modern Mac GUI began.',
   },
   {
+    id: 'system20',
+    label: 'System 2.0 (Mac 128K)',
+    timelineYear: 1985,
+    embedUrl:
+      'https://infinitemac.org/embed?disk=System+2.0&infinite_hd=true&machine=Mac+128K',
+    embedAllow: 'cross-origin-isolated',
+    embedWidth: 512,
+    embedHeight: 342,
+    backgroundInfo:
+      'System 2.0 shipped in January 1985 as an update for the original Macintosh line. It refined the Finder, printing, and disk handling while keeping the iconic 512×342 monochrome canvas of the Mac 128K—still floppy-first, no internal hard disk by default.',
+  },
+  {
+    id: 'system21',
+    label: 'System 2.1 (Mac 512Ke)',
+    timelineYear: 1985,
+    embedUrl:
+      'https://infinitemac.org/embed?disk=System+2.1&infinite_hd=true&machine=Mac+512Ke',
+    embedAllow: 'cross-origin-isolated',
+    embedWidth: 512,
+    embedHeight: 342,
+    backgroundInfo:
+      'System 2.1 arrived later in 1985 with fixes and polish across the Finder and utilities. The Macintosh 512Ke paired an 800 KB floppy with the same compact footprint as early Macs—512 KB RAM made System 2.x noticeably more usable than the original 128K.',
+  },
+  {
     id: 'system3',
-    label: 'System 3.0',
+    label: 'System 3.0 (Mac Plus)',
     timelineYear: 1986,
-    embedUrl: 'https://infinitemac.org/embed?disk=System+3.0&machine=Mac+Plus',
+    embedUrl:
+      'https://infinitemac.org/embed?disk=System+3.0&infinite_hd=true&machine=Mac+Plus',
     embedAllow: 'cross-origin-isolated',
     embedWidth: 512,
     embedHeight: 342,
     backgroundInfo:
       'The System 3.0 was released in 1986 alongside the Macintosh Plus. The Plus bumped RAM to 1 MB and added a SCSI port for hard drives. System 3 brought better multitasking foundations, improved Finder and desk accessories, and reflected Apple’s push toward more capable compact Macs.',
+  },
+  {
+    id: 'system32',
+    label: 'System 3.2 (Mac Plus)',
+    timelineYear: 1986,
+    embedUrl:
+      'https://infinitemac.org/embed?disk=System+3.2&infinite_hd=true&machine=Mac+Plus',
+    embedAllow: 'cross-origin-isolated',
+    embedWidth: 512,
+    embedHeight: 342,
+    backgroundInfo:
+      'System 3.2 refined the mid-1980s Macintosh Plus era—bug fixes, smoother Finder behavior, and incremental polish on the same 512×342 display and SCSI-ready compact chassis that defined “classic Mac” for schools and offices.',
+  },
+  {
+    id: 'system40',
+    label: 'System 4.0 (Mac SE)',
+    timelineYear: 1987,
+    embedUrl:
+      'https://infinitemac.org/embed?disk=System+4.0&infinite_hd=true&machine=Mac+SE',
+    embedAllow: 'cross-origin-isolated',
+    embedWidth: 512,
+    embedHeight: 342,
+    backgroundInfo:
+      'System 4.0 landed in early 1987 as Apple tightened the classic Finder stack before System 5. The Macintosh SE added an expansion slot inside the compact case—still black-and-white and 512×342—making it a favorite upgrade path from the Plus.',
   },
   {
     id: 'system5',

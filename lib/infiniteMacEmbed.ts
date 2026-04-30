@@ -5,6 +5,67 @@
 
 export const INFINITE_MAC_EMBED_ORIGIN = 'https://infinitemac.org';
 
+/** @see https://infinitemac.org/embed-docs — query shape matches upstream `runDefFromUrl`. */
+export type BuildInfiniteMacEmbedInput = {
+  /** Disk image display names (`disk=` repeated for multiple volumes). */
+  disks: string[];
+  /** Machine name (`machine=`) — must match Infinite Mac’s machine catalog. */
+  machine: string;
+  /** Default true — maps to custom `/embed` paths per upstream. */
+  infiniteHd?: boolean;
+  savedHd?: boolean;
+  /** Must be a valid RAM tier for the chosen machine when set. */
+  ram?: string;
+  /** Integer scaling of the emulated screen (see embed-docs). */
+  screenScale?: number;
+};
+
+function fnv1aHex(s: string): string {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < s.length; i++) {
+    h ^= s.charCodeAt(i);
+    h = Math.imul(h, 0x01000193);
+  }
+  return (h >>> 0).toString(36);
+}
+
+/** Stable id for a custom embed so the same URL maps to the same id (favorites consistent). */
+export function stableHistoriMacCustomId(embedUrl: string): string {
+  return `custom-${fnv1aHex(embedUrl)}`;
+}
+
+export function isHistoriMacCustomSessionId(id: string): boolean {
+  return id.startsWith('custom-');
+}
+
+/**
+ * Build `https://infinitemac.org/embed?…` for iframe `src`.
+ * Names must match Infinite Mac disk/machine strings exactly (case/spacing/punctuation).
+ */
+export function buildInfiniteMacEmbedUrl(input: BuildInfiniteMacEmbedInput): string {
+  const u = new URL(`${INFINITE_MAC_EMBED_ORIGIN}/embed`);
+  for (const d of input.disks) {
+    const t = d.trim();
+    if (t) u.searchParams.append('disk', t);
+  }
+  u.searchParams.set('machine', input.machine.trim());
+  if (input.infiniteHd !== false) {
+    u.searchParams.set('infinite_hd', 'true');
+  }
+  if (input.savedHd) {
+    u.searchParams.set('saved_hd', 'true');
+  }
+  const ram = input.ram?.trim();
+  if (ram) {
+    u.searchParams.set('ram', ram);
+  }
+  const scale = input.screenScale;
+  if (scale != null && Number.isFinite(scale) && scale > 0 && scale !== 1) {
+    u.searchParams.set('screen_scale', String(scale));
+  }
+  return u.toString();
+}
+
 export function isInfiniteMacEmbedUrl(url: string): boolean {
   try {
     const u = new URL(url);

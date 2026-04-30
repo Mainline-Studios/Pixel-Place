@@ -10,7 +10,11 @@ import { useUser } from '@/contexts/UserContext';
 import HistoriMacPicker from './HistoriMacPicker';
 import HistoriMacSideRail, { INFINITE_MONKEY_URL } from './HistoriMacSideRail';
 import HistoriMacCopilot from './HistoriMacCopilot';
-import { buildInfiniteMacEmbedSrc, isInfiniteMacEmbedUrl } from '@/lib/infiniteMacEmbed';
+import {
+  buildInfiniteMacEmbedSrc,
+  isHistoriMacCustomSessionId,
+  isInfiniteMacEmbedUrl,
+} from '@/lib/infiniteMacEmbed';
 import {
   AQUA_FONT,
   aquaEmbedFooterStrip,
@@ -248,6 +252,20 @@ export default function HistoriMac({
 
   const copyVersionLink = useCallback(
     async (versionId: string) => {
+      if (isHistoriMacCustomSessionId(versionId)) {
+        const embed =
+          selected?.id === versionId ? selected.embedUrl?.trim() : undefined;
+        if (embed) {
+          try {
+            await navigator.clipboard.writeText(embed);
+            showToast('Infinite Mac embed URL copied');
+            return;
+          } catch {
+            showToast(`Copy failed — ${embed}`);
+            return;
+          }
+        }
+      }
       const url = buildHistoriMacInviteUrl(versionId, user?.username ?? null);
       try {
         await navigator.clipboard.writeText(url);
@@ -256,7 +274,7 @@ export default function HistoriMac({
         showToast(`Copy failed — link: ${url}`);
       }
     },
-    [showToast, user?.username],
+    [showToast, user?.username, selected?.id, selected?.embedUrl],
   );
 
   const goToPicker = useCallback(() => {
@@ -300,8 +318,10 @@ export default function HistoriMac({
   }, [selected, selected?.id, iframeProps?.src, iframeProps?.srcDoc, embedRetryKey, iframeSrcEffective]);
 
   const handlePlay = useCallback((v: HistoriMacVersion) => {
-    saveLastPlayedId(v.id);
-    setLastPlayedId(v.id);
+    if (!isHistoriMacCustomSessionId(v.id)) {
+      saveLastPlayedId(v.id);
+      setLastPlayedId(v.id);
+    }
     setSelected(v);
     setEmbedFullscreen(false);
   }, []);
@@ -722,6 +742,7 @@ export default function HistoriMac({
               <div style={{ pointerEvents: 'auto' }}>
                 <HistoriMacSideRail
                   favorited={favoriteIds.includes(selected.id)}
+                  favoriteDisabled={isHistoriMacCustomSessionId(selected.id)}
                   onToggleFavorite={() => toggleFavoriteFor(selected.id)}
                   onCopyLink={() => void copyVersionLink(selected.id)}
                   openExternalUrl={openUrl}

@@ -7,6 +7,8 @@ export const INFINITE_MONKEY_URL = 'https://infinitemac.org/monkey/';
 
 export type HistoriMacSideRailProps = {
   favorited: boolean;
+  /** Custom embed sessions use stable IDs not in the catalog — saving picks is disabled. */
+  favoriteDisabled?: boolean;
   onToggleFavorite: () => void;
   onCopyLink: () => void;
   openExternalUrl: string | null;
@@ -39,6 +41,7 @@ const btnBase: React.CSSProperties = {
 
 export default function HistoriMacSideRail({
   favorited,
+  favoriteDisabled = false,
   onToggleFavorite,
   onCopyLink,
   openExternalUrl,
@@ -65,15 +68,24 @@ export default function HistoriMacSideRail({
     >
       <button
         type="button"
+        disabled={favoriteDisabled}
         aria-pressed={favorited}
         aria-label={favorited ? 'Remove from saved picks' : 'Save this version to your picks'}
-        title={favorited ? 'Remove from saved picks' : 'Save version to your picks (this device)'}
+        title={
+          favoriteDisabled
+            ? 'Saved picks apply to catalog versions only'
+            : favorited
+              ? 'Remove from saved picks'
+              : 'Save version to your picks (this device)'
+        }
         onClick={onToggleFavorite}
         style={{
           ...btnBase,
           width: sz,
           height: sz,
           fontSize: fs,
+          opacity: favoriteDisabled ? 0.35 : 1,
+          pointerEvents: favoriteDisabled ? 'none' : 'auto',
           borderColor: favorited ? 'rgba(250, 204, 21, 0.55)' : btnBase.border as string,
           background: favorited ? 'rgba(120, 90, 20, 0.55)' : (btnBase.background as string),
         }}
