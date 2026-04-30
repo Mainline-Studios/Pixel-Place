@@ -144,8 +144,12 @@ export default function PpafBackupModal({
         justifyContent: 'center',
         padding: 16,
       }}
-      onClick={onClose}
-      onKeyDown={(e) => e.key === 'Escape' && onClose()}
+      onClick={() => {
+        if (!restorationPopupOpen) onClose();
+      }}
+      onKeyDown={(e) => {
+        if (e.key === 'Escape' && !restorationPopupOpen) onClose();
+      }}
     >
       <div
         className="ai-box"
@@ -388,7 +392,7 @@ export default function PpafBackupModal({
             justifyContent: 'center',
             padding: 16,
           }}
-          onClick={() => setRestorationPopupOpen(false)}
+          onClick={(e) => e.stopPropagation()}
         >
           <div
             className="ai-box"
