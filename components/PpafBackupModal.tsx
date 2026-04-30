@@ -50,7 +50,7 @@ export default function PpafBackupModal({
     const parsed = parseGeneratePpafKeysOutput(paste);
     if (!parsed) {
       setPasteError(
-        'Could not parse output. Paste everything from the terminal after running the command (both PPAF_… lines).',
+        'Could not parse output. Paste the full output block that includes "PPAF RESTORATION KEY" and "KEEP THIS SAFE."',
       );
       return;
     }
@@ -155,7 +155,7 @@ export default function PpafBackupModal({
               value={paste}
               onChange={(e) => setPaste(e.target.value)}
               placeholder={
-                'Paste lines starting with PPAF_ED25519_PRIVATE_KEY= and NEXT_PUBLIC_PPAF_ED25519_PUBLIC_KEY= …'
+                'Paste output: PPAF RESTORATION KEY: ... KEEP THIS SAFE.'
               }
               rows={6}
               style={{

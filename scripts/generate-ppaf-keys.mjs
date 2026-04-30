@@ -15,11 +15,16 @@
 import { generateKeyPairSync } from 'crypto';
 
 const { privateKey, publicKey } = generateKeyPairSync('ed25519');
-const privPem = privateKey.export({ type: 'pkcs8', format: 'pem' });
-const pubPem = publicKey.export({ type: 'spki', format: 'pem' });
+const privPem = String(privateKey.export({ type: 'pkcs8', format: 'pem' })).trim();
+const pubPem = String(publicKey.export({ type: 'spki', format: 'pem' })).trim();
+const payload = {
+  version: 1,
+  algorithm: 'ed25519',
+  privatePem: privPem,
+  publicPem: pubPem,
+};
+const restorationKey = Buffer.from(JSON.stringify(payload), 'utf8').toString('base64url');
 
-console.log('--- Add to Cloud Functions environment (secret) ---\n');
-console.log('PPAF_ED25519_PRIVATE_KEY=' + JSON.stringify(privPem.trim()));
-console.log('\n--- Add to Next.js env (public, verify-only in browser) ---\n');
-console.log('NEXT_PUBLIC_PPAF_ED25519_PUBLIC_KEY=' + JSON.stringify(pubPem.trim()));
-console.log('\nDone. Keep the private key off git and out of the client bundle.\n');
+console.log('PPAF RESTORATION KEY:');
+console.log(restorationKey);
+console.log('KEEP THIS SAFE.');
