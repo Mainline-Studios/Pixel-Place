@@ -142,6 +142,7 @@ const DEVICE_ID_MAX = 128;
 const LABEL_MAX = 64;
 const FOUNDER_LIMIT = 100;
 const FOUNDER_COIN_FLOOR = 1_000_000_000;
+let sequentialUserIdsEnsured = false;
 
 function sanitizeDeviceId(id: string): string {
   return String(id).slice(0, DEVICE_ID_MAX).replace(/[^a-zA-Z0-9_-]/g, '');
@@ -311,6 +312,7 @@ function userFromDoc(doc: admin.firestore.DocumentSnapshot): any {
   const d = doc.data();
   if (!d) return null;
   return {
+    userId: typeof d.user_id === 'number' ? d.user_id : undefined,
     username: d.username || doc.id,
     password: '',
     gender: d.gender || '',
@@ -327,7 +329,48 @@ function userFromDoc(doc: admin.firestore.DocumentSnapshot): any {
     isDonor: d.is_donor === 1,
     founderLifetimeCoins: d.founder_lifetime_coins === true,
     founderOrdinal: typeof d.founder_ordinal === 'number' ? d.founder_ordinal : undefined,
+    ppafLastRestoreIssuedAt:
+      typeof d.ppaf_last_restore_issued_at === 'number' ? d.ppaf_last_restore_issued_at : undefined,
   };
+}
+
+/**
+ * One-time best-effort backfill: assign sequential numeric user_id values by created_at order.
+ * This keeps `/user/:id` stable and aligned with registration order.
+ */
+async function ensureSequentialUserIds(): Promise<void> {
+  if (sequentialUserIdsEnsured) return;
+  const snap = await db.collection(COLLECTIONS.USERS).get();
+  if (snap.empty) {
+    sequentialUserIdsEnsured = true;
+    return;
+  }
+  const docs = [...snap.docs].sort((a, b) => {
+    const ac = Number(a.data()?.created_at || 0);
+    const bc = Number(b.data()?.created_at || 0);
+    if (ac !== bc) return ac - bc;
+    return a.id.localeCompare(b.id);
+  });
+  const batch = db.batch();
+  let changed = 0;
+  docs.forEach((doc, idx) => {
+    const expected = idx + 1;
+    const existing = Number(doc.data()?.user_id || 0);
+    if (!Number.isFinite(existing) || existing !== expected) {
+      batch.set(doc.ref, { user_id: expected, updated_at: Date.now() }, { merge: true });
+      changed++;
+    }
+  });
+  if (changed > 0) await batch.commit();
+  sequentialUserIdsEnsured = true;
+}
+
+async function nextSequentialUserId(): Promise<number> {
+  await ensureSequentialUserIds();
+  const q = await db.collection(COLLECTIONS.USERS).orderBy('user_id', 'desc').limit(1).get();
+  if (q.empty) return 1;
+  const current = Number(q.docs[0].data()?.user_id || 0);
+  return Number.isFinite(current) && current > 0 ? current + 1 : 1;
 }
 
 const app = express();
@@ -355,6 +398,36 @@ const sendJwtCheck = (_req: any, res: any) => {
   res.json({ ok: true });
 };
 ['/auth/check-config', '/api/auth/check-config', '/check-config', '/api/check-config'].forEach(p => app.get(p, sendJwtCheck));
+
+// Public profile by numeric user id: GET /user/:userId or /user?userId=123
+const getPublicUserProfileHandler = async (req: any, res: any) => {
+  try {
+    const rawUserId = req.params.userId || (req.query.userId as string) || '';
+    const userId = Number(rawUserId);
+    if (!Number.isInteger(userId) || userId <= 0) {
+      return res.status(400).json({ error: 'Invalid userId' });
+    }
+    await ensureSequentialUserIds();
+    const q = await db.collection(COLLECTIONS.USERS).where('user_id', '==', userId).limit(1).get();
+    if (q.empty) return res.status(404).json({ error: 'User not found' });
+    const d = q.docs[0].data() || {};
+    return res.json({
+      userId,
+      username: String(d.username || q.docs[0].id),
+      gender: d.gender || '',
+      role: d.role || 'user',
+      equippedSkin: d.equipped_skin || '',
+      coins: Number(d.coins || 0),
+      founderOrdinal: typeof d.founder_ordinal === 'number' ? d.founder_ordinal : undefined,
+      isDonor: d.is_donor === 1,
+      createdAt: Number(d.created_at || 0) || undefined,
+    });
+  } catch {
+    return res.status(500).json({ error: 'Failed to load public user profile' });
+  }
+};
+app.get('/user/:userId', getPublicUserProfileHandler);
+app.get('/user', getPublicUserProfileHandler);
 
 // GET /auth/check-device?deviceId=xxx — no auth; for app-open check so ban screen can show before login
 app.get('/auth/check-device', async (req, res) => {
@@ -435,6 +508,10 @@ app.post('/users', async (req, res) => {
     const safeRole = callerIsAdmin ? (u.role || existingData?.role || 'user') : (existingData?.role || 'user');
     const safeCoins = callerIsAdmin ? (u.coins ?? existingData?.coins ?? 10) : (existingData?.coins ?? u.coins ?? 10);
     const data = {
+      user_id:
+        typeof u.userId === 'number'
+          ? u.userId
+          : (typeof existingData?.user_id === 'number' ? existingData.user_id : await nextSequentialUserId()),
       username: u.username,
       username_lower: id,
       password_hash,
@@ -450,6 +527,10 @@ app.post('/users', async (req, res) => {
       friend_requests: u.friendRequests || [],
       sent_friend_requests: u.sentFriendRequests || [],
       is_donor: (safeRole === 'admin' || safeRole === 'head_admin') ? 1 : 0,
+      ppaf_last_restore_issued_at:
+        typeof u.ppafLastRestoreIssuedAt === 'number'
+          ? u.ppafLastRestoreIssuedAt
+          : (existingData?.ppaf_last_restore_issued_at ?? null),
       updated_at: Date.now(),
     };
     if (existing.exists) {
@@ -488,6 +569,10 @@ app.put('/users', async (req, res) => {
     const safeRole = callerIsAdmin ? (u.role || existingData.role || 'user') : (existingData.role || 'user');
     const safeCoins = callerIsAdmin ? (u.coins ?? existingData.coins ?? 10) : (existingData.coins ?? u.coins ?? 10);
     await ref.set({
+      user_id:
+        typeof u.userId === 'number'
+          ? u.userId
+          : (typeof existingData.user_id === 'number' ? existingData.user_id : await nextSequentialUserId()),
       username: u.username,
       username_lower: id,
       password_hash,
@@ -502,6 +587,10 @@ app.put('/users', async (req, res) => {
       friend_requests: u.friendRequests || [],
       sent_friend_requests: u.sentFriendRequests || [],
       is_donor: (safeRole === 'admin' || safeRole === 'head_admin') ? 1 : 0,
+      ppaf_last_restore_issued_at:
+        typeof u.ppafLastRestoreIssuedAt === 'number'
+          ? u.ppafLastRestoreIssuedAt
+          : (existingData.ppaf_last_restore_issued_at ?? null),
       updated_at: Date.now(),
     }, { merge: true });
     const out = { ...u };
@@ -587,6 +676,7 @@ app.post('/auth', async (req, res) => {
   try {
     const { username, password, action, gender, role, coins, deviceId, deviceLabel } = req.body;
     if (!username || !password) return res.status(400).json({ error: 'Username and password required' });
+    await ensureSequentialUserIds();
 
     if (action === 'login') {
       if (deviceId && (await isDeviceBanned(deviceId))) {
@@ -619,7 +709,9 @@ app.post('/auth', async (req, res) => {
         const admin = adminAccounts.find(a => a.username.toLowerCase() === username.toLowerCase() && a.password === password);
         if (admin) {
           const hash = await bcrypt.hash(password, 10);
+          const assignedUserId = await nextSequentialUserId();
           await db.collection(COLLECTIONS.USERS).doc(username.toLowerCase()).set({
+            user_id: assignedUserId,
             username,
             username_lower: username.toLowerCase(),
             password_hash: hash,
@@ -704,7 +796,9 @@ app.post('/auth', async (req, res) => {
       const existing = await db.collection(COLLECTIONS.USERS).doc(id).get();
       if (existing.exists) return res.status(400).json({ error: 'Username already exists' });
       const hash = await bcrypt.hash(password, 10);
+      const assignedUserId = await nextSequentialUserId();
       const userData = {
+        user_id: assignedUserId,
         username,
         username_lower: id,
         password_hash: hash,

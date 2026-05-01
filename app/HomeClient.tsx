@@ -18,6 +18,81 @@ import PixelPlacePay, { PayPortalInvalid, PayPortalLanding } from '@/components/
 import LocalizeText from '@/components/LocalizeText';
 import { getPayPortalClientState, getPayPortalOrigin, isPayPortalHostname, type PayPortalClientState } from '@/lib/payPortal';
 
+type PublicUserProfile = {
+  userId: number;
+  username: string;
+  gender?: string;
+  role?: string;
+  equippedSkin?: string;
+  coins?: number;
+  founderOrdinal?: number;
+  isDonor?: boolean;
+  createdAt?: number;
+};
+
+function PublicUserProfilePage({ userId }: { userId: number }) {
+  const [profile, setProfile] = useState<PublicUserProfile | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    let active = true;
+    setLoading(true);
+    setError('');
+    setProfile(null);
+    fetch(`/api/user?userId=${encodeURIComponent(String(userId))}`, { cache: 'no-store' })
+      .then(async (res) => {
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(typeof data.error === 'string' ? data.error : 'Profile not found.');
+        if (!active) return;
+        setProfile(data as PublicUserProfile);
+      })
+      .catch((e) => {
+        if (!active) return;
+        setError(e instanceof Error ? e.message : 'Could not load user profile.');
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [userId]);
+
+  return (
+    <div style={{ minHeight: '100vh', display: 'grid', placeItems: 'center', padding: 16 }}>
+      <div className="ai-box" style={{ width: 'min(560px, 100%)', margin: 0 }}>
+        <div className="ai-label">User Profile</div>
+        <div className="ai-output" style={{ lineHeight: 1.7 }}>
+          {loading ? (
+            <p style={{ margin: 0 }}>Loading profile…</p>
+          ) : error ? (
+            <p style={{ margin: 0, color: '#fecaca' }}>{error}</p>
+          ) : profile ? (
+            <>
+              <p style={{ margin: '0 0 8px' }}><strong>{profile.username}</strong></p>
+              <p style={{ margin: '0 0 6px' }}>Player ID: {profile.userId}</p>
+              {profile.gender ? <p style={{ margin: '0 0 6px' }}>Gender: {profile.gender}</p> : null}
+              {profile.role ? <p style={{ margin: '0 0 6px' }}>Role: {profile.role}</p> : null}
+              {profile.equippedSkin ? <p style={{ margin: '0 0 6px' }}>Equipped Skin: {profile.equippedSkin}</p> : null}
+              {typeof profile.coins === 'number' ? <p style={{ margin: '0 0 6px' }}>Coins: {profile.coins}</p> : null}
+              {typeof profile.founderOrdinal === 'number' ? (
+                <p style={{ margin: '0 0 6px' }}>Founder Rank: #{profile.founderOrdinal}</p>
+              ) : null}
+              {profile.createdAt ? (
+                <p style={{ margin: '0 0 6px' }}>Joined: {new Date(profile.createdAt).toLocaleDateString()}</p>
+              ) : null}
+            </>
+          ) : null}
+          <div style={{ marginTop: 12 }}>
+            <a className="btn" href="/">Back to Pixel Place</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function AppContent() {
   const { user, bannedSession, clearBannedSession, deviceBannedSession, clearDeviceBannedSession, isRestoring } = useUser();
   const [showSplash, setShowSplash] = useState(() => {
@@ -32,9 +107,14 @@ function AppContent() {
   });
   const prevUserRef = React.useRef<User | null>(null);
   const [payPortal, setPayPortal] = useState<PayPortalClientState>(() => getPayPortalClientState());
+  const [publicUserId, setPublicUserId] = useState<number | null>(null);
 
   useEffect(() => {
     setPayPortal(getPayPortalClientState());
+    if (typeof window !== 'undefined') {
+      const m = window.location.pathname.match(/^\/user\/(\d+)\/?$/);
+      setPublicUserId(m ? Number(m[1]) : null);
+    }
   }, []);
 
   useEffect(() => {
@@ -73,6 +153,9 @@ function AppContent() {
   }
   if (payPortal.kind === 'invalid') {
     return <PayPortalInvalid path={payPortal.path} />;
+  }
+  if (publicUserId && Number.isFinite(publicUserId) && publicUserId > 0) {
+    return <PublicUserProfilePage userId={publicUserId} />;
   }
 
   return (

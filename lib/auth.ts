@@ -1,6 +1,6 @@
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import { getDocument, setDocument, queryDocuments, addDocument, COLLECTIONS } from './firestore';
+import { getDocument, setDocument, queryDocuments, addDocument, COLLECTIONS, getFirestoreInstance } from './firestore';
 import { User } from '@/types';
 
 const DEFAULT_JWT_SECRET = 'your-secret-key-change-in-production';
@@ -28,6 +28,7 @@ export interface AuthUser {
 /** Build user for API/client. Never expose password or hash. */
 function userFromDoc(doc: any): User {
   return {
+    userId: typeof doc.user_id === 'number' ? doc.user_id : undefined,
     username: doc.username || doc.id,
     password: '',
     gender: doc.gender || '',
@@ -56,7 +57,22 @@ function userFromDoc(doc: any): User {
     isDonor: doc.is_donor === 1 || doc.is_donor === true,
     founderLifetimeCoins: doc.founder_lifetime_coins === true,
     founderOrdinal: typeof doc.founder_ordinal === 'number' ? doc.founder_ordinal : undefined,
+    ppafLastRestoreIssuedAt: typeof doc.ppaf_last_restore_issued_at === 'number' ? doc.ppaf_last_restore_issued_at : undefined,
   };
+}
+
+async function nextUserId(): Promise<number> {
+  const db = getFirestoreInstance();
+  if (!db) return Date.now();
+  const counterRef = db.collection('meta').doc('user_counter');
+  const value = await db.runTransaction(async (tx) => {
+    const snap = await tx.get(counterRef);
+    const current = Number(snap.data()?.next_user_id || 1);
+    const next = Number.isFinite(current) && current > 0 ? current : 1;
+    tx.set(counterRef, { next_user_id: next + 1, updated_at: Date.now() }, { merge: true });
+    return next;
+  });
+  return value;
 }
 
 // Hash password
@@ -152,6 +168,7 @@ export async function createOrUpdateUser(user: User, password?: string): Promise
       const passwordHash = password ? await hashPassword(password) : (existingDoc.password_hash || (existingDoc as any).password || '');
       
       await setDocument(COLLECTIONS.USERS, usernameLower, {
+        user_id: typeof (user as any).userId === 'number' ? (user as any).userId : existingDoc.user_id,
         username: user.username,
         username_lower: usernameLower,
         password_hash: passwordHash,
@@ -167,6 +184,10 @@ export async function createOrUpdateUser(user: User, password?: string): Promise
         friend_requests: user.friendRequests || [],
         sent_friend_requests: user.sentFriendRequests || [],
         is_donor: user.isDonor ? 1 : 0,
+        ppaf_last_restore_issued_at:
+          typeof (user as any).ppafLastRestoreIssuedAt === 'number'
+            ? (user as any).ppafLastRestoreIssuedAt
+            : existingDoc.ppaf_last_restore_issued_at ?? null,
         updated_at: Date.now()
       });
       
@@ -178,8 +199,13 @@ export async function createOrUpdateUser(user: User, password?: string): Promise
       }
       
       const passwordHash = await hashPassword(password);
+      const assignedUserId =
+        typeof (user as any).userId === 'number' && (user as any).userId > 0
+          ? (user as any).userId
+          : await nextUserId();
       
       await setDocument(COLLECTIONS.USERS, usernameLower, {
+        user_id: assignedUserId,
         username: user.username,
         username_lower: usernameLower,
         password_hash: passwordHash,
@@ -199,6 +225,10 @@ export async function createOrUpdateUser(user: User, password?: string): Promise
         founder_ordinal: null,
         founder_celebration_pending: false,
         founder_celebration_shown_at: null,
+        ppaf_last_restore_issued_at:
+          typeof (user as any).ppafLastRestoreIssuedAt === 'number'
+            ? (user as any).ppafLastRestoreIssuedAt
+            : null,
         created_at: Date.now(),
         updated_at: Date.now()
       });

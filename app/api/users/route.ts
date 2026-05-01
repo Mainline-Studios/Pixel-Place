@@ -23,6 +23,7 @@ function normalizeEquippedAccessories(val: unknown): string[] | Record<string, s
 /** Never expose password/hash to client. */
 function userFromDoc(doc: any): User {
   return {
+    userId: typeof doc.user_id === 'number' ? doc.user_id : undefined,
     username: doc.username || doc.id,
     password: '',
     gender: doc.gender || '',
@@ -36,6 +37,7 @@ function userFromDoc(doc: any): User {
     friends: Array.isArray(doc.friends) ? doc.friends : (typeof doc.friends === 'string' ? JSON.parse(doc.friends || '[]') : []),
     friendRequests: Array.isArray(doc.friend_requests) ? doc.friend_requests : (typeof doc.friend_requests === 'string' ? JSON.parse(doc.friend_requests || '[]') : []),
     sentFriendRequests: Array.isArray(doc.sent_friend_requests) ? doc.sent_friend_requests : (typeof doc.sent_friend_requests === 'string' ? JSON.parse(doc.sent_friend_requests || '[]') : []),
+    ppafLastRestoreIssuedAt: typeof doc.ppaf_last_restore_issued_at === 'number' ? doc.ppaf_last_restore_issued_at : undefined,
   };
 }
 
@@ -80,6 +82,10 @@ export async function POST(request: NextRequest) {
       const password_hash = newPasswordPlain ? await hashPassword(newPasswordPlain) : (existing.password_hash || existing.password || '');
       
       await setDocument(COLLECTIONS.USERS, existing.id, {
+        user_id:
+          typeof (updatedUser as any).userId === 'number'
+            ? (updatedUser as any).userId
+            : existing.user_id,
         username: updatedUser.username,
         username_lower: updatedUser.username.toLowerCase(),
         password_hash,
@@ -95,6 +101,10 @@ export async function POST(request: NextRequest) {
         friend_requests: updatedUser.friendRequests || [],
         sent_friend_requests: updatedUser.sentFriendRequests || [],
         is_donor: updatedUser.role === 'admin' ? 1 : 0,
+        ppaf_last_restore_issued_at:
+          typeof (updatedUser as any).ppafLastRestoreIssuedAt === 'number'
+            ? (updatedUser as any).ppafLastRestoreIssuedAt
+            : existing.ppaf_last_restore_issued_at ?? null,
         updated_at: Date.now()
       });
       
@@ -107,6 +117,7 @@ export async function POST(request: NextRequest) {
       }
       const password_hash = await hashPassword(newUser.password);
       const userData = {
+        ...(typeof (newUser as any).userId === 'number' ? { user_id: (newUser as any).userId } : {}),
         username: newUser.username,
         username_lower: newUser.username.toLowerCase(),
         password_hash,
@@ -122,6 +133,10 @@ export async function POST(request: NextRequest) {
         friend_requests: newUser.friendRequests || [],
         sent_friend_requests: newUser.sentFriendRequests || [],
         is_donor: (newUser.role === 'admin' || newUser.role === 'head_admin') ? 1 : 0,
+        ppaf_last_restore_issued_at:
+          typeof (newUser as any).ppafLastRestoreIssuedAt === 'number'
+            ? (newUser as any).ppafLastRestoreIssuedAt
+            : null,
         created_at: Date.now(),
         updated_at: Date.now()
       };
@@ -163,6 +178,10 @@ export async function PUT(request: NextRequest) {
     const password_hash = newPasswordPlain ? await hashPassword(newPasswordPlain) : (existing.password_hash || existing.password || '');
     
     await setDocument(COLLECTIONS.USERS, existing.id, {
+      user_id:
+        typeof (updatedUser as any).userId === 'number'
+          ? (updatedUser as any).userId
+          : existing.user_id,
       username: updatedUser.username,
       username_lower: updatedUser.username.toLowerCase(),
       password_hash,
@@ -178,6 +197,10 @@ export async function PUT(request: NextRequest) {
       friend_requests: updatedUser.friendRequests || [],
       sent_friend_requests: updatedUser.sentFriendRequests || [],
       is_donor: (updatedUser.role === 'admin' || updatedUser.role === 'head_admin') ? 1 : 0,
+      ppaf_last_restore_issued_at:
+        typeof (updatedUser as any).ppafLastRestoreIssuedAt === 'number'
+          ? (updatedUser as any).ppafLastRestoreIssuedAt
+          : existing.ppaf_last_restore_issued_at ?? null,
       updated_at: Date.now()
     });
     const outUser = { ...updatedUser, password: '' };

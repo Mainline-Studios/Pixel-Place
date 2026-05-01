@@ -1,4 +1,5 @@
 export interface User {
+  userId?: number; // Registration order id (1-based)
   username: string;
   password: string;
   gender: string;
@@ -33,6 +34,7 @@ export interface User {
   founderLifetimeCoins?: boolean; // First 100 registered users: keep a large coin floor
   founderOrdinal?: number; // 1..100 registration rank for founder reward
   showFounderCelebration?: boolean; // One-time popup flag sent by auth login response
+  ppafLastRestoreIssuedAt?: number; // Last accepted signed backup timestamp to prevent replay restores
 }
 
 export interface FriendRequest {
