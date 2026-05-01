@@ -1,6 +1,8 @@
 /** @type {import('next').NextConfig} */
+const shouldStaticExport = process.env.NEXT_OUTPUT_EXPORT !== 'false';
+
 const nextConfig = {
-  output: 'export',
+  output: shouldStaticExport ? 'export' : undefined,
   images: {
     unoptimized: true
   },
