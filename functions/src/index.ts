@@ -320,12 +320,15 @@ function userFromDoc(doc: admin.firestore.DocumentSnapshot): any {
     coins: d.coins || 0,
     ownedSkins: d.owned_skins || [],
     equippedSkin: d.equipped_skin || '',
+    ownedFaces: d.owned_faces || [],
+    equippedFace: d.equipped_face || '',
     ownedAccessories: d.owned_accessories || [],
     equippedAccessories: d.equipped_accessories || {},
     ownedServers: d.owned_servers || [],
     friends: d.friends || [],
     friendRequests: d.friend_requests || [],
     sentFriendRequests: d.sent_friend_requests || [],
+    favoriteGameIds: d.favorite_game_ids || [],
     isDonor: d.is_donor === 1,
     founderLifetimeCoins: d.founder_lifetime_coins === true,
     founderOrdinal: typeof d.founder_ordinal === 'number' ? d.founder_ordinal : undefined,
@@ -411,13 +414,29 @@ const getPublicUserProfileHandler = async (req: any, res: any) => {
     const q = await db.collection(COLLECTIONS.USERS).where('user_id', '==', userId).limit(1).get();
     if (q.empty) return res.status(404).json({ error: 'User not found' });
     const d = q.docs[0].data() || {};
+    const username = String(d.username || q.docs[0].id);
+    const gamesSnap = await db.collection(COLLECTIONS.GAMES).where('owner', '==', username).get();
+    const madeGames = gamesSnap.docs
+      .map((g) => {
+        const gd = g.data() || {};
+        return {
+          id: g.id,
+          title: String(gd.title || ''),
+          ts: Number(gd.ts || 0),
+        };
+      })
+      .sort((a, b) => b.ts - a.ts)
+      .slice(0, 24);
     return res.json({
       userId,
-      username: String(d.username || q.docs[0].id),
+      username,
       gender: d.gender || '',
       role: d.role || 'user',
       equippedSkin: d.equipped_skin || '',
+      equippedFace: d.equipped_face || '',
       coins: Number(d.coins || 0),
+      favoriteGameIds: Array.isArray(d.favorite_game_ids) ? d.favorite_game_ids : [],
+      madeGames,
       founderOrdinal: typeof d.founder_ordinal === 'number' ? d.founder_ordinal : undefined,
       isDonor: d.is_donor === 1,
       createdAt: Number(d.created_at || 0) || undefined,
@@ -520,12 +539,15 @@ app.post('/users', async (req, res) => {
       coins: safeCoins,
       owned_skins: u.ownedSkins || ['starter_classic'],
       equipped_skin: u.equippedSkin || 'starter_classic',
+      owned_faces: u.ownedFaces || [],
+      equipped_face: u.equippedFace || '',
       owned_accessories: u.ownedAccessories || [],
       equipped_accessories: u.equippedAccessories || {},
       owned_servers: u.ownedServers || [],
       friends: u.friends || [],
       friend_requests: u.friendRequests || [],
       sent_friend_requests: u.sentFriendRequests || [],
+      favorite_game_ids: u.favoriteGameIds || [],
       is_donor: (safeRole === 'admin' || safeRole === 'head_admin') ? 1 : 0,
       ppaf_last_restore_issued_at:
         typeof u.ppafLastRestoreIssuedAt === 'number'
@@ -581,11 +603,14 @@ app.put('/users', async (req, res) => {
       coins: safeCoins,
       owned_skins: u.ownedSkins || [],
       equipped_skin: u.equippedSkin || '',
+      owned_faces: u.ownedFaces || [],
+      equipped_face: u.equippedFace || '',
       owned_accessories: u.ownedAccessories || [],
       equipped_accessories: u.equippedAccessories || {},
       friends: u.friends || [],
       friend_requests: u.friendRequests || [],
       sent_friend_requests: u.sentFriendRequests || [],
+      favorite_game_ids: u.favoriteGameIds || [],
       is_donor: (safeRole === 'admin' || safeRole === 'head_admin') ? 1 : 0,
       ppaf_last_restore_issued_at:
         typeof u.ppafLastRestoreIssuedAt === 'number'
@@ -720,12 +745,15 @@ app.post('/auth', async (req, res) => {
             coins: 99999,
             owned_skins: ['starter_classic'],
             equipped_skin: 'starter_classic',
+            owned_faces: [],
+            equipped_face: '',
             owned_accessories: [],
             equipped_accessories: {},
             owned_servers: [],
             friends: [],
             friend_requests: [],
             sent_friend_requests: [],
+            favorite_game_ids: [],
             is_donor: 0,
             created_at: Date.now(),
             updated_at: Date.now(),
@@ -807,12 +835,15 @@ app.post('/auth', async (req, res) => {
         coins: 10,
         owned_skins: ['starter_classic'],
         equipped_skin: 'starter_classic',
+        owned_faces: [],
+        equipped_face: '',
         owned_accessories: [],
         equipped_accessories: {},
         owned_servers: [],
         friends: [],
         friend_requests: [],
         sent_friend_requests: [],
+        favorite_game_ids: [],
         is_donor: 0,
         founder_lifetime_coins: false,
         founder_ordinal: null,

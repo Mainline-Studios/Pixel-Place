@@ -26,6 +26,7 @@ import { useMobileBeta } from '@/contexts/MobileBetaContext';
 import SquishBubbles from '../Games/SquishBubbles';
 import SquishSlime from '../Games/SquishSlime';
 import LocalizeText, { FilteredThenLocalize } from '@/components/LocalizeText';
+import { useUser } from '@/contexts/UserContext';
 
 interface GamesTabProps {
   user: User;
@@ -197,11 +198,14 @@ const SECRET_GAMES_IXEL_ACE: GameInfo[] = [
 export default function GamesTab({ user, editMode }: GamesTabProps) {
   const { secretTheme } = useSecretTheme();
   const { isMobileBeta } = useMobileBeta();
+  const { updateUser } = useUser();
   const [selectedGame, setSelectedGame] = useState<string | null>(null);
   /** Deep link: `#historimac=versionId` redirects to `/historimac/:id` (invite); else HistoriMac boot */
   const [historiMacBootVersionId, setHistoriMacBootVersionId] = useState<string | null>(null);
   const [selectedUserGame, setSelectedUserGame] = useState<UserMadeGame | null>(null);
   const [userMadeGames, setUserMadeGames] = useState<UserMadeGame[]>([]);
+  const [favoriteGameIds, setFavoriteGameIds] = useState<string[]>([]);
+  const [pendingLaunchGameId, setPendingLaunchGameId] = useState<string | null>(null);
 
   const gamesList = useMemo(() => {
     let list = secretTheme === 'ixelace' ? [...games, ...SECRET_GAMES_IXEL_ACE] : games;
@@ -212,6 +216,18 @@ export default function GamesTab({ user, editMode }: GamesTabProps) {
   useEffect(() => {
     if (isMobileBeta && selectedGame === 'historiMac') setSelectedGame(null);
   }, [isMobileBeta, selectedGame]);
+
+  useEffect(() => {
+    setFavoriteGameIds(Array.isArray(user.favoriteGameIds) ? user.favoriteGameIds : []);
+  }, [user.favoriteGameIds]);
+
+  const toggleFavorite = (gameId: string) => {
+    setFavoriteGameIds((prev) => {
+      const next = prev.includes(gameId) ? prev.filter((id) => id !== gameId) : [...prev, gameId];
+      void updateUser({ favoriteGameIds: next } as Partial<User>);
+      return next;
+    });
+  };
 
   // Real-time games from Firestore (instant updates when games are added/edited in Firebase Console)
   useEffect(() => {
@@ -227,6 +243,26 @@ export default function GamesTab({ user, editMode }: GamesTabProps) {
       if (games.length > 0) setUserMadeGames((prev) => prev.length === 0 ? games : prev);
     });
   }, []);
+
+  // /games?playUserGame=<id> opens the selected user-made game immediately.
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const gameId = new URLSearchParams(window.location.search).get('playUserGame');
+    setPendingLaunchGameId(gameId && gameId.trim() ? gameId.trim() : null);
+  }, []);
+
+  useEffect(() => {
+    if (!pendingLaunchGameId || selectedUserGame) return;
+    const match = userMadeGames.find((g) => g.id === pendingLaunchGameId);
+    if (!match) return;
+    setSelectedUserGame(match);
+    setPendingLaunchGameId(null);
+    if (typeof window !== 'undefined') {
+      const url = new URL(window.location.href);
+      url.searchParams.delete('playUserGame');
+      window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`);
+    }
+  }, [pendingLaunchGameId, selectedUserGame, userMadeGames]);
 
   // HistoriMac: #historimac=versionId → canonical invite URL; bare #historimac opens picker
   useEffect(() => {
@@ -261,6 +297,7 @@ export default function GamesTab({ user, editMode }: GamesTabProps) {
 
   const selectedGameInfo = gamesList.find(g => g.id === selectedGame);
   const GameComponent = selectedGameInfo?.component;
+  const favoriteGames = gamesList.filter((g) => favoriteGameIds.includes(g.id));
 
   if (selectedUserGame) {
     return (
@@ -369,6 +406,28 @@ export default function GamesTab({ user, editMode }: GamesTabProps) {
         </div>
       </div>
 
+      {favoriteGames.length > 0 && (
+        <>
+          <h2 className="section-title" style={{ marginTop: '20px' }}>
+            ⭐ <LocalizeText text="Favorite Games" as="span" />
+          </h2>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: '14px', marginTop: '12px' }}>
+            {favoriteGames.map((game) => (
+              <button
+                key={`favorite-${game.id}`}
+                type="button"
+                className="btn"
+                onClick={() => setSelectedGame(game.id)}
+                style={{ display: 'flex', alignItems: 'center', gap: 10, justifyContent: 'flex-start', textAlign: 'left' }}
+              >
+                <span style={{ fontSize: 18 }} aria-hidden>{game.icon}</span>
+                <span style={{ fontWeight: 700 }}>{game.name}</span>
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '20px', marginTop: '20px' }}>
         {gamesList.map((game) => (
           <div
@@ -435,6 +494,33 @@ export default function GamesTab({ user, editMode }: GamesTabProps) {
                 {game.icon}
               </span>
             </div>
+            <button
+              type="button"
+              className="btn"
+              onClick={() => toggleFavorite(game.id)}
+              style={{
+                position: 'absolute',
+                top: 10,
+                right: 10,
+                zIndex: 2,
+                borderRadius: 999,
+                width: 36,
+                height: 36,
+                padding: 0,
+                display: 'grid',
+                placeItems: 'center',
+                background: favoriteGameIds.includes(game.id)
+                  ? 'rgba(250, 204, 21, 0.22)'
+                  : 'rgba(0,0,0,0.35)',
+                border: favoriteGameIds.includes(game.id)
+                  ? '1px solid rgba(250, 204, 21, 0.7)'
+                  : '1px solid rgba(255,255,255,0.3)',
+              }}
+              title={favoriteGameIds.includes(game.id) ? 'Remove favorite' : 'Add favorite'}
+              aria-label={favoriteGameIds.includes(game.id) ? 'Remove favorite' : 'Add favorite'}
+            >
+              <span style={{ fontSize: 18 }} aria-hidden>{favoriteGameIds.includes(game.id) ? '★' : '☆'}</span>
+            </button>
             <div style={{
               fontSize: '20px',
               fontWeight: 700,

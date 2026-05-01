@@ -58,6 +58,7 @@ function normalizeEquippedAccessories(val: unknown): string[] | Record<string, s
 function userFromDoc(d: { id: string } & Record<string, unknown>): User {
   const doc = d as Record<string, unknown>;
   return {
+    userId: typeof doc.user_id === 'number' ? (doc.user_id as number) : undefined,
     username: (doc.username as string) || doc.id,
     password: '',
     gender: (doc.gender as string) || '',
@@ -71,6 +72,7 @@ function userFromDoc(d: { id: string } & Record<string, unknown>): User {
     friends: Array.isArray(doc.friends) ? doc.friends as string[] : [],
     friendRequests: Array.isArray(doc.friend_requests) ? doc.friend_requests as any[] : [],
     sentFriendRequests: Array.isArray(doc.sent_friend_requests) ? doc.sent_friend_requests as string[] : [],
+    favoriteGameIds: Array.isArray(doc.favorite_game_ids) ? doc.favorite_game_ids as string[] : [],
     ownedFaces: Array.isArray(doc.owned_faces) ? doc.owned_faces as string[] : undefined,
     equippedFace: (doc.equipped_face as string) || undefined,
     safetyPoints: typeof doc.safety_points === 'number' ? doc.safety_points : undefined,

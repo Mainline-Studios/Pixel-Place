@@ -9,7 +9,7 @@ import { useMobileBeta } from '@/contexts/MobileBetaContext';
 import { useSiteLanguage } from '@/contexts/SiteLanguageContext';
 import LocalizeText from '@/components/LocalizeText';
 import { isSupportedLocale } from '@/lib/locale';
-import { useState, useEffect, type CSSProperties } from 'react';
+import { useState, useEffect, useRef, type CSSProperties } from 'react';
 
 interface TopBarProps {
   currentTab: TabType;
@@ -48,6 +48,8 @@ export default function TopBar({ currentTab, onTabChange, user }: TopBarProps) {
   const { locale, setLocale, localeChoices } = useSiteLanguage();
   const [skins, setSkins] = useState<Skin[]>([]);
   const [accessories, setAccessories] = useState<Accessory[]>([]);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     const loadData = async () => {
@@ -59,6 +61,22 @@ export default function TopBar({ currentTab, onTabChange, user }: TopBarProps) {
       setAccessories(Array.isArray(accessoriesData) ? accessoriesData : []);
     };
     loadData();
+  }, []);
+
+  useEffect(() => {
+    const onDocClick = (e: MouseEvent) => {
+      if (!menuRef.current) return;
+      if (!menuRef.current.contains(e.target as Node)) setMenuOpen(false);
+    };
+    const onEsc = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setMenuOpen(false);
+    };
+    document.addEventListener('mousedown', onDocClick);
+    document.addEventListener('keydown', onEsc);
+    return () => {
+      document.removeEventListener('mousedown', onDocClick);
+      document.removeEventListener('keydown', onEsc);
+    };
   }, []);
 
   const equippedSkin = skins.find(s => s.id === user.equippedSkin) || skins.find(s => s.id === 'starter_classic') || (skins.length > 0 ? skins[0] : null);
@@ -89,6 +107,16 @@ export default function TopBar({ currentTab, onTabChange, user }: TopBarProps) {
         console.error('Error clearing session:', error);
       }
     }
+  };
+
+  const handleOpenUserPage = () => {
+    if (typeof window === 'undefined') return;
+    const id = Number(user.userId || 0);
+    if (Number.isInteger(id) && id > 0) {
+      window.location.href = `/user/${id}`;
+      return;
+    }
+    alert('Your profile id is not available yet. Sign out and sign back in, then try again.');
   };
 
   return (
@@ -179,38 +207,85 @@ export default function TopBar({ currentTab, onTabChange, user }: TopBarProps) {
             <span style={{ fontSize: '16px' }}>🪙</span>
             <span>{(user.coins ?? 0).toLocaleString()}</span>
           </button>
-          <div
-            className="avatar-top"
-            onClick={handleLogout}
-            style={{
-              width: '40px',
-              height: '40px',
-              borderRadius: '50%',
-              overflow: 'hidden',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              background: 'transparent',
-              cursor: 'pointer',
-              transition: 'opacity 0.2s'
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.opacity = '0.8';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.opacity = '1';
-            }}
-            title={`${user.username} — Click to log out`}
-          >
-            {skinWithAccessories && (
-              <Avatar3DViewer
-                skin={skinWithAccessories}
-                width={40}
-                height={40}
-                interactive={false}
-                animation={skinWithAccessories.defaultAnimation || 'idle'}
-                equippedFace={equippedFace || undefined}
-              />
+          <div ref={menuRef} style={{ position: 'relative' }}>
+            <button
+              type="button"
+              className="btn"
+              onClick={() => setMenuOpen((v) => !v)}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                padding: '6px 10px',
+                borderRadius: 999,
+                background: 'rgba(255,255,255,0.06)',
+              }}
+              title={user.username}
+            >
+              <div
+                className="avatar-top"
+                style={{
+                  width: 28,
+                  height: 28,
+                  borderRadius: '50%',
+                  overflow: 'hidden',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  background: 'transparent',
+                }}
+              >
+                {skinWithAccessories && (
+                  <Avatar3DViewer
+                    skin={skinWithAccessories}
+                    width={28}
+                    height={28}
+                    interactive={false}
+                    animation={skinWithAccessories.defaultAnimation || 'idle'}
+                    equippedFace={equippedFace || undefined}
+                  />
+                )}
+              </div>
+              <span style={{ fontSize: 13, fontWeight: 600, maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                {user.username}
+              </span>
+              <span aria-hidden style={{ opacity: 0.75, fontSize: 11 }}>▼</span>
+            </button>
+            {menuOpen && (
+              <div
+                className="ai-box"
+                style={{
+                  position: 'absolute',
+                  right: 0,
+                  top: 'calc(100% + 8px)',
+                  minWidth: 170,
+                  padding: 8,
+                  zIndex: 1200,
+                }}
+              >
+                <button
+                  type="button"
+                  className="btn"
+                  style={{ width: '100%', marginBottom: 6, textAlign: 'left', justifyContent: 'flex-start' }}
+                  onClick={() => {
+                    setMenuOpen(false);
+                    handleOpenUserPage();
+                  }}
+                >
+                  User
+                </button>
+                <button
+                  type="button"
+                  className="btn"
+                  style={{ width: '100%', textAlign: 'left', justifyContent: 'flex-start' }}
+                  onClick={() => {
+                    setMenuOpen(false);
+                    handleLogout();
+                  }}
+                >
+                  Log out
+                </button>
+              </div>
             )}
           </div>
         </div>

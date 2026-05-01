@@ -10,13 +10,15 @@ import BreakReminder from '@/components/BreakReminder';
 import BanScreen from '@/components/BanScreen';
 import LoginNotice from '@/components/LoginNotice';
 import { getPlaytimeTracker } from '@/lib/playtimeTracker';
-import { User } from '@/types';
+import { Skin, User } from '@/types';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import KonamiCodeEasterEgg from '@/components/KonamiCodeEasterEgg';
 import UrgentGameBanner from '@/components/UrgentGameBanner';
 import PixelPlacePay, { PayPortalInvalid, PayPortalLanding } from '@/components/PixelPlacePay';
 import LocalizeText from '@/components/LocalizeText';
 import { getPayPortalClientState, getPayPortalOrigin, isPayPortalHostname, type PayPortalClientState } from '@/lib/payPortal';
+import Avatar3DViewer from '@/components/Avatar3DViewer';
+import { getSkins } from '@/lib/storage';
 
 type PublicUserProfile = {
   userId: number;
@@ -24,16 +26,46 @@ type PublicUserProfile = {
   gender?: string;
   role?: string;
   equippedSkin?: string;
+  equippedFace?: string;
   coins?: number;
+  favoriteGameIds?: string[];
+  madeGames?: Array<{ id: string; title: string; ts?: number }>;
   founderOrdinal?: number;
   isDonor?: boolean;
   createdAt?: number;
 };
 
+const GAME_LABELS: Record<string, string> = {
+  'city-life': 'City Life',
+  'hide-and-seek': 'Hide and Seek',
+  'musical-mayhem': 'Musical Mayhem',
+  'gym-pump': 'Gym Pump',
+  'star-catcher': 'Star Catcher',
+  'speed-runner': 'Speed Runner',
+  'treasure-hunt': 'Treasure Hunt',
+};
+
 function PublicUserProfilePage({ userId }: { userId: number }) {
   const [profile, setProfile] = useState<PublicUserProfile | null>(null);
+  const [skins, setSkins] = useState<Skin[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+
+  useEffect(() => {
+    let active = true;
+    getSkins()
+      .then((skinsData) => {
+        if (!active) return;
+        setSkins(Array.isArray(skinsData) ? skinsData : []);
+      })
+      .catch(() => {
+        if (!active) return;
+        setSkins([]);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -59,6 +91,14 @@ function PublicUserProfilePage({ userId }: { userId: number }) {
     };
   }, [userId]);
 
+  const equippedSkinModel =
+    (profile?.equippedSkin ? skins.find((s) => s.id === profile.equippedSkin) : null)
+    || skins.find((s) => s.id === 'starter_classic')
+    || (skins.length > 0 ? skins[0] : null);
+  const equippedFaceModel = profile?.equippedFace
+    ? skins.find((s) => s.id === profile.equippedFace && s.isFace) || null
+    : null;
+
   return (
     <div style={{ minHeight: '100vh', display: 'grid', placeItems: 'center', padding: 16 }}>
       <div className="ai-box" style={{ width: 'min(560px, 100%)', margin: 0 }}>
@@ -70,11 +110,35 @@ function PublicUserProfilePage({ userId }: { userId: number }) {
             <p style={{ margin: 0, color: '#fecaca' }}>{error}</p>
           ) : profile ? (
             <>
+              {equippedSkinModel ? (
+                <div style={{ display: 'flex', justifyContent: 'center', margin: '0 0 10px' }}>
+                  <div
+                    style={{
+                      width: 96,
+                      height: 96,
+                      borderRadius: 16,
+                      overflow: 'hidden',
+                      border: '1px solid rgba(255,255,255,0.15)',
+                      background: 'rgba(255,255,255,0.04)',
+                    }}
+                  >
+                    <Avatar3DViewer
+                      skin={equippedSkinModel}
+                      width={96}
+                      height={96}
+                      interactive={false}
+                      animation={equippedSkinModel.defaultAnimation || 'idle'}
+                      equippedFace={equippedFaceModel || undefined}
+                    />
+                  </div>
+                </div>
+              ) : null}
               <p style={{ margin: '0 0 8px' }}><strong>{profile.username}</strong></p>
               <p style={{ margin: '0 0 6px' }}>Player ID: {profile.userId}</p>
               {profile.gender ? <p style={{ margin: '0 0 6px' }}>Gender: {profile.gender}</p> : null}
               {profile.role ? <p style={{ margin: '0 0 6px' }}>Role: {profile.role}</p> : null}
               {profile.equippedSkin ? <p style={{ margin: '0 0 6px' }}>Equipped Skin: {profile.equippedSkin}</p> : null}
+              {profile.equippedFace ? <p style={{ margin: '0 0 6px' }}>Face: {profile.equippedFace}</p> : null}
               {typeof profile.coins === 'number' ? <p style={{ margin: '0 0 6px' }}>Coins: {profile.coins}</p> : null}
               {typeof profile.founderOrdinal === 'number' ? (
                 <p style={{ margin: '0 0 6px' }}>Founder Rank: #{profile.founderOrdinal}</p>
@@ -82,6 +146,38 @@ function PublicUserProfilePage({ userId }: { userId: number }) {
               {profile.createdAt ? (
                 <p style={{ margin: '0 0 6px' }}>Joined: {new Date(profile.createdAt).toLocaleDateString()}</p>
               ) : null}
+              <div style={{ marginTop: 14 }}>
+                <p style={{ margin: '0 0 6px' }}><strong>Favorite Games</strong></p>
+                {Array.isArray(profile.favoriteGameIds) && profile.favoriteGameIds.length > 0 ? (
+                  <ul style={{ margin: 0, paddingLeft: 18 }}>
+                    {profile.favoriteGameIds.map((gameId) => (
+                      <li key={gameId}>{GAME_LABELS[gameId] || gameId}</li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p style={{ margin: 0, opacity: 0.8 }}>No favorites yet.</p>
+                )}
+              </div>
+              <div style={{ marginTop: 14 }}>
+                <p style={{ margin: '0 0 6px' }}><strong>Made Games</strong></p>
+                {Array.isArray(profile.madeGames) && profile.madeGames.length > 0 ? (
+                  <ul style={{ margin: 0, paddingLeft: 18 }}>
+                    {profile.madeGames.map((game) => (
+                      <li key={game.id}>
+                        <a
+                          href={`/games?playUserGame=${encodeURIComponent(game.id)}`}
+                          style={{ color: 'var(--accent)', textDecoration: 'underline' }}
+                          title="Open this game in Pixel Place"
+                        >
+                          {game.title || game.id}
+                        </a>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p style={{ margin: 0, opacity: 0.8 }}>No made games yet.</p>
+                )}
+              </div>
             </>
           ) : null}
           <div style={{ marginTop: 12 }}>

@@ -31,12 +31,15 @@ function userFromDoc(doc: any): User {
     coins: doc.coins || 0,
     ownedSkins: Array.isArray(doc.owned_skins) ? doc.owned_skins : (typeof doc.owned_skins === 'string' ? JSON.parse(doc.owned_skins || '[]') : []),
     equippedSkin: doc.equipped_skin || '',
+    ownedFaces: Array.isArray(doc.owned_faces) ? doc.owned_faces : (typeof doc.owned_faces === 'string' ? JSON.parse(doc.owned_faces || '[]') : []),
+    equippedFace: doc.equipped_face || '',
     ownedAccessories: Array.isArray(doc.owned_accessories) ? doc.owned_accessories : (typeof doc.owned_accessories === 'string' ? JSON.parse(doc.owned_accessories || '[]') : []),
     equippedAccessories: normalizeEquippedAccessories(doc.equipped_accessories),
     ownedServers: Array.isArray(doc.owned_servers) ? doc.owned_servers : (typeof doc.owned_servers === 'string' ? JSON.parse(doc.owned_servers || '[]') : []),
     friends: Array.isArray(doc.friends) ? doc.friends : (typeof doc.friends === 'string' ? JSON.parse(doc.friends || '[]') : []),
     friendRequests: Array.isArray(doc.friend_requests) ? doc.friend_requests : (typeof doc.friend_requests === 'string' ? JSON.parse(doc.friend_requests || '[]') : []),
     sentFriendRequests: Array.isArray(doc.sent_friend_requests) ? doc.sent_friend_requests : (typeof doc.sent_friend_requests === 'string' ? JSON.parse(doc.sent_friend_requests || '[]') : []),
+    favoriteGameIds: Array.isArray(doc.favorite_game_ids) ? doc.favorite_game_ids : (typeof doc.favorite_game_ids === 'string' ? JSON.parse(doc.favorite_game_ids || '[]') : []),
     ppafLastRestoreIssuedAt: typeof doc.ppaf_last_restore_issued_at === 'number' ? doc.ppaf_last_restore_issued_at : undefined,
   };
 }
@@ -94,12 +97,15 @@ export async function POST(request: NextRequest) {
         coins: updatedUser.coins,
         owned_skins: updatedUser.ownedSkins || [],
         equipped_skin: updatedUser.equippedSkin || '',
+        owned_faces: updatedUser.ownedFaces || [],
+        equipped_face: updatedUser.equippedFace || '',
         owned_accessories: updatedUser.ownedAccessories || [],
         equipped_accessories: updatedUser.equippedAccessories || [],
         owned_servers: updatedUser.ownedServers || [],
         friends: updatedUser.friends || [],
         friend_requests: updatedUser.friendRequests || [],
         sent_friend_requests: updatedUser.sentFriendRequests || [],
+        favorite_game_ids: updatedUser.favoriteGameIds || [],
         is_donor: updatedUser.role === 'admin' ? 1 : 0,
         ppaf_last_restore_issued_at:
           typeof (updatedUser as any).ppafLastRestoreIssuedAt === 'number'
@@ -126,12 +132,15 @@ export async function POST(request: NextRequest) {
         coins: newUser.coins || 0,
         owned_skins: newUser.ownedSkins || [],
         equipped_skin: newUser.equippedSkin || '',
+        owned_faces: newUser.ownedFaces || [],
+        equipped_face: newUser.equippedFace || '',
         owned_accessories: newUser.ownedAccessories || [],
         equipped_accessories: newUser.equippedAccessories || [],
         owned_servers: newUser.ownedServers || [],
         friends: newUser.friends || [],
         friend_requests: newUser.friendRequests || [],
         sent_friend_requests: newUser.sentFriendRequests || [],
+        favorite_game_ids: newUser.favoriteGameIds || [],
         is_donor: (newUser.role === 'admin' || newUser.role === 'head_admin') ? 1 : 0,
         ppaf_last_restore_issued_at:
           typeof (newUser as any).ppafLastRestoreIssuedAt === 'number'
@@ -190,12 +199,15 @@ export async function PUT(request: NextRequest) {
       coins: updatedUser.coins,
       owned_skins: updatedUser.ownedSkins || [],
       equipped_skin: updatedUser.equippedSkin || '',
+      owned_faces: updatedUser.ownedFaces || [],
+      equipped_face: updatedUser.equippedFace || '',
       owned_accessories: updatedUser.ownedAccessories || [],
       equipped_accessories: updatedUser.equippedAccessories || [],
       owned_servers: updatedUser.ownedServers || [],
       friends: updatedUser.friends || [],
       friend_requests: updatedUser.friendRequests || [],
       sent_friend_requests: updatedUser.sentFriendRequests || [],
+      favorite_game_ids: updatedUser.favoriteGameIds || [],
       is_donor: (updatedUser.role === 'admin' || updatedUser.role === 'head_admin') ? 1 : 0,
       ppaf_last_restore_issued_at:
         typeof (updatedUser as any).ppafLastRestoreIssuedAt === 'number'

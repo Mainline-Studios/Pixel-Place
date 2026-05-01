@@ -35,6 +35,7 @@ export interface User {
   founderOrdinal?: number; // 1..100 registration rank for founder reward
   showFounderCelebration?: boolean; // One-time popup flag sent by auth login response
   ppafLastRestoreIssuedAt?: number; // Last accepted signed backup timestamp to prevent replay restores
+  favoriteGameIds?: string[]; // Saved built-in game ids for quick access and profile display
 }
 
 export interface FriendRequest {
