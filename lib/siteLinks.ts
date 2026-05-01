@@ -1,5 +1,5 @@
 /** Official Pixel Place social / source links (UI + JSON-LD). */
-export const PIXEL_PLACE_YOUTUBE = 'https://www.youtube.com/@OfficialPixelPlace';
+export const PIXEL_PLACE_YOUTUBE = 'https://www.youtube.com/@PixelPlaceOfficial';
 export const PIXEL_PLACE_GITHUB = 'https://github.com/Mainline-Studios/Pixel-Place';
 
 /** Official Mainline Studios Discord server (community hub, not only Pixel Place). */

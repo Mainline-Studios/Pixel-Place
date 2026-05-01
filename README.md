@@ -28,7 +28,7 @@ Note: the current **Studio** tab will be retired soon. A new, more exciting Stud
 
 ## Links
 
-- **Youtube:** [Youtube](https://www.youtube.com/@OfficialPixelPlace)
+- **Youtube:** [Youtube](https://www.youtube.com/@PixelPlaceOfficial)
 - **Discord:** [Discord](https://discord.com/invite/VV6nKAz5sR)
 - **Website (Play Here!):** [Pixel Place Official](https://pixelplaceofficial.com/games)
 - **Status Page:** [Status](https://status.pixelplaceofficial.com)

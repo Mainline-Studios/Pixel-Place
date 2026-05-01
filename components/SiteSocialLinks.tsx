@@ -26,7 +26,7 @@ type Props = {
 
 /**
  * Official YouTube, GitHub, and Mainline Studios Discord links (opens in new tab).
- * @see https://www.youtube.com/@OfficialPixelPlace
+ * @see https://www.youtube.com/@PixelPlaceOfficial
  * @see https://github.com/Mainline-Studios/Pixel-Place
  */
 export default function SiteSocialLinks({ compact, variant, className }: Props) {
@@ -134,7 +134,7 @@ export default function SiteSocialLinks({ compact, variant, className }: Props) 
               '0 8px 28px rgba(255, 0, 0, 0.45), 0 0 0 1px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.2)',
             transition: 'transform 0.15s ease, box-shadow 0.15s ease',
           }}
-          title="Official Pixel Place on YouTube — @OfficialPixelPlace"
+          title="Official Pixel Place on YouTube — @PixelPlaceOfficial"
           aria-label="Official Pixel Place on YouTube"
         >
           <span style={{ fontSize: 22, lineHeight: 1 }} aria-hidden>
@@ -153,7 +153,7 @@ export default function SiteSocialLinks({ compact, variant, className }: Props) 
                 textTransform: 'none' as const,
               }}
             >
-              @OfficialPixelPlace
+              @PixelPlaceOfficial
             </span>
           </span>
         </a>
