@@ -9,6 +9,7 @@ import {
   PPAF_NOT_CONFIGURED_CODE,
   verifyPpafFile,
 } from '@/lib/ppaf';
+import { PPAF_MAX_RESTORE_AGE_MS } from '@/lib/ppafConstants';
 import { clearSiteTranslationCache } from '@/lib/siteTranslationCache';
 import LocalizeText from '@/components/LocalizeText';
 import PpafConfigurePanel from '@/components/PpafConfigurePanel';
@@ -69,6 +70,17 @@ export default function SafetyPrivacyPanel({ user }: SafetyPrivacyPanelProps) {
     }
 
     const payload = verified.payload;
+    const maxAgeDays = Math.round(PPAF_MAX_RESTORE_AGE_MS / (24 * 60 * 60 * 1000));
+    if (Date.now() - verified.issuedAtMs > PPAF_MAX_RESTORE_AGE_MS) {
+      alert(`This backup is older than ${maxAgeDays} days and cannot be restored.`);
+      return;
+    }
+    const userWithMeta = user as User & { ppafLastRestoreIssuedAt?: number };
+    const lastAccepted = Number(userWithMeta.ppafLastRestoreIssuedAt || 0);
+    if (Number.isFinite(lastAccepted) && lastAccepted > 0 && verified.issuedAtMs <= lastAccepted) {
+      alert('This backup is older than or equal to your last restored backup and was blocked to prevent replay.');
+      return;
+    }
     const un =
       typeof payload.username === 'string' ? payload.username.trim().toLowerCase() : '';
     if (!un || un !== user.username.toLowerCase()) {
@@ -117,7 +129,9 @@ export default function SafetyPrivacyPanel({ user }: SafetyPrivacyPanelProps) {
       return;
     }
 
-    await updateUser(pickedUpdates);
+    const pickedUpdatesWithMeta = pickedUpdates as Partial<User> & { ppafLastRestoreIssuedAt?: number };
+    pickedUpdatesWithMeta.ppafLastRestoreIssuedAt = verified.issuedAtMs;
+    await updateUser(pickedUpdatesWithMeta);
     alert(`Restored ${selected.size} field(s) from your signed .ppaf backup.`);
   };
 
@@ -138,7 +152,7 @@ export default function SafetyPrivacyPanel({ user }: SafetyPrivacyPanelProps) {
             <LocalizeText text="Use the Safety tab to report harassment, cheating, or impersonation." />
           </li>
           <li>
-            <LocalizeText text="Make a signed .ppaf backup — one tap downloads a verified file; save the restoration token if your browser creates keys." />
+            <LocalizeText text="Make a signed .ppaf backup — one tap downloads a verified file." />
           </li>
         </ul>
 

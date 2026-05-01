@@ -4,20 +4,9 @@ import { apiUrl } from '@/lib/apiBaseUrl';
 import { getAuthToken } from '@/lib/api';
 import { buildPpafAccountPayload } from '@/lib/privacyExport';
 import { PPAF_EMBEDDED_PUBLIC_KEY_PEM } from '@/lib/ppafEmbeddedPublicKey';
-import { getStoredPpafKeys, setStoredPpafKeys } from '@/lib/ppafBrowserKeys';
-import { signPpafDocumentWithPrivateKey } from '@/lib/ppafClientSign';
-import { PPAF_DOC_FORMAT } from '@/lib/ppafConstants';
-import { generatePpafKeyPairInBrowser } from '@/lib/ppafGenerateBrowserKeys';
+import { PPAF_DOC_FORMAT, PPAF_DOC_VERSION, PPAF_MAX_RESTORE_AGE_MS } from '@/lib/ppafConstants';
 
 function getClientPpafPublicKeyPem(): string {
-  if (typeof window !== 'undefined') {
-    try {
-      const pair = getStoredPpafKeys();
-      if (pair?.publicPem?.trim()) return pair.publicPem.trim();
-    } catch {
-      /* ignore */
-    }
-  }
   const fromEnv =
     typeof process.env.NEXT_PUBLIC_PPAF_ED25519_PUBLIC_KEY === 'string'
       ? process.env.NEXT_PUBLIC_PPAF_ED25519_PUBLIC_KEY.trim()
@@ -43,7 +32,7 @@ export const PPAF_MEDIA_TYPE = 'application/vnd.pixelplace.ppaf+json';
 export const PPAF_NOT_CONFIGURED_CODE = 'PPAF_NOT_CONFIGURED';
 
 export type DownloadPpafResult =
-  | { ok: true; restorationBlockToSave?: string }
+  | { ok: true }
   | { ok: false; error: string; code?: string };
 
 export async function downloadSignedPpaf(user: User): Promise<DownloadPpafResult> {
@@ -52,38 +41,6 @@ export async function downloadSignedPpaf(user: User): Promise<DownloadPpafResult
     return { ok: false, error: 'Sign in again to download a signed backup.' };
   }
   const payload = buildPpafAccountPayload(user);
-
-  const tryBrowserSign = async (): Promise<DownloadPpafResult> => {
-    let stored = getStoredPpafKeys();
-    let restorationBlockToSave: string | undefined;
-    if (!stored) {
-      try {
-        const generated = await generatePpafKeyPairInBrowser();
-        setStoredPpafKeys(generated.privatePem, generated.publicPem);
-        stored = getStoredPpafKeys();
-        restorationBlockToSave = generated.restorationBlock;
-      } catch (e) {
-        return {
-          ok: false,
-          error:
-            e instanceof Error ? e.message : 'Could not create signing keys in this browser.',
-        };
-      }
-    }
-    if (!stored) {
-      return { ok: false, error: 'No signing keys available in this browser.' };
-    }
-    try {
-      const doc = await signPpafDocumentWithPrivateKey(payload, stored.privatePem);
-      triggerPpafFileDownload(doc, user.username || 'account');
-      return restorationBlockToSave ? { ok: true, restorationBlockToSave } : { ok: true };
-    } catch (e) {
-      return {
-        ok: false,
-        error: e instanceof Error ? e.message : 'Could not sign backup in this browser.',
-      };
-    }
-  };
 
   try {
     const res = await fetch(apiUrl('/api/account/ppaf/sign'), {
@@ -105,15 +62,15 @@ export async function downloadSignedPpaf(user: User): Promise<DownloadPpafResult
     const err = typeof data.error === 'string' ? data.error : 'Could not create signed backup.';
     const code = typeof data.code === 'string' ? data.code : undefined;
     if (code === PPAF_NOT_CONFIGURED_CODE || res.status === 503) {
-      const local = await tryBrowserSign();
-      if (local.ok) return local;
-      return { ok: false, error: local.error, code };
+      return {
+        ok: false,
+        error: 'Backup signing is temporarily unavailable. Please try again shortly.',
+        code,
+      };
     }
     return { ok: false, error: err, code };
   } catch {
-    const local = await tryBrowserSign();
-    if (local.ok) return local;
-    return { ok: false, error: local.error || 'Network error while creating backup.' };
+    return { ok: false, error: 'Network error while creating backup.' };
   }
 }
 
@@ -138,19 +95,47 @@ function base64ToBytes(b64: string): Uint8Array {
 }
 
 async function verifyEd25519Local(doc: Record<string, unknown>, pem: string): Promise<boolean> {
-  if (doc.format !== PPAF_DOC_FORMAT) return false;
-  if (doc.algorithm !== 'ed25519') return false;
-  if (typeof doc.signature !== 'string' || typeof doc.issuedAt !== 'string') return false;
-  if (doc.payload === null || typeof doc.payload !== 'object') return false;
-  const ppafVersion = Number(doc.ppafVersion);
-  const msg = ppafSigningUtf8(ppafVersion, doc.issuedAt, doc.payload);
+  const parsed = parseAndValidateSignedPpaf(doc);
+  if (!parsed) return false;
+  const msg = ppafSigningUtf8(parsed.ppafVersion, parsed.issuedAt, parsed.payload);
   const keyBuf = pemPublicKeyToUint8Array(pem.replace(/\\n/g, '\n'));
   const subtle = globalThis.crypto?.subtle;
   if (!subtle) return false;
   const key = await subtle.importKey('spki', keyBuf, { name: 'Ed25519' }, false, ['verify']);
-  const sigBytes = base64ToBytes(doc.signature);
+  const sigBytes = base64ToBytes(parsed.signature);
   const msgBytes = new TextEncoder().encode(msg);
   return subtle.verify({ name: 'Ed25519' }, key, sigBytes, msgBytes);
+}
+
+type ParsedSignedPpaf = {
+  ppafVersion: number;
+  issuedAt: string;
+  issuedAtMs: number;
+  payload: Record<string, unknown>;
+  signature: string;
+};
+
+function parseAndValidateSignedPpaf(input: Record<string, unknown>): ParsedSignedPpaf | null {
+  if (input.format !== PPAF_DOC_FORMAT) return null;
+  if (input.algorithm !== 'ed25519') return null;
+  if (typeof input.signature !== 'string' || input.signature.trim().length < 16) return null;
+  if (typeof input.issuedAt !== 'string') return null;
+  const issuedAtMs = Date.parse(input.issuedAt);
+  if (!Number.isFinite(issuedAtMs)) return null;
+  const now = Date.now();
+  // Allow a small future skew for client/server clock differences.
+  if (issuedAtMs > now + 10 * 60 * 1000) return null;
+  if (now - issuedAtMs > PPAF_MAX_RESTORE_AGE_MS) return null;
+  if (input.payload === null || typeof input.payload !== 'object') return null;
+  const ppafVersion = Number(input.ppafVersion);
+  if (!Number.isInteger(ppafVersion) || ppafVersion !== PPAF_DOC_VERSION) return null;
+  return {
+    ppafVersion,
+    issuedAt: input.issuedAt,
+    issuedAtMs,
+    payload: input.payload as Record<string, unknown>,
+    signature: input.signature,
+  };
 }
 
 /**
@@ -160,24 +145,27 @@ async function verifyEd25519Local(doc: Record<string, unknown>, pem: string): Pr
 export async function verifyPpafFile(
   parsed: unknown,
 ): Promise<
-  | { ok: true; payload: Record<string, unknown> }
+  | { ok: true; payload: Record<string, unknown>; issuedAtMs: number; issuedAt: string }
   | { ok: false; error: string; code?: string }
 > {
   if (!parsed || typeof parsed !== 'object') {
     return { ok: false, error: 'Invalid file (not JSON).' };
   }
   const doc = parsed as Record<string, unknown>;
+  const validated = parseAndValidateSignedPpaf(doc);
+  if (!validated) {
+    return { ok: false, error: 'Invalid, expired, or malformed PPAF signature envelope.' };
+  }
 
   const pem = getClientPpafPublicKeyPem();
 
-  if (pem) {
-    try {
-      if (await verifyEd25519Local(doc, pem)) {
-        return { ok: true, payload: doc.payload as Record<string, unknown> };
-      }
-    } catch {
-      /* try server */
-    }
+  if (pem && (await verifyEd25519Local(doc, pem))) {
+    return {
+      ok: true,
+      payload: validated.payload,
+      issuedAtMs: validated.issuedAtMs,
+      issuedAt: validated.issuedAt,
+    };
   }
 
   try {
@@ -188,34 +176,42 @@ export async function verifyPpafFile(
     });
     const j = (await res.json()) as { valid?: boolean; error?: string; code?: string };
     if (j.valid) {
-      return { ok: true, payload: doc.payload as Record<string, unknown> };
+      return {
+        ok: true,
+        payload: validated.payload,
+        issuedAtMs: validated.issuedAtMs,
+        issuedAt: validated.issuedAt,
+      };
     }
     const code = typeof j.code === 'string' ? j.code : undefined;
     return {
       ok: false,
-      error:
-        j.error ||
-        (pem
-          ? 'Signature invalid — file may be corrupted or edited.'
-          : 'Could not verify backup. Add NEXT_PUBLIC_PPAF_ED25519_PUBLIC_KEY for offline checks, or stay online.'),
+      error: j.error || 'Signature invalid — file may be corrupted or edited.',
       code,
     };
   } catch {
-    return {
-      ok: false,
-      error: pem
-        ? 'Signature check failed.'
-        : 'Offline — set NEXT_PUBLIC_PPAF_ED25519_PUBLIC_KEY to verify without network.',
-    };
+    return { ok: false, error: 'Signature check failed (network issue while verifying).' };
   }
 }
 
 /** Apply verified backup fields; never applies password, username, or role from file. */
 export function mergePpafPayloadIntoUserUpdates(payload: Record<string, unknown>): Partial<User> {
-  const skip = new Set(['password', 'username', 'role', 'exportNote', 'exportedAt']);
+  const allowed = new Set([
+    'gender',
+    'ownedSkins',
+    'equippedSkin',
+    'ownedFaces',
+    'equippedFace',
+    'ownedAccessories',
+    'equippedAccessories',
+    'friends',
+    'friendRequests',
+    'sentFriendRequests',
+    'recentlyPlayed',
+  ]);
   const out: Partial<User> = {};
   for (const [k, v] of Object.entries(payload)) {
-    if (skip.has(k)) continue;
+    if (!allowed.has(k)) continue;
     (out as Record<string, unknown>)[k] = v;
   }
   return out;

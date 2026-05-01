@@ -15,23 +15,12 @@ export default function PpafBackupModal({
 }) {
   const [creatingBackup, setCreatingBackup] = useState(false);
   const [downloadError, setDownloadError] = useState('');
-  const [lastRestorationBlock, setLastRestorationBlock] = useState('');
-  const [restorationPopupOpen, setRestorationPopupOpen] = useState(false);
 
   useEffect(() => {
     if (open) {
       setDownloadError('');
-      setRestorationPopupOpen(false);
     }
   }, [open]);
-
-  const copyRestorationBlock = async (block: string) => {
-    try {
-      await navigator.clipboard.writeText(block);
-    } catch {
-      setDownloadError('Could not copy — select the text and copy manually.');
-    }
-  };
 
   const createBackup = async () => {
     setDownloadError('');
@@ -41,10 +30,6 @@ export default function PpafBackupModal({
       if (!r.ok) {
         setDownloadError(r.error);
         return;
-      }
-      if (r.restorationBlockToSave) {
-        setLastRestorationBlock(r.restorationBlockToSave);
-        setRestorationPopupOpen(true);
       }
     } finally {
       setCreatingBackup(false);
@@ -71,10 +56,10 @@ export default function PpafBackupModal({
         padding: 16,
       }}
       onClick={() => {
-        if (!restorationPopupOpen) onClose();
+        onClose();
       }}
       onKeyDown={(e) => {
-        if (e.key === 'Escape' && !restorationPopupOpen) onClose();
+        if (e.key === 'Escape') onClose();
       }}
     >
       <div
@@ -95,19 +80,6 @@ export default function PpafBackupModal({
           <p style={{ margin: '0 0 12px', color: 'var(--text-dim)' }}>
             One tap downloads your signed <code style={{ fontSize: 12 }}>.ppaf</code> backup file.
           </p>
-
-          {lastRestorationBlock && (
-            <div style={{ marginBottom: 14 }}>
-              <button
-                type="button"
-                className="btn"
-                style={{ opacity: 0.92 }}
-                onClick={() => setRestorationPopupOpen(true)}
-              >
-                Open full restoration key popup
-              </button>
-            </div>
-          )}
 
           <div style={{ marginBottom: 14 }}>
             <button type="button" className="btn" disabled={uiBusy} onClick={() => void createBackup()}>
@@ -139,73 +111,6 @@ export default function PpafBackupModal({
           </div>
         </div>
       </div>
-
-      {restorationPopupOpen && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          aria-label="PPAF restoration key"
-          style={{
-            position: 'fixed',
-            inset: 0,
-            zIndex: 1400,
-            background: 'rgba(0,0,0,0.82)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: 16,
-          }}
-          onClick={(e) => e.stopPropagation()}
-        >
-          <div
-            className="ai-box"
-            style={{
-              width: 'min(1000px, 100%)',
-              maxHeight: '92vh',
-              overflow: 'auto',
-              margin: 0,
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="ai-label">PPAF restoration key (save this)</div>
-            <div className="ai-output" style={{ fontSize: 14, lineHeight: 1.6 }}>
-              <p style={{ margin: '0 0 10px', color: 'var(--text-dim)' }}>
-                This is intentionally large so the entire token is visible. Keep this safe and private.
-              </p>
-              <textarea
-                readOnly
-                value={lastRestorationBlock}
-                rows={14}
-                style={{
-                  width: '100%',
-                  padding: '10px 12px',
-                  borderRadius: 8,
-                  border: '1px solid var(--border)',
-                  background: 'var(--panel-soft)',
-                  color: 'var(--text-main)',
-                  fontFamily: 'ui-monospace, monospace',
-                  fontSize: 12,
-                  resize: 'vertical',
-                  overflowWrap: 'anywhere',
-                }}
-              />
-              <div style={{ marginTop: 10, display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-                <button
-                  type="button"
-                  className="btn"
-                  onClick={() => void copyRestorationBlock(lastRestorationBlock)}
-                  disabled={!lastRestorationBlock}
-                >
-                  Copy restoration block
-                </button>
-                <button type="button" className="btn" style={{ opacity: 0.9 }} onClick={() => setRestorationPopupOpen(false)}>
-                  Close
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

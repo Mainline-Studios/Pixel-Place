@@ -9,6 +9,7 @@ import { ppafSigningUtf8 } from './ppafCanonical';
 
 export const PPAF_FORMAT = 'pixel-place-account-file';
 export const PPAF_VERSION = 1;
+const PPAF_MAX_RESTORE_AGE_MS = 90 * 24 * 60 * 60 * 1000;
 /** Client may show deployment instructions when this code is returned. */
 export const PPAF_NOT_CONFIGURED_CODE = 'PPAF_NOT_CONFIGURED';
 
@@ -71,6 +72,20 @@ export function verifyPpafDocument(body: unknown): { ok: true } | { ok: false; e
   }
   if (typeof d.signature !== 'string' || typeof d.issuedAt !== 'string') {
     return { ok: false, error: 'Invalid PPAF document (missing signature or issuedAt)' };
+  }
+  if (d.algorithm !== 'ed25519') {
+    return { ok: false, error: 'Unsupported PPAF algorithm' };
+  }
+  const issuedAtMs = Date.parse(d.issuedAt);
+  if (!Number.isFinite(issuedAtMs)) {
+    return { ok: false, error: 'Invalid PPAF issuedAt timestamp' };
+  }
+  const now = Date.now();
+  if (issuedAtMs > now + 10 * 60 * 1000) {
+    return { ok: false, error: 'PPAF issuedAt is in the future' };
+  }
+  if (now - issuedAtMs > PPAF_MAX_RESTORE_AGE_MS) {
+    return { ok: false, error: 'PPAF is too old to restore' };
   }
   if (d.payload === null || typeof d.payload !== 'object') {
     return { ok: false, error: 'Invalid PPAF payload' };
