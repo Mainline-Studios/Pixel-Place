@@ -2,7 +2,7 @@
   "hosting": [
     {
       "target": "main",
-      "predeploy": ["npm run build"],
+      "predeploy": ["npm run build:static"],
       "public": "out",
       "cleanUrls": true,
       "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
@@ -36,7 +36,7 @@
     },
     {
       "target": "pay",
-      "predeploy": ["npm run build"],
+      "predeploy": ["npm run build:static"],
       "public": "out",
       "cleanUrls": true,
       "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],

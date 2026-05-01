@@ -8,6 +8,7 @@
         "dev:next": "next dev -p 3000",
         "server": "node server.js",
         "build": "next build",
+        "build:static": "node scripts/build-static.mjs",
         "start": "next start",
         "lint": "next lint",
         "deploy": "firebase deploy",
