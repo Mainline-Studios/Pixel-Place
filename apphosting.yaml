@@ -1,0 +1,6 @@
+env:
+  - variable: PIXELPLACE_APPHOSTING
+    value: "true"
+    availability:
+      - BUILD
+      - RUNTIME

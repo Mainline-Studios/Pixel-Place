@@ -1,6 +1,9 @@
 /** @type {import('next').NextConfig} */
+const isAppHostingBuild = process.env.PIXELPLACE_APPHOSTING === 'true';
+
 const nextConfig = {
-  output: 'export',
+  // App Hosting requires a server build; classic Hosting still needs static export.
+  ...(isAppHostingBuild ? {} : { output: 'export' }),
   images: {
     unoptimized: true
   },
