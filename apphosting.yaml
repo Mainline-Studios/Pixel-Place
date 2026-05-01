@@ -1,0 +1,8 @@
+scripts:
+  runCommand: node scripts/apphosting-static-server.mjs
+
+outputFiles:
+  serverApp:
+    include:
+      - out
+      - scripts/apphosting-static-server.mjs
