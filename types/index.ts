@@ -260,6 +260,7 @@ export interface TabContent {
 
 export interface UserMadeGame {
   id: string;
+  gameId?: number; // Sequential public game id for /game/:id pages
   title: string;
   desc: string;
   owner: string;

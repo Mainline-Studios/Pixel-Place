@@ -143,6 +143,7 @@ const LABEL_MAX = 64;
 const FOUNDER_LIMIT = 100;
 const FOUNDER_COIN_FLOOR = 1_000_000_000;
 let sequentialUserIdsEnsured = false;
+let sequentialGameIdsEnsured = false;
 
 function sanitizeDeviceId(id: string): string {
   return String(id).slice(0, DEVICE_ID_MAX).replace(/[^a-zA-Z0-9_-]/g, '');
@@ -376,6 +377,47 @@ async function nextSequentialUserId(): Promise<number> {
   return Number.isFinite(current) && current > 0 ? current + 1 : 1;
 }
 
+/**
+ * One-time best-effort backfill: assign sequential numeric game_id values by created_at order.
+ * This keeps `/game/:id` stable and aligned with creation order.
+ */
+async function ensureSequentialGameIds(): Promise<void> {
+  if (sequentialGameIdsEnsured) return;
+  const snap = await db.collection(COLLECTIONS.GAMES).get();
+  if (snap.empty) {
+    sequentialGameIdsEnsured = true;
+    return;
+  }
+  const docs = [...snap.docs].sort((a, b) => {
+    const ad = a.data() || {};
+    const bd = b.data() || {};
+    const ac = Number(ad.created_at || ad.ts || 0);
+    const bc = Number(bd.created_at || bd.ts || 0);
+    if (ac !== bc) return ac - bc;
+    return a.id.localeCompare(b.id);
+  });
+  const batch = db.batch();
+  let changed = 0;
+  docs.forEach((doc, idx) => {
+    const expected = idx + 1;
+    const existing = Number(doc.data()?.game_id || 0);
+    if (!Number.isFinite(existing) || existing !== expected) {
+      batch.set(doc.ref, { game_id: expected, updated_at: Date.now() }, { merge: true });
+      changed++;
+    }
+  });
+  if (changed > 0) await batch.commit();
+  sequentialGameIdsEnsured = true;
+}
+
+async function nextSequentialGameId(): Promise<number> {
+  await ensureSequentialGameIds();
+  const q = await db.collection(COLLECTIONS.GAMES).orderBy('game_id', 'desc').limit(1).get();
+  if (q.empty) return 1;
+  const current = Number(q.docs[0].data()?.game_id || 0);
+  return Number.isFinite(current) && current > 0 ? current + 1 : 1;
+}
+
 const app = express();
 app.use(cors({ origin: true }));
 
@@ -411,6 +453,7 @@ const getPublicUserProfileHandler = async (req: any, res: any) => {
       return res.status(400).json({ error: 'Invalid userId' });
     }
     await ensureSequentialUserIds();
+    await ensureSequentialGameIds();
     const q = await db.collection(COLLECTIONS.USERS).where('user_id', '==', userId).limit(1).get();
     if (q.empty) return res.status(404).json({ error: 'User not found' });
     const d = q.docs[0].data() || {};
@@ -421,6 +464,7 @@ const getPublicUserProfileHandler = async (req: any, res: any) => {
         const gd = g.data() || {};
         return {
           id: g.id,
+          gameId: Number(gd.game_id || 0) || undefined,
           title: String(gd.title || ''),
           ts: Number(gd.ts || 0),
         };
@@ -447,6 +491,34 @@ const getPublicUserProfileHandler = async (req: any, res: any) => {
 };
 app.get('/user/:userId', getPublicUserProfileHandler);
 app.get('/user', getPublicUserProfileHandler);
+
+// Public game profile by numeric game id: GET /game/:gameId or /game?gameId=123
+const getPublicGameProfileHandler = async (req: any, res: any) => {
+  try {
+    const rawGameId = req.params.gameId || (req.query.gameId as string) || '';
+    const gameId = Number(rawGameId);
+    if (!Number.isInteger(gameId) || gameId <= 0) {
+      return res.status(400).json({ error: 'Invalid gameId' });
+    }
+    await ensureSequentialGameIds();
+    const q = await db.collection(COLLECTIONS.GAMES).where('game_id', '==', gameId).limit(1).get();
+    if (q.empty) return res.status(404).json({ error: 'Game not found' });
+    const d = q.docs[0].data() || {};
+    return res.json({
+      gameId,
+      id: q.docs[0].id,
+      title: String(d.title || ''),
+      desc: String(d.description || ''),
+      owner: String(d.owner || ''),
+      ts: Number(d.ts || 0) || undefined,
+      createdAt: Number(d.created_at || 0) || undefined,
+    });
+  } catch {
+    return res.status(500).json({ error: 'Failed to load game profile' });
+  }
+};
+app.get('/game/:gameId', getPublicGameProfileHandler);
+app.get('/game', getPublicGameProfileHandler);
 
 // GET /auth/check-device?deviceId=xxx — no auth; for app-open check so ban screen can show before login
 app.get('/auth/check-device', async (req, res) => {
@@ -1003,6 +1075,7 @@ app.post('/scene', async (req, res) => {
 // Games: GET all or by owner (owner from token only when filtering)
 app.get('/games', async (req, res) => {
   try {
+    await ensureSequentialGameIds();
     const ownerQuery = req.query.owner as string;
     let snap;
     if (ownerQuery) {
@@ -1016,6 +1089,7 @@ app.get('/games', async (req, res) => {
       const data = d.data();
       return {
         id: d.id,
+        gameId: Number(data.game_id || 0) || undefined,
         title: data.title,
         desc: data.description || '',
         owner: data.owner,
@@ -1041,8 +1115,11 @@ app.post('/games', async (req, res) => {
     if (!auth) return;
     const game = req.body;
     const gameId = game.id || `game_${Date.now()}`;
+    const assignedGameId =
+      typeof game.gameId === 'number' && game.gameId > 0 ? game.gameId : await nextSequentialGameId();
     await db.collection(COLLECTIONS.GAMES).doc(gameId).set({
       id: gameId,
+      game_id: assignedGameId,
       title: game.title,
       description: game.desc || '',
       owner: auth.username,
@@ -1058,7 +1135,7 @@ app.post('/games', async (req, res) => {
       created_at: Date.now(),
       updated_at: Date.now()
     }, { merge: true });
-    res.json({ success: true, game: { ...game, id: gameId, ts: game.ts || Date.now() } });
+    res.json({ success: true, game: { ...game, id: gameId, gameId: assignedGameId, ts: game.ts || Date.now() } });
   } catch (e) {
     res.status(500).json({ error: 'Failed to save game' });
   }

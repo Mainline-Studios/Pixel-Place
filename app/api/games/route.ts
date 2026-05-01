@@ -5,9 +5,38 @@ import { requireAuth } from '@/lib/middleware';
 import { getDocuments, setDocument, deleteDocument, queryDocuments, COLLECTIONS } from '@/lib/firestore';
 import { UserMadeGame } from '@/types';
 
+async function ensureSequentialGameIds(): Promise<void> {
+  const games = await getDocuments(COLLECTIONS.GAMES || 'games');
+  const sorted = [...games].sort((a: any, b: any) => {
+    const ac = Number(a.created_at || a.ts || 0);
+    const bc = Number(b.created_at || b.ts || 0);
+    if (ac !== bc) return ac - bc;
+    return String(a.id || '').localeCompare(String(b.id || ''));
+  });
+  await Promise.all(
+    sorted.map((game: any, idx: number) => {
+      const expected = idx + 1;
+      const existing = Number(game.game_id || 0);
+      if (Number.isFinite(existing) && existing === expected) return Promise.resolve();
+      return setDocument(COLLECTIONS.GAMES || 'games', String(game.id), {
+        game_id: expected,
+        updated_at: Date.now(),
+      });
+    }),
+  );
+}
+
+async function nextSequentialGameId(): Promise<number> {
+  await ensureSequentialGameIds();
+  const games = await getDocuments(COLLECTIONS.GAMES || 'games');
+  const maxId = games.reduce((max: number, game: any) => Math.max(max, Number(game.game_id || 0)), 0);
+  return maxId > 0 ? maxId + 1 : 1;
+}
+
 function gameFromDoc(doc: any): UserMadeGame {
   return {
     id: doc.id,
+    gameId: Number(doc.game_id || 0) || undefined,
     title: doc.title,
     desc: doc.description || '',
     owner: doc.owner,
@@ -24,6 +53,7 @@ function gameFromDoc(doc: any): UserMadeGame {
 // Get all games (public). If filtering by owner, require auth and use token identity only.
 export async function GET(request: NextRequest) {
   try {
+    await ensureSequentialGameIds();
     const { searchParams } = new URL(request.url);
     const ownerParam = searchParams.get('owner');
     
@@ -51,9 +81,12 @@ export async function POST(request: NextRequest) {
   try {
     const game: UserMadeGame = await request.json();
     const gameId = game.id || `game_${Date.now()}`;
+    const assignedGameId =
+      typeof game.gameId === 'number' && game.gameId > 0 ? game.gameId : await nextSequentialGameId();
     
     await setDocument(COLLECTIONS.GAMES || 'games', gameId, {
       id: gameId,
+      game_id: assignedGameId,
       title: game.title,
       description: game.desc || '',
       owner: authResult.user.username,
@@ -73,6 +106,7 @@ export async function POST(request: NextRequest) {
     const gameToSave: UserMadeGame = {
       ...game,
       id: gameId,
+      gameId: assignedGameId,
       ts: game.ts || Date.now(),
     };
     

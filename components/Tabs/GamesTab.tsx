@@ -640,6 +640,20 @@ export default function GamesTab({ user, editMode }: GamesTabProps) {
                 }}>
                   <LocalizeText text="User-Made" />
                 </div>
+                {typeof game.gameId === 'number' && game.gameId > 0 && (
+                  <div
+                    style={{
+                      fontSize: '11px',
+                      color: '#c7d2fe',
+                      textAlign: 'center',
+                      marginBottom: '10px',
+                      fontWeight: 700,
+                      letterSpacing: '0.04em',
+                    }}
+                  >
+                    {`Game #${game.gameId}`}
+                  </div>
+                )}
                 <div style={{
                   fontSize: '13px',
                   color: 'var(--text-dim)',
@@ -699,6 +713,38 @@ export default function GamesTab({ user, editMode }: GamesTabProps) {
                     </button>
                   )}
                 </div>
+                {typeof game.gameId === 'number' && game.gameId > 0 && (
+                  <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+                    <a
+                      className="btn"
+                      href={`/game/${game.gameId}`}
+                      style={{ flex: 1, fontSize: 12, padding: '8px 10px', textAlign: 'center' }}
+                      title="Open game page"
+                    >
+                      Open Page
+                    </a>
+                    <button
+                      type="button"
+                      className="btn"
+                      style={{ fontSize: 12, padding: '8px 10px' }}
+                      onClick={() => {
+                        if (typeof window === 'undefined') return;
+                        const shareUrl = `${window.location.origin}/game/${game.gameId}`;
+                        if (navigator.clipboard?.writeText) {
+                          navigator.clipboard.writeText(shareUrl).then(() => {
+                            alert('Game page link copied.');
+                          }).catch(() => {
+                            alert(shareUrl);
+                          });
+                        } else {
+                          alert(shareUrl);
+                        }
+                      }}
+                    >
+                      Copy Link
+                    </button>
+                  </div>
+                )}
               </div>
             ))}
           </div>

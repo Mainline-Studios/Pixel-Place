@@ -29,9 +29,19 @@ type PublicUserProfile = {
   equippedFace?: string;
   coins?: number;
   favoriteGameIds?: string[];
-  madeGames?: Array<{ id: string; title: string; ts?: number }>;
+  madeGames?: Array<{ id: string; gameId?: number; title: string; ts?: number }>;
   founderOrdinal?: number;
   isDonor?: boolean;
+  createdAt?: number;
+};
+
+type PublicGameProfile = {
+  gameId: number;
+  id: string;
+  title: string;
+  desc?: string;
+  owner?: string;
+  ts?: number;
   createdAt?: number;
 };
 
@@ -165,9 +175,13 @@ function PublicUserProfilePage({ userId }: { userId: number }) {
                     {profile.madeGames.map((game) => (
                       <li key={game.id}>
                         <a
-                          href={`/games?playUserGame=${encodeURIComponent(game.id)}`}
+                          href={
+                            Number.isInteger(game.gameId) && Number(game.gameId) > 0
+                              ? `/game/${game.gameId}`
+                              : `/games?playUserGame=${encodeURIComponent(game.id)}`
+                          }
                           style={{ color: 'var(--accent)', textDecoration: 'underline' }}
-                          title="Open this game in Pixel Place"
+                          title="Open this game page"
                         >
                           {game.title || game.id}
                         </a>
@@ -177,6 +191,67 @@ function PublicUserProfilePage({ userId }: { userId: number }) {
                 ) : (
                   <p style={{ margin: 0, opacity: 0.8 }}>No made games yet.</p>
                 )}
+              </div>
+            </>
+          ) : null}
+          <div style={{ marginTop: 12 }}>
+            <a className="btn" href="/">Back to Pixel Place</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function PublicGameProfilePage({ gameId }: { gameId: number }) {
+  const [game, setGame] = useState<PublicGameProfile | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    let active = true;
+    setLoading(true);
+    setError('');
+    setGame(null);
+    fetch(`/api/game?gameId=${encodeURIComponent(String(gameId))}`, { cache: 'no-store' })
+      .then(async (res) => {
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(typeof data.error === 'string' ? data.error : 'Game not found.');
+        if (!active) return;
+        setGame(data as PublicGameProfile);
+      })
+      .catch((e) => {
+        if (!active) return;
+        setError(e instanceof Error ? e.message : 'Could not load game.');
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [gameId]);
+
+  return (
+    <div style={{ minHeight: '100vh', display: 'grid', placeItems: 'center', padding: 16 }}>
+      <div className="ai-box" style={{ width: 'min(560px, 100%)', margin: 0 }}>
+        <div className="ai-label">Game Page</div>
+        <div className="ai-output" style={{ lineHeight: 1.7 }}>
+          {loading ? (
+            <p style={{ margin: 0 }}>Loading game…</p>
+          ) : error ? (
+            <p style={{ margin: 0, color: '#fecaca' }}>{error}</p>
+          ) : game ? (
+            <>
+              <p style={{ margin: '0 0 8px' }}><strong>{game.title || game.id}</strong></p>
+              <p style={{ margin: '0 0 6px' }}>Game ID: {game.gameId}</p>
+              {game.owner ? <p style={{ margin: '0 0 6px' }}>Made by: {game.owner}</p> : null}
+              {game.desc ? <p style={{ margin: '0 0 6px' }}>{game.desc}</p> : null}
+              {game.createdAt ? (
+                <p style={{ margin: '0 0 6px' }}>Created: {new Date(game.createdAt).toLocaleDateString()}</p>
+              ) : null}
+              <div style={{ marginTop: 12 }}>
+                <a className="btn" href={`/games?playUserGame=${encodeURIComponent(game.id)}`}>Play this game</a>
               </div>
             </>
           ) : null}
@@ -204,12 +279,15 @@ function AppContent() {
   const prevUserRef = React.useRef<User | null>(null);
   const [payPortal, setPayPortal] = useState<PayPortalClientState>(() => getPayPortalClientState());
   const [publicUserId, setPublicUserId] = useState<number | null>(null);
+  const [publicGameId, setPublicGameId] = useState<number | null>(null);
 
   useEffect(() => {
     setPayPortal(getPayPortalClientState());
     if (typeof window !== 'undefined') {
-      const m = window.location.pathname.match(/^\/user\/(\d+)\/?$/);
-      setPublicUserId(m ? Number(m[1]) : null);
+      const userMatch = window.location.pathname.match(/^\/user\/(\d+)\/?$/);
+      const gameMatch = window.location.pathname.match(/^\/game\/(\d+)\/?$/);
+      setPublicUserId(userMatch ? Number(userMatch[1]) : null);
+      setPublicGameId(gameMatch ? Number(gameMatch[1]) : null);
     }
   }, []);
 
@@ -252,6 +330,9 @@ function AppContent() {
   }
   if (publicUserId && Number.isFinite(publicUserId) && publicUserId > 0) {
     return <PublicUserProfilePage userId={publicUserId} />;
+  }
+  if (publicGameId && Number.isFinite(publicGameId) && publicGameId > 0) {
+    return <PublicGameProfilePage gameId={publicGameId} />;
   }
 
   return (

@@ -18,6 +18,7 @@ export async function GET(request: NextRequest) {
     const madeGames = madeGameDocs
       .map((g: any) => ({
         id: String(g.id || ''),
+        gameId: Number(g.game_id || 0) || undefined,
         title: String(g.title || ''),
         ts: Number(g.ts || 0),
       }))

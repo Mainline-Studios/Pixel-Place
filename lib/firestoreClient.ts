@@ -144,7 +144,7 @@ export function subscribeToUsers(callback: (users: User[]) => void): () => void 
 }
 
 /** Convert Firestore game doc to UserMadeGame shape */
-function gameFromDoc(d: { id: string } & Record<string, unknown>): { id: string; title: string; desc: string; owner: string; ts: number; sceneData: { objects: unknown[] }; publishedBy?: string; gameType?: string; fileContent?: string; fileType?: string; gameCode?: string } {
+function gameFromDoc(d: { id: string } & Record<string, unknown>): { id: string; gameId?: number; title: string; desc: string; owner: string; ts: number; sceneData: { objects: unknown[] }; publishedBy?: string; gameType?: string; fileContent?: string; fileType?: string; gameCode?: string } {
   const doc = d as Record<string, unknown>;
   let sceneData = doc.scene_data;
   if (typeof sceneData === 'string') {
@@ -152,6 +152,7 @@ function gameFromDoc(d: { id: string } & Record<string, unknown>): { id: string;
   }
   return {
     id: (doc.id as string) || '',
+    gameId: typeof doc.game_id === 'number' ? (doc.game_id as number) : undefined,
     title: (doc.title as string) || '',
     desc: (doc.description as string) || '',
     owner: (doc.owner as string) || '',
