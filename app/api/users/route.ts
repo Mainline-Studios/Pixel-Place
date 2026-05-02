@@ -6,6 +6,26 @@ import { requireAuth } from '@/lib/middleware';
 import { hashPassword } from '@/lib/auth';
 import { User } from '@/types';
 
+/** Fields that only admins may change. Self-updates silently drop these. */
+const ADMIN_ONLY_FIELDS: (keyof User)[] = [
+  'role',
+  'coins',
+  'userId',
+  'isDonor',
+  'founderLifetimeCoins',
+  'founderOrdinal',
+  'safetyPoints',
+];
+
+/** Strip privileged fields from a non-admin self-update payload. */
+function stripPrivilegedFields(payload: User): User {
+  const safe = { ...payload };
+  for (const f of ADMIN_ONLY_FIELDS) {
+    delete (safe as Record<string, unknown>)[f];
+  }
+  return safe;
+}
+
 /** Normalize equipped_accessories from Firestore (can be object or array). */
 function normalizeEquippedAccessories(val: unknown): string[] | Record<string, string> {
   if (val == null) return {};
@@ -60,12 +80,14 @@ export async function POST(request: NextRequest) {
   const authResult = requireAuth(request);
   if (authResult.error) return authResult.error;
   try {
-    const newUser: User = await request.json();
-    const targetLower = (newUser.username || '').toLowerCase();
+    const rawUser: User = await request.json();
+    const targetLower = (rawUser.username || '').toLowerCase();
     const selfOnly = targetLower === authResult.user.username.toLowerCase();
-    if (!selfOnly && authResult.user.role !== 'admin' && authResult.user.role !== 'head_admin') {
+    const isAdmin = authResult.user.role === 'admin' || authResult.user.role === 'head_admin';
+    if (!selfOnly && !isAdmin) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
+    const newUser = selfOnly && !isAdmin ? stripPrivilegedFields(rawUser) : rawUser;
     // Check if user exists (case-insensitive)
     const existingUsers = await queryDocuments(COLLECTIONS.USERS, 'username_lower', '==', newUser.username.toLowerCase());
     const existing = existingUsers.length > 0 ? existingUsers[0] : null;
@@ -106,7 +128,7 @@ export async function POST(request: NextRequest) {
         friend_requests: updatedUser.friendRequests || [],
         sent_friend_requests: updatedUser.sentFriendRequests || [],
         favorite_game_ids: updatedUser.favoriteGameIds || [],
-        is_donor: updatedUser.role === 'admin' ? 1 : 0,
+        is_donor: (updatedUser.role === 'admin' || updatedUser.role === 'head_admin') ? 1 : (existing.is_donor ?? 0),
         ppaf_last_restore_issued_at:
           typeof (updatedUser as any).ppafLastRestoreIssuedAt === 'number'
             ? (updatedUser as any).ppafLastRestoreIssuedAt
@@ -122,14 +144,16 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'Password required (min 6 characters)' }, { status: 400 });
       }
       const password_hash = await hashPassword(newUser.password);
+      const safeRole = isAdmin ? (newUser.role || 'user') : 'user';
+      const safeCoins = isAdmin ? (newUser.coins || 0) : 0;
       const userData = {
-        ...(typeof (newUser as any).userId === 'number' ? { user_id: (newUser as any).userId } : {}),
+        ...(typeof (newUser as any).userId === 'number' && isAdmin ? { user_id: (newUser as any).userId } : {}),
         username: newUser.username,
         username_lower: newUser.username.toLowerCase(),
         password_hash,
         gender: newUser.gender || '',
-        role: newUser.role || 'user',
-        coins: newUser.coins || 0,
+        role: safeRole,
+        coins: safeCoins,
         owned_skins: newUser.ownedSkins || [],
         equipped_skin: newUser.equippedSkin || '',
         owned_faces: newUser.ownedFaces || [],
@@ -141,7 +165,7 @@ export async function POST(request: NextRequest) {
         friend_requests: newUser.friendRequests || [],
         sent_friend_requests: newUser.sentFriendRequests || [],
         favorite_game_ids: newUser.favoriteGameIds || [],
-        is_donor: (newUser.role === 'admin' || newUser.role === 'head_admin') ? 1 : 0,
+        is_donor: (safeRole === 'admin' || safeRole === 'head_admin') ? 1 : 0,
         ppaf_last_restore_issued_at:
           typeof (newUser as any).ppafLastRestoreIssuedAt === 'number'
             ? (newUser as any).ppafLastRestoreIssuedAt
@@ -171,12 +195,14 @@ export async function PUT(request: NextRequest) {
   const authResult = requireAuth(request);
   if (authResult.error) return authResult.error;
   try {
-    const updatedUser: User = await request.json();
-    const targetLower = (updatedUser.username || '').toLowerCase();
+    const rawUser: User = await request.json();
+    const targetLower = (rawUser.username || '').toLowerCase();
     const selfOnly = targetLower === authResult.user.username.toLowerCase();
-    if (!selfOnly && authResult.user.role !== 'admin' && authResult.user.role !== 'head_admin') {
+    const isAdmin = authResult.user.role === 'admin' || authResult.user.role === 'head_admin';
+    if (!selfOnly && !isAdmin) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
+    const updatedUser = selfOnly && !isAdmin ? stripPrivilegedFields(rawUser) : rawUser;
     const existingUsers = await queryDocuments(COLLECTIONS.USERS, 'username_lower', '==', updatedUser.username.toLowerCase());
     if (existingUsers.length === 0) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
@@ -186,17 +212,19 @@ export async function PUT(request: NextRequest) {
     const newPasswordPlain = typeof updatedUser.password === 'string' && updatedUser.password.length > 0 ? updatedUser.password : null;
     const password_hash = newPasswordPlain ? await hashPassword(newPasswordPlain) : (existing.password_hash || existing.password || '');
     
+    const safeRole = selfOnly && !isAdmin ? existing.role : (updatedUser.role || existing.role);
+    const safeCoins = selfOnly && !isAdmin ? existing.coins : (updatedUser.coins ?? existing.coins);
     await setDocument(COLLECTIONS.USERS, existing.id, {
       user_id:
-        typeof (updatedUser as any).userId === 'number'
+        typeof (updatedUser as any).userId === 'number' && isAdmin
           ? (updatedUser as any).userId
           : existing.user_id,
       username: updatedUser.username,
       username_lower: updatedUser.username.toLowerCase(),
       password_hash,
       gender: updatedUser.gender,
-      role: updatedUser.role,
-      coins: updatedUser.coins,
+      role: safeRole,
+      coins: safeCoins,
       owned_skins: updatedUser.ownedSkins || [],
       equipped_skin: updatedUser.equippedSkin || '',
       owned_faces: updatedUser.ownedFaces || [],
@@ -208,7 +236,7 @@ export async function PUT(request: NextRequest) {
       friend_requests: updatedUser.friendRequests || [],
       sent_friend_requests: updatedUser.sentFriendRequests || [],
       favorite_game_ids: updatedUser.favoriteGameIds || [],
-      is_donor: (updatedUser.role === 'admin' || updatedUser.role === 'head_admin') ? 1 : 0,
+      is_donor: (safeRole === 'admin' || safeRole === 'head_admin') ? 1 : (existing.is_donor ?? 0),
       ppaf_last_restore_issued_at:
         typeof (updatedUser as any).ppafLastRestoreIssuedAt === 'number'
           ? (updatedUser as any).ppafLastRestoreIssuedAt
