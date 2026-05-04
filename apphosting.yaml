@@ -1,0 +1,11 @@
+env:
+  # App Hosting's install step may run with production npm settings.
+  # Ensure build-time tooling in devDependencies is available for next build.
+  - variable: NPM_CONFIG_INCLUDE
+    value: dev
+    availability:
+      - BUILD
+  - variable: NPM_CONFIG_PRODUCTION
+    value: "false"
+    availability:
+      - BUILD
