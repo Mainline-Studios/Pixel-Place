@@ -172,8 +172,8 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
           gender: 'N/A',
           role: 'admin' as const,
           coins: 99999,
-          ownedSkins: ['starter_classic'],
-          equippedSkin: 'starter_classic',
+          ownedSkins: ['pixel_placer'],
+          equippedSkin: 'pixel_placer',
           isDonor: false,
           ownedAccessories: [],
           equippedAccessories: {}

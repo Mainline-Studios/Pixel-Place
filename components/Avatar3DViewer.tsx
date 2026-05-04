@@ -1603,6 +1603,16 @@ export default function Avatar3DViewer({
             // Reset head
             head.position.y = 2.1;
             rightArm.rotation.z = 0;
+          } else if (animation === 'jump') {
+            // Looping jump animation for animation testing
+            const jumpPhase = Math.abs(Math.sin(animationTime * 3));
+            characterGroup.position.y = jumpPhase * 0.55;
+            leftLeg.rotation.x = -0.25;
+            rightLeg.rotation.x = -0.25;
+            leftArm.rotation.x = -0.35;
+            rightArm.rotation.x = -0.35;
+            head.position.y = 2.1;
+            rightArm.rotation.z = 0;
           } else if (animation === 'wave') {
             // Waving animation
             rightArm.rotation.x = -Math.PI / 2 + Math.sin(animationTime * 3) * 0.5;
@@ -1610,6 +1620,15 @@ export default function Avatar3DViewer({
             // Reset other parts
             head.position.y = 2.1;
             leftArm.rotation.x = 0;
+            leftLeg.rotation.x = 0;
+            rightLeg.rotation.x = 0;
+            characterGroup.position.y = 0;
+          } else if (animation === 'none' || animation === 'no-animation' || animation === 'noAnimation') {
+            // Explicit no-animation pose
+            head.position.y = 2.1;
+            leftArm.rotation.x = 0;
+            rightArm.rotation.x = 0;
+            rightArm.rotation.z = 0;
             leftLeg.rotation.x = 0;
             rightLeg.rotation.x = 0;
             characterGroup.position.y = 0;

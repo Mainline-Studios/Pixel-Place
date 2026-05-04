@@ -42,6 +42,33 @@ const STARTER_10_COIN_SKINS: Skin[] = [
 ];
 
 export const NEW_SKINS: Skin[] = [
+    {
+        id: "pixel_placer",
+        name: "Pixel Placer",
+        price: 0,
+        img: "",
+        use3d: true,
+        defaultAnimation: 'idle',
+        animations: [
+            { name: 'Idle', type: 'idle', loop: true },
+            { name: 'Walk', type: 'walk', loop: true },
+            { name: 'Jump', type: 'jump', loop: true },
+            { name: 'No Animation', type: 'custom', loop: true },
+        ],
+        colors: { head: "#F4C2A1", torso: "#4D536F", arm: "#3A3F56", legs: "#3A3F56" },
+        materials: {
+            head: { type: 'skin', roughness: 0.6, metalness: 0.0 },
+            torso: { type: 'cloth', roughness: 0.8, metalness: 0.0 },
+            arm: { type: 'skin', roughness: 0.6, metalness: 0.0 },
+            legs: { type: 'cloth', roughness: 0.8, metalness: 0.0 }
+        },
+        textures: {
+            head: { base: 'smooth' },
+            torso: { base: 'fabric' },
+            arm: { base: 'smooth' },
+            legs: { base: 'fabric' }
+        }
+    },
     ...STARTER_10_COIN_SKINS,    // Blue Blob Character with yellow patch
     {
         id: "blue_blob",

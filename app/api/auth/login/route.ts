@@ -46,11 +46,11 @@ export async function POST(request: NextRequest) {
     const sentFriendRequests = JSON.parse(user.sent_friend_requests || '[]');
     const ownedServers = JSON.parse(user.owned_servers || '[]');
     
-    // Ensure equippedSkin defaults to starter_classic if empty and user has no skins
+    // Ensure equippedSkin defaults to pixel_placer if empty and user has no skins
     let equippedSkin = user.equipped_skin || '';
     if (!equippedSkin && ownedSkins.length === 0) {
-      equippedSkin = 'starter_classic';
-      ownedSkins.push('starter_classic');
+      equippedSkin = 'pixel_placer';
+      ownedSkins.push('pixel_placer');
     } else if (!equippedSkin && ownedSkins.length > 0) {
       equippedSkin = ownedSkins[0];
     }

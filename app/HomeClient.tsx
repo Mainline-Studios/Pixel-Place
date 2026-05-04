@@ -103,7 +103,7 @@ function PublicUserProfilePage({ userId }: { userId: number }) {
 
   const equippedSkinModel =
     (profile?.equippedSkin ? skins.find((s) => s.id === profile.equippedSkin) : null)
-    || skins.find((s) => s.id === 'starter_classic')
+    || skins.find((s) => s.id === 'pixel_placer')
     || (skins.length > 0 ? skins[0] : null);
   const equippedFaceModel = profile?.equippedFace
     ? skins.find((s) => s.id === profile.equippedFace && s.isFace) || null

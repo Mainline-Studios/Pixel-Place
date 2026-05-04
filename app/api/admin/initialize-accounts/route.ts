@@ -43,8 +43,8 @@ export async function POST(request: NextRequest) {
           `).run(
             passwordHash,
             coins,
-            JSON.stringify(['starter_classic']),
-            'starter_classic',
+            JSON.stringify(['pixel_placer']),
+            'pixel_placer',
             adminAccount.username
           );
           results.push({ username: adminAccount.username, action: 'updated' });
@@ -63,8 +63,8 @@ export async function POST(request: NextRequest) {
             'N/A',
             'admin',
             coins,
-            JSON.stringify(['starter_classic']),
-            'starter_classic',
+            JSON.stringify(['pixel_placer']),
+            'pixel_placer',
             JSON.stringify([]),
             JSON.stringify({}),
             JSON.stringify([]),

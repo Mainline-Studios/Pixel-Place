@@ -22,6 +22,7 @@ import FloorIsLava from '../Games/FloorIsLava';
 import VoidArcade from '../Games/VoidArcade';
 import EcoHero from '../Games/EcoHero';
 import HistoriMac from '../Games/HistoriMac';
+import AnimationTest from '../Games/AnimationTest';
 import { useMobileBeta } from '@/contexts/MobileBetaContext';
 import SquishBubbles from '../Games/SquishBubbles';
 import SquishSlime from '../Games/SquishSlime';
@@ -47,6 +48,14 @@ interface GameInfo {
 
 // All available games
 const games: GameInfo[] = [
+  {
+    id: 'animationTest',
+    name: 'Animation Test',
+    description: 'Preview Pixel Placer animations and test free skin switching for avatar motion checks.',
+    icon: '🎞️',
+    category: 'Tools',
+    component: AnimationTest,
+  },
   {
     id: 'historiMac',
     name: 'HistoriMac',
@@ -316,7 +325,7 @@ export default function GamesTab({ user, editMode }: GamesTabProps) {
     };
     
     // Components that support onClose prop
-    const supportsOnClose = ['gymPump', 'hypnosia', 'voidArcade', 'ecoHero', 'historiMac', 'squishBubbles', 'squishSlime'].includes(selectedGame);
+    const supportsOnClose = ['gymPump', 'hypnosia', 'voidArcade', 'ecoHero', 'historiMac', 'animationTest', 'squishBubbles', 'squishSlime'].includes(selectedGame);
     
     // Prepare props based on game type - pass user to games that need it
     const baseProps = selectedGame === 'gymPump'
@@ -333,6 +342,8 @@ export default function GamesTab({ user, editMode }: GamesTabProps) {
           bootVersionId: historiMacBootVersionId,
           onBootVersionConsumed: () => setHistoriMacBootVersionId(null),
         }
+      : selectedGame === 'animationTest'
+      ? { user, onClose: handleClose }
       : selectedGame === 'squishBubbles' || selectedGame === 'squishSlime'
       ? { onClose: handleClose }
       : selectedGame === 'showdown'

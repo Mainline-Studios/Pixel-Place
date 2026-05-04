@@ -21,13 +21,19 @@ export async function POST(request: NextRequest) {
     }
 
     const starter: Skin = {
-      id: 'starter_classic',
-      name: 'Starter Classic',
+      id: 'pixel_placer',
+      name: 'Pixel Placer',
       price: 0,
       img: '',
       colors: { head: '#f4c2a1', torso: '#4d536f', arm: '#3a3f56', legs: '#3a3f56' },
       use3d: true,
       defaultAnimation: 'idle',
+      animations: [
+        { name: 'Idle', type: 'idle', loop: true },
+        { name: 'Walk', type: 'walk', loop: true },
+        { name: 'Jump', type: 'jump', loop: true },
+        { name: 'No Animation', type: 'custom', loop: true },
+      ],
     };
 
     const safetyOnlySkins: Skin[] = [

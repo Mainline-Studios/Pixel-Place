@@ -250,7 +250,7 @@ export default function AvatarShopTab({ user, editMode }: AvatarShopTabProps) {
   const ownedFaces = faces.filter((f) => user.ownedFaces?.includes(f.id));
 
   // Get equipped skin and face
-  const equippedSkin = skins.find((s) => s.id === user.equippedSkin) || skins.find((s) => s.id === 'starter_classic') || skins[0];
+  const equippedSkin = skins.find((s) => s.id === user.equippedSkin) || skins.find((s) => s.id === 'pixel_placer') || skins[0];
   const equippedFace = user.equippedFace ? faces.find((f) => f.id === user.equippedFace) : null;
 
   // Ensure equippedSkin has required properties

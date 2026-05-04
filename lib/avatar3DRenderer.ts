@@ -28,7 +28,7 @@ export async function getUserAvatarData(user: User): Promise<{
     ]);
 
     const equippedSkin = skins.find(s => s.id === user.equippedSkin) || 
-                         skins.find(s => s.id === 'starter_classic') || 
+                         skins.find(s => s.id === 'pixel_placer') || 
                          skins[0] || null;
 
     const equippedFace = user.equippedFace 

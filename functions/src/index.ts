@@ -303,10 +303,27 @@ async function collectLinkedHardwareNetwork(rootDeviceId: string): Promise<{ dev
   return { deviceIds: [...deviceIds], usernames: [...usernames] };
 }
 
-// Minimal NEW_SKINS fallback (starter skins)
-const FALLBACK_SKINS = [
-  { id: 'starter_classic', name: 'Starter Classic', price: 0, use3d: true, colors: { head: '#f4c2a1', torso: '#4d536f', arm: '#3a3f56', legs: '#3a3f56' } },
-];
+const DEFAULT_SKIN_ID = 'pixel_placer';
+const PIXEL_PLACER_SKIN = {
+  id: DEFAULT_SKIN_ID,
+  name: 'Pixel Placer',
+  price: 0,
+  use3d: true,
+  defaultAnimation: 'idle',
+  animations: [
+    { name: 'Idle', type: 'idle', loop: true },
+    { name: 'Walk', type: 'walk', loop: true },
+    { name: 'Jump', type: 'jump', loop: true },
+    { name: 'No Animation', type: 'custom', loop: true },
+  ],
+  colors: { head: '#f4c2a1', torso: '#4d536f', arm: '#3a3f56', legs: '#3a3f56' },
+};
+const FALLBACK_SKINS = [PIXEL_PLACER_SKIN];
+
+function withPixelPlacerSkin(skins: any[]): any[] {
+  if (Array.isArray(skins) && skins.some((skin) => skin?.id === DEFAULT_SKIN_ID)) return skins;
+  return [PIXEL_PLACER_SKIN, ...(Array.isArray(skins) ? skins : [])];
+}
 
 /** Build user for API response. Never expose password/hash to client. */
 function userFromDoc(doc: admin.firestore.DocumentSnapshot): any {
@@ -609,8 +626,8 @@ app.post('/users', async (req, res) => {
       gender: u.gender || '',
       role: safeRole,
       coins: safeCoins,
-      owned_skins: u.ownedSkins || ['starter_classic'],
-      equipped_skin: u.equippedSkin || 'starter_classic',
+      owned_skins: u.ownedSkins || [DEFAULT_SKIN_ID],
+      equipped_skin: u.equippedSkin || DEFAULT_SKIN_ID,
       owned_faces: u.ownedFaces || [],
       equipped_face: u.equippedFace || '',
       owned_accessories: u.ownedAccessories || [],
@@ -705,7 +722,7 @@ app.get('/skins', async (_req, res) => {
     const doc = await db.collection(COLLECTIONS.SKINS_CATALOG).doc('catalog').get();
     const data = doc.data();
     const skins = data?.skins;
-    if (Array.isArray(skins) && skins.length > 0) return res.json(skins);
+    if (Array.isArray(skins) && skins.length > 0) return res.json(withPixelPlacerSkin(skins));
     return res.json(FALLBACK_SKINS);
   } catch (e) {
     res.status(500).json({ error: 'Failed to read skins' });
@@ -815,8 +832,8 @@ app.post('/auth', async (req, res) => {
             gender: '',
             role: 'admin',
             coins: 99999,
-            owned_skins: ['starter_classic'],
-            equipped_skin: 'starter_classic',
+            owned_skins: [DEFAULT_SKIN_ID],
+            equipped_skin: DEFAULT_SKIN_ID,
             owned_faces: [],
             equipped_face: '',
             owned_accessories: [],
@@ -905,8 +922,8 @@ app.post('/auth', async (req, res) => {
         gender: gender || '',
         role: 'user',
         coins: 10,
-        owned_skins: ['starter_classic'],
-        equipped_skin: 'starter_classic',
+        owned_skins: [DEFAULT_SKIN_ID],
+        equipped_skin: DEFAULT_SKIN_ID,
         owned_faces: [],
         equipped_face: '',
         owned_accessories: [],

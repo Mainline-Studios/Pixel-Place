@@ -50,12 +50,12 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
         const found = users.find(u => u.username === savedUsername);
         if (found) {
           // Ensure arrays and equipped state exist so avatar/clothes persist after reload
-          if (!found.ownedSkins) found.ownedSkins = ['starter_classic'];
+          if (!found.ownedSkins) found.ownedSkins = ['pixel_placer'];
           if (!found.ownedAccessories) found.ownedAccessories = [];
           if (!found.equippedAccessories) found.equippedAccessories = {};
           if (!found.ownedFaces) found.ownedFaces = [];
           if (!found.equippedSkin && found.ownedSkins.length) found.equippedSkin = found.ownedSkins[0];
-          if (!found.equippedSkin) found.equippedSkin = 'starter_classic';
+          if (!found.equippedSkin) found.equippedSkin = 'pixel_placer';
           
           // Special coins for 6767kid - massive amount
           if (found.username === '6767kid') {
@@ -275,7 +275,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       if (authRes.ok && authData.success && authData.token && authData.user) {
         setAuthToken(authData.token);
         const u = authData.user as User;
-        if (!u.ownedSkins) u.ownedSkins = ['starter_classic'];
+        if (!u.ownedSkins) u.ownedSkins = ['pixel_placer'];
         if (!u.ownedAccessories) u.ownedAccessories = [];
         if (!u.equippedAccessories) u.equippedAccessories = {};
         if (!u.ownedFaces) u.ownedFaces = [];
@@ -315,7 +315,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     }
 
     // Ensure arrays exist
-    if (!googleUser.ownedSkins) googleUser.ownedSkins = ['starter_classic'];
+    if (!googleUser.ownedSkins) googleUser.ownedSkins = ['pixel_placer'];
     if (!googleUser.ownedAccessories) googleUser.ownedAccessories = [];
     if (!googleUser.equippedAccessories) googleUser.equippedAccessories = {};
 
@@ -364,7 +364,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       if (regRes.ok && regData.success && regData.token && regData.user) {
         setAuthToken(regData.token);
         const u = regData.user as User;
-        if (!u.ownedSkins) u.ownedSkins = ['starter_classic'];
+        if (!u.ownedSkins) u.ownedSkins = ['pixel_placer'];
         if (!u.ownedAccessories) u.ownedAccessories = [];
         if (!u.equippedAccessories) u.equippedAccessories = {};
         firstSyncDone.current = false;
@@ -435,8 +435,8 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       gender: gender || 'N/A', // Gender is optional, default to 'N/A'
       role,
       coins,
-      ownedSkins: ['starter_classic'],
-      equippedSkin: 'starter_classic',
+      ownedSkins: ['pixel_placer'],
+      equippedSkin: 'pixel_placer',
       isDonor: false,
       ownedAccessories: [],
       equippedAccessories: {},
