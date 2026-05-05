@@ -48,6 +48,9 @@ const COLLECTIONS = {
 };
 
 const RTDB_COLLECTIONS = new Set<string>(['users', 'bans', 'hardware_bans', 'skins_catalog']);
+const storageBucket = admin.storage().bucket();
+const STORAGE_SIGNED_URL_MS = 15 * 60 * 1000;
+const STORAGE_PATH_MAX = 220;
 
 type WhereOperator = '==' | '<' | '<=' | '>' | '>=' | 'array-contains' | 'in' | 'array-contains-any';
 type QueryState = {
@@ -114,8 +117,19 @@ function applyRtdbOrderLimit(rows: Array<{ id: string } & Record<string, any>>, 
 async function resolveRtdbCollection(collectionName: string, state?: QueryState) {
   const snap = await realtimeDb.ref(collectionName).get();
   const docs = rtdbRows(snap.val());
-  if (!state) return docs;
-  return applyRtdbOrderLimit(applyRtdbWhere(docs, state.where), state);
+  const byId = new Map<string, Record<string, any>>();
+  docs.forEach((doc) => byId.set(doc.id, doc));
+  try {
+    const fsSnap = await firestoreDb.collection(collectionName).get();
+    fsSnap.docs.forEach((d: any) => {
+      if (!byId.has(d.id)) byId.set(d.id, { id: d.id, ...(d.data() || {}) });
+    });
+  } catch (error) {
+    console.warn(`Firestore fallback read failed for ${collectionName}:`, error);
+  }
+  const merged = Array.from(byId.values()) as Array<{ id: string } & Record<string, any>>;
+  if (!state) return merged;
+  return applyRtdbOrderLimit(applyRtdbWhere(merged, state.where), state);
 }
 
 function createRtdbDocRef(collectionName: string, docId: string) {
@@ -123,7 +137,15 @@ function createRtdbDocRef(collectionName: string, docId: string) {
     id: docId,
     async get() {
       const snap = await realtimeDb.ref(`${collectionName}/${docId}`).get();
-      if (!snap.exists()) return { exists: false, id: docId, data: () => undefined };
+      if (!snap.exists()) {
+        try {
+          const fsDoc = await firestoreDb.collection(collectionName).doc(docId).get();
+          if (fsDoc.exists) return { exists: true, id: docId, data: () => fsDoc.data() || {}, ref: this };
+        } catch (error) {
+          console.warn(`Firestore fallback doc read failed for ${collectionName}/${docId}:`, error);
+        }
+        return { exists: false, id: docId, data: () => undefined };
+      }
       const value = snap.val();
       const dataObj = value && typeof value === 'object' ? value : { value };
       return { exists: true, id: docId, data: () => dataObj, ref: this };
@@ -203,6 +225,22 @@ function createHybridBatch() {
       for (const write of writes) await write();
     },
   };
+}
+
+function sanitizeStoragePath(input: unknown): string | null {
+  const raw = String(input || '').trim().replace(/^\/+/, '');
+  if (!raw || raw.length > STORAGE_PATH_MAX) return null;
+  if (raw.includes('..') || raw.includes('\\')) return null;
+  if (!/^[a-zA-Z0-9/_\-. ]+$/.test(raw)) return null;
+  return raw.replace(/\s+/g, '_');
+}
+
+function canAccessStoragePath(path: string, auth: any): boolean {
+  const user = String(auth?.username || '').toLowerCase();
+  const role = String(auth?.role || '').toLowerCase();
+  if (!user) return false;
+  if (path.startsWith(`users/${user}/`) || path.startsWith('public/')) return true;
+  return role === 'admin' || role === 'head_admin';
 }
 
 const db: any = {
@@ -623,6 +661,58 @@ mountStripeEmbeddedWebhook(app, firestoreDb, COLLECTIONS.USERS, COLLECTIONS.STRI
 app.use(express.json());
 
 mountStripeEmbeddedPayRoutes(app, firestoreDb);
+
+const storageSignedUploadHandler = async (req: any, res: any) => {
+  const auth = requireAuth(req, res);
+  if (!auth) return;
+  try {
+    const requestedPath = sanitizeStoragePath(req.body?.path);
+    const objectPath =
+      requestedPath ||
+      `users/${String(auth.username || '').toLowerCase()}/uploads/${Date.now()}-${randomUUID()}`;
+    if (!canAccessStoragePath(objectPath, auth)) {
+      return res.status(403).json({ error: 'Forbidden path' });
+    }
+    const contentType = String(req.body?.contentType || 'application/octet-stream').slice(0, 120);
+    const expiresAt = Date.now() + STORAGE_SIGNED_URL_MS;
+    const [uploadUrl] = await storageBucket.file(objectPath).getSignedUrl({
+      version: 'v4',
+      action: 'write',
+      expires: expiresAt,
+      contentType,
+    });
+    return res.json({ path: objectPath, uploadUrl, expiresAt });
+  } catch (error) {
+    console.error('Failed to create upload URL:', error);
+    return res.status(500).json({ error: 'Failed to create upload URL' });
+  }
+};
+app.post('/storage/signed-upload', storageSignedUploadHandler);
+app.post('/api/storage/signed-upload', storageSignedUploadHandler);
+
+const storageSignedDownloadHandler = async (req: any, res: any) => {
+  const auth = requireAuth(req, res);
+  if (!auth) return;
+  try {
+    const objectPath = sanitizeStoragePath(req.query.path);
+    if (!objectPath) return res.status(400).json({ error: 'Invalid path' });
+    if (!canAccessStoragePath(objectPath, auth)) {
+      return res.status(403).json({ error: 'Forbidden path' });
+    }
+    const expiresAt = Date.now() + STORAGE_SIGNED_URL_MS;
+    const [downloadUrl] = await storageBucket.file(objectPath).getSignedUrl({
+      version: 'v4',
+      action: 'read',
+      expires: expiresAt,
+    });
+    return res.json({ path: objectPath, downloadUrl, expiresAt });
+  } catch (error) {
+    console.error('Failed to create download URL:', error);
+    return res.status(500).json({ error: 'Failed to create download URL' });
+  }
+};
+app.get('/storage/signed-download', storageSignedDownloadHandler);
+app.get('/api/storage/signed-download', storageSignedDownloadHandler);
 
 // Liveness only — do not expose whether JWT_SECRET is configured (reconnaissance aid).
 const sendJwtCheck = (_req: any, res: any) => {

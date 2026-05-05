@@ -172,39 +172,63 @@ export function subscribeToUsers(callback: (users: User[]) => void): () => void 
     });
   }
   const usersRef = ref(database, COLLECTIONS.USERS);
-  let fallbackUnsub: (() => void) | null = null;
-  const unsub = onValue(
+  const usersById = new Map<string, User>();
+  const emitMerged = () => callback(Array.from(usersById.values()));
+
+  const rtdbUnsub = onValue(
     usersRef,
     (snap) => {
       const payload = snap.val();
-      if (!payload || typeof payload !== 'object') {
-        if (!fallbackUnsub) {
-          const fb = getFirestoreFallbackDb();
-          if (fb) {
-            fallbackUnsub = onSnapshot(fsCollection(fb, COLLECTIONS.USERS), (fbSnap) => {
-              callback(fbSnap.docs.map((d) => userFromDoc({ id: d.id, ...d.data() })));
-            });
-          } else {
-            callback([]);
-          }
-        }
-        return;
+      const rtdbMap = new Map<string, User>();
+      if (payload && typeof payload === 'object') {
+        Object.entries(payload).forEach(([id, data]) => {
+          rtdbMap.set(id, userFromDoc({ id, ...(data as Record<string, unknown>) }));
+        });
       }
-      if (fallbackUnsub) {
-        fallbackUnsub();
-        fallbackUnsub = null;
+      // Keep firestore users, overwrite with RTDB copies where present.
+      for (const [id, user] of usersById.entries()) {
+        if (!(user as any).__fromFirestore) continue;
+        usersById.set(id, user);
       }
-      const users = Object.entries(payload).map(([id, data]) => userFromDoc({ id, ...(data as Record<string, unknown>) }));
-      callback(users);
+      rtdbMap.forEach((user, id) => usersById.set(id, user));
+      emitMerged();
     },
     (err) => {
       console.warn('RTDB users subscription error:', err);
-      callback([]);
+      emitMerged();
     },
   );
+
+  const fb = getFirestoreFallbackDb();
+  const fsUnsub = fb
+    ? onSnapshot(
+        fsCollection(fb, COLLECTIONS.USERS),
+        (snap) => {
+          const fsIds = new Set<string>();
+          snap.docs.forEach((d) => {
+            fsIds.add(d.id);
+            if (!usersById.has(d.id)) {
+              const u = userFromDoc({ id: d.id, ...d.data() }) as User & { __fromFirestore?: boolean };
+              u.__fromFirestore = true;
+              usersById.set(d.id, u);
+            }
+          });
+          // Remove stale firestore-only entries.
+          for (const [id, user] of usersById.entries()) {
+            if ((user as any).__fromFirestore && !fsIds.has(id)) usersById.delete(id);
+          }
+          emitMerged();
+        },
+        (err) => {
+          console.warn('Firestore users fallback subscription error:', err);
+          emitMerged();
+        },
+      )
+    : () => {};
+
   return () => {
-    unsub();
-    if (fallbackUnsub) fallbackUnsub();
+    rtdbUnsub();
+    fsUnsub();
   };
 }
 
@@ -266,39 +290,44 @@ export function subscribeToBans(
     });
   }
   const bansRef = ref(database, COLLECTIONS.BANS);
-  let fallbackUnsub: (() => void) | null = null;
-  const unsub = onValue(
+  const bansById = new Map<string, Record<string, unknown>>();
+  const emitMerged = () => callback(Array.from(bansById.entries()).map(([id, data]) => ({ id, ...data })));
+
+  const rtdbUnsub = onValue(
     bansRef,
     (snap) => {
       const payload = snap.val();
-      if (!payload || typeof payload !== 'object') {
-        if (!fallbackUnsub) {
-          const fb = getFirestoreFallbackDb();
-          if (fb) {
-            fallbackUnsub = onSnapshot(fsCollection(fb, COLLECTIONS.BANS), (fbSnap) => {
-              callback(fbSnap.docs.map((d) => ({ id: d.id, ...d.data() })));
-            });
-          } else {
-            callback([]);
-          }
-        }
-        return;
+      if (payload && typeof payload === 'object') {
+        Object.entries(payload).forEach(([id, data]) => bansById.set(id, data as Record<string, unknown>));
       }
-      if (fallbackUnsub) {
-        fallbackUnsub();
-        fallbackUnsub = null;
-      }
-      const bans = Object.entries(payload).map(([id, data]) => ({ id, ...(data as Record<string, unknown>) }));
-      callback(bans);
+      emitMerged();
     },
     (err) => {
       console.warn('RTDB bans subscription error:', err);
-      callback([]);
+      emitMerged();
     },
   );
+
+  const fb = getFirestoreFallbackDb();
+  const fsUnsub = fb
+    ? onSnapshot(
+        fsCollection(fb, COLLECTIONS.BANS),
+        (snap) => {
+          snap.docs.forEach((d) => {
+            if (!bansById.has(d.id)) bansById.set(d.id, d.data() as Record<string, unknown>);
+          });
+          emitMerged();
+        },
+        (err) => {
+          console.warn('Firestore bans fallback subscription error:', err);
+          emitMerged();
+        },
+      )
+    : () => {};
+
   return () => {
-    unsub();
-    if (fallbackUnsub) fallbackUnsub();
+    rtdbUnsub();
+    fsUnsub();
   };
 }
 

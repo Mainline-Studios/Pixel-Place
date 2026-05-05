@@ -175,8 +175,22 @@ async function resolveCollection(collection: string, state?: QueryState): Promis
   if (!db) return [];
   const snap = await db.ref(collection).get();
   const allDocs = collectionValuesToArray(snap.val());
-  if (!state) return allDocs;
-  return applyOrderAndLimit(applyWhere(allDocs, state.where), state);
+  const byId = new Map<string, Record<string, any>>();
+  allDocs.forEach((doc) => byId.set(doc.id, doc));
+  const fs = getFirestoreDbInstance();
+  if (fs) {
+    try {
+      const fsSnap = await fs.collection(collection).get();
+      fsSnap.docs.forEach((doc: any) => {
+        if (!byId.has(doc.id)) byId.set(doc.id, { id: doc.id, ...(doc.data() || {}) });
+      });
+    } catch (error: any) {
+      console.warn(`Firestore fallback collection read failed for ${collection}:`, error?.message || error);
+    }
+  }
+  const mergedDocs = Array.from(byId.values()) as Array<{ id: string } & Record<string, any>>;
+  if (!state) return mergedDocs;
+  return applyOrderAndLimit(applyWhere(mergedDocs, state.where), state);
 }
 
 function wrapDoc(id: string, data: Record<string, any>) {
@@ -233,7 +247,20 @@ function createDocumentRef(collection: string, docId: string) {
       const db = getRealtimeDbInstance();
       if (!db) return { exists: false, id: docId, data: () => undefined };
       const snap = await db.ref(`${collection}/${docId}`).get();
-      if (!snap.exists()) return { exists: false, id: docId, data: () => undefined };
+      if (!snap.exists()) {
+        const fs = getFirestoreDbInstance();
+        if (fs) {
+          try {
+            const fsDoc = await fs.collection(collection).doc(docId).get();
+            if (fsDoc.exists) {
+              return { exists: true, id: docId, data: () => fsDoc.data() || {}, ref: { id: docId } };
+            }
+          } catch (error: any) {
+            console.warn(`Firestore fallback doc read failed for ${collection}/${docId}:`, error?.message || error);
+          }
+        }
+        return { exists: false, id: docId, data: () => undefined };
+      }
       const val = snap.val();
       const docData = val && typeof val === 'object' ? (val as Record<string, any>) : { value: val };
       return { exists: true, id: docId, data: () => docData, ref: { id: docId } };
