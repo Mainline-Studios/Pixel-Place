@@ -1,16 +1,14 @@
 'use client';
 
 /**
- * Client-side Firestore for real-time sync.
- * Subscribes to Firestore so changes (from API, Firebase Console, or admin edits)
- * flow instantly to the app. Writes still go through API for validation.
- *
- * For real-time sync to work, Firestore rules must allow read on:
- * users, games, bans, reports, ban_appeals, game_submissions.
- * Example rule: allow read: if true; (or restrict by auth if needed)
+ * Hybrid realtime client:
+ * - RTDB: users + bans (fast login/session checks)
+ * - Firestore: everything else
+ * Writes still go through API routes for validation.
  */
 
-import { getFirestore, onSnapshot, collection, doc } from 'firebase/firestore';
+import { getDatabase, onValue, ref } from 'firebase/database';
+import { getFirestore, onSnapshot, collection as fsCollection, doc as fsDoc } from 'firebase/firestore';
 import { getOrInitFirebaseApp } from './firebaseConfig';
 import { User } from '@/types';
 
@@ -23,7 +21,8 @@ const COLLECTIONS = {
   GAME_SUBMISSIONS: 'game_submissions',
 };
 
-let db: ReturnType<typeof getFirestore> | null = null;
+let db: ReturnType<typeof getDatabase> | null = null;
+let firestoreDb: ReturnType<typeof getFirestore> | null = null;
 
 function getDb() {
   if (typeof window === 'undefined') return null;
@@ -31,11 +30,26 @@ function getDb() {
     if (!db) {
       const app = getOrInitFirebaseApp();
       if (!app) return null;
-      db = getFirestore(app);
+      db = getDatabase(app);
     }
     return db;
   } catch (e) {
-    console.warn('Firestore client init failed:', e);
+    console.warn('Realtime Database client init failed:', e);
+    return null;
+  }
+}
+
+function getFirestoreFallbackDb() {
+  if (typeof window === 'undefined') return null;
+  try {
+    if (!firestoreDb) {
+      const app = getOrInitFirebaseApp();
+      if (!app) return null;
+      firestoreDb = getFirestore(app);
+    }
+    return firestoreDb;
+  } catch (e) {
+    console.warn('Firestore fallback init failed:', e);
     return null;
   }
 }
@@ -99,48 +113,99 @@ export function subscribeToUser(
 ): () => void {
   const database = getDb();
   if (!database) {
-    callback(null);
-    return () => {};
+    const fb = getFirestoreFallbackDb();
+    if (!fb) {
+      callback(null);
+      return () => {};
+    }
+    return onSnapshot(fsDoc(fb, COLLECTIONS.USERS, username.toLowerCase()), (snap) => {
+      callback(snap.exists() ? userFromDoc({ id: snap.id, ...snap.data() }) : null);
+    });
   }
-  // Users are stored with doc id = username.toLowerCase() per API
-  const docRef = doc(database, COLLECTIONS.USERS, username.toLowerCase());
-  const unsub = onSnapshot(
-    docRef,
+  const userRef = ref(database, `${COLLECTIONS.USERS}/${username.toLowerCase()}`);
+  let fallbackUnsub: (() => void) | null = null;
+  const unsub = onValue(
+    userRef,
     (snap) => {
-      if (snap.exists()) {
-        callback(userFromDoc({ id: snap.id, ...snap.data() }));
-      } else {
-        callback(null);
+      if (!snap.exists()) {
+        if (!fallbackUnsub) {
+          const fb = getFirestoreFallbackDb();
+          if (fb) {
+            fallbackUnsub = onSnapshot(fsDoc(fb, COLLECTIONS.USERS, username.toLowerCase()), (fbSnap) => {
+              callback(fbSnap.exists() ? userFromDoc({ id: fbSnap.id, ...fbSnap.data() }) : null);
+            });
+          } else {
+            callback(null);
+          }
+        }
+        return;
       }
+      if (fallbackUnsub) {
+        fallbackUnsub();
+        fallbackUnsub = null;
+      }
+      const value = snap.val();
+      callback(userFromDoc({ id: username.toLowerCase(), ...(value || {}) }));
     },
     (err) => {
-      console.warn('Firestore user subscription error:', err);
+      console.warn('RTDB user subscription error:', err);
       callback(null);
-    }
+    },
   );
-  return () => unsub();
+  return () => {
+    unsub();
+    if (fallbackUnsub) fallbackUnsub();
+  };
 }
 
 /** Subscribe to all users. Returns unsubscribe function. */
 export function subscribeToUsers(callback: (users: User[]) => void): () => void {
   const database = getDb();
   if (!database) {
-    callback([]);
-    return () => {};
+    const fb = getFirestoreFallbackDb();
+    if (!fb) {
+      callback([]);
+      return () => {};
+    }
+    return onSnapshot(fsCollection(fb, COLLECTIONS.USERS), (snap) => {
+      callback(snap.docs.map((d) => userFromDoc({ id: d.id, ...d.data() })));
+    });
   }
-  const ref = collection(database, COLLECTIONS.USERS);
-  const unsub = onSnapshot(
-    ref,
+  const usersRef = ref(database, COLLECTIONS.USERS);
+  let fallbackUnsub: (() => void) | null = null;
+  const unsub = onValue(
+    usersRef,
     (snap) => {
-      const users = snap.docs.map((d) => userFromDoc({ id: d.id, ...d.data() }));
+      const payload = snap.val();
+      if (!payload || typeof payload !== 'object') {
+        if (!fallbackUnsub) {
+          const fb = getFirestoreFallbackDb();
+          if (fb) {
+            fallbackUnsub = onSnapshot(fsCollection(fb, COLLECTIONS.USERS), (fbSnap) => {
+              callback(fbSnap.docs.map((d) => userFromDoc({ id: d.id, ...d.data() })));
+            });
+          } else {
+            callback([]);
+          }
+        }
+        return;
+      }
+      if (fallbackUnsub) {
+        fallbackUnsub();
+        fallbackUnsub = null;
+      }
+      const users = Object.entries(payload).map(([id, data]) => userFromDoc({ id, ...(data as Record<string, unknown>) }));
       callback(users);
     },
     (err) => {
-      console.warn('Firestore users subscription error:', err);
+      console.warn('RTDB users subscription error:', err);
       callback([]);
-    }
+    },
   );
-  return () => unsub();
+  return () => {
+    unsub();
+    if (fallbackUnsub) fallbackUnsub();
+  };
 }
 
 /** Convert Firestore game doc to UserMadeGame shape */
@@ -170,24 +235,19 @@ function gameFromDoc(d: { id: string } & Record<string, unknown>): { id: string;
 export function subscribeToUserMadeGames(
   callback: (games: Array<{ id: string; title: string; desc: string; owner: string; ts: number; sceneData: unknown }>) => void
 ): () => void {
-  const database = getDb();
-  if (!database) {
+  const fb = getFirestoreFallbackDb();
+  if (!fb) {
     callback([]);
     return () => {};
   }
-  const ref = collection(database, COLLECTIONS.GAMES);
-  const unsub = onSnapshot(
-    ref,
-    (snap) => {
-      const games = snap.docs.map((d) => gameFromDoc({ id: d.id, ...d.data() }));
-      callback(games);
-    },
+  return onSnapshot(
+    fsCollection(fb, COLLECTIONS.GAMES),
+    (snap) => callback(snap.docs.map((d) => gameFromDoc({ id: d.id, ...d.data() }))),
     (err) => {
       console.warn('Firestore games subscription error:', err);
       callback([]);
-    }
+    },
   );
-  return () => unsub();
 }
 
 /** Subscribe to bans collection */
@@ -196,44 +256,67 @@ export function subscribeToBans(
 ): () => void {
   const database = getDb();
   if (!database) {
-    callback([]);
-    return () => {};
+    const fb = getFirestoreFallbackDb();
+    if (!fb) {
+      callback([]);
+      return () => {};
+    }
+    return onSnapshot(fsCollection(fb, COLLECTIONS.BANS), (snap) => {
+      callback(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
+    });
   }
-  const ref = collection(database, COLLECTIONS.BANS);
-  const unsub = onSnapshot(
-    ref,
+  const bansRef = ref(database, COLLECTIONS.BANS);
+  let fallbackUnsub: (() => void) | null = null;
+  const unsub = onValue(
+    bansRef,
     (snap) => {
-      const bans = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+      const payload = snap.val();
+      if (!payload || typeof payload !== 'object') {
+        if (!fallbackUnsub) {
+          const fb = getFirestoreFallbackDb();
+          if (fb) {
+            fallbackUnsub = onSnapshot(fsCollection(fb, COLLECTIONS.BANS), (fbSnap) => {
+              callback(fbSnap.docs.map((d) => ({ id: d.id, ...d.data() })));
+            });
+          } else {
+            callback([]);
+          }
+        }
+        return;
+      }
+      if (fallbackUnsub) {
+        fallbackUnsub();
+        fallbackUnsub = null;
+      }
+      const bans = Object.entries(payload).map(([id, data]) => ({ id, ...(data as Record<string, unknown>) }));
       callback(bans);
     },
     (err) => {
-      console.warn('Firestore bans subscription error:', err);
+      console.warn('RTDB bans subscription error:', err);
       callback([]);
-    }
+    },
   );
-  return () => unsub();
+  return () => {
+    unsub();
+    if (fallbackUnsub) fallbackUnsub();
+  };
 }
 
 /** Subscribe to reports collection */
 export function subscribeToReports(
   callback: (reports: Array<{ id: string } & Record<string, unknown>>) => void
 ): () => void {
-  const database = getDb();
-  if (!database) {
+  const fb = getFirestoreFallbackDb();
+  if (!fb) {
     callback([]);
     return () => {};
   }
-  const ref = collection(database, COLLECTIONS.REPORTS);
-  const unsub = onSnapshot(
-    ref,
-    (snap) => {
-      const reports = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
-      callback(reports);
-    },
+  return onSnapshot(
+    fsCollection(fb, COLLECTIONS.REPORTS),
+    (snap) => callback(snap.docs.map((d) => ({ id: d.id, ...d.data() }))),
     (err) => {
       console.warn('Firestore reports subscription error:', err);
       callback([]);
-    }
+    },
   );
-  return () => unsub();
 }

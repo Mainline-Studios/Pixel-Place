@@ -18,7 +18,8 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 
 admin.initializeApp();
-const db = admin.firestore();
+const firestoreDb = admin.firestore();
+const realtimeDb = admin.database();
 const COLLECTIONS = {
   USERS: 'users',
   USER_DEVICES: 'user_devices',
@@ -44,6 +45,174 @@ const COLLECTIONS = {
   GAME_SESSIONS: 'game_sessions',
   STATUS_PAGE: 'status_page',
   STRIPE_PAYMENT_CREDITS: 'stripe_payment_credits',
+};
+
+const RTDB_COLLECTIONS = new Set<string>(['users', 'bans', 'hardware_bans', 'skins_catalog']);
+
+type WhereOperator = '==' | '<' | '<=' | '>' | '>=' | 'array-contains' | 'in' | 'array-contains-any';
+type QueryState = {
+  where: Array<{ field: string; operator: WhereOperator; value: any }>;
+  orderBy?: { field: string; direction: 'asc' | 'desc' };
+  limit?: number;
+};
+
+function isRtdbCollection(name: string): boolean {
+  return RTDB_COLLECTIONS.has(name);
+}
+
+function rtdbRows(payload: any): Array<{ id: string } & Record<string, any>> {
+  if (!payload || typeof payload !== 'object') return [];
+  return Object.entries(payload).map(([id, value]) => ({ id, ...(value as Record<string, any>) }));
+}
+
+function applyRtdbWhere(rows: Array<{ id: string } & Record<string, any>>, where: QueryState['where']) {
+  return rows.filter((row) =>
+    where.every(({ field, operator, value }) => {
+      const current = row[field];
+      switch (operator) {
+        case '==':
+          return current === value;
+        case '<':
+          return current < value;
+        case '<=':
+          return current <= value;
+        case '>':
+          return current > value;
+        case '>=':
+          return current >= value;
+        case 'array-contains':
+          return Array.isArray(current) && current.includes(value);
+        case 'in':
+          return Array.isArray(value) && value.includes(current);
+        case 'array-contains-any':
+          return Array.isArray(current) && Array.isArray(value) && value.some((v) => current.includes(v));
+        default:
+          return false;
+      }
+    }),
+  );
+}
+
+function applyRtdbOrderLimit(rows: Array<{ id: string } & Record<string, any>>, state: QueryState) {
+  const out = [...rows];
+  if (state.orderBy) {
+    const { field, direction } = state.orderBy;
+    out.sort((a, b) => {
+      const av = a[field];
+      const bv = b[field];
+      if (av === bv) return 0;
+      if (av == null) return 1;
+      if (bv == null) return -1;
+      const cmp = av > bv ? 1 : -1;
+      return direction === 'desc' ? -cmp : cmp;
+    });
+  }
+  if (typeof state.limit === 'number' && state.limit >= 0) return out.slice(0, state.limit);
+  return out;
+}
+
+async function resolveRtdbCollection(collectionName: string, state?: QueryState) {
+  const snap = await realtimeDb.ref(collectionName).get();
+  const docs = rtdbRows(snap.val());
+  if (!state) return docs;
+  return applyRtdbOrderLimit(applyRtdbWhere(docs, state.where), state);
+}
+
+function createRtdbDocRef(collectionName: string, docId: string) {
+  return {
+    id: docId,
+    async get() {
+      const snap = await realtimeDb.ref(`${collectionName}/${docId}`).get();
+      if (!snap.exists()) return { exists: false, id: docId, data: () => undefined };
+      const value = snap.val();
+      const dataObj = value && typeof value === 'object' ? value : { value };
+      return { exists: true, id: docId, data: () => dataObj, ref: this };
+    },
+    async set(data: any, options?: { merge?: boolean }) {
+      if (options?.merge) {
+        await realtimeDb.ref(`${collectionName}/${docId}`).update(data);
+      } else {
+        await realtimeDb.ref(`${collectionName}/${docId}`).set(data);
+      }
+    },
+    async update(data: any) {
+      await realtimeDb.ref(`${collectionName}/${docId}`).update(data);
+    },
+    async delete() {
+      await realtimeDb.ref(`${collectionName}/${docId}`).remove();
+    },
+  };
+}
+
+function createRtdbCollectionRef(collectionName: string, state?: QueryState): any {
+  const q: QueryState = state || { where: [] };
+  return {
+    id: collectionName,
+    doc(docId: string) {
+      return createRtdbDocRef(collectionName, docId);
+    },
+    async add(data: any) {
+      const pushed = realtimeDb.ref(collectionName).push();
+      await pushed.set(data);
+      return { id: String(pushed.key || ''), key: String(pushed.key || '') };
+    },
+    where(field: string, operator: WhereOperator, value: any) {
+      q.where.push({ field, operator, value });
+      return createRtdbCollectionRef(collectionName, q);
+    },
+    orderBy(field: string, direction: 'asc' | 'desc' = 'asc') {
+      q.orderBy = { field, direction };
+      return createRtdbCollectionRef(collectionName, q);
+    },
+    limit(n: number) {
+      q.limit = Number(n);
+      return createRtdbCollectionRef(collectionName, q);
+    },
+    async get() {
+      const docs = await resolveRtdbCollection(collectionName, q);
+      return {
+        docs: docs.map((d) => ({
+          id: d.id,
+          data: () => d,
+          exists: true,
+          ref: createRtdbDocRef(collectionName, d.id),
+        })),
+        empty: docs.length === 0,
+        size: docs.length,
+      };
+    },
+  };
+}
+
+function createHybridBatch() {
+  const writes: Array<() => Promise<any>> = [];
+  return {
+    set(ref: any, data: any, options?: { merge?: boolean }) {
+      writes.push(() => ref.set(data, options));
+      return this;
+    },
+    update(ref: any, data: any) {
+      writes.push(() => ref.update(data));
+      return this;
+    },
+    delete(ref: any) {
+      writes.push(() => ref.delete());
+      return this;
+    },
+    async commit() {
+      for (const write of writes) await write();
+    },
+  };
+}
+
+const db: any = {
+  collection(name: string) {
+    if (isRtdbCollection(name)) return createRtdbCollectionRef(name);
+    return firestoreDb.collection(name);
+  },
+  batch() {
+    return createHybridBatch();
+  },
 };
 
 /** Public status page payload (mirrors status-site/status.json). */
@@ -449,11 +618,11 @@ app.use((req, res, next) => {
   next();
 });
 
-mountStripeEmbeddedWebhook(app, db, COLLECTIONS.USERS, COLLECTIONS.STRIPE_PAYMENT_CREDITS);
+mountStripeEmbeddedWebhook(app, firestoreDb, COLLECTIONS.USERS, COLLECTIONS.STRIPE_PAYMENT_CREDITS);
 
 app.use(express.json());
 
-mountStripeEmbeddedPayRoutes(app, db);
+mountStripeEmbeddedPayRoutes(app, firestoreDb);
 
 // Liveness only — do not expose whether JWT_SECRET is configured (reconnaissance aid).
 const sendJwtCheck = (_req: any, res: any) => {
@@ -477,7 +646,7 @@ const getPublicUserProfileHandler = async (req: any, res: any) => {
     const username = String(d.username || q.docs[0].id);
     const gamesSnap = await db.collection(COLLECTIONS.GAMES).where('owner', '==', username).get();
     const madeGames = gamesSnap.docs
-      .map((g) => {
+      .map((g: any) => {
         const gd = g.data() || {};
         return {
           id: g.id,
@@ -486,7 +655,7 @@ const getPublicUserProfileHandler = async (req: any, res: any) => {
           ts: Number(gd.ts || 0),
         };
       })
-      .sort((a, b) => b.ts - a.ts)
+      .sort((a: any, b: any) => b.ts - a.ts)
       .slice(0, 24);
     return res.json({
       userId,
@@ -1102,7 +1271,7 @@ app.get('/games', async (req, res) => {
     } else {
       snap = await db.collection(COLLECTIONS.GAMES).orderBy('ts', 'desc').get();
     }
-    const games = snap.docs.map(d => {
+    const games = snap.docs.map((d: any) => {
       const data = d.data();
       return {
         id: d.id,
@@ -1226,7 +1395,7 @@ app.get('/games/gym-pump/sync', async (req, res) => {
 app.get('/games/gym-pump/leaderboard', async (req, res) => {
   try {
     const snap = await db.collection('gym_pump_scores').orderBy('power', 'desc').limit(parseInt(String(req.query.limit)) || 50).get();
-    const leaderboard = snap.docs.map((d, i) => {
+    const leaderboard = snap.docs.map((d: any, i: any) => {
       const data = d.data();
       return { rank: i + 1, username: data.username || 'Anonymous', power: data.power ?? 0, coins: data.coins ?? 0, level: data.level ?? 1 };
     });
@@ -1240,7 +1409,7 @@ app.get('/games/gym-pump/leaderboard', async (req, res) => {
 app.get('/published', async (req, res) => {
   try {
     const snap = await db.collection(COLLECTIONS.PUBLISHED_GAMES).orderBy('ts', 'desc').get();
-    const games = snap.docs.map(d => {
+    const games = snap.docs.map((d: any) => {
       const data = d.data();
       return {
         title: data.title,
@@ -1266,7 +1435,7 @@ app.post('/published', async (req, res) => {
     const games = req.body as any[];
     const batch = db.batch();
     const existing = await db.collection(COLLECTIONS.PUBLISHED_GAMES).get();
-    existing.docs.forEach(d => batch.delete(d.ref));
+    existing.docs.forEach((d: any) => batch.delete(d.ref));
     for (const g of games) {
       const id = `${g.owner}_${g.ts}`;
       const ref = db.collection(COLLECTIONS.PUBLISHED_GAMES).doc(id);
@@ -1294,7 +1463,7 @@ app.post('/published', async (req, res) => {
 app.get('/prebuilt', async (req, res) => {
   try {
     const snap = await db.collection(COLLECTIONS.PREBUILT_GAMES).orderBy('ts', 'desc').get();
-    res.json(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    res.json(snap.docs.map((d: any) => ({ id: d.id, ...d.data() })));
   } catch (e) {
     res.status(500).json({ error: 'Failed to read prebuilt games' });
   }
@@ -1306,7 +1475,7 @@ app.post('/prebuilt', async (req, res) => {
     const games = req.body as any[];
     const batch = db.batch();
     const existing = await db.collection(COLLECTIONS.PREBUILT_GAMES).get();
-    existing.docs.forEach(d => batch.delete(d.ref));
+    existing.docs.forEach((d: any) => batch.delete(d.ref));
     for (const g of games) {
       const ref = db.collection(COLLECTIONS.PREBUILT_GAMES).doc(g.id || `prebuilt_${Date.now()}`);
       batch.set(ref, { ...g, updated_at: Date.now() });
@@ -1324,7 +1493,7 @@ const getHardwareBansHandler = async (req: any, res: any) => {
     const auth = requireAdmin(req, res);
     if (!auth) return;
     const snap = await db.collection(COLLECTIONS.HARDWARE_BANS).get();
-    const list = snap.docs.map((d) => {
+    const list = snap.docs.map((d: any) => {
       const data = d.data();
       return {
         deviceId: data.deviceId || d.id,
@@ -1470,7 +1639,7 @@ app.delete('/api/hardware-bans', deleteHardwareBansHandler);
 // Tab content, accessories, bans, reports, appeals (GET only)
 app.get('/tabcontent', async (_req, res) => { try { res.json((await db.collection(COLLECTIONS.TAB_CONTENT).doc('content').get()).data() || {}); } catch (e) { res.status(500).json({ error: 'Failed' }); } });
 app.get('/accessories', async (_req, res) => { try { res.json((await db.collection(COLLECTIONS.ACCESSORIES_CATALOG).doc('catalog').get()).data()?.accessories || []); } catch (e) { res.status(500).json({ error: 'Failed' }); } });
-app.get('/bans', async (_req, res) => { try { res.json((await db.collection(COLLECTIONS.BANS).get()).docs.map(d => ({ id: d.id, ...d.data() }))); } catch (e) { res.status(500).json({ error: 'Failed' }); } });
+app.get('/bans', async (_req, res) => { try { res.json((await db.collection(COLLECTIONS.BANS).get()).docs.map((d: any) => ({ id: d.id, ...d.data() }))); } catch (e) { res.status(500).json({ error: 'Failed' }); } });
 // POST /bans — admin only, create ban (body: { username, bannedBy, reason, timestamp?, permanent?, expiresAt? })
 const postBansHandler = async (req: any, res: any) => {
   const auth = requireAdmin(req, res);
@@ -1487,7 +1656,7 @@ const postBansHandler = async (req: any, res: any) => {
   try {
     const existing = await db.collection(COLLECTIONS.BANS).where('username_lower', '==', usernameLower).get();
     const batch = db.batch();
-    existing.docs.forEach((d) => batch.delete(d.ref));
+    existing.docs.forEach((d: any) => batch.delete(d.ref));
     await batch.commit();
     await db.collection(COLLECTIONS.BANS).doc(usernameLower).set({
       username,
@@ -1527,7 +1696,7 @@ const deleteBansHandler = async (req: any, res: any) => {
   try {
     const snap = await db.collection(COLLECTIONS.BANS).where('username_lower', '==', username.trim().toLowerCase()).get();
     const batch = db.batch();
-    snap.docs.forEach((d) => batch.delete(d.ref));
+    snap.docs.forEach((d: any) => batch.delete(d.ref));
     await batch.commit();
     res.json({ success: true });
   } catch (e) {
@@ -1536,11 +1705,11 @@ const deleteBansHandler = async (req: any, res: any) => {
 };
 app.delete('/bans', deleteBansHandler);
 app.delete('/api/bans', deleteBansHandler);
-app.get('/reports', async (_req, res) => { try { res.json((await db.collection(COLLECTIONS.REPORTS).get()).docs.map(d => ({ id: d.id, ...d.data() }))); } catch (e) { res.status(500).json({ error: 'Failed' }); } });
+app.get('/reports', async (_req, res) => { try { res.json((await db.collection(COLLECTIONS.REPORTS).get()).docs.map((d: any) => ({ id: d.id, ...d.data() }))); } catch (e) { res.status(500).json({ error: 'Failed' }); } });
 app.get('/appeals', async (_req, res) => {
   try {
     const snap = await db.collection(COLLECTIONS.APPEALS).orderBy('created_at', 'desc').get();
-    const appeals = await Promise.all(snap.docs.map(async (d) => {
+    const appeals = await Promise.all(snap.docs.map(async (d: any) => {
       const data = d.data();
       const banId = data.ban_id;
       let ban: { reason?: string; bannedBy?: string; timestamp?: number } | null = null;
@@ -1586,7 +1755,7 @@ app.get('/appeals/messages', async (req, res) => {
       .where('appeal_id', '==', appealId)
       .get();
     const messages = snap.docs
-      .map(d => {
+      .map((d: any) => {
         const data = d.data();
         return {
           id: d.id,
@@ -1596,7 +1765,7 @@ app.get('/appeals/messages', async (req, res) => {
           timestamp: data.created_at ?? data.timestamp ?? 0,
         };
       })
-      .sort((a, b) => (a.timestamp as number) - (b.timestamp as number));
+      .sort((a: any, b: any) => (a.timestamp as number) - (b.timestamp as number));
     res.json(messages);
   } catch (e) {
     res.status(500).json({ error: 'Failed to get messages' });
@@ -1607,7 +1776,7 @@ app.get('/appeals/messages', async (req, res) => {
 app.get('/gamesubmissions', async (req, res) => {
   try {
     const snap = await db.collection(COLLECTIONS.GAME_SUBMISSIONS).orderBy('ts', 'desc').get();
-    const submissions = snap.docs.map(d => {
+    const submissions = snap.docs.map((d: any) => {
       const data = d.data();
       return {
         id: d.id,
