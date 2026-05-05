@@ -283,6 +283,16 @@ function createDocumentRef(collection: string, docId: string) {
       const db = getRealtimeDbInstance();
       if (!db) return;
       await db.ref(`${collection}/${docId}`).remove();
+      const fs = getFirestoreDbInstance();
+      if (fs) {
+        try {
+          const fsRef = fs.collection(collection).doc(docId);
+          const fsSnap = await fsRef.get();
+          if (fsSnap.exists) await fsRef.delete();
+        } catch (e: any) {
+          console.warn(`Firestore fallback delete failed for ${collection}/${docId}:`, e?.message || e);
+        }
+      }
     },
   };
 }
@@ -435,6 +445,16 @@ export async function deleteDocument(collection: string, docId: string): Promise
       const db = getRealtimeDbInstance();
       if (!db) return;
       await db.ref(`${collection}/${docId}`).remove();
+      const fs = getFirestoreDbInstance();
+      if (fs) {
+        try {
+          const fsRef = fs.collection(collection).doc(docId);
+          const fsSnap = await fsRef.get();
+          if (fsSnap.exists) await fsRef.delete();
+        } catch (e: any) {
+          console.warn(`Firestore fallback delete failed for ${collection}/${docId}:`, e?.message || e);
+        }
+      }
       return;
     }
     const fs = getFirestoreDbInstance();
