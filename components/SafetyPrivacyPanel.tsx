@@ -1,7 +1,7 @@
 'use client';
 
 import type { User } from '@/types';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useUser } from '@/contexts/UserContext';
 import { navigateToTab } from '@/lib/routing';
 import {
@@ -10,6 +10,8 @@ import {
   verifyPpafFile,
 } from '@/lib/ppaf';
 import { PPAF_MAX_RESTORE_AGE_MS } from '@/lib/ppafConstants';
+import { apiUrl } from '@/lib/apiBaseUrl';
+import { authenticatedFetch } from '@/lib/api';
 import { clearSiteTranslationCache } from '@/lib/siteTranslationCache';
 import LocalizeText from '@/components/LocalizeText';
 import PpafConfigurePanel from '@/components/PpafConfigurePanel';
@@ -34,6 +36,46 @@ export default function SafetyPrivacyPanel({ user }: SafetyPrivacyPanelProps) {
   const ppafInputRef = useRef<HTMLInputElement>(null);
   const [ppafBackupOpen, setPpafBackupOpen] = useState(false);
   const [ppafConfigureOpen, setPpafConfigureOpen] = useState(false);
+  const [email, setEmail] = useState(user.email || '');
+  const [emailCode, setEmailCode] = useState('');
+  const [emailToken, setEmailToken] = useState('');
+  const [emailBusy, setEmailBusy] = useState(false);
+  const [emailStatusBusy, setEmailStatusBusy] = useState(false);
+  const [emailStatus, setEmailStatus] = useState<{
+    email: string;
+    emailVerified: boolean;
+    rewardGrantedAt: number | null;
+    pendingExpiresAt: number | null;
+  } | null>(null);
+  const [emailMessage, setEmailMessage] = useState('');
+  const [emailError, setEmailError] = useState('');
+
+  const loadEmailStatus = async () => {
+    setEmailStatusBusy(true);
+    try {
+      const res = await authenticatedFetch(apiUrl('/auth/email/status'));
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error || 'Failed to load verification status');
+      const normalized = {
+        email: String(data?.email || ''),
+        emailVerified: data?.emailVerified === true,
+        rewardGrantedAt:
+          typeof data?.rewardGrantedAt === 'number' && Number.isFinite(data.rewardGrantedAt)
+            ? data.rewardGrantedAt
+            : null,
+        pendingExpiresAt:
+          typeof data?.pendingExpiresAt === 'number' && Number.isFinite(data.pendingExpiresAt)
+            ? data.pendingExpiresAt
+            : null,
+      };
+      setEmailStatus(normalized);
+      if (normalized.email) setEmail(normalized.email);
+    } catch (error: any) {
+      setEmailError(String(error?.message || 'Failed to load verification status'));
+    } finally {
+      setEmailStatusBusy(false);
+    }
+  };
 
   const handleSignOut = () => {
     if (
@@ -44,6 +86,66 @@ export default function SafetyPrivacyPanel({ user }: SafetyPrivacyPanelProps) {
       return;
     }
     setUser(null);
+  };
+
+  const handleRequestVerification = async () => {
+    setEmailBusy(true);
+    setEmailMessage('');
+    setEmailError('');
+    try {
+      const res = await authenticatedFetch(apiUrl('/auth/email/request-verification'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: email.trim() }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error || 'Failed to send verification email');
+      setEmailMessage('Verification sent. Check your inbox for a code or magic link.');
+      await loadEmailStatus();
+    } catch (error: any) {
+      setEmailError(String(error?.message || 'Failed to send verification email'));
+    } finally {
+      setEmailBusy(false);
+    }
+  };
+
+  const handleVerifyEmail = async () => {
+    const code = emailCode.trim();
+    const token = emailToken.trim();
+    if (!code && !token) {
+      setEmailError('Enter a one-time code or magic link token.');
+      return;
+    }
+    setEmailBusy(true);
+    setEmailMessage('');
+    setEmailError('');
+    try {
+      const res = await authenticatedFetch(apiUrl('/auth/email/verify'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: code || undefined, token: token || undefined }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error || 'Failed to verify email');
+      const rewardCoins = Number(data?.rewardCoins || 0);
+      setEmailMessage(
+        rewardCoins > 0
+          ? `Email verified! +${rewardCoins} Pixel Coins awarded.`
+          : 'Email verified successfully.',
+      );
+      setEmailCode('');
+      setEmailToken('');
+      await updateUser({
+        email: email.trim() || user.email,
+        emailVerified: true,
+        coins: typeof data?.coins === 'number' ? data.coins : user.coins,
+      });
+      await loadEmailStatus();
+    } catch (error: any) {
+      setEmailError(String(error?.message || 'Failed to verify email'));
+    } finally {
+      setEmailBusy(false);
+    }
   };
 
   const handleRestorePpaf = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -135,6 +237,10 @@ export default function SafetyPrivacyPanel({ user }: SafetyPrivacyPanelProps) {
     alert(`Restored ${selected.size} field(s) from your signed .ppaf backup.`);
   };
 
+  useEffect(() => {
+    void loadEmailStatus();
+  }, []);
+
   return (
     <div className="ai-box">
       <div className="ai-label">
@@ -188,9 +294,74 @@ export default function SafetyPrivacyPanel({ user }: SafetyPrivacyPanelProps) {
           <button type="button" className="btn" onClick={handleSignOut}>
             <LocalizeText text="Sign out on this browser" />
           </button>
+          <button
+            type="button"
+            className="btn"
+            onClick={() => {
+              if (typeof window !== 'undefined') window.location.href = '/signoutall';
+            }}
+          >
+            <LocalizeText text="Sign out on all devices" />
+          </button>
         </div>
 
         <PpafConfigurePanel open={ppafConfigureOpen} onToggle={setPpafConfigureOpen} />
+
+        <div
+          style={{
+            marginTop: 14,
+            padding: '12px 14px',
+            borderRadius: 10,
+            border: '1px solid rgba(34, 197, 94, 0.35)',
+            background: 'rgba(34, 197, 94, 0.06)',
+          }}
+        >
+          <div style={{ fontWeight: 700, marginBottom: 8 }}>Email verification (+20 Pixel Coins)</div>
+          <div style={{ fontSize: 12, color: 'var(--text-dim)', marginBottom: 10 }}>
+            Verify your email using a one-time code or magic link. This can reward your account once.
+          </div>
+          <div style={{ display: 'grid', gap: 8 }}>
+            <input
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="Email address"
+              type="email"
+              className="input"
+            />
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              <button type="button" className="btn" onClick={handleRequestVerification} disabled={emailBusy}>
+                {emailBusy ? 'Sending...' : 'Send verification'}
+              </button>
+              <button type="button" className="btn" onClick={() => void loadEmailStatus()} disabled={emailStatusBusy}>
+                {emailStatusBusy ? 'Refreshing...' : 'Refresh status'}
+              </button>
+            </div>
+            <input
+              value={emailCode}
+              onChange={(e) => setEmailCode(e.target.value)}
+              placeholder="One-time code"
+              type="text"
+              className="input"
+            />
+            <input
+              value={emailToken}
+              onChange={(e) => setEmailToken(e.target.value)}
+              placeholder="Magic link token (optional)"
+              type="text"
+              className="input"
+            />
+            <button type="button" className="btn" onClick={handleVerifyEmail} disabled={emailBusy}>
+              {emailBusy ? 'Verifying...' : 'Verify email'}
+            </button>
+          </div>
+          <div style={{ marginTop: 10, fontSize: 12, color: emailStatus?.emailVerified ? '#86efac' : 'var(--text-dim)' }}>
+            {emailStatus?.emailVerified
+              ? `Verified${emailStatus.email ? `: ${emailStatus.email}` : ''}`
+              : `Not verified${emailStatus?.email ? `: ${emailStatus.email}` : ''}`}
+          </div>
+          {emailMessage ? <div style={{ marginTop: 8, fontSize: 12, color: '#86efac' }}>{emailMessage}</div> : null}
+          {emailError ? <div style={{ marginTop: 8, fontSize: 12, color: '#fca5a5' }}>{emailError}</div> : null}
+        </div>
 
         <PpafBackupModal
           user={user}

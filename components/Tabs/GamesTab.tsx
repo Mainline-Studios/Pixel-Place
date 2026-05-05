@@ -23,6 +23,7 @@ import VoidArcade from '../Games/VoidArcade';
 import EcoHero from '../Games/EcoHero';
 import HistoriMac from '../Games/HistoriMac';
 import AnimationTest from '../Games/AnimationTest';
+import ObstacleCourse from '../Games/ObstacleCourse';
 import { useMobileBeta } from '@/contexts/MobileBetaContext';
 import SquishBubbles from '../Games/SquishBubbles';
 import SquishSlime from '../Games/SquishSlime';
@@ -55,6 +56,14 @@ const games: GameInfo[] = [
     icon: '🎞️',
     category: 'Tools',
     component: AnimationTest,
+  },
+  {
+    id: 'obstacleCourse',
+    name: 'Obstacle Course',
+    description: 'Run the Pixel Placer obstacle course with WASD + Space controls and camera drag/zoom.',
+    icon: '🧱',
+    category: 'Action',
+    component: ObstacleCourse,
   },
   {
     id: 'historiMac',
@@ -325,7 +334,7 @@ export default function GamesTab({ user, editMode }: GamesTabProps) {
     };
     
     // Components that support onClose prop
-    const supportsOnClose = ['gymPump', 'hypnosia', 'voidArcade', 'ecoHero', 'historiMac', 'animationTest', 'squishBubbles', 'squishSlime'].includes(selectedGame);
+    const supportsOnClose = ['gymPump', 'hypnosia', 'voidArcade', 'ecoHero', 'historiMac', 'animationTest', 'obstacleCourse', 'squishBubbles', 'squishSlime'].includes(selectedGame);
     
     // Prepare props based on game type - pass user to games that need it
     const baseProps = selectedGame === 'gymPump'
@@ -343,6 +352,8 @@ export default function GamesTab({ user, editMode }: GamesTabProps) {
           onBootVersionConsumed: () => setHistoriMacBootVersionId(null),
         }
       : selectedGame === 'animationTest'
+      ? { user, onClose: handleClose }
+      : selectedGame === 'obstacleCourse'
       ? { user, onClose: handleClose }
       : selectedGame === 'squishBubbles' || selectedGame === 'squishSlime'
       ? { onClose: handleClose }
