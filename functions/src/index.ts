@@ -4,7 +4,7 @@
  * URL: https://us-central1-pixel-place-823b1.cloudfunctions.net/api
  */
 import path from 'path';
-import { randomUUID } from 'crypto';
+import { randomBytes, randomUUID, createHash } from 'crypto';
 import { config as loadEnv } from 'dotenv';
 
 // Load functions/.env (no deprecated functions.config() - works after March 2026)
@@ -51,6 +51,9 @@ const RTDB_COLLECTIONS = new Set<string>(['users', 'bans', 'hardware_bans', 'ski
 const storageBucket = admin.storage().bucket();
 const STORAGE_SIGNED_URL_MS = 15 * 60 * 1000;
 const STORAGE_PATH_MAX = 220;
+const EMAIL_VERIFY_CODE_TTL_MS = 20 * 60 * 1000;
+const EMAIL_VERIFY_RESEND_COOLDOWN_MS = 45 * 1000;
+const EMAIL_VERIFY_REWARD_COINS = 20;
 
 type WhereOperator = '==' | '<' | '<=' | '>' | '>=' | 'array-contains' | 'in' | 'array-contains-any';
 type QueryState = {
@@ -241,6 +244,111 @@ function canAccessStoragePath(path: string, auth: any): boolean {
   if (!user) return false;
   if (path.startsWith(`users/${user}/`) || path.startsWith('public/')) return true;
   return role === 'admin' || role === 'head_admin';
+}
+
+function getBearerTokenFromRequest(req: any): string {
+  const header = req?.headers?.authorization;
+  if (!header || typeof header !== 'string' || !header.startsWith('Bearer ')) return '';
+  return header.slice(7).trim();
+}
+
+async function isJwtRevokedForUser(username: string, iatSeconds: number): Promise<boolean> {
+  if (!username || !iatSeconds) return false;
+  const doc = await db.collection(COLLECTIONS.USERS).doc(username.toLowerCase()).get();
+  if (!doc.exists) return true;
+  const d = doc.data() || {};
+  const revokedBefore = Number(d.token_revoked_before || 0);
+  if (!Number.isFinite(revokedBefore) || revokedBefore <= 0) return false;
+  return iatSeconds * 1000 <= revokedBefore;
+}
+
+function normalizeEmail(input: unknown): string {
+  return String(input || '').trim().toLowerCase();
+}
+
+function isValidEmail(email: string): boolean {
+  if (!email || email.length > 254) return false;
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
+
+function hashVerificationCode(code: string): string {
+  return createHash('sha256').update(code).digest('hex');
+}
+
+function getEmailVerificationSecret(): string {
+  return process.env.EMAIL_VERIFICATION_SECRET || getJwtSecret();
+}
+
+function buildVerificationMessage(params: {
+  username: string;
+  code: string;
+  magicLink: string;
+  email: string;
+}): { subject: string; text: string; html: string } {
+  const appName = process.env.APP_NAME || 'Pixel Place';
+  const subject = `Verify your ${appName} email`;
+  const text =
+    `Hi ${params.username},\n\n` +
+    `Use this code to verify your email: ${params.code}\n\n` +
+    `Or open this magic link:\n${params.magicLink}\n\n` +
+    `The code/link expires in 20 minutes.\n` +
+    `Once verified, you get ${EMAIL_VERIFY_REWARD_COINS} Pixel Coins.\n`;
+  const html =
+    `<p>Hi <strong>${params.username}</strong>,</p>` +
+    `<p>Use this code to verify your email:</p>` +
+    `<p style="font-size:20px;font-weight:700;letter-spacing:2px">${params.code}</p>` +
+    `<p>Or use this magic link:</p>` +
+    `<p><a href="${params.magicLink}">${params.magicLink}</a></p>` +
+    `<p>This expires in 20 minutes.</p>` +
+    `<p>Reward: <strong>${EMAIL_VERIFY_REWARD_COINS} Pixel Coins</strong></p>`;
+  return { subject, text, html };
+}
+
+async function dispatchVerificationEmail(payload: {
+  to: string;
+  username: string;
+  code: string;
+  magicLink: string;
+}): Promise<{ sent: boolean; preview?: any }> {
+  const webhookUrl = process.env.EMAIL_VERIFICATION_WEBHOOK_URL;
+  const message = buildVerificationMessage({
+    username: payload.username,
+    code: payload.code,
+    magicLink: payload.magicLink,
+    email: payload.to,
+  });
+
+  if (!webhookUrl) {
+    return {
+      sent: false,
+      preview:
+        process.env.NODE_ENV === 'production'
+          ? undefined
+          : { to: payload.to, ...message, code: payload.code, magicLink: payload.magicLink },
+    };
+  }
+
+  const resp = await fetch(webhookUrl, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      to: payload.to,
+      subject: message.subject,
+      text: message.text,
+      html: message.html,
+      template: 'email_verification',
+      vars: {
+        username: payload.username,
+        code: payload.code,
+        magicLink: payload.magicLink,
+        rewardCoins: EMAIL_VERIFY_REWARD_COINS,
+      },
+    }),
+  });
+  if (!resp.ok) {
+    throw new Error(`Email webhook failed (${resp.status})`);
+  }
+  return { sent: true };
 }
 
 const db: any = {
@@ -533,12 +641,11 @@ function withPixelPlacerSkin(skins: any[]): any[] {
 }
 
 /** Build user for API response. Never expose password/hash to client. */
-function userFromDoc(doc: admin.firestore.DocumentSnapshot): any {
-  const d = doc.data();
+function userFromData(id: string, d: any): any {
   if (!d) return null;
   return {
     userId: typeof d.user_id === 'number' ? d.user_id : undefined,
-    username: d.username || doc.id,
+    username: d.username || id,
     password: '',
     gender: d.gender || '',
     role: d.role || 'user',
@@ -554,12 +661,21 @@ function userFromDoc(doc: admin.firestore.DocumentSnapshot): any {
     friendRequests: d.friend_requests || [],
     sentFriendRequests: d.sent_friend_requests || [],
     favoriteGameIds: d.favorite_game_ids || [],
+    email: d.email || '',
+    emailVerified: d.email_verified === true,
+    emailVerificationRewardedAt:
+      typeof d.email_verification_rewarded_at === 'number' ? d.email_verification_rewarded_at : undefined,
     isDonor: d.is_donor === 1,
     founderLifetimeCoins: d.founder_lifetime_coins === true,
     founderOrdinal: typeof d.founder_ordinal === 'number' ? d.founder_ordinal : undefined,
     ppafLastRestoreIssuedAt:
       typeof d.ppaf_last_restore_issued_at === 'number' ? d.ppaf_last_restore_issued_at : undefined,
   };
+}
+
+function userFromDoc(doc: admin.firestore.DocumentSnapshot): any {
+  const d = doc.data();
+  return userFromData(doc.id, d);
 }
 
 /**
@@ -661,6 +777,27 @@ mountStripeEmbeddedWebhook(app, firestoreDb, COLLECTIONS.USERS, COLLECTIONS.STRI
 app.use(express.json());
 
 mountStripeEmbeddedPayRoutes(app, firestoreDb);
+
+app.use(async (req, res, next) => {
+  try {
+    const token = getBearerTokenFromRequest(req);
+    if (!token) return next();
+    const payload = jwt.verify(token, getJwtSecret()) as { username?: string; iat?: number };
+    if (!payload?.username || typeof payload?.iat !== 'number') {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+    const revoked = await isJwtRevokedForUser(payload.username, payload.iat);
+    if (revoked) {
+      return res.status(401).json({
+        error: 'Session expired. Please sign in again.',
+        code: 'SESSION_REVOKED',
+      });
+    }
+    return next();
+  } catch {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+});
 
 const storageSignedUploadHandler = async (req: any, res: any) => {
   const auth = requireAuth(req, res);
@@ -1044,10 +1181,66 @@ async function getAdminAccountsFromFirestore(): Promise<{ username: string; pass
   return [];
 }
 
+// Firestore-only fallback auth path for slow RTDB scenarios.
+app.post('/auth/firestore-login', async (req, res) => {
+  try {
+    const { username, password, deviceId, deviceLabel } = req.body || {};
+    if (!username || !password) return res.status(400).json({ error: 'Username and password required' });
+    const usernameLower = String(username).toLowerCase();
+
+    if (deviceId) {
+      const did = sanitizeDeviceId(deviceId);
+      if (did) {
+        const hwDoc = await firestoreDb.collection(COLLECTIONS.HARDWARE_BANS).doc(did).get();
+        if (hwDoc.exists) {
+          const bd = hwDoc.data() || {};
+          return res.status(401).json({
+            error: 'Access from this browser profile is blocked. You cannot sign in.',
+            deviceBanned: true,
+            ban: {
+              username: 'This device',
+              reason: bd.reason || 'Access from this browser profile is blocked.',
+              bannedBy: bd.banned_by || 'Administrator',
+              timestamp: bd.banned_at || Date.now(),
+              permanent: true,
+            },
+          });
+        }
+      }
+    }
+
+    const doc = await firestoreDb.collection(COLLECTIONS.USERS).doc(usernameLower).get();
+    if (!doc.exists) return res.status(401).json({ error: 'Invalid credentials' });
+    const d = doc.data() || {};
+
+    const storedHash = String(d.password_hash || '').trim();
+    let match = false;
+    if (storedHash.startsWith('$2')) {
+      match = await bcrypt.compare(String(password), storedHash);
+    } else if (storedHash) {
+      match = String(password) === storedHash;
+      if (match) {
+        const hash = await bcrypt.hash(String(password), 10);
+        await firestoreDb.collection(COLLECTIONS.USERS).doc(usernameLower).update({ password_hash: hash, updated_at: Date.now() });
+      }
+    }
+    if (!match) return res.status(401).json({ error: 'Invalid credentials' });
+
+    if (deviceId) await recordDevice(String(username), String(deviceId), String(deviceLabel || 'Unknown'));
+
+    const user = userFromData(doc.id, d);
+    const token = jwt.sign({ username: user.username, role: user.role }, getJwtSecret(), { expiresIn: '7d' });
+    return res.json({ success: true, user, token, source: 'firestore-fallback' });
+  } catch (error) {
+    console.error('Firestore fallback login failed:', error);
+    return res.status(500).json({ error: 'Authentication failed' });
+  }
+});
+
 // POST /auth (login, register)
 app.post('/auth', async (req, res) => {
   try {
-    const { username, password, action, gender, role, coins, deviceId, deviceLabel } = req.body;
+    const { username, password, action, gender, role, coins, deviceId, deviceLabel, email } = req.body;
     if (!username || !password) return res.status(400).json({ error: 'Username and password required' });
     await ensureSequentialUserIds();
 
@@ -1102,6 +1295,9 @@ app.post('/auth', async (req, res) => {
             friend_requests: [],
             sent_friend_requests: [],
             favorite_game_ids: [],
+            email: '',
+            email_verified: false,
+            email_verification_rewarded_at: null,
             is_donor: 0,
             created_at: Date.now(),
             updated_at: Date.now(),
@@ -1169,6 +1365,10 @@ app.post('/auth', async (req, res) => {
         });
       }
       const id = username.toLowerCase();
+      const normalizedEmail = normalizeEmail(email);
+      if (normalizedEmail && !isValidEmail(normalizedEmail)) {
+        return res.status(400).json({ error: 'Invalid email format' });
+      }
       const existing = await db.collection(COLLECTIONS.USERS).doc(id).get();
       if (existing.exists) return res.status(400).json({ error: 'Username already exists' });
       const hash = await bcrypt.hash(password, 10);
@@ -1192,6 +1392,9 @@ app.post('/auth', async (req, res) => {
         friend_requests: [],
         sent_friend_requests: [],
         favorite_game_ids: [],
+        email: normalizedEmail || '',
+        email_verified: false,
+        email_verification_rewarded_at: null,
         is_donor: 0,
         founder_lifetime_coins: false,
         founder_ordinal: null,
@@ -1219,6 +1422,196 @@ app.post('/auth', async (req, res) => {
     return res.status(400).json({ error: 'Invalid action' });
   } catch (e) {
     res.status(500).json({ error: 'Authentication failed' });
+  }
+});
+
+app.post('/auth/signout-all', async (req, res) => {
+  try {
+    const auth = requireAuth(req, res);
+    if (!auth) return;
+    const now = Date.now();
+    await db.collection(COLLECTIONS.USERS).doc(auth.username.toLowerCase()).set(
+      {
+        token_revoked_before: now,
+        updated_at: now,
+      },
+      { merge: true },
+    );
+    return res.json({ success: true, signedOutAt: now });
+  } catch (error) {
+    console.error('Failed to sign out all sessions:', error);
+    return res.status(500).json({ error: 'Failed to sign out all sessions' });
+  }
+});
+
+app.get('/auth/email/status', async (req, res) => {
+  try {
+    const auth = requireAuth(req, res);
+    if (!auth) return;
+    const id = auth.username.toLowerCase();
+    const doc = await db.collection(COLLECTIONS.USERS).doc(id).get();
+    if (!doc.exists) return res.status(404).json({ error: 'User not found' });
+    const d = doc.data() || {};
+    return res.json({
+      email: d.email || '',
+      emailVerified: d.email_verified === true,
+      rewardGrantedAt:
+        typeof d.email_verification_rewarded_at === 'number' ? d.email_verification_rewarded_at : null,
+      pendingExpiresAt:
+        typeof d.email_verification_expires_at === 'number' ? d.email_verification_expires_at : null,
+    });
+  } catch (error) {
+    console.error('Failed to read email status:', error);
+    return res.status(500).json({ error: 'Failed to read email verification status' });
+  }
+});
+
+app.post('/auth/email/request-verification', async (req, res) => {
+  try {
+    const auth = requireAuth(req, res);
+    if (!auth) return;
+    const id = auth.username.toLowerCase();
+    const ref = db.collection(COLLECTIONS.USERS).doc(id);
+    const doc = await ref.get();
+    if (!doc.exists) return res.status(404).json({ error: 'User not found' });
+    const d = doc.data() || {};
+    const email = normalizeEmail(req.body?.email || d.email);
+    if (!isValidEmail(email)) return res.status(400).json({ error: 'Valid email is required' });
+
+    const now = Date.now();
+    const lastSent = Number(d.email_verification_last_sent_at || 0);
+    if (now - lastSent < EMAIL_VERIFY_RESEND_COOLDOWN_MS) {
+      return res.status(429).json({
+        error: 'Please wait before requesting another code',
+        retryAfterMs: EMAIL_VERIFY_RESEND_COOLDOWN_MS - (now - lastSent),
+      });
+    }
+
+    const code = String(Math.floor(100000 + Math.random() * 900000));
+    const nonce = randomBytes(12).toString('hex');
+    const token = jwt.sign(
+      { purpose: 'email_verify', username: id, email, nonce },
+      getEmailVerificationSecret(),
+      { expiresIn: '20m' },
+    );
+    const base =
+      process.env.EMAIL_VERIFY_MAGIC_LINK_BASE ||
+      process.env.APP_PUBLIC_URL ||
+      process.env.NEXT_PUBLIC_BASE_URL ||
+      'https://pixelplaceofficial.com';
+    const magicLink = `${String(base).replace(/\/+$/, '')}/verify?token=${encodeURIComponent(token)}`;
+    const delivery = await dispatchVerificationEmail({ to: email, username: auth.username, code, magicLink });
+
+    await ref.set(
+      {
+        email,
+        email_verified: false,
+        email_verification_code_hash: hashVerificationCode(code),
+        email_verification_nonce: nonce,
+        email_verification_expires_at: now + EMAIL_VERIFY_CODE_TTL_MS,
+        email_verification_last_sent_at: now,
+        email_verification_attempts: 0,
+        updated_at: now,
+      },
+      { merge: true },
+    );
+
+    return res.json({
+      success: true,
+      sent: delivery.sent,
+      expiresAt: now + EMAIL_VERIFY_CODE_TTL_MS,
+      preview: delivery.preview,
+    });
+  } catch (error) {
+    console.error('Failed to request email verification:', error);
+    return res.status(500).json({ error: 'Failed to request email verification' });
+  }
+});
+
+app.post('/auth/email/verify', async (req, res) => {
+  try {
+    const auth = requireAuth(req, res);
+    if (!auth) return;
+    const id = auth.username.toLowerCase();
+    const ref = db.collection(COLLECTIONS.USERS).doc(id);
+    const doc = await ref.get();
+    if (!doc.exists) return res.status(404).json({ error: 'User not found' });
+    const d = doc.data() || {};
+    const now = Date.now();
+    const expiresAt = Number(d.email_verification_expires_at || 0);
+    if (!expiresAt || now > expiresAt) {
+      return res.status(400).json({ error: 'Verification code/link expired. Request a new one.' });
+    }
+
+    const code = String(req.body?.code || '').trim();
+    const token = String(req.body?.token || '').trim();
+    let ok = false;
+
+    if (code) {
+      const incomingHash = hashVerificationCode(code);
+      const expectedHash = String(d.email_verification_code_hash || '');
+      ok = incomingHash === expectedHash;
+    } else if (token) {
+      try {
+        const decoded = jwt.verify(token, getEmailVerificationSecret()) as {
+          purpose?: string;
+          username?: string;
+          email?: string;
+          nonce?: string;
+        };
+        const expectedEmail = normalizeEmail(d.email);
+        ok =
+          decoded?.purpose === 'email_verify' &&
+          String(decoded?.username || '').toLowerCase() === id &&
+          normalizeEmail(decoded?.email) === expectedEmail &&
+          String(decoded?.nonce || '') === String(d.email_verification_nonce || '');
+      } catch {
+        ok = false;
+      }
+    } else {
+      return res.status(400).json({ error: 'Provide verification code or magic link token' });
+    }
+
+    if (!ok) {
+      await ref.set(
+        {
+          email_verification_attempts: Number(d.email_verification_attempts || 0) + 1,
+          updated_at: now,
+        },
+        { merge: true },
+      );
+      return res.status(400).json({ error: 'Invalid verification code or magic link' });
+    }
+
+    const alreadyRewarded = typeof d.email_verification_rewarded_at === 'number' && d.email_verification_rewarded_at > 0;
+    const rewardCoins = alreadyRewarded ? 0 : EMAIL_VERIFY_REWARD_COINS;
+    const updatedCoins = Number(d.coins || 0) + rewardCoins;
+
+    await ref.set(
+      {
+        email_verified: true,
+        email_verified_at: now,
+        email_verification_code_hash: null,
+        email_verification_nonce: null,
+        email_verification_expires_at: null,
+        email_verification_attempts: 0,
+        coins: updatedCoins,
+        email_verification_rewarded_at: alreadyRewarded ? d.email_verification_rewarded_at : now,
+        updated_at: now,
+      },
+      { merge: true },
+    );
+
+    return res.json({
+      success: true,
+      emailVerified: true,
+      rewardCoins,
+      rewardApplied: rewardCoins > 0,
+      coins: updatedCoins,
+    });
+  } catch (error) {
+    console.error('Failed to verify email:', error);
+    return res.status(500).json({ error: 'Failed to verify email' });
   }
 });
 

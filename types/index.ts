@@ -23,6 +23,8 @@ export interface User {
   currentGameId?: string;
   firebaseUid?: string; // Firebase Auth UID for Google Sign-In users
   email?: string; // Email for Google Sign-In users
+  emailVerified?: boolean; // Whether email has been verified
+  emailVerificationRewardedAt?: number; // First-time verification reward timestamp
   photoURL?: string; // Profile photo URL for Google Sign-In users
   currentServerId?: string; // Server ID user is currently on
   recentlyPlayed?: string[]; // Array of game IDs (ts as string) the user has played

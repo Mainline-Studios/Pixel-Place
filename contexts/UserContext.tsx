@@ -9,6 +9,7 @@ import { containsEmoji } from '@/lib/utils';
 import { setAuthToken, removeAuthToken, getAuthToken, decodeJwtUsernameFromToken } from '@/lib/api';
 import { getDeviceFingerprint } from '@/lib/deviceFingerprint';
 import LoadingScreenWithGame from '@/components/LoadingScreenWithGame';
+import { usePathname } from 'next/navigation';
 
 export interface BannedSession {
   username: string;
@@ -35,6 +36,8 @@ interface UserContextType {
 const UserContext = createContext<UserContextType | undefined>(undefined);
 
 export function UserProvider({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
+  const bypassReadySplash = pathname === '/signoutall' || pathname?.startsWith('/signoutall/');
   // Restore user from sessionStorage on mount
   const getInitialUser = async (): Promise<User | null> => {
     if (typeof window === 'undefined') return null;
@@ -260,17 +263,39 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       const fingerprint = typeof getDeviceFingerprint === 'function'
         ? getDeviceFingerprint()
         : { deviceId: '', label: '' };
-      const authRes = await fetch(apiUrl('/api/auth'), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          username,
-          password,
-          action: 'login',
-          deviceId: fingerprint.deviceId || undefined,
-          deviceLabel: fingerprint.label || undefined,
-        }),
-      });
+      const authPayload = {
+        username,
+        password,
+        action: 'login',
+        deviceId: fingerprint.deviceId || undefined,
+        deviceLabel: fingerprint.label || undefined,
+      };
+      const callAuth = async (path: string, timeoutMs?: number) => {
+        const controller = new AbortController();
+        const t = typeof timeoutMs === 'number' ? window.setTimeout(() => controller.abort(), timeoutMs) : null;
+        try {
+          return await fetch(apiUrl(path), {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(authPayload),
+            signal: controller.signal,
+          });
+        } finally {
+          if (t) window.clearTimeout(t);
+        }
+      };
+
+      let authRes: Response;
+      try {
+        authRes = await callAuth('/api/auth', 8000);
+      } catch (error: any) {
+        if (error?.name === 'AbortError') {
+          authRes = await callAuth('/api/auth/firestore-login');
+        } else {
+          throw error;
+        }
+      }
+
       const authData = await authRes.json().catch(() => ({}));
       if (authRes.ok && authData.success && authData.token && authData.user) {
         setAuthToken(authData.token);
@@ -534,7 +559,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
   return (
     <UserContext.Provider value={{ user, setUser, login, loginWithGoogle, createAccount, updateUser, gettingReady, userAcceptedReady, setUserAcceptedReady, bannedSession, clearBannedSession: () => setBannedSession(null), deviceBannedSession, clearDeviceBannedSession: () => setDeviceBannedSession(null), isRestoring }}>
       {children}
-      {user && !userAcceptedReady ? (
+      {user && !userAcceptedReady && !bypassReadySplash ? (
         <LoadingScreenWithGame gettingReady={gettingReady} onGoToApp={() => setUserAcceptedReady(true)} />
       ) : null}
     </UserContext.Provider>
