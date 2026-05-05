@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import Avatar3DViewer from '@/components/Avatar3DViewer';
+import BlenderAnimationViewer from './BlenderAnimationViewer';
 import { useUser } from '@/contexts/UserContext';
 import { getSkins } from '@/lib/storage';
 import { Skin, User } from '@/types';
@@ -13,11 +14,11 @@ interface AnimationTestProps {
 
 const DEFAULT_SKIN_ID = 'pixel_placer';
 
-const ANIMATION_OPTIONS: Array<{ id: string; label: string }> = [
-  { id: 'idle', label: 'Idle (loop)' },
-  { id: 'walk', label: 'Walk (loop)' },
-  { id: 'jump', label: 'Jump (loop)' },
-  { id: 'none', label: 'No Animation' },
+const ANIMATION_OPTIONS: Array<{ id: string; label: string; modelUrl: string }> = [
+  { id: 'idle', label: 'Idle (loop)', modelUrl: '/models/pixel-placer/Pixel Place Default - Idle.glb' },
+  { id: 'walk', label: 'Walk (loop)', modelUrl: '/models/pixel-placer/Pixel Place Default - Walk.glb' },
+  { id: 'jump', label: 'Jump (loop)', modelUrl: '/models/pixel-placer/Pixel Place Default - Jump.glb' },
+  { id: 'none', label: 'No Animation', modelUrl: '/models/pixel-placer/Pixel Place Default - No Animation.glb' },
 ];
 
 export default function AnimationTest({ user, onClose }: AnimationTestProps) {
@@ -26,6 +27,8 @@ export default function AnimationTest({ user, onClose }: AnimationTestProps) {
   const [selectedSkinId, setSelectedSkinId] = useState(DEFAULT_SKIN_ID);
   const [animation, setAnimation] = useState('idle');
   const [status, setStatus] = useState('');
+  const [assetError, setAssetError] = useState('');
+  const [useBlenderClip, setUseBlenderClip] = useState(true);
 
   useEffect(() => {
     let active = true;
@@ -52,6 +55,12 @@ export default function AnimationTest({ user, onClose }: AnimationTestProps) {
     allowedSkins.find((skin) => skin.id === selectedSkinId) ||
     allowedSkins[0] ||
     null;
+  const selectedAnimationAsset = ANIMATION_OPTIONS.find((option) => option.id === animation) || ANIMATION_OPTIONS[0];
+
+  useEffect(() => {
+    setUseBlenderClip(true);
+    setAssetError('');
+  }, [animation]);
 
   useEffect(() => {
     if (!selectedSkin && allowedSkins.length === 0) return;
@@ -108,13 +117,26 @@ export default function AnimationTest({ user, onClose }: AnimationTestProps) {
           }}
         >
           {selectedSkin ? (
-            <Avatar3DViewer
-              skin={selectedSkin}
-              width={320}
-              height={320}
-              interactive
-              animation={animation}
-            />
+            useBlenderClip ? (
+              <BlenderAnimationViewer
+                modelUrl={selectedAnimationAsset.modelUrl}
+                width={320}
+                height={320}
+                onReady={() => setAssetError('')}
+                onError={(msg) => {
+                  setAssetError(msg);
+                  setUseBlenderClip(false);
+                }}
+              />
+            ) : (
+              <Avatar3DViewer
+                skin={selectedSkin}
+                width={320}
+                height={320}
+                interactive
+                animation={animation}
+              />
+            )
           ) : (
             <span style={{ color: 'var(--text-dim)' }}>Loading Pixel Placer...</span>
           )}
@@ -170,6 +192,11 @@ export default function AnimationTest({ user, onClose }: AnimationTestProps) {
           </div>
 
           {status ? <div style={{ fontSize: 12, color: '#86efac' }}>{status}</div> : null}
+          {assetError ? (
+            <div style={{ fontSize: 12, color: '#fca5a5' }}>
+              {assetError} Add the exported file at <code>{selectedAnimationAsset.modelUrl}</code>.
+            </div>
+          ) : null}
         </div>
       </div>
     </div>
