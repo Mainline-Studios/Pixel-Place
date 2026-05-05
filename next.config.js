@@ -1,6 +1,11 @@
 /** @type {import('next').NextConfig} */
+const isAppHostingBuild =
+  process.env.NEXT_PRIVATE_STANDALONE === 'true' ||
+  process.env.NEXT_PRIVATE_STANDALONE === '1' ||
+  Boolean(process.env.FIREBASE_WEBAPP_CONFIG);
+
 const nextConfig = {
-  output: 'export',
+  output: isAppHostingBuild ? 'standalone' : 'export',
   images: {
     unoptimized: true
   },
