@@ -285,22 +285,64 @@ function buildVerificationMessage(params: {
   magicLink: string;
   email: string;
 }): { subject: string; text: string; html: string } {
-  const appName = process.env.APP_NAME || 'Pixel Place';
-  const subject = `Verify your ${appName} email`;
+  const subject = 'Verify Your Pixel Place Account';
+  const recoverUrl = 'https://pixelplaceofficial.com/signoutall';
   const text =
-    `Hi ${params.username},\n\n` +
-    `Use this code to verify your email: ${params.code}\n\n` +
-    `Or open this magic link:\n${params.magicLink}\n\n` +
-    `The code/link expires in 20 minutes.\n` +
-    `Once verified, you get ${EMAIL_VERIFY_REWARD_COINS} Pixel Coins.\n`;
-  const html =
-    `<p>Hi <strong>${params.username}</strong>,</p>` +
-    `<p>Use this code to verify your email:</p>` +
-    `<p style="font-size:20px;font-weight:700;letter-spacing:2px">${params.code}</p>` +
-    `<p>Or use this magic link:</p>` +
-    `<p><a href="${params.magicLink}">${params.magicLink}</a></p>` +
-    `<p>This expires in 20 minutes.</p>` +
-    `<p>Reward: <strong>${EMAIL_VERIFY_REWARD_COINS} Pixel Coins</strong></p>`;
+    `Verify Your Pixel Place Account\n\n` +
+    `Welcome to Pixel Place! To complete your account setup, please use the magic link or secret code below.\n` +
+    `Magic Link:\n` +
+    `${params.magicLink}\n` +
+    `Or use your one-time code\n` +
+    `One Time code:\n${params.code}\n` +
+    `This code is valid for a limited time. If the link or code expires, you can request a new one.\n` +
+    `If this looks suspicious or you didn’t choose to verify your account, click\n` +
+    `Recover and Sign Out:\n${recoverUrl}\n\n` +
+    `Pixel Place Customer Support\nThis is an automated message. Please do not reply directly.\nPixel Place by Mainline Studios`;
+  const html = `<!doctype html>
+<html>
+  <body style="margin:0;padding:0;background:#f0f1f5;font-family:'Open Sans',Arial,Helvetica,sans-serif;color:#3d3a3b;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f0f1f5;padding:20px 0;">
+      <tr>
+        <td align="center">
+          <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;background:#ffffff;">
+            <tr>
+              <td style="padding:16px 24px;background:#e3e8e8;text-align:right;font-size:18px;font-weight:700;">
+                Verify Your Pixel Place Account
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:24px;text-align:center;line-height:1.5;">
+                <p>Welcome to Pixel Place! To complete your account setup, please use the magic link or secret code below.</p>
+                <p style="margin-top:14px;">Magic Link:</p>
+                <p style="margin-top:12px;">
+                  <a href="${params.magicLink}" target="_blank" rel="noopener" style="display:inline-block;padding:13px 28px;border-radius:999px;background:linear-gradient(90deg,#c840d4,#e970f7,#f7b5fd);color:#fff;text-decoration:none;font-size:18px;">
+                    Click Here
+                  </a>
+                </p>
+                <p style="margin-top:18px;">Or use your one-time code</p>
+                <p style="font-size:18px;font-weight:700;letter-spacing:1.2px;">One Time code:<br>${params.code}</p>
+                <p>This code is valid for a limited time. If the link or code expires, you can request a new one.</p>
+                <p>If this looks suspicious or you didn’t choose to verify your account, click</p>
+                <p style="margin-top:12px;">
+                  <a href="${recoverUrl}" target="_blank" rel="noopener" style="display:inline-block;padding:12px 24px;border-radius:12px;border:2px solid #343434;background:#c2e1ff;color:#000;text-decoration:none;font-size:18px;">
+                    Recover and Sign Out
+                  </a>
+                </p>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:20px;background:#cdd3d8;text-align:center;font-size:11px;line-height:1.4;color:#000;">
+                Pixel Place Customer Support<br>
+                This is an automated message. Please do not reply directly.<br>
+                Pixel Place by Mainline Studios
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>`;
   return { subject, text, html };
 }
 
@@ -311,6 +353,9 @@ async function dispatchVerificationEmail(payload: {
   magicLink: string;
 }): Promise<{ sent: boolean; preview?: any }> {
   const webhookUrl = process.env.EMAIL_VERIFICATION_WEBHOOK_URL;
+  const fromEmail = String(process.env.EMAIL_VERIFICATION_FROM || 'boehmlaird@gmail.com').trim();
+  const fromName = String(process.env.EMAIL_VERIFICATION_FROM_NAME || 'Pixel Place').trim();
+  const from = fromName ? `${fromName} <${fromEmail}>` : fromEmail;
   const message = buildVerificationMessage({
     username: payload.username,
     code: payload.code,
@@ -324,7 +369,7 @@ async function dispatchVerificationEmail(payload: {
       preview:
         process.env.NODE_ENV === 'production'
           ? undefined
-          : { to: payload.to, ...message, code: payload.code, magicLink: payload.magicLink },
+          : { from, to: payload.to, ...message, code: payload.code, magicLink: payload.magicLink },
     };
   }
 
@@ -332,6 +377,7 @@ async function dispatchVerificationEmail(payload: {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({
+      from,
       to: payload.to,
       subject: message.subject,
       text: message.text,
