@@ -1,0 +1,10 @@
+env:
+  # Ensure build-time tooling in devDependencies is available during App Hosting builds.
+  - variable: NPM_CONFIG_INCLUDE
+    value: dev
+    availability:
+      - BUILD
+  - variable: NPM_CONFIG_PRODUCTION
+    value: "false"
+    availability:
+      - BUILD
