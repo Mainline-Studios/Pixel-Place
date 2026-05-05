@@ -126,8 +126,9 @@ export default function Avatar3DViewer({
 
         // Camera setup - adjusted to see top of hat and bottom of legs
         const camera = new THREE.PerspectiveCamera(55, width / height, 0.1, 1000);
-        camera.position.set(0, 3.2, 7);
-        camera.lookAt(0, 1.5, 0);
+        const isPixelPlacer = skin.id === 'pixel_placer';
+        camera.position.set(0, isPixelPlacer ? 3.0 : 3.2, isPixelPlacer ? 6.4 : 7);
+        camera.lookAt(0, isPixelPlacer ? 1.35 : 1.5, 0);
         cameraRef.current = camera;
 
         // Lighting - soft ambient + directional
@@ -145,6 +146,10 @@ export default function Avatar3DViewer({
 
         // Create character group
         characterGroup = new THREE.Group();
+        if (isPixelPlacer) {
+          // Pixel Placer reads a touch larger than most catalog skins.
+          characterGroup.scale.setScalar(0.92);
+        }
         scene.add(characterGroup);
         characterGroupRef.current = characterGroup;
 

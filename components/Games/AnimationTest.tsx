@@ -29,6 +29,7 @@ export default function AnimationTest({ user, onClose }: AnimationTestProps) {
   const [status, setStatus] = useState('');
   const [assetError, setAssetError] = useState('');
   const [useBlenderClip, setUseBlenderClip] = useState(true);
+  const [controlsEnabled, setControlsEnabled] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -93,6 +94,19 @@ export default function AnimationTest({ user, onClose }: AnimationTestProps) {
       <p style={{ margin: '0 0 12px', color: 'var(--text-dim)' }}>
         Pixel Placer is the current default avatar. Use this room to test idle, walk, jump, and no-animation states.
       </p>
+      <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+        <button
+          type="button"
+          className="btn"
+          onClick={() => setControlsEnabled((v) => !v)}
+          style={{
+            background: controlsEnabled ? 'rgba(34,197,94,0.22)' : undefined,
+            borderColor: controlsEnabled ? 'rgba(34,197,94,0.6)' : undefined,
+          }}
+        >
+          {controlsEnabled ? 'Disable WASD + Space Controls' : 'Enable WASD + Space Controls'}
+        </button>
+      </div>
 
       <div
         className="ai-box"
@@ -122,6 +136,7 @@ export default function AnimationTest({ user, onClose }: AnimationTestProps) {
                 modelUrl={selectedAnimationAsset.modelUrl}
                 width={320}
                 height={320}
+                enableControls={controlsEnabled}
                 onReady={() => setAssetError('')}
                 onError={(msg) => {
                   setAssetError(msg);
@@ -190,6 +205,11 @@ export default function AnimationTest({ user, onClose }: AnimationTestProps) {
           <div style={{ fontSize: 12, color: 'var(--text-dim)' }}>
             Currently available free test skin: <strong>Pixel Placer</strong>. More skins can be added here later.
           </div>
+          {controlsEnabled ? (
+            <div style={{ fontSize: 12, color: '#bfdbfe' }}>
+              Controls: W/S move forward-back, A/D turn, Space jump.
+            </div>
+          ) : null}
 
           {status ? <div style={{ fontSize: 12, color: '#86efac' }}>{status}</div> : null}
           {assetError ? (
