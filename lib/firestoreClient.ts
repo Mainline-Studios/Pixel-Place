@@ -179,18 +179,16 @@ export function subscribeToUsers(callback: (users: User[]) => void): () => void 
     usersRef,
     (snap) => {
       const payload = snap.val();
-      const rtdbMap = new Map<string, User>();
+      const rtdbIds = new Set<string>();
       if (payload && typeof payload === 'object') {
         Object.entries(payload).forEach(([id, data]) => {
-          rtdbMap.set(id, userFromDoc({ id, ...(data as Record<string, unknown>) }));
+          rtdbIds.add(id);
+          usersById.set(id, userFromDoc({ id, ...(data as Record<string, unknown>) }));
         });
       }
-      // Keep firestore users, overwrite with RTDB copies where present.
       for (const [id, user] of usersById.entries()) {
-        if (!(user as any).__fromFirestore) continue;
-        usersById.set(id, user);
+        if (!(user as any).__fromFirestore && !rtdbIds.has(id)) usersById.delete(id);
       }
-      rtdbMap.forEach((user, id) => usersById.set(id, user));
       emitMerged();
     },
     (err) => {
@@ -297,8 +295,15 @@ export function subscribeToBans(
     bansRef,
     (snap) => {
       const payload = snap.val();
+      const rtdbIds = new Set<string>();
       if (payload && typeof payload === 'object') {
-        Object.entries(payload).forEach(([id, data]) => bansById.set(id, data as Record<string, unknown>));
+        Object.entries(payload).forEach(([id, data]) => {
+          rtdbIds.add(id);
+          bansById.set(id, data as Record<string, unknown>);
+        });
+      }
+      for (const id of bansById.keys()) {
+        if (!rtdbIds.has(id)) bansById.delete(id);
       }
       emitMerged();
     },

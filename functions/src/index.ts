@@ -162,6 +162,13 @@ function createRtdbDocRef(collectionName: string, docId: string) {
     },
     async delete() {
       await realtimeDb.ref(`${collectionName}/${docId}`).remove();
+      try {
+        const fsRef = firestoreDb.collection(collectionName).doc(docId);
+        const fsSnap = await fsRef.get();
+        if (fsSnap.exists) await fsRef.delete();
+      } catch (e) {
+        console.warn(`Firestore fallback delete failed for ${collectionName}/${docId}:`, e);
+      }
     },
   };
 }
