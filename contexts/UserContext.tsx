@@ -263,16 +263,29 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       const fingerprint = typeof getDeviceFingerprint === 'function'
         ? getDeviceFingerprint()
         : { deviceId: '', label: '' };
-      const authRes = await fetch(apiUrl('/api/auth/firestore-login'), {
+      const authPayload = {
+        username,
+        password,
+        deviceId: fingerprint.deviceId || undefined,
+        deviceLabel: fingerprint.label || undefined,
+      };
+      let authRes = await fetch(apiUrl('/api/auth/firestore-login'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          username,
-          password,
-          deviceId: fingerprint.deviceId || undefined,
-          deviceLabel: fingerprint.label || undefined,
-        }),
+        body: JSON.stringify(authPayload),
       });
+      // App Hosting/Next API route deployments may not expose this path.
+      // Fall back to the standard auth route contract in that case.
+      if (authRes.status === 404 || authRes.status === 405) {
+        authRes = await fetch(apiUrl('/api/auth'), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            ...authPayload,
+            action: 'login',
+          }),
+        });
+      }
 
       const authData = await authRes.json().catch(() => ({}));
       if (authRes.ok && authData.success && authData.token && authData.user) {
