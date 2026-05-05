@@ -1,6 +1,8 @@
 /** @type {import('next').NextConfig} */
+const nextOutputMode = process.env.NEXT_OUTPUT_MODE === 'standalone' ? 'standalone' : 'export';
+
 const nextConfig = {
-  output: 'export',
+  output: nextOutputMode,
   images: {
     unoptimized: true
   },
