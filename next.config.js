@@ -1,6 +1,10 @@
 /** @type {import('next').NextConfig} */
+const isFirebaseAppHostingBuild = Boolean(process.env.FIREBASE_WEBAPP_CONFIG);
+
 const nextConfig = {
-  output: 'export',
+  // App Hosting expects framework-native Next.js output.
+  // Keep static export for our Firebase Hosting pipeline.
+  ...(isFirebaseAppHostingBuild ? {} : { output: 'export' }),
   images: {
     unoptimized: true
   },
