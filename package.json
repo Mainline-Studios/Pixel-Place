@@ -2,6 +2,9 @@
     "name": "pixel-place",
     "version": "0.1.0",
     "private": true,
+    "engines": {
+        "node": "20"
+    },
     "license": "CC-BY-NC-ND-4.0",
     "scripts": {
         "dev": "node server-integrated.js",
