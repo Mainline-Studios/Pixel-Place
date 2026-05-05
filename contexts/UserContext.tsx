@@ -263,38 +263,16 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       const fingerprint = typeof getDeviceFingerprint === 'function'
         ? getDeviceFingerprint()
         : { deviceId: '', label: '' };
-      const authPayload = {
-        username,
-        password,
-        action: 'login',
-        deviceId: fingerprint.deviceId || undefined,
-        deviceLabel: fingerprint.label || undefined,
-      };
-      const callAuth = async (path: string, timeoutMs?: number) => {
-        const controller = new AbortController();
-        const t = typeof timeoutMs === 'number' ? window.setTimeout(() => controller.abort(), timeoutMs) : null;
-        try {
-          return await fetch(apiUrl(path), {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(authPayload),
-            signal: controller.signal,
-          });
-        } finally {
-          if (t) window.clearTimeout(t);
-        }
-      };
-
-      let authRes: Response;
-      try {
-        authRes = await callAuth('/api/auth', 8000);
-      } catch (error: any) {
-        if (error?.name === 'AbortError') {
-          authRes = await callAuth('/api/auth/firestore-login');
-        } else {
-          throw error;
-        }
-      }
+      const authRes = await fetch(apiUrl('/api/auth/firestore-login'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          username,
+          password,
+          deviceId: fingerprint.deviceId || undefined,
+          deviceLabel: fingerprint.label || undefined,
+        }),
+      });
 
       const authData = await authRes.json().catch(() => ({}));
       if (authRes.ok && authData.success && authData.token && authData.user) {
