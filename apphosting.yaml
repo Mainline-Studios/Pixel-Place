@@ -1,0 +1,7 @@
+# Force Next.js server output for Firebase App Hosting rollouts.
+# The repo default remains static export unless NEXT_OUTPUT_MODE is set.
+env:
+  - variable: NEXT_OUTPUT_MODE
+    value: standalone
+    availability:
+      - BUILD
