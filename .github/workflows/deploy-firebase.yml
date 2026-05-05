@@ -40,6 +40,7 @@ jobs:
           firebase deploy --token "$FIREBASE_TOKEN" --non-interactive 2>&1 | tee deploy.log || true
         env:
           CI: true
+          NEXT_OUTPUT_EXPORT: "1"
           NEXT_PUBLIC_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL }}
           NEXT_PUBLIC_BASE_URL: ${{ secrets.NEXT_PUBLIC_BASE_URL }}
           NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY }}
