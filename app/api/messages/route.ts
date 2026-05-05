@@ -1,7 +1,15 @@
 export const dynamic = 'force-static';
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getDocuments, addDocument, updateDocument, queryDocuments, COLLECTIONS, getFirestoreInstance } from '@/lib/firestore';
+import {
+  getDocuments,
+  addDocument,
+  updateDocument,
+  queryDocuments,
+  getDocument,
+  COLLECTIONS,
+  getFirestoreInstance,
+} from '@/lib/firestore';
 import { filterForDisplayServer } from '@/lib/pyx';
 import { Message } from '@/types';
 
@@ -16,6 +24,33 @@ function messageFromDoc(doc: any): Message {
   };
 }
 
+function normalizeBlockedWords(raw: unknown): string[] {
+  if (Array.isArray(raw)) return raw.map((w) => String(w || '').trim().toLowerCase()).filter(Boolean);
+  if (typeof raw === 'string') {
+    return raw
+      .split(',')
+      .map((w) => w.trim().toLowerCase())
+      .filter(Boolean);
+  }
+  return [];
+}
+
+function includesBlockedWord(text: string, blockedWords: string[]): boolean {
+  const lower = text.toLowerCase();
+  return blockedWords.some((word) => word && lower.includes(word));
+}
+
+function maskBlockedWords(text: string, blockedWords: string[]): string {
+  if (!blockedWords.length) return text;
+  let output = text;
+  for (const word of blockedWords) {
+    if (!word) continue;
+    const escaped = word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    output = output.replace(new RegExp(escaped, 'gi'), (match) => '*'.repeat(Math.max(3, match.length)));
+  }
+  return output;
+}
+
 // GET - Get messages for a user (all or with a specific user)
 export async function GET(request: NextRequest) {
   try {
@@ -28,6 +63,8 @@ export async function GET(request: NextRequest) {
     }
 
     const db = getFirestoreInstance();
+    const viewerDoc = await getDocument(COLLECTIONS.USERS, username.toLowerCase());
+    const viewerBlockedWords = normalizeBlockedWords((viewerDoc as any)?.chat_blocked_words);
     let query: any;
     
     if (withUsername) {
@@ -48,10 +85,12 @@ export async function GET(request: NextRequest) {
         ...receivedSnapshot.docs.map(doc => messageFromDoc({ id: doc.id, ...doc.data() }))
       ];
       messages.sort((a, b) => a.timestamp - b.timestamp);
-      const filtered = await Promise.all(messages.map(async (m) => ({
-        ...m,
-        message: await filterForDisplayServer(m.message),
-      })));
+      const filtered = await Promise.all(
+        messages.map(async (m) => ({
+          ...m,
+          message: maskBlockedWords(await filterForDisplayServer(m.message), viewerBlockedWords),
+        })),
+      );
       return NextResponse.json(filtered);
     } else {
       // Get all messages for the user
@@ -74,10 +113,12 @@ export async function GET(request: NextRequest) {
       messages.sort((a, b) => a.timestamp - b.timestamp);
     }
 
-    const filtered = await Promise.all(messages.map(async (m) => ({
-      ...m,
-      message: await filterForDisplayServer(m.message),
-    })));
+    const filtered = await Promise.all(
+      messages.map(async (m) => ({
+        ...m,
+        message: maskBlockedWords(await filterForDisplayServer(m.message), viewerBlockedWords),
+      })),
+    );
     return NextResponse.json(filtered);
   } catch (error) {
     console.error('Error getting messages:', error);
@@ -101,6 +142,15 @@ export async function POST(request: NextRequest) {
 
     if (!message.trim()) {
       return NextResponse.json({ error: 'Message cannot be empty' }, { status: 400 });
+    }
+
+    const senderDoc = await getDocument(COLLECTIONS.USERS, fromUsername.toLowerCase());
+    const blockedWords = normalizeBlockedWords((senderDoc as any)?.chat_blocked_words);
+    if (includesBlockedWord(message.trim(), blockedWords)) {
+      return NextResponse.json(
+        { error: 'Message contains a blocked word from your Safety settings.' },
+        { status: 400 },
+      );
     }
 
     const messageId = await addDocument(COLLECTIONS.MESSAGES, {

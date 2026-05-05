@@ -40,6 +40,8 @@ function userFromDoc(doc: any): User {
     friendRequests: Array.isArray(doc.friend_requests) ? doc.friend_requests : (typeof doc.friend_requests === 'string' ? JSON.parse(doc.friend_requests || '[]') : []),
     sentFriendRequests: Array.isArray(doc.sent_friend_requests) ? doc.sent_friend_requests : (typeof doc.sent_friend_requests === 'string' ? JSON.parse(doc.sent_friend_requests || '[]') : []),
     favoriteGameIds: Array.isArray(doc.favorite_game_ids) ? doc.favorite_game_ids : (typeof doc.favorite_game_ids === 'string' ? JSON.parse(doc.favorite_game_ids || '[]') : []),
+    chatBlockedWords: Array.isArray(doc.chat_blocked_words) ? doc.chat_blocked_words : (typeof doc.chat_blocked_words === 'string' ? JSON.parse(doc.chat_blocked_words || '[]') : []),
+    emailVerified: doc.email_verified === true,
     ppafLastRestoreIssuedAt: typeof doc.ppaf_last_restore_issued_at === 'number' ? doc.ppaf_last_restore_issued_at : undefined,
   };
 }
@@ -106,6 +108,14 @@ export async function POST(request: NextRequest) {
         friend_requests: updatedUser.friendRequests || [],
         sent_friend_requests: updatedUser.sentFriendRequests || [],
         favorite_game_ids: updatedUser.favoriteGameIds || [],
+        chat_blocked_words:
+          updatedUser.chatBlockedWords !== undefined
+            ? updatedUser.chatBlockedWords
+            : (existing.chat_blocked_words ?? []),
+        email_verified:
+          updatedUser.emailVerified !== undefined
+            ? updatedUser.emailVerified === true
+            : existing.email_verified === true,
         is_donor: updatedUser.role === 'admin' ? 1 : 0,
         ppaf_last_restore_issued_at:
           typeof (updatedUser as any).ppafLastRestoreIssuedAt === 'number'
@@ -141,6 +151,8 @@ export async function POST(request: NextRequest) {
         friend_requests: newUser.friendRequests || [],
         sent_friend_requests: newUser.sentFriendRequests || [],
         favorite_game_ids: newUser.favoriteGameIds || [],
+        chat_blocked_words: newUser.chatBlockedWords || [],
+        email_verified: newUser.emailVerified === true,
         is_donor: (newUser.role === 'admin' || newUser.role === 'head_admin') ? 1 : 0,
         ppaf_last_restore_issued_at:
           typeof (newUser as any).ppafLastRestoreIssuedAt === 'number'
@@ -208,6 +220,14 @@ export async function PUT(request: NextRequest) {
       friend_requests: updatedUser.friendRequests || [],
       sent_friend_requests: updatedUser.sentFriendRequests || [],
       favorite_game_ids: updatedUser.favoriteGameIds || [],
+      chat_blocked_words:
+        updatedUser.chatBlockedWords !== undefined
+          ? updatedUser.chatBlockedWords
+          : (existing.chat_blocked_words ?? []),
+      email_verified:
+        updatedUser.emailVerified !== undefined
+          ? updatedUser.emailVerified === true
+          : existing.email_verified === true,
       is_donor: (updatedUser.role === 'admin' || updatedUser.role === 'head_admin') ? 1 : 0,
       ppaf_last_restore_issued_at:
         typeof (updatedUser as any).ppafLastRestoreIssuedAt === 'number'

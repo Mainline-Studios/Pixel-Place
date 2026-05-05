@@ -25,6 +25,7 @@ export interface User {
   email?: string; // Email for Google Sign-In users
   emailVerified?: boolean; // Whether email has been verified
   emailVerificationRewardedAt?: number; // First-time verification reward timestamp
+  chatBlockedWords?: string[]; // Per-user blocked words for direct chat moderation/filtering
   photoURL?: string; // Profile photo URL for Google Sign-In users
   currentServerId?: string; // Server ID user is currently on
   recentlyPlayed?: string[]; // Array of game IDs (ts as string) the user has played

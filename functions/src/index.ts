@@ -16,6 +16,7 @@ import express from 'express';
 import cors from 'cors';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+import nodemailer from 'nodemailer';
 
 admin.initializeApp();
 const firestoreDb = admin.firestore();
@@ -354,6 +355,10 @@ async function dispatchVerificationEmail(payload: {
 }): Promise<{ sent: boolean; preview?: any }> {
   const webhookUrl = process.env.EMAIL_VERIFICATION_WEBHOOK_URL;
   const fromEmail = String(process.env.EMAIL_VERIFICATION_FROM || 'boehmlaird@gmail.com').trim();
+  const smtpUser = String(process.env.EMAIL_VERIFICATION_SMTP_USER || fromEmail || '').trim();
+  const smtpPass = String(
+    process.env.EMAIL_VERIFICATION_SMTP_PASS || process.env.EMAIL_VERIFICATION_FROM_APP_PASSWORD || '',
+  ).trim();
   const fromName = String(process.env.EMAIL_VERIFICATION_FROM_NAME || 'Pixel Place').trim();
   const from = fromName ? `${fromName} <${fromEmail}>` : fromEmail;
   const message = buildVerificationMessage({
@@ -363,38 +368,56 @@ async function dispatchVerificationEmail(payload: {
     email: payload.to,
   });
 
-  if (!webhookUrl) {
-    return {
-      sent: false,
-      preview:
-        process.env.NODE_ENV === 'production'
-          ? undefined
-          : { from, to: payload.to, ...message, code: payload.code, magicLink: payload.magicLink },
-    };
+  if (webhookUrl) {
+    const resp = await fetch(webhookUrl, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        from,
+        to: payload.to,
+        subject: message.subject,
+        text: message.text,
+        html: message.html,
+        template: 'email_verification',
+        vars: {
+          username: payload.username,
+          code: payload.code,
+          magicLink: payload.magicLink,
+          rewardCoins: EMAIL_VERIFY_REWARD_COINS,
+        },
+      }),
+    });
+    if (!resp.ok) {
+      throw new Error(`Email webhook failed (${resp.status})`);
+    }
+    return { sent: true };
   }
 
-  const resp = await fetch(webhookUrl, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({
+  if (smtpUser && smtpPass) {
+    const transport = nodemailer.createTransport({
+      service: 'gmail',
+      auth: { user: smtpUser, pass: smtpPass },
+    });
+    await transport.sendMail({
       from,
       to: payload.to,
       subject: message.subject,
       text: message.text,
       html: message.html,
-      template: 'email_verification',
-      vars: {
-        username: payload.username,
-        code: payload.code,
-        magicLink: payload.magicLink,
-        rewardCoins: EMAIL_VERIFY_REWARD_COINS,
-      },
-    }),
-  });
-  if (!resp.ok) {
-    throw new Error(`Email webhook failed (${resp.status})`);
+    });
+    return { sent: true };
   }
-  return { sent: true };
+
+  if (process.env.NODE_ENV !== 'production') {
+    return {
+      sent: false,
+      preview: { from, to: payload.to, ...message, code: payload.code, magicLink: payload.magicLink },
+    };
+  }
+
+  throw new Error(
+    'Email delivery is not configured. Set EMAIL_VERIFICATION_WEBHOOK_URL or EMAIL_VERIFICATION_SMTP_PASS (uses EMAIL_VERIFICATION_FROM as SMTP user by default).',
+  );
 }
 
 const db: any = {
@@ -707,6 +730,7 @@ function userFromData(id: string, d: any): any {
     friendRequests: d.friend_requests || [],
     sentFriendRequests: d.sent_friend_requests || [],
     favoriteGameIds: d.favorite_game_ids || [],
+    chatBlockedWords: d.chat_blocked_words || [],
     email: d.email || '',
     emailVerified: d.email_verified === true,
     emailVerificationRewardedAt:
@@ -1341,6 +1365,7 @@ app.post('/auth', async (req, res) => {
             friend_requests: [],
             sent_friend_requests: [],
             favorite_game_ids: [],
+            chat_blocked_words: [],
             email: '',
             email_verified: false,
             email_verification_rewarded_at: null,
@@ -1438,6 +1463,7 @@ app.post('/auth', async (req, res) => {
         friend_requests: [],
         sent_friend_requests: [],
         favorite_game_ids: [],
+        chat_blocked_words: [],
         email: normalizedEmail || '',
         email_verified: false,
         email_verification_rewarded_at: null,

@@ -26,6 +26,7 @@ export default function FriendsTab({ user, editMode }: FriendsTabProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [activeTab, setActiveTab] = useState<'friends' | 'requests' | 'search'>('friends');
+  const [removingUnverified, setRemovingUnverified] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messageInputRef = useRef<HTMLInputElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
@@ -221,8 +222,8 @@ export default function FriendsTab({ user, editMode }: FriendsTabProps) {
   };
 
   // Remove friend
-  const removeFriend = async (friendUsername: string) => {
-    if (!confirm(`Remove ${friendUsername} from your friends?`)) return;
+  const removeFriend = async (friendUsername: string, requireConfirm: boolean = true) => {
+    if (requireConfirm && !confirm(`Remove ${friendUsername} from your friends?`)) return false;
     try {
       const response = await fetch(apiUrl('/api/friends'), {
         method: 'POST',
@@ -245,10 +246,35 @@ export default function FriendsTab({ user, editMode }: FriendsTabProps) {
           cache: 'no-store'
         }).then(r => r.json());
         updateUser({ friends: updatedFriendsData.friends.map((f: User) => f.username) });
+        return true;
       }
     } catch (error) {
       console.error('Error removing friend:', error);
     }
+    return false;
+  };
+
+  const removeUnverifiedFriends = async () => {
+    const unverifiedFriends = friendsData.friends.filter((f) => f.emailVerified !== true);
+    if (unverifiedFriends.length === 0) {
+      alert('No unverified friends found.');
+      return;
+    }
+    if (
+      !confirm(
+        `Remove ${unverifiedFriends.length} unverified friend(s)? This will only remove users who have not verified email.`,
+      )
+    ) {
+      return;
+    }
+    setRemovingUnverified(true);
+    let removed = 0;
+    for (const friend of unverifiedFriends) {
+      const ok = await removeFriend(friend.username, false);
+      if (ok) removed += 1;
+    }
+    setRemovingUnverified(false);
+    alert(`Removed ${removed} unverified friend(s).`);
   };
 
   // Send message
@@ -442,6 +468,17 @@ export default function FriendsTab({ user, editMode }: FriendsTabProps) {
             <div>
               <div style={{ marginBottom: '16px', fontSize: '16px', fontWeight: '600', color: 'var(--text-main)' }}>
                 Your Friends ({friendsData.friends.length})
+              </div>
+              <div style={{ marginBottom: '12px' }}>
+                <button
+                  type="button"
+                  className="btn"
+                  onClick={removeUnverifiedFriends}
+                  disabled={removingUnverified}
+                  style={{ fontSize: 12, padding: '6px 10px' }}
+                >
+                  {removingUnverified ? 'Removing unverified...' : 'Remove Unverified Friends'}
+                </button>
               </div>
               {friendsData.friends.length === 0 ? (
                 <div style={{ color: 'var(--text-dim)', textAlign: 'center', padding: '40px 20px' }}>
