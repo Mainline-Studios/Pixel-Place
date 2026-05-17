@@ -6,6 +6,7 @@ import Avatar3DViewer from '@/components/Avatar3DViewer';
 import { FilteredUsername } from '@/components/FilteredText';
 import { formatGenderForDisplay } from '@/lib/formatGenderDisplay';
 import LocalizeText from '@/components/LocalizeText';
+import { useStyle } from '@/components/StyleProvider';
 import { useState, useEffect } from 'react';
 
 interface SidebarProps {
@@ -14,6 +15,8 @@ interface SidebarProps {
 }
 
 export default function Sidebar({ user, onNavigate }: SidebarProps) {
+  const { style } = useStyle();
+  const loudSidebar = style === 'maximalist';
   const [skins, setSkins] = useState<Skin[]>([]);
   const [accessories, setAccessories] = useState<Accessory[]>([]);
 
@@ -73,6 +76,16 @@ export default function Sidebar({ user, onNavigate }: SidebarProps) {
         <LocalizeText text="Gender:" /> {formatGenderForDisplay(user.gender)}
       </div>
       <div className="sidebar-sep"></div>
+      {loudSidebar && (
+        <div className="sidebar-max-extra" aria-hidden>
+          <div className="sidebar-max-extra-title">Loot stash</div>
+          <div className="sidebar-max-extra-row">
+            <span className="sidebar-max-pill">🪙 {Number(user.coins ?? 0).toLocaleString('en-US')}</span>
+            <span className="sidebar-max-pill">{String(user.role || 'player').toUpperCase()}</span>
+          </div>
+          <div className="sidebar-max-extra-quote">&quot;More pixels, more problems.&quot;</div>
+        </div>
+      )}
       <div 
         className="sidebar-link" 
         onClick={() => onNavigate?.('friends')}

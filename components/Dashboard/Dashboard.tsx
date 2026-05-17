@@ -14,6 +14,8 @@ import SiteLicenseAttribution from '../SiteLicenseAttribution';
 import StatusPageLink from '../StatusPageLink';
 import LocalizeText from '@/components/LocalizeText';
 import { useSecretTheme } from '@/contexts/SecretThemeContext';
+import { useStyle } from '@/components/StyleProvider';
+import { HighContrastLandmarks, MaximalistChrome } from '@/components/ThemeLayoutChrome';
 import GamesTab from '../Tabs/GamesTab';
 import CreateTab from '../Tabs/CreateTab';
 import AvatarShopTab from '../Tabs/AvatarShopTab';
@@ -29,6 +31,11 @@ interface DashboardProps {
 export default function Dashboard({ user }: DashboardProps) {
   const { playTabSwitch } = useSound();
   const { secretTheme } = useSecretTheme();
+  const { style } = useStyle();
+  const isMinimalist = style === 'minimalist';
+  const isMaximalist = style === 'maximalist';
+  const isHighContrast = style === 'highcontrast';
+  const showAmbientParticles = !isMinimalist && !isHighContrast;
   const [currentTab, setCurrentTab] = useState<TabType>('games');
   const [editMode, setEditMode] = useState(false);
   const [showFounderCelebration, setShowFounderCelebration] = useState<boolean>(!!user?.showFounderCelebration);
@@ -146,33 +153,37 @@ export default function Dashboard({ user }: DashboardProps) {
 
   return (
     <div id="dashboard" className="dashboard-shell" style={{ position: 'relative' }}>
-      <FloatingParticles />
+      {showAmbientParticles ? <FloatingParticles /> : null}
       <TopBar
         currentTab={currentTab}
         onTabChange={handleTabChange}
         user={user}
       />
+      {isHighContrast ? <HighContrastLandmarks currentTab={currentTab} /> : null}
+      {isMaximalist ? <MaximalistChrome currentTab={currentTab} user={user} /> : null}
       <div className="body-row">
-        <div className="body-inner">
-          <Sidebar user={user} onNavigate={handleTabChange} />
-          <section className="main-card">
-            <div
-              className="ixel-ace-brand"
-              style={{
-                textAlign: 'center',
-                padding: '10px 16px',
-                marginBottom: '12px',
-                background: 'linear-gradient(90deg, rgba(255,60,60,0.2), rgba(255,80,80,0.15))',
-                border: '1px solid var(--border)',
-                borderRadius: 'var(--panel-radius)',
-                fontSize: '20px',
-                fontWeight: 700,
-                color: '#ff9090',
-                letterSpacing: '0.1em',
-              }}
-            >
-              ixel ace
-            </div>
+        <div className={`body-inner${isMinimalist ? ' body-inner--solo-main' : ''}`}>
+          {!isMinimalist ? <Sidebar user={user} onNavigate={handleTabChange} /> : null}
+          <section className="main-card" id="main-content">
+            {secretTheme === 'ixelace' ? (
+              <div
+                className="ixel-ace-brand"
+                style={{
+                  textAlign: 'center',
+                  padding: '10px 16px',
+                  marginBottom: '12px',
+                  background: 'linear-gradient(90deg, rgba(255,60,60,0.2), rgba(255,80,80,0.15))',
+                  border: '1px solid var(--border)',
+                  borderRadius: 'var(--panel-radius)',
+                  fontSize: '20px',
+                  fontWeight: 700,
+                  color: '#ff9090',
+                  letterSpacing: '0.1em',
+                }}
+              >
+                ixel ace
+              </div>
+            ) : null}
             {renderTabContent()}
           </section>
         </div>
@@ -186,27 +197,41 @@ export default function Dashboard({ user }: DashboardProps) {
         background: 'linear-gradient(180deg, transparent 0%, rgba(0,0,0,0.22) 100%)',
         borderTop: '1px solid var(--border)',
       }}>
-        <div style={{ marginBottom: 12, display: 'flex', justifyContent: 'center' }}>
-          <StatusPageLink />
-        </div>
-        <div style={{ marginBottom: 16, maxWidth: 720, marginLeft: 'auto', marginRight: 'auto' }}>
-          <SiteSocialLinks variant="urls" />
-        </div>
-        <div style={{ marginBottom: 14 }}>
-          <BrandKitDownloadLink variant="dashboard" />
-        </div>
+        {!isMinimalist ? (
+          <>
+            <div style={{ marginBottom: 12, display: 'flex', justifyContent: 'center' }}>
+              <StatusPageLink />
+            </div>
+            <div style={{ marginBottom: 16, maxWidth: 720, marginLeft: 'auto', marginRight: 'auto' }}>
+              <SiteSocialLinks variant="urls" />
+            </div>
+            <div style={{ marginBottom: 14 }}>
+              <BrandKitDownloadLink variant="dashboard" />
+            </div>
+          </>
+        ) : (
+          <div style={{ marginBottom: 12, display: 'flex', justifyContent: 'center' }}>
+            <StatusPageLink />
+          </div>
+        )}
         <div style={{ marginBottom: 14, lineHeight: 1.65, maxWidth: 640, marginLeft: 'auto', marginRight: 'auto' }}>
           <SiteLicenseAttribution />
         </div>
-        <div>
-          <span>
-            <LocalizeText text="Play. Create. Share." />
-          </span>
-          <span style={{ margin: '0 12px', opacity: 0.5 }}>•</span>
-          <span>
-            <LocalizeText text="Press G, C, V, P, F, O, or R to switch tabs" />
-          </span>
-        </div>
+        {!isMinimalist ? (
+          <div>
+            <span>
+              <LocalizeText text="Play. Create. Share." />
+            </span>
+            <span style={{ margin: '0 12px', opacity: 0.5 }}>•</span>
+            <span>
+              <LocalizeText text="Press G, C, V, P, F, O, or R to switch tabs" />
+            </span>
+          </div>
+        ) : (
+          <p style={{ margin: '10px 0 0', fontSize: 12, color: 'var(--text-dim)', lineHeight: 1.5 }}>
+            <LocalizeText text="Minimal theme hides the sidebar, ambient effects, and extra footer links. Open Settings → Style to change back." />
+          </p>
+        )}
       </footer>
       <ScrollToTop />
       {showFounderCelebration && (

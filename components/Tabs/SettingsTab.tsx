@@ -212,7 +212,9 @@ export default function SettingsTab({ user, editMode, onToggleEditMode }: Settin
       <div className="ai-box">
         <div className="ai-label">Style</div>
         <div className="ai-output" style={{ marginBottom: '12px' }}>
-          Pick a visual style for Pixel Place.
+          Pick a visual style for Pixel Place. High Contrast adds landmarks and stronger focus; Maximalist adds a ticker,
+          badges, and sidebar flair; Minimalist hides the sidebar, ambient particles, and most footer extras for a calm
+          layout.
         </div>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
           {STYLE_OPTIONS.map((opt) => (

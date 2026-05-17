@@ -1,4 +1,13 @@
-export type StyleTheme = 'modern' | 'futuristic' | 'normal' | '90s' | '80s' | 'lowcontrast';
+export type StyleTheme =
+  | 'modern'
+  | 'futuristic'
+  | 'normal'
+  | '90s'
+  | '80s'
+  | 'lowcontrast'
+  | 'highcontrast'
+  | 'maximalist'
+  | 'minimalist';
 
 const STORAGE_KEY = 'pixelplace_style';
 
@@ -9,6 +18,9 @@ export const STYLE_OPTIONS: { id: StyleTheme; label: string }[] = [
   { id: '90s', label: '90s' },
   { id: '80s', label: '80s' },
   { id: 'lowcontrast', label: 'Low Contrast' },
+  { id: 'highcontrast', label: 'High Contrast' },
+  { id: 'maximalist', label: 'Maximalist' },
+  { id: 'minimalist', label: 'Minimalist' },
 ];
 
 export function getStoredStyle(): StyleTheme {

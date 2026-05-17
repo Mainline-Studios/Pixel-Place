@@ -7,6 +7,7 @@ import Avatar3DViewer from '@/components/Avatar3DViewer';
 import { useUser } from '@/contexts/UserContext';
 import { useMobileBeta } from '@/contexts/MobileBetaContext';
 import { useSiteLanguage } from '@/contexts/SiteLanguageContext';
+import { useStyle } from '@/components/StyleProvider';
 import LocalizeText from '@/components/LocalizeText';
 import { isSupportedLocale } from '@/lib/locale';
 import { useState, useEffect, useRef, type CSSProperties } from 'react';
@@ -44,6 +45,9 @@ const TABS: { key: TabType; label: string; shortcut?: string; adminOnly?: boolea
 
 export default function TopBar({ currentTab, onTabChange, user }: TopBarProps) {
   const { setUser } = useUser();
+  const { style } = useStyle();
+  const compactNav = style === 'minimalist';
+  const loudNav = style === 'maximalist';
   const { isMobileBeta } = useMobileBeta();
   const { locale, setLocale, localeChoices } = useSiteLanguage();
   const [skins, setSkins] = useState<Skin[]>([]);
@@ -122,7 +126,7 @@ export default function TopBar({ currentTab, onTabChange, user }: TopBarProps) {
   return (
     <div className="topbar">
       <div className="topbar-inner">
-        <div className="brand" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+        <div className={`brand${loudNav ? ' brand--max' : ''}`} style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
           <Image
             src="/logo.png"
             alt="Pixel Place Logo"
@@ -132,6 +136,11 @@ export default function TopBar({ currentTab, onTabChange, user }: TopBarProps) {
             priority
           />
           <span>PIXEL PLACE</span>
+          {loudNav && (
+            <span className="brand-max-tag" aria-hidden>
+              EXTRA
+            </span>
+          )}
           {isMobileBeta && (
             <span
               style={{
@@ -159,10 +168,16 @@ export default function TopBar({ currentTab, onTabChange, user }: TopBarProps) {
                 data-tab={tab.key}
                 className={currentTab === tab.key ? 'active' : ''}
                 onClick={() => onTabChange(tab.key)}
-                title={tab.shortcut ? `${tab.label} (press ${tab.shortcut})` : tab.label}
+                title={
+                  compactNav
+                    ? tab.label
+                    : tab.shortcut
+                      ? `${tab.label} (press ${tab.shortcut})`
+                      : tab.label
+                }
               >
                 <LocalizeText text={tab.label} />
-                {tab.shortcut && (
+                {tab.shortcut && !compactNav && (
                   <span style={{ opacity: 0.55, fontSize: '9px', marginLeft: '3px', fontWeight: 500 }}>({tab.shortcut})</span>
                 )}
               </button>
@@ -173,7 +188,7 @@ export default function TopBar({ currentTab, onTabChange, user }: TopBarProps) {
             <span className="visually-hidden" style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden' }}>
               Language
             </span>
-            <span aria-hidden>🌐</span>
+            {!compactNav && <span aria-hidden>🌐</span>}
             <select
               value={locale}
               onChange={(e) => {
@@ -199,13 +214,22 @@ export default function TopBar({ currentTab, onTabChange, user }: TopBarProps) {
           </label>
           <button
             type="button"
-            className="topbar-coin-balance"
+            className={`topbar-coin-balance${loudNav ? ' topbar-coin-balance--max' : ''}`}
             onClick={() => onTabChange('coins')}
             title="Buy Pixel Coins — open Pixel Coins tab"
-            style={coinChipStyle}
+            style={
+              compactNav
+                ? {
+                    ...coinChipStyle,
+                    background: 'rgba(255,255,255,0.06)',
+                    border: '1px solid var(--border)',
+                    color: 'var(--text-main)',
+                  }
+                : coinChipStyle
+            }
           >
-            <span style={{ fontSize: '16px' }}>🪙</span>
-            <span>{(user.coins ?? 0).toLocaleString()}</span>
+            {!compactNav && <span style={{ fontSize: '16px' }}>🪙</span>}
+            <span>{compactNav ? `Coins ${(user.coins ?? 0).toLocaleString()}` : (user.coins ?? 0).toLocaleString()}</span>
           </button>
           <div ref={menuRef} style={{ position: 'relative' }}>
             <button
