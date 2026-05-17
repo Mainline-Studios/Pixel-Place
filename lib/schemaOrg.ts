@@ -1,4 +1,9 @@
-import { MAINLINE_STUDIOS_DISCORD, PIXEL_PLACE_GITHUB, PIXEL_PLACE_YOUTUBE } from '@/lib/siteLinks';
+import {
+  MAINLINE_STUDIOS_DISCORD,
+  PIXEL_PLACE_GITHUB,
+  PIXEL_PLACE_OFFICIAL_MUSIC_BEAT,
+  PIXEL_PLACE_YOUTUBE,
+} from '@/lib/siteLinks';
 
 export function getSchemaOrgJsonLd() {
   const baseUrl =
@@ -41,7 +46,12 @@ export function getSchemaOrgJsonLd() {
           'AI-powered coding assistance',
         ],
         offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
-        sameAs: [PIXEL_PLACE_GITHUB, PIXEL_PLACE_YOUTUBE, MAINLINE_STUDIOS_DISCORD],
+        sameAs: [
+          PIXEL_PLACE_GITHUB,
+          PIXEL_PLACE_YOUTUBE,
+          MAINLINE_STUDIOS_DISCORD,
+          PIXEL_PLACE_OFFICIAL_MUSIC_BEAT,
+        ],
         license: 'https://creativecommons.org/licenses/by-nc-nd/4.0/',
       },
       {
@@ -49,7 +59,12 @@ export function getSchemaOrgJsonLd() {
         '@id': `${cleanUrl}/#organization`,
         name: 'Mainline Studios',
         url: cleanUrl,
-        sameAs: [PIXEL_PLACE_GITHUB, PIXEL_PLACE_YOUTUBE, MAINLINE_STUDIOS_DISCORD],
+        sameAs: [
+          PIXEL_PLACE_GITHUB,
+          PIXEL_PLACE_YOUTUBE,
+          MAINLINE_STUDIOS_DISCORD,
+          PIXEL_PLACE_OFFICIAL_MUSIC_BEAT,
+        ],
       },
     ],
   };
