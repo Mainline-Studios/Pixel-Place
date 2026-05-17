@@ -2,9 +2,12 @@
 export const PIXEL_PLACE_YOUTUBE = 'https://www.youtube.com/@PixelPlaceOfficial';
 export const PIXEL_PLACE_GITHUB = 'https://github.com/Mainline-Studios/Pixel-Place';
 
-/** Official Pixel Place music group on Sonauto (AI-generated beats — see in-app disclosure). */
-export const PIXEL_PLACE_OFFICIAL_MUSIC_BEAT =
+/** Official Mainline Studios beats on Sonauto (AI-generated — brief in-app disclosure). */
+export const MAINLINE_STUDIOS_OFFICIAL_MUSIC_BEAT =
   'https://sonauto.ai/group/944d8ce3-d28a-4a30-92d8-b567cb5bc8ac';
+
+/** @deprecated use MAINLINE_STUDIOS_OFFICIAL_MUSIC_BEAT */
+export const PIXEL_PLACE_OFFICIAL_MUSIC_BEAT = MAINLINE_STUDIOS_OFFICIAL_MUSIC_BEAT;
 
 /** Official Mainline Studios Discord server (community hub, not only Pixel Place). */
 export const MAINLINE_STUDIOS_DISCORD = 'https://discord.gg/VV6nKAz5sR';
@@ -32,9 +35,9 @@ export const PIXEL_PLACE_OFFICIAL_LINKS: readonly OfficialFooterLink[] = [
     title: `Official Mainline Studios Discord — ${MAINLINE_STUDIOS_DISCORD}`,
   },
   {
-    href: PIXEL_PLACE_OFFICIAL_MUSIC_BEAT,
-    linkText: 'Official music beat (Sonauto)',
-    title: `Official Pixel Place music group — ${PIXEL_PLACE_OFFICIAL_MUSIC_BEAT}`,
+    href: MAINLINE_STUDIOS_OFFICIAL_MUSIC_BEAT,
+    linkText: 'Mainline beats (Sonauto)',
+    title: `Official Mainline Studios beats — ${MAINLINE_STUDIOS_OFFICIAL_MUSIC_BEAT}`,
     opensWithAiMusicNote: true,
   },
 ];

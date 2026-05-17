@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState, type CSSProperties } from 'react';
 import {
   PIXEL_PLACE_GITHUB,
   PIXEL_PLACE_OFFICIAL_LINKS,
-  PIXEL_PLACE_OFFICIAL_MUSIC_BEAT,
+  MAINLINE_STUDIOS_OFFICIAL_MUSIC_BEAT,
   PIXEL_PLACE_YOUTUBE,
 } from '@/lib/siteLinks';
 
@@ -96,11 +96,12 @@ function AiMusicOutboundDialog({
             letterSpacing: '0.02em',
           }}
         >
-          Official music beat
+          Mainline beats
         </div>
         <p style={{ margin: '0 0 12px', fontSize: 14, lineHeight: 1.55, color: 'var(--text-dim, #a8adc4)' }}>
-          You&apos;ll open Pixel Place&apos;s official group on Sonauto. Tracks there are{' '}
-          <span style={{ color: 'var(--text-main)' }}>AI-generated</span> — curated for Pixel Place vibes.
+          You&apos;ll open Mainline Studios&apos; official Sonauto group — beats for Mainline projects and
+          studio work, not only Pixel Place. Tracks are{' '}
+          <span style={{ color: 'var(--text-main)' }}>AI-generated</span>.
         </p>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginTop: 16, justifyContent: 'flex-end' }}>
           <button
@@ -137,7 +138,7 @@ type Props = {
 
 /**
  * Official YouTube, GitHub, and Mainline Studios Discord links (opens in new tab).
- * Official Sonauto beat opens after a brief AI disclosure.
+ * Official Mainline Studios Sonauto beats open after a brief AI disclosure.
  * @see https://www.youtube.com/@PixelPlaceOfficial
  * @see https://github.com/Mainline-Studios/Pixel-Place
  */
@@ -358,7 +359,7 @@ export default function SiteSocialLinks({ compact, variant, className }: Props) 
           <button
             type="button"
             className="btn site-social-dominant-music"
-            onClick={() => openMusicGate(PIXEL_PLACE_OFFICIAL_MUSIC_BEAT)}
+            onClick={() => openMusicGate(MAINLINE_STUDIOS_OFFICIAL_MUSIC_BEAT)}
             style={{
               width: '100%',
               padding: '10px 16px',
@@ -369,9 +370,9 @@ export default function SiteSocialLinks({ compact, variant, className }: Props) 
               borderColor: 'rgba(132, 145, 255, 0.35)',
               color: 'var(--accent, #9dd9ff)',
             }}
-            title="Official Pixel Place music beat (Sonauto)"
+            title="Official Mainline Studios beats on Sonauto"
           >
-            Official music beat (AI) → Sonauto
+            Mainline beats (AI) → Sonauto
           </button>
         </div>
       </>
@@ -419,8 +420,8 @@ export default function SiteSocialLinks({ compact, variant, className }: Props) 
         </span>
         <button
           type="button"
-          title="Official Pixel Place music beat (Sonauto)"
-          onClick={() => openMusicGate(PIXEL_PLACE_OFFICIAL_MUSIC_BEAT)}
+          title="Official Mainline Studios beats on Sonauto"
+          onClick={() => openMusicGate(MAINLINE_STUDIOS_OFFICIAL_MUSIC_BEAT)}
           style={{
             ...linkStyle,
             background: 'none',
@@ -430,7 +431,7 @@ export default function SiteSocialLinks({ compact, variant, className }: Props) 
             font: 'inherit',
           }}
         >
-          Music beat
+          Mainline beats
         </button>
       </span>
     </>

@@ -1,7 +1,7 @@
 import {
   MAINLINE_STUDIOS_DISCORD,
+  MAINLINE_STUDIOS_OFFICIAL_MUSIC_BEAT,
   PIXEL_PLACE_GITHUB,
-  PIXEL_PLACE_OFFICIAL_MUSIC_BEAT,
   PIXEL_PLACE_YOUTUBE,
 } from '@/lib/siteLinks';
 
@@ -50,7 +50,7 @@ export function getSchemaOrgJsonLd() {
           PIXEL_PLACE_GITHUB,
           PIXEL_PLACE_YOUTUBE,
           MAINLINE_STUDIOS_DISCORD,
-          PIXEL_PLACE_OFFICIAL_MUSIC_BEAT,
+          MAINLINE_STUDIOS_OFFICIAL_MUSIC_BEAT,
         ],
         license: 'https://creativecommons.org/licenses/by-nc-nd/4.0/',
       },
@@ -63,7 +63,7 @@ export function getSchemaOrgJsonLd() {
           PIXEL_PLACE_GITHUB,
           PIXEL_PLACE_YOUTUBE,
           MAINLINE_STUDIOS_DISCORD,
-          PIXEL_PLACE_OFFICIAL_MUSIC_BEAT,
+          MAINLINE_STUDIOS_OFFICIAL_MUSIC_BEAT,
         ],
       },
     ],
