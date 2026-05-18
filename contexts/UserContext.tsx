@@ -298,6 +298,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
         }
         return { success: false, message: authData.error || 'Invalid credentials.', ban: authData.ban };
       }
+      return { success: false, message: authData.error || 'Login failed. Please try again.' };
     } catch (_e) {
       return { success: false, message: 'Could not reach server. Try again when online.' };
     }
@@ -448,27 +449,16 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
 
     users.push(newUser);
     
-    if (isOffline) {
-      saveUsersLocal(users);
-    } else {
-      try {
-        await saveUsers(users);
-      } catch {
-        // Fallback to localStorage if save fails
-        saveUsersLocal(users);
-        isOffline = true;
-      }
+    try {
+      await saveUsers(users);
+    } catch {
+      return { success: false, message: 'Could not save account. Try again when online.' };
     }
     setUser(newUser);
-    // Persist to sessionStorage
     if (typeof window !== 'undefined') {
       try {
         sessionStorage.setItem('pixelPlaceLoggedInUser', newUser.username);
-        if (isOffline) {
-          sessionStorage.setItem('pixelPlaceOffline', 'true');
-        } else {
-          sessionStorage.removeItem('pixelPlaceOffline');
-        }
+        sessionStorage.removeItem('pixelPlaceOffline');
       } catch (error) {
         console.error('Error saving user session:', error);
       }
