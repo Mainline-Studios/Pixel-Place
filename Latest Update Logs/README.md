@@ -5,7 +5,7 @@ Version history for **Pixel Place** deploys. Newest release is listed first.
 | Version | Nickname | Log |
 |--------|----------|-----|
 | **3.0** | Safehouse | [3.0 Safehouse LATEST](./3.0%20Safehouse%20LATEST.md) |
-| 2.0 | Pyxbridge | [2.0 Pyxbridge](./2.0%20Pyxbridge.md) |
+| 2.0 | Pyxbridge (mobile / touch) | [2.0 Pyxbridge](./2.0%20Pyxbridge.md) |
 | 1.0 | Fresh Start | [1.0 Fresh Start](./1.0%20Fresh%20Start.md) |
 
 ## How to add a log on deploy
