@@ -12,9 +12,23 @@ export function getApiBaseUrl(): string {
   return process.env.NEXT_PUBLIC_API_URL || '';
 }
 
+/**
+ * When using Firebase Hosting rewrites, only `/api/**` reaches Cloud Functions.
+ * Normalize bare paths like `/auth/email/...` so they cannot hit the SPA by mistake.
+ */
+function normalizeHostingApiPath(path: string): string {
+  const p = path.startsWith('/') ? path : `/${path}`;
+  if (p.startsWith('/api/') || p === '/api') return p;
+  return `/api${p}`;
+}
+
 export function apiUrl(path: string): string {
   const base = getApiBaseUrl();
-  const p = path.startsWith('/') ? path : `/${path}`;
+  const p = base
+    ? path.startsWith('/')
+      ? path
+      : `/${path}`
+    : normalizeHostingApiPath(path);
   return base ? `${base.replace(/\/$/, '')}${p}` : p;
 }
 

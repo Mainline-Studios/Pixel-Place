@@ -12,6 +12,10 @@ import {
 import { PPAF_MAX_RESTORE_AGE_MS } from '@/lib/ppafConstants';
 import { apiUrl } from '@/lib/apiBaseUrl';
 import { authenticatedFetch } from '@/lib/api';
+import {
+  assertEmailApiJsonResponse,
+  EMAIL_VERIFICATION_API,
+} from '@/lib/emailVerificationApi';
 import { clearSiteTranslationCache } from '@/lib/siteTranslationCache';
 import LocalizeText from '@/components/LocalizeText';
 import PpafConfigurePanel from '@/components/PpafConfigurePanel';
@@ -53,8 +57,9 @@ export default function SafetyPrivacyPanel({ user }: SafetyPrivacyPanelProps) {
   const loadEmailStatus = async () => {
     setEmailStatusBusy(true);
     try {
-      const res = await authenticatedFetch(apiUrl('/auth/email/status'));
+      const res = await authenticatedFetch(apiUrl(EMAIL_VERIFICATION_API.status));
       const data = await res.json().catch(() => ({}));
+      assertEmailApiJsonResponse(res, data);
       if (!res.ok) throw new Error(data?.error || 'Failed to load verification status');
       const normalized = {
         email: String(data?.email || ''),
@@ -98,14 +103,15 @@ export default function SafetyPrivacyPanel({ user }: SafetyPrivacyPanelProps) {
     setEmailMessage('');
     setEmailError('');
     try {
-      const res = await authenticatedFetch(apiUrl('/auth/email/request-verification'), {
+      const res = await authenticatedFetch(apiUrl(EMAIL_VERIFICATION_API.requestVerification), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: trimmed }),
       });
       const data = await res.json().catch(() => ({}));
+      assertEmailApiJsonResponse(res, data);
       if (!res.ok) throw new Error(data?.error || 'Failed to send verification email');
-      if (data?.sent === false) {
+      if (data?.sent !== true) {
         throw new Error(
           data?.error ||
             'Verification email was not sent. Ask an admin to configure email on the server, then try again.',
@@ -142,12 +148,13 @@ export default function SafetyPrivacyPanel({ user }: SafetyPrivacyPanelProps) {
     setEmailMessage('');
     setEmailError('');
     try {
-      const res = await authenticatedFetch(apiUrl('/auth/email/verify'), {
+      const res = await authenticatedFetch(apiUrl(EMAIL_VERIFICATION_API.verify), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ code: code || undefined, token: token || undefined }),
       });
       const data = await res.json().catch(() => ({}));
+      assertEmailApiJsonResponse(res, data);
       if (!res.ok) throw new Error(data?.error || 'Failed to verify email');
       const rewardCoins = Number(data?.rewardCoins || 0);
       setEmailMessage(

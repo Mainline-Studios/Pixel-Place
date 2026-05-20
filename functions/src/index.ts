@@ -392,7 +392,9 @@ async function dispatchVerificationEmail(payload: {
   const smtpUser = String(process.env.EMAIL_VERIFICATION_SMTP_USER || fromEmail || '').trim();
   const smtpPass = String(
     process.env.EMAIL_VERIFICATION_SMTP_PASS || process.env.EMAIL_VERIFICATION_FROM_APP_PASSWORD || '',
-  ).trim();
+  )
+    .trim()
+    .replace(/\s+/g, '');
   const message = buildVerificationMessage({
     username: payload.username,
     code: payload.code,
@@ -1628,6 +1630,7 @@ app.post('/auth/signout-all', async (req, res) => {
   }
 });
 
+// Client must call /api/auth/email/* (Hosting rewrites /api/** only). Middleware strips /api before these routes.
 app.get('/auth/email/status', async (req, res) => {
   try {
     const auth = requireAuth(req, res);

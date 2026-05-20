@@ -20,7 +20,7 @@ export default function SignOutAllPage() {
     setError('');
     setMessage('');
     try {
-      const res = await authenticatedFetch(apiUrl('/auth/signout-all'), { method: 'POST' });
+      const res = await authenticatedFetch(apiUrl('/api/auth/signout-all'), { method: 'POST' });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data?.error || 'Failed to sign out all devices');
       removeAuthToken();

@@ -4,6 +4,7 @@ import { Suspense, useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { apiUrl } from '@/lib/apiBaseUrl';
 import { authenticatedFetch, getAuthToken } from '@/lib/api';
+import { assertEmailApiJsonResponse, EMAIL_VERIFICATION_API } from '@/lib/emailVerificationApi';
 
 type VerifyState = 'idle' | 'verifying' | 'success' | 'error';
 
@@ -28,12 +29,13 @@ function VerifyEmailContent() {
     setState('verifying');
     setMessage('');
     try {
-      const res = await authenticatedFetch(apiUrl('/auth/email/verify'), {
+      const res = await authenticatedFetch(apiUrl(EMAIL_VERIFICATION_API.verify), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ token }),
       });
       const data = await res.json().catch(() => ({}));
+      assertEmailApiJsonResponse(res, data);
       if (!res.ok) {
         throw new Error(data?.error || 'Failed to verify email');
       }
