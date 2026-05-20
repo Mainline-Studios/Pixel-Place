@@ -20,11 +20,23 @@ export interface AuthUser {
   role: string;
 }
 
+/** Hosting rewrites sometimes drop Authorization; also accept X-Auth-Token and JSON body.authToken. */
+export function extractAuthTokenFromRequest(req: Request): string {
+  const authHeader = req.headers.authorization;
+  if (authHeader && typeof authHeader === 'string' && authHeader.startsWith('Bearer ')) {
+    const t = authHeader.slice(7).trim();
+    if (t) return t;
+  }
+  const xAuth = req.headers['x-auth-token'];
+  if (typeof xAuth === 'string' && xAuth.trim()) return xAuth.trim();
+  const body = req.body as { authToken?: unknown } | undefined;
+  if (typeof body?.authToken === 'string' && body.authToken.trim()) return body.authToken.trim();
+  return '';
+}
+
 export function getAuthFromRequest(req: Request): AuthUser | null {
   if (isUnsafeJwtSecret()) return null;
-  const authHeader = req.headers.authorization;
-  if (!authHeader || typeof authHeader !== 'string' || !authHeader.startsWith('Bearer ')) return null;
-  const token = authHeader.slice(7).trim();
+  const token = extractAuthTokenFromRequest(req);
   if (!token) return null;
   try {
     const decoded = jwt.verify(token, getJwtSecret()) as { username?: string; role?: string };

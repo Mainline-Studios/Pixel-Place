@@ -248,9 +248,7 @@ function canAccessStoragePath(path: string, auth: any): boolean {
 }
 
 function getBearerTokenFromRequest(req: any): string {
-  const header = req?.headers?.authorization;
-  if (!header || typeof header !== 'string' || !header.startsWith('Bearer ')) return '';
-  return header.slice(7).trim();
+  return extractAuthTokenFromRequest(req);
 }
 
 async function isJwtRevokedForUser(username: string, iatSeconds: number): Promise<boolean> {
@@ -604,7 +602,15 @@ async function readStatusPagePayload(): Promise<typeof DEFAULT_STATUS_PAGE> {
   return n.data;
 }
 
-import { requireAuth, requireAdmin, requireOwnerOrAdmin, getAuthFromRequest, isAdmin, getJwtSecret } from './authMiddleware';
+import {
+  requireAuth,
+  requireAdmin,
+  requireOwnerOrAdmin,
+  getAuthFromRequest,
+  extractAuthTokenFromRequest,
+  isAdmin,
+  getJwtSecret,
+} from './authMiddleware';
 import { postPpafSign, postPpafVerify } from './ppaf';
 import { mountStripeEmbeddedWebhook, mountStripeEmbeddedPayRoutes } from './stripeEmbeddedPay';
 
@@ -1361,6 +1367,98 @@ async function getAdminAccountsFromFirestore(): Promise<{ username: string; pass
   }
   return [];
 }
+
+// Google Sign-In — verify Firebase ID token and issue Pixel Place JWT.
+app.post('/auth/google', async (req, res) => {
+  try {
+    const idToken = String(req.body?.idToken || '').trim();
+    if (!idToken) return res.status(400).json({ error: 'ID token is required' });
+
+    const decoded = await admin.auth().verifyIdToken(idToken);
+    const firebaseUid = decoded.uid;
+    const email = String(decoded.email || '').trim().toLowerCase();
+    const displayName = String(decoded.name || email.split('@')[0] || 'GoogleUser').trim();
+    const photoURL = String(decoded.picture || '').trim();
+
+    let docSnap = await firestoreDb
+      .collection(COLLECTIONS.USERS)
+      .where('firebase_uid', '==', firebaseUid)
+      .limit(1)
+      .get();
+    if (docSnap.empty && email) {
+      docSnap = await firestoreDb
+        .collection(COLLECTIONS.USERS)
+        .where('email', '==', email)
+        .limit(1)
+        .get();
+    }
+
+    let userDocId: string;
+    let userData: Record<string, unknown>;
+
+    if (!docSnap.empty) {
+      const doc = docSnap.docs[0];
+      userDocId = doc.id;
+      userData = doc.data() || {};
+      await doc.ref.set(
+        {
+          firebase_uid: firebaseUid,
+          email: email || userData.email || null,
+          photo_url: photoURL || userData.photo_url || null,
+          updated_at: Date.now(),
+        },
+        { merge: true },
+      );
+      const refreshed = await doc.ref.get();
+      userData = refreshed.data() || userData;
+    } else {
+      let username = displayName.replace(/[^a-zA-Z0-9]/g, '');
+      if (!username || username.length < 3) {
+        username = `GoogleUser${Math.random().toString(36).slice(2, 9)}`;
+      }
+      let finalUsername = username;
+      let counter = 1;
+      while ((await firestoreDb.collection(COLLECTIONS.USERS).doc(finalUsername.toLowerCase()).get()).exists) {
+        finalUsername = `${username}${counter}`;
+        counter += 1;
+      }
+      userDocId = finalUsername.toLowerCase();
+      const now = Date.now();
+      userData = {
+        username: finalUsername,
+        username_lower: userDocId,
+        password_hash: '',
+        gender: '',
+        role: 'user',
+        coins: 10,
+        owned_skins: ['pixel_placer'],
+        equipped_skin: 'pixel_placer',
+        owned_accessories: [],
+        equipped_accessories: {},
+        owned_servers: [],
+        friends: [],
+        friend_requests: [],
+        sent_friend_requests: [],
+        firebase_uid: firebaseUid,
+        email: email || null,
+        photo_url: photoURL || null,
+        is_donor: 0,
+        setup_completed: false,
+        account_preferences: null,
+        created_at: now,
+        updated_at: now,
+      };
+      await firestoreDb.collection(COLLECTIONS.USERS).doc(userDocId).set(userData);
+    }
+
+    const user = userFromData(userDocId, userData);
+    const token = jwt.sign({ username: user.username, role: user.role }, getJwtSecret(), { expiresIn: '7d' });
+    return res.json({ success: true, user, token });
+  } catch (error: any) {
+    console.error('Google auth failed:', error);
+    return res.status(500).json({ error: error?.message || 'Google authentication failed' });
+  }
+});
 
 // Firestore-only fallback auth path for slow RTDB scenarios.
 app.post('/auth/firestore-login', async (req, res) => {

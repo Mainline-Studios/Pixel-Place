@@ -6,7 +6,13 @@ import { initializeStorage, getUsers, saveUsers, ADMIN_ACCOUNTS_LIST, isUserBann
 import { subscribeToUser } from '@/lib/firestoreClient';
 import { apiUrl } from '@/lib/apiBaseUrl';
 import { containsEmoji } from '@/lib/utils';
-import { setAuthToken, removeAuthToken, getAuthToken, decodeJwtUsernameFromToken } from '@/lib/api';
+import {
+  setAuthToken,
+  removeAuthToken,
+  getAuthToken,
+  decodeJwtUsernameFromToken,
+  hasUsableAuthToken,
+} from '@/lib/api';
 import { getDeviceFingerprint } from '@/lib/deviceFingerprint';
 import LoadingScreenWithGame from '@/components/LoadingScreenWithGame';
 import AccountSetupWizard from '@/components/AccountSetupWizard';
@@ -22,7 +28,7 @@ interface UserContextType {
   user: User | null;
   setUser: (user: User | null) => void;
   login: (username: string, password: string) => Promise<{ success: boolean; message: string; ban?: any; deviceBanned?: boolean }>;
-  loginWithGoogle: (googleUser: User) => Promise<void>;
+  loginWithGoogle: (googleUser: User, apiToken?: string) => Promise<void>;
   createAccount: (username: string, password: string, gender: string) => Promise<{ success: boolean; message: string; ban?: any; deviceBanned?: boolean }>;
   updateUser: (updates: Partial<User>) => void;
   gettingReady: boolean;
@@ -61,6 +67,12 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
           if (!found.ownedFaces) found.ownedFaces = [];
           if (!found.equippedSkin && found.ownedSkins.length) found.equippedSkin = found.ownedSkins[0];
           if (!found.equippedSkin) found.equippedSkin = 'pixel_placer';
+
+          if (!hasUsableAuthToken()) {
+            sessionStorage.removeItem('pixelPlaceLoggedInUser');
+            removeAuthToken();
+            return null;
+          }
           
           // Special coins for 6767kid - massive amount
           if (found.username === '6767kid') {
@@ -321,7 +333,8 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const loginWithGoogle = async (googleUser: User): Promise<void> => {
+  const loginWithGoogle = async (googleUser: User, apiToken?: string): Promise<void> => {
+    if (apiToken) setAuthToken(apiToken);
     // Check if user is banned
     try {
       const isBanned = await isUserBanned(googleUser.username);

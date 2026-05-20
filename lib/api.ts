@@ -95,13 +95,37 @@ export function hasUsableAuthToken(): boolean {
 export async function authenticatedFetch(url: string, options: RequestInit = {}): Promise<Response> {
   const token = getAuthToken();
   const headers = new Headers(options.headers);
-  
+
+  let body = options.body;
   if (token) {
     headers.set('Authorization', `Bearer ${token}`);
+    // Firebase Hosting rewrites may strip Authorization; server also reads this header / body.authToken.
+    headers.set('X-Auth-Token', token);
+    if (body && typeof body === 'string') {
+      try {
+        const parsed = JSON.parse(body);
+        if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+          body = JSON.stringify({ ...parsed, authToken: token });
+        }
+      } catch {
+        /* not JSON */
+      }
+    }
   }
-  
+
   return fetch(url, {
     ...options,
     headers,
+    body,
   });
+}
+
+export function authErrorMessage(status: number, data: { error?: string; code?: string }): string {
+  if (status === 401) {
+    if (data?.code === 'SESSION_REVOKED') {
+      return data.error || 'Session expired. Please sign in again.';
+    }
+    return 'Session expired or missing. Sign out, sign in again, then retry.';
+  }
+  return data?.error || 'Request failed';
 }

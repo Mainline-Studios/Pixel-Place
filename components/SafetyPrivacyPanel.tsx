@@ -11,7 +11,7 @@ import {
 } from '@/lib/ppaf';
 import { PPAF_MAX_RESTORE_AGE_MS } from '@/lib/ppafConstants';
 import { apiUrl } from '@/lib/apiBaseUrl';
-import { authenticatedFetch } from '@/lib/api';
+import { authenticatedFetch, authErrorMessage, hasUsableAuthToken } from '@/lib/api';
 import {
   assertEmailApiJsonResponse,
   EMAIL_VERIFICATION_API,
@@ -55,12 +55,13 @@ export default function SafetyPrivacyPanel({ user }: SafetyPrivacyPanelProps) {
   const [emailError, setEmailError] = useState('');
 
   const loadEmailStatus = async () => {
+    if (!hasUsableAuthToken()) return;
     setEmailStatusBusy(true);
     try {
       const res = await authenticatedFetch(apiUrl(EMAIL_VERIFICATION_API.status));
       const data = await res.json().catch(() => ({}));
       assertEmailApiJsonResponse(res, data);
-      if (!res.ok) throw new Error(data?.error || 'Failed to load verification status');
+      if (!res.ok) throw new Error(authErrorMessage(res.status, data));
       const normalized = {
         email: String(data?.email || ''),
         emailVerified: data?.emailVerified === true,
@@ -99,6 +100,10 @@ export default function SafetyPrivacyPanel({ user }: SafetyPrivacyPanelProps) {
       setEmailError('Enter your email address first.');
       return false;
     }
+    if (!hasUsableAuthToken()) {
+      setEmailError('Session expired or missing. Sign out, sign in again, then try Send verification.');
+      return false;
+    }
     setEmailBusy(true);
     setEmailMessage('');
     setEmailError('');
@@ -110,7 +115,7 @@ export default function SafetyPrivacyPanel({ user }: SafetyPrivacyPanelProps) {
       });
       const data = await res.json().catch(() => ({}));
       assertEmailApiJsonResponse(res, data);
-      if (!res.ok) throw new Error(data?.error || 'Failed to send verification email');
+      if (!res.ok) throw new Error(authErrorMessage(res.status, data));
       if (data?.sent !== true) {
         throw new Error(
           data?.error ||
@@ -155,7 +160,7 @@ export default function SafetyPrivacyPanel({ user }: SafetyPrivacyPanelProps) {
       });
       const data = await res.json().catch(() => ({}));
       assertEmailApiJsonResponse(res, data);
-      if (!res.ok) throw new Error(data?.error || 'Failed to verify email');
+      if (!res.ok) throw new Error(authErrorMessage(res.status, data));
       const rewardCoins = Number(data?.rewardCoins || 0);
       setEmailMessage(
         rewardCoins > 0
@@ -267,6 +272,10 @@ export default function SafetyPrivacyPanel({ user }: SafetyPrivacyPanelProps) {
   };
 
   useEffect(() => {
+    if (!hasUsableAuthToken()) {
+      setEmailError('Sign in again to send verification email (session token missing or expired).');
+      return;
+    }
     void loadEmailStatus();
   }, []);
 
