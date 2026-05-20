@@ -12,6 +12,6 @@ Version history for **Pixel Place** deploys. Newest release is listed first.
 
 1. Remove `LATEST` from the current latest filename (e.g. `3.0 Safehouse LATEST.md` → `3.0 Safehouse.md`).
 2. Update that file’s **Superseded by** line to link to the new version.
-3. Add a new file: `[version] [Nickname] LATEST.md` with **Preceded by** pointing at the previous latest.
+3. Add a new file: `[version] [Nickname] LATEST.md` with **Preceded by** pointing at the previous latest and a **## Roadmap** section.
 4. Update this README table (new row at the top).
 5. Commit with the deploy and push to `main`.
