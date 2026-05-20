@@ -280,13 +280,46 @@ function getEmailVerificationSecret(): string {
   return process.env.EMAIL_VERIFICATION_SECRET || getJwtSecret();
 }
 
+function isFunctionsEmulator(): boolean {
+  return process.env.FUNCTIONS_EMULATOR === 'true';
+}
+
+function isDeployedFunctionsRuntime(): boolean {
+  return Boolean(
+    process.env.K_SERVICE ||
+      process.env.FUNCTION_TARGET ||
+      process.env.GCLOUD_PROJECT ||
+      process.env.NODE_ENV === 'production',
+  );
+}
+
+function getVerificationMailFrom(): { from: string; fromEmail: string; fromName: string } {
+  const fromEmail = String(process.env.EMAIL_VERIFICATION_FROM || 'boehmlaird@gmail.com').trim();
+  const fromName = String(process.env.EMAIL_VERIFICATION_FROM_NAME || 'Pixel Place').trim();
+  const from = fromName ? `${fromName} <${fromEmail}>` : fromEmail;
+  return { from, fromEmail, fromName };
+}
+
+function verificationMailHeaders(to: string): Record<string, string> {
+  const support = String(process.env.EMAIL_VERIFICATION_REPLY_TO || 'support@pixelplaceofficial.com').trim();
+  return {
+    'X-Priority': '1',
+    'X-MSMail-Priority': 'High',
+    Importance: 'high',
+    'Auto-Submitted': 'auto-generated',
+    Precedence: 'auto',
+    ...(support ? { 'Reply-To': support } : {}),
+    ...(to ? { 'X-Entity-Ref-ID': `pixelplace-verify-${createHash('sha256').update(to).digest('hex').slice(0, 16)}` } : {}),
+  };
+}
+
 function buildVerificationMessage(params: {
   username: string;
   code: string;
   magicLink: string;
   email: string;
 }): { subject: string; text: string; html: string } {
-  const subject = 'Verify Your Pixel Place Account';
+  const subject = `Your Pixel Place verification code: ${params.code}`;
   const recoverUrl = 'https://pixelplaceofficial.com/signoutall';
   const text =
     `Verify Your Pixel Place Account\n\n` +
@@ -352,21 +385,21 @@ async function dispatchVerificationEmail(payload: {
   username: string;
   code: string;
   magicLink: string;
-}): Promise<{ sent: boolean; preview?: any }> {
-  const webhookUrl = process.env.EMAIL_VERIFICATION_WEBHOOK_URL;
-  const fromEmail = String(process.env.EMAIL_VERIFICATION_FROM || 'boehmlaird@gmail.com').trim();
+}): Promise<{ sent: boolean; preview?: any; provider?: string }> {
+  const webhookUrl = String(process.env.EMAIL_VERIFICATION_WEBHOOK_URL || '').trim();
+  const resendApiKey = String(process.env.RESEND_API_KEY || process.env.EMAIL_VERIFICATION_RESEND_API_KEY || '').trim();
+  const { from, fromEmail } = getVerificationMailFrom();
   const smtpUser = String(process.env.EMAIL_VERIFICATION_SMTP_USER || fromEmail || '').trim();
   const smtpPass = String(
     process.env.EMAIL_VERIFICATION_SMTP_PASS || process.env.EMAIL_VERIFICATION_FROM_APP_PASSWORD || '',
   ).trim();
-  const fromName = String(process.env.EMAIL_VERIFICATION_FROM_NAME || 'Pixel Place').trim();
-  const from = fromName ? `${fromName} <${fromEmail}>` : fromEmail;
   const message = buildVerificationMessage({
     username: payload.username,
     code: payload.code,
     magicLink: payload.magicLink,
     email: payload.to,
   });
+  const headers = verificationMailHeaders(payload.to);
 
   if (webhookUrl) {
     const resp = await fetch(webhookUrl, {
@@ -388,35 +421,86 @@ async function dispatchVerificationEmail(payload: {
       }),
     });
     if (!resp.ok) {
-      throw new Error(`Email webhook failed (${resp.status})`);
+      const body = await resp.text().catch(() => '');
+      throw new Error(`Email webhook failed (${resp.status})${body ? `: ${body.slice(0, 200)}` : ''}`);
     }
-    return { sent: true };
+    return { sent: true, provider: 'webhook' };
+  }
+
+  if (resendApiKey) {
+    const resendFrom =
+      String(process.env.EMAIL_VERIFICATION_RESEND_FROM || '').trim() || from;
+    const resp = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${resendApiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        from: resendFrom,
+        to: [payload.to],
+        subject: message.subject,
+        html: message.html,
+        text: message.text,
+        headers,
+      }),
+    });
+    const data = await resp.json().catch(() => ({}));
+    if (!resp.ok) {
+      const detail = String((data as { message?: string })?.message || resp.status);
+      throw new Error(`Resend failed: ${detail}`);
+    }
+    return { sent: true, provider: 'resend' };
   }
 
   if (smtpUser && smtpPass) {
+    const smtpHost = String(process.env.EMAIL_VERIFICATION_SMTP_HOST || 'smtp.gmail.com').trim();
+    const smtpPort = Number(process.env.EMAIL_VERIFICATION_SMTP_PORT || 465);
+    const smtpSecure = process.env.EMAIL_VERIFICATION_SMTP_SECURE !== 'false';
     const transport = nodemailer.createTransport({
-      service: 'gmail',
+      host: smtpHost,
+      port: smtpPort,
+      secure: smtpSecure,
       auth: { user: smtpUser, pass: smtpPass },
     });
-    await transport.sendMail({
+    await transport.verify().catch((err) => {
+      console.error('[email] SMTP verify failed:', err);
+      throw new Error(
+        'SMTP login failed. Use a Gmail App Password (not your normal password) and set EMAIL_VERIFICATION_SMTP_USER to the same address as EMAIL_VERIFICATION_FROM.',
+      );
+    });
+    const info = await transport.sendMail({
       from,
       to: payload.to,
       subject: message.subject,
       text: message.text,
       html: message.html,
+      headers,
+      envelope: { from: smtpUser, to: payload.to },
     });
-    return { sent: true };
+    const rejected = Array.isArray((info as { rejected?: string[] })?.rejected)
+      ? (info as { rejected: string[] }).rejected
+      : [];
+    if (rejected.length > 0) {
+      throw new Error(`SMTP rejected recipient: ${rejected.join(', ')}`);
+    }
+    return { sent: true, provider: 'smtp' };
   }
 
-  if (process.env.NODE_ENV !== 'production') {
+  if (isFunctionsEmulator() && !isDeployedFunctionsRuntime()) {
+    console.warn('[email] No delivery configured — returning preview only (emulator/local).');
     return {
       sent: false,
+      provider: 'preview',
       preview: { from, to: payload.to, ...message, code: payload.code, magicLink: payload.magicLink },
     };
   }
 
+  console.error(
+    '[email] Verification email not configured. Set RESEND_API_KEY, EMAIL_VERIFICATION_SMTP_PASS, or EMAIL_VERIFICATION_WEBHOOK_URL in functions/.env then redeploy functions.',
+  );
   throw new Error(
-    'Email delivery is not configured. Set EMAIL_VERIFICATION_WEBHOOK_URL or EMAIL_VERIFICATION_SMTP_PASS (uses EMAIL_VERIFICATION_FROM as SMTP user by default).',
+    'Email delivery is not configured on the server. An admin must set RESEND_API_KEY or EMAIL_VERIFICATION_SMTP_PASS in functions/.env and redeploy.',
   );
 }
 
@@ -1573,6 +1657,14 @@ app.post('/auth/email/request-verification', async (req, res) => {
       'https://pixelplaceofficial.com';
     const magicLink = `${String(base).replace(/\/+$/, '')}/verify?token=${encodeURIComponent(token)}`;
     const delivery = await dispatchVerificationEmail({ to: email, username: auth.username, code, magicLink });
+    if (!delivery.sent) {
+      return res.status(503).json({
+        error:
+          'Verification email was not sent. Configure email in functions/.env (SMTP or Resend) and redeploy, or use the Firebase emulator preview.',
+        sent: false,
+        preview: delivery.preview,
+      });
+    }
 
     await ref.set(
       {
@@ -1590,13 +1682,15 @@ app.post('/auth/email/request-verification', async (req, res) => {
 
     return res.json({
       success: true,
-      sent: delivery.sent,
+      sent: true,
+      provider: delivery.provider,
       expiresAt: now + EMAIL_VERIFY_CODE_TTL_MS,
-      preview: delivery.preview,
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Failed to request email verification:', error);
-    return res.status(500).json({ error: 'Failed to request email verification' });
+    const msg = String(error?.message || 'Failed to request email verification');
+    const isConfig = /not configured|SMTP login failed|Resend failed|webhook failed/i.test(msg);
+    return res.status(isConfig ? 503 : 500).json({ error: msg });
   }
 });
 

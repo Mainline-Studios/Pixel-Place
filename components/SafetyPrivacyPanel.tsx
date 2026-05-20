@@ -88,7 +88,12 @@ export default function SafetyPrivacyPanel({ user }: SafetyPrivacyPanelProps) {
     setUser(null);
   };
 
-  const handleRequestVerification = async () => {
+  const handleRequestVerification = async (): Promise<boolean> => {
+    const trimmed = email.trim();
+    if (!trimmed) {
+      setEmailError('Enter your email address first.');
+      return false;
+    }
     setEmailBusy(true);
     setEmailMessage('');
     setEmailError('');
@@ -96,14 +101,24 @@ export default function SafetyPrivacyPanel({ user }: SafetyPrivacyPanelProps) {
       const res = await authenticatedFetch(apiUrl('/auth/email/request-verification'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: email.trim() }),
+        body: JSON.stringify({ email: trimmed }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data?.error || 'Failed to send verification email');
-      setEmailMessage('Verification sent. Check your inbox for a code or magic link.');
+      if (data?.sent === false) {
+        throw new Error(
+          data?.error ||
+            'Verification email was not sent. Ask an admin to configure email on the server, then try again.',
+        );
+      }
+      setEmailMessage(
+        'Verification email sent. Check your inbox (and Promotions) for a code and magic link — it can take a minute.',
+      );
       await loadEmailStatus();
+      return true;
     } catch (error: any) {
       setEmailError(String(error?.message || 'Failed to send verification email'));
+      return false;
     } finally {
       setEmailBusy(false);
     }
@@ -113,7 +128,14 @@ export default function SafetyPrivacyPanel({ user }: SafetyPrivacyPanelProps) {
     const code = emailCode.trim();
     const token = emailToken.trim();
     if (!code && !token) {
-      setEmailError('Enter a one-time code or magic link token.');
+      const sent = await handleRequestVerification();
+      if (sent) {
+        setEmailMessage(
+          (prev) =>
+            prev ||
+            'Email sent. Enter the one-time code from that message below, then press Confirm code.',
+        );
+      }
       return;
     }
     setEmailBusy(true);
@@ -318,7 +340,8 @@ export default function SafetyPrivacyPanel({ user }: SafetyPrivacyPanelProps) {
         >
           <div style={{ fontWeight: 700, marginBottom: 8 }}>Email verification (+20 Pixel Coins)</div>
           <div style={{ fontSize: 12, color: 'var(--text-dim)', marginBottom: 10 }}>
-            Verify your email using a one-time code or magic link. This can reward your account once.
+            Enter your email, then use <strong>Send verification</strong> or <strong>Verify email</strong> to receive a
+            code and magic link. Paste the code here to finish (+20 Pixel Coins once).
           </div>
           <div style={{ display: 'grid', gap: 8 }}>
             <input
@@ -329,7 +352,12 @@ export default function SafetyPrivacyPanel({ user }: SafetyPrivacyPanelProps) {
               className="input"
             />
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-              <button type="button" className="btn" onClick={handleRequestVerification} disabled={emailBusy}>
+              <button
+                type="button"
+                className="btn"
+                onClick={() => void handleRequestVerification()}
+                disabled={emailBusy}
+              >
                 {emailBusy ? 'Sending...' : 'Send verification'}
               </button>
               <button type="button" className="btn" onClick={() => void loadEmailStatus()} disabled={emailStatusBusy}>
@@ -350,8 +378,12 @@ export default function SafetyPrivacyPanel({ user }: SafetyPrivacyPanelProps) {
               type="text"
               className="input"
             />
-            <button type="button" className="btn" onClick={handleVerifyEmail} disabled={emailBusy}>
-              {emailBusy ? 'Verifying...' : 'Verify email'}
+            <button type="button" className="btn" onClick={() => void handleVerifyEmail()} disabled={emailBusy}>
+              {emailBusy
+                ? 'Working...'
+                : emailCode.trim() || emailToken.trim()
+                  ? 'Confirm code'
+                  : 'Verify email (send code)'}
             </button>
           </div>
           <div style={{ marginTop: 10, fontSize: 12, color: emailStatus?.emailVerified ? '#86efac' : 'var(--text-dim)' }}>
