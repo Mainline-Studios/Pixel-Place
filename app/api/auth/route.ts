@@ -162,6 +162,7 @@ export async function POST(request: NextRequest) {
         friendRequests: [],
         sentFriendRequests: [],
         isDonor: false,
+        setupCompleted: false,
       };
       
       await createOrUpdateUser(newUser, password);
@@ -177,7 +178,7 @@ export async function POST(request: NextRequest) {
       const founder = await applyFounderRewardsAndConsumeCelebration(username.toLowerCase());
       return NextResponse.json({
         success: true,
-        user: { ...result.user, ...founder.userPatch },
+        user: { ...result.user, ...founder.userPatch, setupCompleted: false },
         token: result.token,
       });
     }

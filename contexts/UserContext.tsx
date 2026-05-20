@@ -9,6 +9,8 @@ import { containsEmoji } from '@/lib/utils';
 import { setAuthToken, removeAuthToken, getAuthToken, decodeJwtUsernameFromToken } from '@/lib/api';
 import { getDeviceFingerprint } from '@/lib/deviceFingerprint';
 import LoadingScreenWithGame from '@/components/LoadingScreenWithGame';
+import AccountSetupWizard from '@/components/AccountSetupWizard';
+import { hydratePreferencesFromUser, needsAccountSetup } from '@/lib/accountSetup';
 import { usePathname } from 'next/navigation';
 
 export interface BannedSession {
@@ -97,6 +99,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
   const [isRestoring, setIsRestoring] = useState(true);
   const [gettingReady, setGettingReady] = useState(false);
   const [userAcceptedReady, setUserAcceptedReady] = useState(false);
+  const [accountSetupOpen, setAccountSetupOpen] = useState(false);
   const [bannedSession, setBannedSession] = useState<BannedSession | null>(null);
   const [deviceBannedSession, setDeviceBannedSession] = useState<BannedSession | null>(null);
   const firstSyncDone = useRef(false);
@@ -104,6 +107,20 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
 
   const MIN_READY_WAIT_MS = 6000;  // show loading at least 6 seconds so Firebase/API can load
   const MAX_READY_WAIT_MS = 12000;  // stop waiting after 12 seconds at most
+
+  useEffect(() => {
+    if (!user) {
+      setAccountSetupOpen(false);
+      return;
+    }
+    if (needsAccountSetup(user)) {
+      setAccountSetupOpen(true);
+      setUserAcceptedReady(true);
+    } else {
+      setAccountSetupOpen(false);
+      hydratePreferencesFromUser(user);
+    }
+  }, [user?.username, user?.setupCompleted]);
 
   useEffect(() => {
     initializeStorage();
@@ -282,6 +299,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
         if (!u.ownedAccessories) u.ownedAccessories = [];
         if (!u.equippedAccessories) u.equippedAccessories = {};
         if (!u.ownedFaces) u.ownedFaces = [];
+        if (u.setupCompleted !== false) u.setupCompleted = true;
         firstSyncDone.current = false;
         readyStartTime.current = Date.now();
         setGettingReady(true);
@@ -322,6 +340,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     if (!googleUser.ownedAccessories) googleUser.ownedAccessories = [];
     if (!googleUser.equippedAccessories) googleUser.equippedAccessories = {};
 
+    if (googleUser.setupCompleted !== false) googleUser.setupCompleted = true;
     firstSyncDone.current = false;
     readyStartTime.current = Date.now();
     setGettingReady(true);
@@ -374,6 +393,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
         readyStartTime.current = Date.now();
         setGettingReady(true);
         if (!u.ownedFaces) u.ownedFaces = [];
+        u.setupCompleted = false;
         setUser(u);
         if (typeof window !== 'undefined') {
           sessionStorage.setItem('pixelPlaceLoggedInUser', u.username);
@@ -537,7 +557,17 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
   return (
     <UserContext.Provider value={{ user, setUser, login, loginWithGoogle, createAccount, updateUser, gettingReady, userAcceptedReady, setUserAcceptedReady, bannedSession, clearBannedSession: () => setBannedSession(null), deviceBannedSession, clearDeviceBannedSession: () => setDeviceBannedSession(null), isRestoring }}>
       {children}
-      {user && !userAcceptedReady && !bypassReadySplash ? (
+      {user && accountSetupOpen ? (
+        <AccountSetupWizard
+          onFinished={() => {
+            setAccountSetupOpen(false);
+            setUserAcceptedReady(false);
+            readyStartTime.current = Date.now();
+            setGettingReady(true);
+          }}
+        />
+      ) : null}
+      {user && !accountSetupOpen && !userAcceptedReady && !bypassReadySplash ? (
         <LoadingScreenWithGame gettingReady={gettingReady} onGoToApp={() => setUserAcceptedReady(true)} />
       ) : null}
     </UserContext.Provider>

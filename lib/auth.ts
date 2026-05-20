@@ -61,6 +61,11 @@ function userFromDoc(doc: any): User {
     founderLifetimeCoins: doc.founder_lifetime_coins === true,
     founderOrdinal: typeof doc.founder_ordinal === 'number' ? doc.founder_ordinal : undefined,
     ppafLastRestoreIssuedAt: typeof doc.ppaf_last_restore_issued_at === 'number' ? doc.ppaf_last_restore_issued_at : undefined,
+    setupCompleted: doc.setup_completed !== false,
+    accountPreferences:
+      doc.account_preferences && typeof doc.account_preferences === 'object'
+        ? doc.account_preferences
+        : undefined,
   };
 }
 
@@ -238,6 +243,8 @@ export async function createOrUpdateUser(user: User, password?: string): Promise
           typeof (user as any).ppafLastRestoreIssuedAt === 'number'
             ? (user as any).ppafLastRestoreIssuedAt
             : null,
+        setup_completed: user.setupCompleted === false ? false : true,
+        account_preferences: user.accountPreferences || null,
         created_at: Date.now(),
         updated_at: Date.now()
       });

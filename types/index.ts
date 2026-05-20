@@ -39,7 +39,21 @@ export interface User {
   showFounderCelebration?: boolean; // One-time popup flag sent by auth login response
   ppafLastRestoreIssuedAt?: number; // Last accepted signed backup timestamp to prevent replay restores
   favoriteGameIds?: string[]; // Saved built-in game ids for quick access and profile display
+  /** false only for brand-new accounts until first-run setup finishes */
+  setupCompleted?: boolean;
+  accountPreferences?: UserAccountPreferences;
 }
+
+export type UserAccountPreferences = {
+  colorMode?: 'light' | 'dark';
+  styleTheme?: string;
+  soundsEnabled?: boolean;
+  reduceMotion?: boolean;
+  invertColors?: boolean;
+  locale?: string;
+  forceDesktop?: boolean;
+  particlesEnabled?: boolean;
+};
 
 export interface FriendRequest {
   from: string; // Username who sent the request

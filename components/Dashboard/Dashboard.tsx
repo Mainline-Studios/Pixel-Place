@@ -35,7 +35,10 @@ export default function Dashboard({ user }: DashboardProps) {
   const isMinimalist = style === 'minimalist';
   const isMaximalist = style === 'maximalist';
   const isHighContrast = style === 'highcontrast';
-  const showAmbientParticles = !isMinimalist && !isHighContrast;
+  const particlesOff =
+    user.accountPreferences?.particlesEnabled === false ||
+    (typeof window !== 'undefined' && localStorage.getItem('pixelplace_particles') === '0');
+  const showAmbientParticles = !particlesOff && !isMinimalist && !isHighContrast;
   const [currentTab, setCurrentTab] = useState<TabType>('games');
   const [editMode, setEditMode] = useState(false);
   const [showFounderCelebration, setShowFounderCelebration] = useState<boolean>(!!user?.showFounderCelebration);

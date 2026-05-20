@@ -67,7 +67,9 @@ export async function POST(request: NextRequest) {
         sentFriendRequests: Array.isArray(existing.sent_friend_requests) ? existing.sent_friend_requests : [],
         firebaseUid: firebaseUid,
         email: email,
-        photoURL: photoURL
+        photoURL: photoURL,
+        setupCompleted: existing.setup_completed !== false,
+        accountPreferences: existing.account_preferences || undefined,
       };
     } else {
       // New user - create account
@@ -104,7 +106,8 @@ export async function POST(request: NextRequest) {
         sentFriendRequests: [],
         firebaseUid: firebaseUid,
         email: email,
-        photoURL: photoURL
+        photoURL: photoURL,
+        setupCompleted: false,
       };
 
       // Save to Firestore
@@ -127,6 +130,8 @@ export async function POST(request: NextRequest) {
         email: email,
         photo_url: photoURL,
         is_donor: 0,
+        setup_completed: false,
+        account_preferences: null,
         created_at: Date.now(),
         updated_at: Date.now()
       });

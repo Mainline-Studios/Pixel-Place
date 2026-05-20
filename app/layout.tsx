@@ -5,6 +5,7 @@ import { MobileBetaProvider } from "@/contexts/MobileBetaContext";
 import { UserProvider } from "@/contexts/UserContext";
 import { SiteLanguageProvider } from "@/contexts/SiteLanguageContext";
 import { StyleProvider } from "@/components/StyleProvider";
+import { ColorModeProvider } from "@/components/ColorModeProvider";
 import { SecretThemeProvider } from "@/contexts/SecretThemeContext";
 import { SoundProvider } from "@/contexts/SoundContext";
 import { AccessibilityProvider } from "@/contexts/AccessibilityContext";
@@ -30,7 +31,7 @@ export default function RootLayout({
         />
         <script
           dangerouslySetInnerHTML={{
-            __html: `(function(){var s=localStorage.getItem('pixelplace_style');if(s&&/^(modern|futuristic|normal|90s|80s|lowcontrast|highcontrast|maximalist|minimalist)$/.test(s))document.documentElement.setAttribute('data-style',s);else document.documentElement.setAttribute('data-style','normal');})();`,
+            __html: `(function(){var m=localStorage.getItem('pixelplace_color_mode');document.documentElement.setAttribute('data-color-mode',m==='light'?'light':'dark');var s=localStorage.getItem('pixelplace_style');if(s&&/^(modern|futuristic|normal|90s|80s|lowcontrast|highcontrast|maximalist|minimalist)$/.test(s))document.documentElement.setAttribute('data-style',s);else document.documentElement.setAttribute('data-style','normal');})();`,
           }}
         />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -47,6 +48,7 @@ export default function RootLayout({
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
       </head>
       <body>
+        <ColorModeProvider>
         <StyleProvider>
           <AccessibilityProvider>
             <SecretThemeProvider>
@@ -63,6 +65,7 @@ export default function RootLayout({
             </SecretThemeProvider>
           </AccessibilityProvider>
         </StyleProvider>
+        </ColorModeProvider>
       </body>
     </html>
   );

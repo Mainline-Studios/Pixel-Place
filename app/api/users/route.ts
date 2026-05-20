@@ -43,6 +43,11 @@ function userFromDoc(doc: any): User {
     chatBlockedWords: Array.isArray(doc.chat_blocked_words) ? doc.chat_blocked_words : (typeof doc.chat_blocked_words === 'string' ? JSON.parse(doc.chat_blocked_words || '[]') : []),
     emailVerified: doc.email_verified === true,
     ppafLastRestoreIssuedAt: typeof doc.ppaf_last_restore_issued_at === 'number' ? doc.ppaf_last_restore_issued_at : undefined,
+    setupCompleted: doc.setup_completed !== false,
+    accountPreferences:
+      doc.account_preferences && typeof doc.account_preferences === 'object'
+        ? doc.account_preferences
+        : undefined,
   };
 }
 
@@ -121,6 +126,16 @@ export async function POST(request: NextRequest) {
           typeof (updatedUser as any).ppafLastRestoreIssuedAt === 'number'
             ? (updatedUser as any).ppafLastRestoreIssuedAt
             : existing.ppaf_last_restore_issued_at ?? null,
+        setup_completed:
+          updatedUser.setupCompleted === false
+            ? false
+            : updatedUser.setupCompleted === true
+              ? true
+              : existing.setup_completed !== false,
+        account_preferences:
+          updatedUser.accountPreferences && typeof updatedUser.accountPreferences === 'object'
+            ? updatedUser.accountPreferences
+            : existing.account_preferences ?? null,
         updated_at: Date.now()
       });
       

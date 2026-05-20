@@ -824,6 +824,11 @@ function userFromData(id: string, d: any): any {
     founderOrdinal: typeof d.founder_ordinal === 'number' ? d.founder_ordinal : undefined,
     ppafLastRestoreIssuedAt:
       typeof d.ppaf_last_restore_issued_at === 'number' ? d.ppaf_last_restore_issued_at : undefined,
+    setupCompleted: d.setup_completed !== false,
+    accountPreferences:
+      d.account_preferences && typeof d.account_preferences === 'object'
+        ? d.account_preferences
+        : undefined,
   };
 }
 
@@ -1192,6 +1197,16 @@ app.post('/users', async (req, res) => {
         typeof u.ppafLastRestoreIssuedAt === 'number'
           ? u.ppafLastRestoreIssuedAt
           : (existingData?.ppaf_last_restore_issued_at ?? null),
+      setup_completed:
+        u.setupCompleted === false
+          ? false
+          : u.setupCompleted === true
+            ? true
+            : (existingData?.setup_completed !== false),
+      account_preferences:
+        u.accountPreferences && typeof u.accountPreferences === 'object'
+          ? u.accountPreferences
+          : (existingData?.account_preferences ?? null),
       updated_at: Date.now(),
     };
     if (existing.exists) {
@@ -1255,6 +1270,16 @@ app.put('/users', async (req, res) => {
         typeof u.ppafLastRestoreIssuedAt === 'number'
           ? u.ppafLastRestoreIssuedAt
           : (existingData.ppaf_last_restore_issued_at ?? null),
+      setup_completed:
+        u.setupCompleted === false
+          ? false
+          : u.setupCompleted === true
+            ? true
+            : (existingData.setup_completed !== false),
+      account_preferences:
+        u.accountPreferences && typeof u.accountPreferences === 'object'
+          ? u.accountPreferences
+          : (existingData.account_preferences ?? null),
       updated_at: Date.now(),
     }, { merge: true });
     const out = { ...u };
@@ -1556,6 +1581,8 @@ app.post('/auth', async (req, res) => {
         founder_ordinal: null,
         founder_celebration_pending: false,
         founder_celebration_shown_at: null,
+        setup_completed: false,
+        account_preferences: null,
         created_at: Date.now(),
         updated_at: Date.now(),
       };
@@ -1565,6 +1592,7 @@ app.post('/auth', async (req, res) => {
       const founder = await applyFounderRewardsAndConsumeCelebration(id, createdDoc.data() || userData);
       const user = {
         ...userFromDoc(createdDoc),
+        setupCompleted: false,
         coins: founder.data.coins ?? createdDoc.data()?.coins ?? 0,
         founderLifetimeCoins: founder.data.founder_lifetime_coins === true,
         founderOrdinal:

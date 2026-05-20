@@ -103,6 +103,11 @@ function userFromDoc(d: { id: string } & Record<string, unknown>): User {
       }
       return [];
     })(),
+    setupCompleted: doc.setup_completed !== false,
+    accountPreferences:
+      doc.account_preferences && typeof doc.account_preferences === 'object'
+        ? (doc.account_preferences as User['accountPreferences'])
+        : undefined,
   };
 }
 

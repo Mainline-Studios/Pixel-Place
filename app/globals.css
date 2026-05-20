@@ -2,7 +2,8 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
+:root,
+[data-color-mode='dark'] {
   --background: #12141c;
   --foreground: #f1f5f9;
   --bg-main: #12141c;
@@ -44,6 +45,45 @@
   --edit-bg: #2a2612;
   --edit-border: #665516;
   --edit-text: #ffdd7a;
+}
+
+[data-color-mode='light'] {
+  --background: #f4f6fb;
+  --foreground: #0f172a;
+  --bg-main: #eef2f8;
+  --panel: #ffffff;
+  --panel-soft: #f8fafc;
+  --panel-alt: #e8edf5;
+  --border: #c5d0e0;
+  --border-strong: #94a3b8;
+  --text-main: #0f172a;
+  --text-dim: #475569;
+  --accent: #0284c7;
+  --accent-hover: #0369a1;
+  --accent-bg: #e0f2fe;
+  --accent-bg-hover: #bae6fd;
+  --brand-sky: #0284c7;
+  --brand-sky-rgb: 2, 132, 199;
+  --brand-violet-rgb: 79, 70, 229;
+  --danger: #dc2626;
+  --shadow-card:
+    0 16px 40px rgba(15, 23, 42, 0.08),
+    0 2px 8px rgba(15, 23, 42, 0.06),
+    0 0 0 1px rgba(15, 23, 42, 0.04);
+  --panel-inner-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  --glow-outline: 0 0 0 1px rgba(2, 132, 199, 0.12);
+}
+
+[data-color-mode='light'] body {
+  background:
+    radial-gradient(ellipse 120% 80% at 15% -10%, rgba(56, 189, 248, 0.12) 0%, transparent 55%),
+    radial-gradient(ellipse 90% 60% at 100% 20%, rgba(129, 140, 248, 0.08) 0%, transparent 50%),
+    linear-gradient(165deg, #f8fafc 0%, #eef2f8 45%, #e8edf5 100%) !important;
+  color: var(--text-main);
+}
+
+[data-color-mode='light'] body::before {
+  opacity: 0.45;
 }
 
 * {
