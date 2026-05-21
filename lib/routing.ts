@@ -38,3 +38,10 @@ export function navigateToTab(tab: string): void {
   if (typeof window === 'undefined') return;
   window.dispatchEvent(new CustomEvent('pixelplace-navigate', { detail: { tab } }));
 }
+
+/** Open Settings → Release notes for a specific log slug (e.g. 3-0-safehouse). */
+export function navigateToReleaseNote(slug: string): void {
+  if (typeof window === 'undefined') return;
+  navigateToTab('settings');
+  window.dispatchEvent(new CustomEvent('pixelplace-open-release-note', { detail: { slug } }));
+}

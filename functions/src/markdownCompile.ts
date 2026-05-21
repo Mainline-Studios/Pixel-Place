@@ -148,5 +148,23 @@ export function compileMarkdownToHtml(markdown: string): string {
     flushParagraph(para);
   }
 
-  return out.join('\n');
+  return rewriteReleaseNoteLinksInHtml(out.join('\n'));
+}
+
+export function rewriteReleaseNoteLinksInHtml(html: string): string {
+  return html.replace(/<a href="([^"]*)"([^>]*)>/gi, (full, href, rest) => {
+    const decoded = decodeURIComponent(String(href));
+    if (/^https?:\/\//i.test(decoded) || decoded.startsWith('mailto:')) return full;
+    const filename = decoded.replace(/^\.\//, '').split('/').pop() || '';
+    if (!/\.md$/i.test(filename)) return full;
+    const slug = filename
+      .replace(/\.md$/i, '')
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '');
+    const extra = rest.includes('class=')
+      ? rest.replace(/class="/, 'class="release-note-internal-link ')
+      : `${rest} class="release-note-internal-link"`;
+    return `<a href="#" data-release-note-slug="${slug}"${extra}>`;
+  });
 }

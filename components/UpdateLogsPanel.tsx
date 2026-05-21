@@ -1,12 +1,13 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   fetchUpdateLogDetail,
   fetchUpdateLogsList,
   type UpdateLogDetail,
   type UpdateLogListItem,
 } from '@/lib/updateLogsApi';
+import { resolveReleaseNoteSlugFromHref } from '@/lib/updateLogSlugs';
 
 const markdownStyles: React.CSSProperties = {
   textAlign: 'left',
@@ -29,8 +30,10 @@ const summaryStyle: React.CSSProperties = {
 };
 
 export default function UpdateLogsPanel() {
+  const panelRef = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(false);
   const [logs, setLogs] = useState<UpdateLogListItem[]>([]);
+  const [allLogs, setAllLogs] = useState<UpdateLogListItem[]>([]);
   const [loadingList, setLoadingList] = useState(true);
   const [listError, setListError] = useState('');
   const [selectedSlug, setSelectedSlug] = useState<string | null>(null);
@@ -39,6 +42,14 @@ export default function UpdateLogsPanel() {
   const [detailError, setDetailError] = useState('');
 
   const latestLog = logs.find((l) => l.isLatest) || logs[0];
+
+  const openReleaseSlug = useCallback((slug: string) => {
+    setOpen(true);
+    setSelectedSlug(slug);
+    requestAnimationFrame(() => {
+      panelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    });
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -51,8 +62,10 @@ export default function UpdateLogsPanel() {
       if (!res.success || !res.logs?.length) {
         setListError(res.error || 'Could not load release notes.');
         setLogs([]);
+        setAllLogs([]);
         return;
       }
+      setAllLogs(res.logs);
       const filtered = res.logs.filter((l) => l.filename.toLowerCase() !== 'readme.md');
       setLogs(filtered);
       const latest = filtered.find((l) => l.isLatest) || filtered[0];
@@ -62,6 +75,16 @@ export default function UpdateLogsPanel() {
       cancelled = true;
     };
   }, []);
+
+  useEffect(() => {
+    const onOpen = (e: Event) => {
+      const slug = (e as CustomEvent<{ slug?: string }>).detail?.slug;
+      if (!slug) return;
+      openReleaseSlug(slug);
+    };
+    window.addEventListener('pixelplace-open-release-note', onOpen);
+    return () => window.removeEventListener('pixelplace-open-release-note', onOpen);
+  }, [openReleaseSlug]);
 
   const loadDetail = useCallback(async (slug: string) => {
     setLoadingDetail(true);
@@ -81,8 +104,29 @@ export default function UpdateLogsPanel() {
     void loadDetail(selectedSlug);
   }, [open, selectedSlug, loadDetail]);
 
+  const onMarkdownClick = useCallback(
+    (e: React.MouseEvent<HTMLDivElement>) => {
+      const link = (e.target as HTMLElement).closest('a');
+      if (!link) return;
+
+      const dataSlug = link.getAttribute('data-release-note-slug');
+      if (dataSlug) {
+        e.preventDefault();
+        openReleaseSlug(dataSlug);
+        return;
+      }
+
+      const slug = resolveReleaseNoteSlugFromHref(link.getAttribute('href') || '', allLogs);
+      if (slug) {
+        e.preventDefault();
+        openReleaseSlug(slug);
+      }
+    },
+    [allLogs, openReleaseSlug],
+  );
+
   return (
-    <div className="ai-box">
+    <div className="ai-box" ref={panelRef} id="release-notes-panel">
       <details
         open={open}
         onToggle={(e) => setOpen((e.target as HTMLDetailsElement).open)}
@@ -180,6 +224,7 @@ export default function UpdateLogsPanel() {
                   <div
                     className="update-log-markdown"
                     style={markdownStyles}
+                    onClick={onMarkdownClick}
                     dangerouslySetInnerHTML={{ __html: detail.html }}
                   />
                 </div>
@@ -201,6 +246,9 @@ export default function UpdateLogsPanel() {
         }
         details:not([open]) summary::after {
           transform: rotate(-90deg);
+        }
+        .update-log-markdown a.release-note-internal-link {
+          cursor: pointer;
         }
         .update-log-markdown h1,
         .update-log-markdown h2,
