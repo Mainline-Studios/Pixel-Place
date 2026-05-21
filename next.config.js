@@ -1,5 +1,9 @@
+const path = require('path');
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // Pin tracing to this app (avoids picking ~/package-lock.json as workspace root).
+  outputFileTracingRoot: path.join(__dirname),
   output: 'export',
   images: {
     unoptimized: true

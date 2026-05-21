@@ -1,12 +1,17 @@
 import type { Express, Request, Response } from 'express';
 
 export const ANTI_67_BASE_REQUIRED_PLAYS = 3;
+export const ANTI_67_NO_VOTE_REQUIRED_PLAYS = 1;
 export const ANTI_67_SKIP_PENALTY_PLAYS = 3;
+
+export type Anti67BallotVote = 'no' | 'yes';
 
 export type Anti67State = {
   locked: boolean;
   playsCompleted: number;
   requiredPlays: number;
+  vote?: Anti67BallotVote;
+  allowEarlyDismiss?: boolean;
 };
 
 export function parseAnti67FromPreferences(prefs: unknown): Anti67State {
@@ -18,15 +23,30 @@ export function parseAnti67FromPreferences(prefs: unknown): Anti67State {
     return { locked: false, playsCompleted: 0, requiredPlays: ANTI_67_BASE_REQUIRED_PLAYS };
   }
   const locked = (raw as Anti67State).locked === true;
+  const vote: Anti67BallotVote = (raw as Anti67State).vote === 'no' ? 'no' : 'yes';
+  const allowEarlyDismiss =
+    (raw as Anti67State).allowEarlyDismiss === true || vote === 'no';
+  const defaultRequired =
+    vote === 'no' ? ANTI_67_NO_VOTE_REQUIRED_PLAYS : ANTI_67_BASE_REQUIRED_PLAYS;
+  const minRequired =
+    vote === 'no' ? ANTI_67_NO_VOTE_REQUIRED_PLAYS : ANTI_67_BASE_REQUIRED_PLAYS;
   const requiredPlays = Math.max(
-    ANTI_67_BASE_REQUIRED_PLAYS,
-    Number((raw as Anti67State).requiredPlays) || ANTI_67_BASE_REQUIRED_PLAYS,
+    minRequired,
+    Number((raw as Anti67State).requiredPlays) || defaultRequired,
   );
   const playsCompleted = Math.min(
     requiredPlays,
     Math.max(0, Number((raw as Anti67State).playsCompleted) || 0),
   );
-  return { locked, playsCompleted, requiredPlays };
+  return { locked, playsCompleted, requiredPlays, vote, allowEarlyDismiss };
+}
+
+function preserveBallotFields(current: Anti67State, next: Anti67State): Anti67State {
+  return {
+    ...next,
+    vote: next.vote ?? current.vote,
+    allowEarlyDismiss: next.allowEarlyDismiss ?? current.allowEarlyDismiss,
+  };
 }
 
 type Anti67Deps = {
@@ -67,10 +87,13 @@ export function mountAnti67AccountRoutes(app: Express, deps: Anti67Deps) {
       if (!auth) return;
       const loaded = await loadUserPrefs(auth.username);
       if (!loaded) return res.status(404).json({ error: 'User not found' });
+      const vote: Anti67BallotVote = (req.body as { vote?: string })?.vote === 'no' ? 'no' : 'yes';
       const anti67: Anti67State = {
         locked: true,
         playsCompleted: 0,
-        requiredPlays: ANTI_67_BASE_REQUIRED_PLAYS,
+        requiredPlays: vote === 'no' ? ANTI_67_NO_VOTE_REQUIRED_PLAYS : ANTI_67_BASE_REQUIRED_PLAYS,
+        vote,
+        allowEarlyDismiss: vote === 'no',
       };
       await saveAnti67(loaded.ref, loaded.prefs as Record<string, unknown>, anti67);
       return res.json({ success: true, anti67 });
@@ -94,11 +117,11 @@ export function mountAnti67AccountRoutes(app: Express, deps: Anti67Deps) {
         return res.json({ success: true, anti67: current });
       }
       const playsCompleted = current.playsCompleted + 1;
-      const anti67: Anti67State = {
+      const anti67 = preserveBallotFields(current, {
         locked: true,
         playsCompleted,
         requiredPlays: current.requiredPlays,
-      };
+      });
       await saveAnti67(loaded.ref, loaded.prefs as Record<string, unknown>, anti67);
       return res.json({ success: true, anti67 });
     } catch (e) {
@@ -117,11 +140,14 @@ export function mountAnti67AccountRoutes(app: Express, deps: Anti67Deps) {
       if (!current.locked) {
         return res.status(400).json({ error: 'Anti 67 lock is not active' });
       }
-      const anti67: Anti67State = {
+      if (current.vote === 'no' || current.allowEarlyDismiss) {
+        return res.status(400).json({ error: 'Skip penalty does not apply to this ballot' });
+      }
+      const anti67 = preserveBallotFields(current, {
         locked: true,
         playsCompleted: current.playsCompleted,
         requiredPlays: current.requiredPlays + ANTI_67_SKIP_PENALTY_PLAYS,
-      };
+      });
       await saveAnti67(loaded.ref, loaded.prefs as Record<string, unknown>, anti67);
       return res.json({ success: true, anti67, penaltyAdded: ANTI_67_SKIP_PENALTY_PLAYS });
     } catch (e) {
@@ -137,14 +163,17 @@ export function mountAnti67AccountRoutes(app: Express, deps: Anti67Deps) {
       const loaded = await loadUserPrefs(auth.username);
       if (!loaded) return res.status(404).json({ error: 'User not found' });
       const current = parseAnti67FromPreferences(loaded.prefs);
-      if (!current.locked || current.playsCompleted < current.requiredPlays) {
+      if (
+        !current.locked ||
+        (!current.allowEarlyDismiss && current.playsCompleted < current.requiredPlays)
+      ) {
         return res.status(400).json({ error: 'Finish all required listens before closing' });
       }
-      const anti67: Anti67State = {
+      const anti67 = preserveBallotFields(current, {
         locked: false,
         playsCompleted: current.playsCompleted,
         requiredPlays: current.requiredPlays,
-      };
+      });
       await saveAnti67(loaded.ref, loaded.prefs as Record<string, unknown>, anti67);
       return res.json({ success: true, anti67 });
     } catch (e) {
@@ -153,6 +182,21 @@ export function mountAnti67AccountRoutes(app: Express, deps: Anti67Deps) {
     }
   };
 
+  const statusHandler = async (req: Request, res: Response) => {
+    try {
+      const auth = requireAuth(req, res);
+      if (!auth) return;
+      const loaded = await loadUserPrefs(auth.username);
+      if (!loaded) return res.status(404).json({ error: 'User not found' });
+      const anti67 = parseAnti67FromPreferences(loaded.prefs);
+      return res.json({ success: true, anti67 });
+    } catch (e) {
+      console.error('[anti67] status failed:', e);
+      return res.status(500).json({ error: 'Failed to read Anti 67 status' });
+    }
+  };
+
+  ['/account/anti67/status', '/api/account/anti67/status'].forEach((path) => app.get(path, statusHandler));
   ['/account/anti67/start', '/api/account/anti67/start'].forEach((path) => app.post(path, startHandler));
   ['/account/anti67/play-complete', '/api/account/anti67/play-complete'].forEach((path) =>
     app.post(path, playCompleteHandler),

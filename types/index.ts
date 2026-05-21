@@ -44,11 +44,17 @@ export interface User {
   accountPreferences?: UserAccountPreferences;
 }
 
+export type Anti67BallotVote = 'no' | 'yes';
+
 export type Anti67AccountState = {
   locked: boolean;
   playsCompleted: number;
-  /** Total full listens required (starts at 3; +3 on each skip/seek) */
+  /** Total full listens required (1 for NO vote, 3 for YES; +3 on skip for YES) */
   requiredPlays?: number;
+  /** Footer ballot: strikethrough = no, plain 6-7 = yes */
+  vote?: Anti67BallotVote;
+  /** When true, Close works before required listens finish (NO vote) */
+  allowEarlyDismiss?: boolean;
 };
 
 export type UserAccountPreferences = {

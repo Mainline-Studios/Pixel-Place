@@ -15,6 +15,7 @@ import { useAccessibility, type ColorBlindMode } from '@/contexts/AccessibilityC
 import { STYLE_OPTIONS } from '@/lib/styleTheme';
 import { formatGenderForDisplay } from '@/lib/formatGenderDisplay';
 import SafetyPrivacyPanel from '@/components/SafetyPrivacyPanel';
+import UpdateLogsPanel from '@/components/UpdateLogsPanel';
 
 interface SettingsTabProps {
   user: User;
@@ -89,6 +90,8 @@ export default function SettingsTab({ user, editMode, onToggleEditMode }: Settin
           Equipped Skin: {escapeHTML(equippedSkinName)}
         </div>
       </div>
+
+      <UpdateLogsPanel />
 
       <SafetyPrivacyPanel user={user} />
 

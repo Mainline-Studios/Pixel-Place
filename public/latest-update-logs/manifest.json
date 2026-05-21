@@ -1,0 +1,47 @@
+{
+  "bundledAt": "2026-05-21T11:42:35.975Z",
+  "folder": "Latest Update Logs",
+  "compiler": "pixel-place-markdown/1",
+  "logs": [
+    {
+      "slug": "3-01-safehouse-patch-latest",
+      "filename": "3.01 Safehouse Patch LATEST.md",
+      "title": "3.01 Safehouse Patch",
+      "version": "3.01",
+      "isLatest": true,
+      "staticUrl": "/latest-update-logs/3.01%20Safehouse%20Patch%20LATEST.md"
+    },
+    {
+      "slug": "3-0-safehouse",
+      "filename": "3.0 Safehouse.md",
+      "title": "3.0 Safehouse",
+      "version": "3.0",
+      "isLatest": false,
+      "staticUrl": "/latest-update-logs/3.0%20Safehouse.md"
+    },
+    {
+      "slug": "2-0-pyxbridge",
+      "filename": "2.0 Pyxbridge.md",
+      "title": "2.0 Pyxbridge",
+      "version": "2.0",
+      "isLatest": false,
+      "staticUrl": "/latest-update-logs/2.0%20Pyxbridge.md"
+    },
+    {
+      "slug": "1-0-fresh-start",
+      "filename": "1.0 Fresh Start.md",
+      "title": "1.0 Fresh Start",
+      "version": "1.0",
+      "isLatest": false,
+      "staticUrl": "/latest-update-logs/1.0%20Fresh%20Start.md"
+    },
+    {
+      "slug": "readme",
+      "filename": "README.md",
+      "title": "README",
+      "version": null,
+      "isLatest": false,
+      "staticUrl": "/latest-update-logs/README.md"
+    }
+  ]
+}

@@ -20,7 +20,14 @@ import { hydratePreferencesFromUser, needsAccountSetup } from '@/lib/accountSetu
 import { usePathname } from 'next/navigation';
 import { verifyLoginCode } from '@/lib/loginApi';
 import { isFocusedAuthPathname } from '@/lib/focusedAuthRoutes';
-import { isAnti67Blocking } from '@/lib/anti67';
+import {
+  getAnti67FromPreferences,
+  isAnti67Blocking,
+  mergeAccountPreferencesPreservingAnti67,
+  mergeAnti67IntoPreferences,
+} from '@/lib/anti67';
+import { fetchAnti67Status } from '@/lib/anti67Api';
+import { readAnti67Session, syncAnti67Session } from '@/lib/anti67Session';
 
 export type LoginResult = {
   success: boolean;
@@ -87,7 +94,27 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
             removeAuthToken();
             return null;
           }
-          
+
+          const sessionAnti67 = readAnti67Session();
+          if (sessionAnti67?.locked) {
+            found.accountPreferences = mergeAnti67IntoPreferences(
+              found.accountPreferences,
+              sessionAnti67,
+            );
+          }
+          try {
+            const status = await fetchAnti67Status();
+            if (status.ok && status.anti67) {
+              found.accountPreferences = mergeAnti67IntoPreferences(
+                found.accountPreferences,
+                status.anti67,
+              );
+              syncAnti67Session(status.anti67);
+            }
+          } catch {
+            /* status fetch is best-effort */
+          }
+
           // Special coins for 6767kid - massive amount
           if (found.username === '6767kid') {
             // 2e268 × 2e203 = 4e471 coins (4 followed by 471 zeros)
@@ -142,6 +169,41 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       setAccountSetupOpen(false);
     }
   }, [user?.username, user?.accountPreferences?.anti67?.locked, user?.accountPreferences?.anti67?.playsCompleted]);
+
+  useEffect(() => {
+    if (!user) return;
+    syncAnti67Session(getAnti67FromPreferences(user.accountPreferences));
+  }, [
+    user?.accountPreferences?.anti67?.locked,
+    user?.accountPreferences?.anti67?.playsCompleted,
+    user?.accountPreferences?.anti67?.requiredPlays,
+  ]);
+
+  useEffect(() => {
+    if (!user?.username || !hasUsableAuthToken()) return;
+    let cancelled = false;
+    void fetchAnti67Status().then((status) => {
+      if (cancelled || !status.ok || !status.anti67) return;
+      setUser((prev) => {
+        if (!prev) return prev;
+        const nextPrefs = mergeAnti67IntoPreferences(prev.accountPreferences, status.anti67!);
+        const prevAnti = getAnti67FromPreferences(prev.accountPreferences);
+        const nextAnti = getAnti67FromPreferences(nextPrefs);
+        if (
+          prevAnti.locked === nextAnti.locked &&
+          prevAnti.playsCompleted === nextAnti.playsCompleted &&
+          prevAnti.requiredPlays === nextAnti.requiredPlays
+        ) {
+          return prev;
+        }
+        syncAnti67Session(status.anti67!);
+        return { ...prev, accountPreferences: nextPrefs };
+      });
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.username]);
 
   useEffect(() => {
     if (!user) {
@@ -250,7 +312,19 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       }
       if (firestoreUser) {
         setUser((prev) => {
-          if (!prev) return firestoreUser;
+          if (!prev) {
+            const sessionAnti67 = readAnti67Session();
+            if (sessionAnti67?.locked) {
+              return {
+                ...firestoreUser,
+                accountPreferences: mergeAnti67IntoPreferences(
+                  firestoreUser.accountPreferences,
+                  sessionAnti67,
+                ),
+              };
+            }
+            return firestoreUser;
+          }
           const eqAcc = firestoreUser.equippedAccessories;
           const hasEquippedAcc = eqAcc && (Array.isArray(eqAcc) ? eqAcc.length > 0 : Object.keys(eqAcc as object).length > 0);
           return {
@@ -260,6 +334,10 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
             equippedSkin: firestoreUser.equippedSkin || prev.equippedSkin,
             equippedAccessories: hasEquippedAcc ? eqAcc : (prev.equippedAccessories ?? {}),
             equippedFace: firestoreUser.equippedFace || prev.equippedFace,
+            accountPreferences: mergeAccountPreferencesPreservingAnti67(
+              prev.accountPreferences,
+              firestoreUser.accountPreferences,
+            ),
           };
         });
       }

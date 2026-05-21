@@ -9,23 +9,40 @@ export const ANTI_67_REQUIRED_PLAYS = ANTI_67_BASE_REQUIRED_PLAYS;
 
 export type Anti67State = Anti67AccountState;
 
-export function getAnti67FromPreferences(
-  prefs: UserAccountPreferences | undefined,
-): Required<Pick<Anti67State, 'locked' | 'playsCompleted' | 'requiredPlays'>> {
+export const ANTI_67_NO_VOTE_REQUIRED_PLAYS = 1;
+
+export type Anti67Parsed = Required<Pick<Anti67State, 'locked' | 'playsCompleted' | 'requiredPlays'>> & {
+  vote: 'no' | 'yes';
+  allowEarlyDismiss: boolean;
+};
+
+export function getAnti67FromPreferences(prefs: UserAccountPreferences | undefined): Anti67Parsed {
   const raw = prefs?.anti67;
   if (!raw || typeof raw !== 'object') {
-    return { locked: false, playsCompleted: 0, requiredPlays: ANTI_67_BASE_REQUIRED_PLAYS };
+    return {
+      locked: false,
+      playsCompleted: 0,
+      requiredPlays: ANTI_67_BASE_REQUIRED_PLAYS,
+      vote: 'yes',
+      allowEarlyDismiss: false,
+    };
   }
-  const locked = (raw as Anti67State).locked === true;
-  const playsCompleted = Math.max(0, Number((raw as Anti67State).playsCompleted) || 0);
+  const locked = raw.locked === true;
+  const vote: 'no' | 'yes' = raw.vote === 'no' ? 'no' : 'yes';
+  const allowEarlyDismiss = raw.allowEarlyDismiss === true || vote === 'no';
+  const defaultRequired = vote === 'no' ? ANTI_67_NO_VOTE_REQUIRED_PLAYS : ANTI_67_BASE_REQUIRED_PLAYS;
+  const minRequired = vote === 'no' ? ANTI_67_NO_VOTE_REQUIRED_PLAYS : ANTI_67_BASE_REQUIRED_PLAYS;
+  const playsCompleted = Math.max(0, Number(raw.playsCompleted) || 0);
   const requiredPlays = Math.max(
-    ANTI_67_BASE_REQUIRED_PLAYS,
-    Number((raw as Anti67State).requiredPlays) || ANTI_67_BASE_REQUIRED_PLAYS,
+    minRequired,
+    Number(raw.requiredPlays) || defaultRequired,
   );
   return {
     locked,
     playsCompleted: Math.min(playsCompleted, requiredPlays),
     requiredPlays,
+    vote,
+    allowEarlyDismiss,
   };
 }
 
@@ -35,7 +52,9 @@ export function isAnti67Blocking(prefs: UserAccountPreferences | undefined): boo
 
 export function canDismissAnti67(prefs: UserAccountPreferences | undefined): boolean {
   const s = getAnti67FromPreferences(prefs);
-  return s.locked && s.playsCompleted >= s.requiredPlays;
+  if (!s.locked) return false;
+  if (s.allowEarlyDismiss) return true;
+  return s.playsCompleted >= s.requiredPlays;
 }
 
 export function mergeAnti67IntoPreferences(
@@ -43,4 +62,21 @@ export function mergeAnti67IntoPreferences(
   anti67: Anti67State,
 ): UserAccountPreferences {
   return { ...(prefs || {}), anti67 };
+}
+
+/** RTDB snapshots often omit account_preferences; never drop an active Anti 67 lock on merge. */
+export function mergeAccountPreferencesPreservingAnti67(
+  prev: UserAccountPreferences | undefined,
+  next: UserAccountPreferences | undefined,
+): UserAccountPreferences | undefined {
+  const merged: UserAccountPreferences = { ...(prev || {}), ...(next || {}) };
+  const prevAnti = getAnti67FromPreferences(prev);
+  const nextAnti = getAnti67FromPreferences(next);
+  if (prevAnti.locked && !nextAnti.locked) {
+    merged.anti67 = prev?.anti67;
+  } else if (nextAnti.locked && next?.anti67) {
+    merged.anti67 = next.anti67;
+  }
+  if (!Object.keys(merged).length) return undefined;
+  return merged;
 }
