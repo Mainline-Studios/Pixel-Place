@@ -17,7 +17,9 @@ export default function SeoHomeBlurb() {
       <p>
         <Link href="/about">Learn more about Pixel Place</Link>
         {' · '}
-        <a href={absoluteUrl('/games')}>Play free games</a>
+        <Link href="/historimac">HistoriMac retro Mac</Link>
+        {' · '}
+        <a href={absoluteUrl('/')}>Play free games</a>
         {' · '}
         <a href="https://pixelplaceofficial.com">pixelplaceofficial.com</a>
       </p>

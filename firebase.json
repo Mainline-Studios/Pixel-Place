@@ -6,17 +6,24 @@
       "public": "out",
       "cleanUrls": true,
       "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
+      "404": "404.html",
       "redirects": [
-        {"source": "/home", "destination": "/games", "type": 301},
-        {"source": "/home/**", "destination": "/games", "type": 301},
-        {"source": "/play", "destination": "/games", "type": 301},
-        {"source": "/play/**", "destination": "/games", "type": 301}
+        {"source": "/home", "destination": "/", "type": 301},
+        {"source": "/home/**", "destination": "/", "type": 301},
+        {"source": "/play", "destination": "/", "type": 301},
+        {"source": "/play/**", "destination": "/", "type": 301},
+        {"source": "/index.html", "destination": "/", "type": 301},
+        {"source": "/about/", "destination": "/about", "type": 301},
+        {"source": "/historimac/", "destination": "/historimac", "type": 301},
+        {"source": "/historimac/:version/", "destination": "/historimac/:version", "type": 301}
       ],
       "rewrites": [
         {"source": "/api/**", "function": "api"},
         {"source": "/", "destination": "/index.html"},
         {"source": "/games", "destination": "/games.html"},
         {"source": "/games/**", "destination": "/games.html"},
+        {"source": "/about", "destination": "/about.html"},
+        {"source": "/historimac", "destination": "/historimac.html"},
         {"source": "/mainlinelogin", "destination": "/mainlinelogin.html"},
         {"source": "/mainlinelogin/**", "destination": "/mainlinelogin.html"},
         {"source": "/verify", "destination": "/verify.html"},
@@ -26,12 +33,17 @@
         {"source": "/avatarshop", "destination": "/index.html"},
         {"source": "/avatarshop/**", "destination": "/index.html"},
         {"source": "/coins", "destination": "/index.html"},
+        {"source": "/coins/**", "destination": "/index.html"},
         {"source": "/friends", "destination": "/index.html"},
+        {"source": "/friends/**", "destination": "/index.html"},
         {"source": "/settings", "destination": "/index.html"},
+        {"source": "/settings/**", "destination": "/index.html"},
         {"source": "/studio", "destination": "/index.html"},
         {"source": "/studio/**", "destination": "/index.html"},
         {"source": "/donation", "destination": "/index.html"},
-        {"source": "**", "destination": "/index.html"}
+        {"source": "/donation/**", "destination": "/index.html"},
+        {"source": "/user/**", "destination": "/index.html"},
+        {"source": "/game/**", "destination": "/index.html"}
       ],
       "headers": [
         {"source": "sitemap.xml", "headers": [{"key": "Content-Type", "value": "application/xml"}, {"key": "Cache-Control", "value": "public, max-age=3600"}]},
@@ -43,6 +55,7 @@
       "public": "out",
       "cleanUrls": true,
       "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
+      "404": "404.html",
       "rewrites": [
         {"source": "/api/**", "function": "api"},
         {"source": "**", "destination": "/index.html"}

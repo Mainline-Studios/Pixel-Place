@@ -63,9 +63,15 @@ export const SEO_NOINDEX_PATHS = [
 
 export function isIndexableMarketingPath(pathname: string): boolean {
   const p = (pathname || '/').replace(/\/+$/, '') || '/';
-  if (p === '/' || p === '/about') return true;
+  if (p === '/' || p === '/about' || p === '/historimac') return true;
   if (p.startsWith('/historimac/')) return true;
   return false;
+}
+
+/** Strip trailing slash for canonical URLs (except root). */
+export function canonicalPath(pathname: string): string {
+  const p = (pathname || '/').replace(/\/+$/, '') || '/';
+  return p;
 }
 
 type MetadataOptions = {

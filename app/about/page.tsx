@@ -109,6 +109,15 @@ export default function AboutPage() {
         </dl>
       </section>
 
+      <section className="seo-about-page__links" aria-labelledby="discover-heading">
+        <h2 id="discover-heading">Explore</h2>
+        <ul>
+          <li>
+            <Link href="/historimac">HistoriMac — retro Mac versions in your browser</Link>
+          </li>
+        </ul>
+      </section>
+
       <section className="seo-about-page__links" aria-labelledby="community-heading">
         <h2 id="community-heading">Community & updates</h2>
         <ul>

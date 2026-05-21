@@ -1,7 +1,12 @@
 User-agent: *
 Allow: /
 Allow: /about
+Allow: /historimac
 Allow: /historimac/
+
+Disallow: /home
+Disallow: /play
+Disallow: /index.html
 
 # App shell & account flows (canonical = homepage; avoid duplicate indexing)
 Disallow: /games

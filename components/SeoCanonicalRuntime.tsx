@@ -2,10 +2,16 @@
 
 import { useEffect } from 'react';
 import { usePathname } from 'next/navigation';
-import { SITE_ORIGIN, isIndexableMarketingPath, SEO_NOINDEX_PATHS } from '@/lib/seo';
+import {
+  SITE_ORIGIN,
+  absoluteUrl,
+  canonicalPath,
+  isIndexableMarketingPath,
+  SEO_NOINDEX_PATHS,
+} from '@/lib/seo';
 
 function normalizePath(pathname: string): string {
-  return (pathname || '/').replace(/\/+$/, '') || '/';
+  return canonicalPath(pathname);
 }
 
 function setCanonical(href: string) {
@@ -37,8 +43,15 @@ export default function SeoCanonicalRuntime() {
 
   useEffect(() => {
     const path = normalizePath(pathname);
+    const raw = (pathname || '/').replace(/\/+$/, '') || '/';
 
     if (isIndexableMarketingPath(path)) {
+      setCanonical(absoluteUrl(path));
+      setRobots('index, follow');
+      if (raw !== path && raw !== '/') {
+        setRobots('noindex, follow');
+        setCanonical(absoluteUrl(path));
+      }
       return;
     }
 

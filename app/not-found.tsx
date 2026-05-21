@@ -1,5 +1,13 @@
+import type { Metadata } from 'next';
 import Link from 'next/link';
 import Image from 'next/image';
+import { SITE_ORIGIN } from '@/lib/seo';
+
+export const metadata: Metadata = {
+  title: 'Page Not Found — Pixel Place',
+  robots: { index: false, follow: true },
+  alternates: { canonical: SITE_ORIGIN },
+};
 
 export default function NotFound() {
   return (
@@ -44,7 +52,7 @@ export default function NotFound() {
         Oops! The page you&apos;re looking for doesn&apos;t exist or has been moved.
       </p>
       <Link
-        href="/games"
+        href="/"
         style={{
           display: 'inline-block',
           background: 'linear-gradient(135deg, #00aa88 0%, #008866 100%)',
@@ -60,7 +68,7 @@ export default function NotFound() {
           transition: 'all 0.2s',
         }}
       >
-        Back to Games
+        Back to Pixel Place
       </Link>
     </div>
   );
