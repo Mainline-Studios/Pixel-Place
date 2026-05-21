@@ -4,6 +4,19 @@ import nodemailer from 'nodemailer';
 
 const LOGIN_CODE_IMAGE_PATH = '/email/8e3c46b33ffb18295b1f117b2369011d.png';
 
+function isFunctionsEmulator(): boolean {
+  return process.env.FUNCTIONS_EMULATOR === 'true';
+}
+
+function isDeployedFunctionsRuntime(): boolean {
+  return Boolean(
+    process.env.K_SERVICE ||
+      process.env.FUNCTION_TARGET ||
+      process.env.GCLOUD_PROJECT ||
+      process.env.NODE_ENV === 'production',
+  );
+}
+
 function appPublicOrigin(): string {
   return String(
     process.env.APP_PUBLIC_URL || process.env.EMAIL_VERIFY_MAGIC_LINK_BASE || 'https://pixelplaceofficial.com',
@@ -151,6 +164,11 @@ export async function dispatchLoginCodeEmail(payload: {
       throw new Error(`SMTP rejected recipient: ${rejected.join(', ')}`);
     }
     return { sent: true, provider: 'smtp' };
+  }
+
+  if (isFunctionsEmulator() && !isDeployedFunctionsRuntime()) {
+    console.warn('[login-code] No delivery configured — allowing preview challenge (emulator/local).');
+    return { sent: true, provider: 'preview' };
   }
 
   throw new Error(

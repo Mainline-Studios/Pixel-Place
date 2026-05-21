@@ -339,7 +339,16 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       });
 
       const authData = await authRes.json().catch(() => ({}));
-      if (authRes.ok && authData.success && authData.requiresLoginCode && authData.challengeToken) {
+      if (authData?.requiresLoginCode === true) {
+        if (!authRes.ok || !authData.success) {
+          return {
+            success: false,
+            message: authData?.error || 'Could not send login code. Try again in a moment.',
+          };
+        }
+        if (!authData.challengeToken) {
+          return { success: false, message: 'Login code step failed. Sign out and try again.' };
+        }
         return {
           success: true,
           message: '',

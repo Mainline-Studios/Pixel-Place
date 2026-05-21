@@ -277,8 +277,33 @@ function hashVerificationCode(code: string): string {
   return createHash('sha256').update(code).digest('hex');
 }
 
+function isAccountEmailVerified(d: Record<string, unknown>): boolean {
+  if (d.email_verified === true || d.emailVerified === true) return true;
+  const verifiedAt = Number(d.email_verified_at || 0);
+  if (Number.isFinite(verifiedAt) && verifiedAt > 0) return true;
+  const rewardedAt = Number(d.email_verification_rewarded_at || 0);
+  if (Number.isFinite(rewardedAt) && rewardedAt > 0) return true;
+  return false;
+}
+
+/** Backfill email_verified for accounts that completed verification before the flag was stored. */
+async function syncAccountEmailVerifiedFlag(
+  doc: admin.firestore.DocumentSnapshot,
+  d: Record<string, unknown>,
+): Promise<Record<string, unknown>> {
+  if (isAccountEmailVerified(d)) {
+    if (d.email_verified !== true) {
+      const now = Date.now();
+      await doc.ref.set({ email_verified: true, email_verified_at: d.email_verified_at || now, updated_at: now }, { merge: true });
+      return { ...d, email_verified: true, email_verified_at: d.email_verified_at || now };
+    }
+    return d;
+  }
+  return d;
+}
+
 function userNeedsLoginCode(d: Record<string, unknown>): boolean {
-  if (d.email_verified !== true) return false;
+  if (!isAccountEmailVerified(d)) return false;
   const email = normalizeEmail(d.email);
   return isValidEmail(email);
 }
@@ -299,13 +324,20 @@ async function completePasswordLoginResponse(
   };
 
   if (!userNeedsLoginCode(rawData)) {
+    if (isAccountEmailVerified(rawData) && !isValidEmail(normalizeEmail(rawData.email))) {
+      return {
+        success: false,
+        error:
+          'Your email is verified but no email address is saved. Open Settings → Safety & Privacy, add your email, and request verification again.',
+      };
+    }
     const token = jwt.sign({ username: user.username, role: user.role }, getJwtSecret(), { expiresIn: '7d' });
     return {
       success: true,
       user,
       token,
       requiresLoginCode: false,
-      emailVerified: rawData.email_verified === true,
+      emailVerified: isAccountEmailVerified(rawData),
     };
   }
 
@@ -322,7 +354,16 @@ async function completePasswordLoginResponse(
 
   const code = String(Math.floor(100000 + Math.random() * 900000));
   const nonce = randomBytes(12).toString('hex');
-  const delivery = await dispatchLoginCodeEmail({ to: email, username: user.username, code });
+  let delivery: { sent: boolean; provider?: string };
+  try {
+    delivery = await dispatchLoginCodeEmail({ to: email, username: user.username, code });
+  } catch (err: any) {
+    console.error('[login-code] Failed to send:', err);
+    return {
+      success: false,
+      error: String(err?.message || 'Login code email was not sent. Try again in a moment or contact support.'),
+    };
+  }
   if (!delivery.sent) {
     return {
       success: false,
@@ -908,7 +949,7 @@ function userFromData(id: string, d: any): any {
     favoriteGameIds: d.favorite_game_ids || [],
     chatBlockedWords: d.chat_blocked_words || [],
     email: d.email || '',
-    emailVerified: d.email_verified === true,
+    emailVerified: isAccountEmailVerified(d),
     emailVerificationRewardedAt:
       typeof d.email_verification_rewarded_at === 'number' ? d.email_verification_rewarded_at : undefined,
     isDonor: d.is_donor === 1,
@@ -1299,6 +1340,14 @@ app.post('/users', async (req, res) => {
         u.accountPreferences && typeof u.accountPreferences === 'object'
           ? u.accountPreferences
           : (existingData?.account_preferences ?? null),
+      email:
+        typeof u.email === 'string' && u.email.trim()
+          ? normalizeEmail(u.email)
+          : existingData?.email || '',
+      email_verified:
+        u.emailVerified !== undefined
+          ? u.emailVerified === true
+          : existingData?.email_verified === true,
       updated_at: Date.now(),
     };
     if (existing.exists) {
@@ -1535,9 +1584,31 @@ app.post('/auth/google', async (req, res) => {
       await firestoreDb.collection(COLLECTIONS.USERS).doc(userDocId).set(userData);
     }
 
-    const user = userFromData(userDocId, userData);
-    const token = jwt.sign({ username: user.username, role: user.role }, getJwtSecret(), { expiresIn: '7d' });
-    return res.json({ success: true, user, token });
+    const userDoc = await firestoreDb.collection(COLLECTIONS.USERS).doc(userDocId).get();
+    let d = (userDoc.data() || userData) as Record<string, unknown>;
+    if (decoded.email_verified === true && email) {
+      d = { ...d, email: email || d.email, email_verified: true };
+      await userDoc.ref.set(
+        { email: email || d.email, email_verified: true, email_verified_at: d.email_verified_at || Date.now(), updated_at: Date.now() },
+        { merge: true },
+      );
+    }
+    d = await syncAccountEmailVerifiedFlag(userDoc, d);
+    const loginResult = await completePasswordLoginResponse(userDoc, userDocId, d);
+    if (!loginResult.success) {
+      return res.status(loginResult.retryAfterMs ? 429 : 503).json(loginResult);
+    }
+    if (loginResult.requiresLoginCode) {
+      return res.json({
+        success: true,
+        requiresLoginCode: true,
+        challengeToken: loginResult.challengeToken,
+        maskedEmail: loginResult.maskedEmail,
+        user: loginResult.user,
+        emailVerified: loginResult.emailVerified,
+      });
+    }
+    return res.json({ success: true, user: loginResult.user, token: loginResult.token });
   } catch (error: any) {
     console.error('Google auth failed:', error);
     return res.status(500).json({ error: error?.message || 'Google authentication failed' });
@@ -1591,9 +1662,10 @@ app.post('/auth/firestore-login', async (req, res) => {
 
     if (deviceId) await recordDevice(String(username), String(deviceId), String(deviceLabel || 'Unknown'));
 
-    const result = await completePasswordLoginResponse(doc, usernameLower, d);
+    const synced = await syncAccountEmailVerifiedFlag(doc, d);
+    const result = await completePasswordLoginResponse(doc, usernameLower, synced);
     if (!result.success) {
-      return res.status(result.retryAfterMs ? 429 : 503).json(result);
+      return res.status(result.retryAfterMs ? 429 : result.error?.includes('email address') ? 400 : 503).json(result);
     }
     if (result.requiresLoginCode) {
       return res.json({
@@ -1707,9 +1779,10 @@ app.post('/auth', async (req, res) => {
       }
       if (!match) return res.status(401).json({ error: 'Invalid credentials' });
       if (deviceId) await recordDevice(username, deviceId, deviceLabel || 'Unknown');
-      const result = await completePasswordLoginResponse(doc, username.toLowerCase(), d);
+      const synced = await syncAccountEmailVerifiedFlag(doc, d);
+      const result = await completePasswordLoginResponse(doc, username.toLowerCase(), synced);
       if (!result.success) {
-        return res.status(result.retryAfterMs ? 429 : 503).json(result);
+        return res.status(result.retryAfterMs ? 429 : result.error?.includes('email address') ? 400 : 503).json(result);
       }
       if (result.requiresLoginCode) {
         return res.json({
@@ -1901,7 +1974,7 @@ app.post('/auth/login/verify-code', async (req, res) => {
       success: true,
       user,
       token,
-      emailVerified: d.email_verified === true,
+      emailVerified: isAccountEmailVerified(d),
     });
   } catch (error: any) {
     console.error('Failed to verify login code:', error);
@@ -1957,7 +2030,7 @@ app.get('/auth/email/status', async (req, res) => {
     const d = doc.data() || {};
     return res.json({
       email: d.email || '',
-      emailVerified: d.email_verified === true,
+      emailVerified: isAccountEmailVerified(d),
       rewardGrantedAt:
         typeof d.email_verification_rewarded_at === 'number' ? d.email_verification_rewarded_at : null,
       pendingExpiresAt:

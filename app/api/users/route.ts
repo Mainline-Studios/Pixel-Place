@@ -117,6 +117,10 @@ export async function POST(request: NextRequest) {
           updatedUser.chatBlockedWords !== undefined
             ? updatedUser.chatBlockedWords
             : (existing.chat_blocked_words ?? []),
+        email:
+          typeof updatedUser.email === 'string' && updatedUser.email.trim()
+            ? updatedUser.email.trim().toLowerCase()
+            : existing.email || '',
         email_verified:
           updatedUser.emailVerified !== undefined
             ? updatedUser.emailVerified === true
@@ -239,6 +243,10 @@ export async function PUT(request: NextRequest) {
         updatedUser.chatBlockedWords !== undefined
           ? updatedUser.chatBlockedWords
           : (existing.chat_blocked_words ?? []),
+      email:
+        typeof updatedUser.email === 'string' && updatedUser.email.trim()
+          ? updatedUser.email.trim().toLowerCase()
+          : existing.email || '',
       email_verified:
         updatedUser.emailVerified !== undefined
           ? updatedUser.emailVerified === true
