@@ -1,0 +1,116 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Pixel Place sitemap — 11 URLs — 2026-05-21 -->
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+        xmlns:image="http://www.google.com/schemas/sitemap-image/1.1"
+        xmlns:xhtml="http://www.w3.org/1999/xhtml">
+  <url>
+    <loc>https://pixelplaceofficial.comundefined</loc>
+    <lastmod>2026-05-21</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>1.0</priority>
+    <image:image xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">
+      <image:loc>https://pixelplaceofficial.com/logo.png</image:loc>
+      <image:title>Pixel Place — Free Browser Games</image:title>
+    </image:image>
+  </url>
+  <url>
+    <loc>https://pixelplaceofficial.comundefined</loc>
+    <lastmod>2026-05-21</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.96</priority>
+    <image:image xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">
+      <image:loc>https://pixelplaceofficial.com/logo.png</image:loc>
+      <image:title>About Pixel Place</image:title>
+    </image:image>
+  </url>
+  <url>
+    <loc>https://pixelplaceofficial.comundefined</loc>
+    <lastmod>2026-05-21</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.95</priority>
+    <image:image xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">
+      <image:loc>https://pixelplaceofficial.com/logo.png</image:loc>
+      <image:title>Pixel Place Games</image:title>
+    </image:image>
+  </url>
+  <url>
+    <loc>https://pixelplaceofficial.comundefined</loc>
+    <lastmod>2026-05-21</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.90</priority>
+    <image:image xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">
+      <image:loc>https://pixelplaceofficial.com/logo.png</image:loc>
+      <image:title>Pixel Place Game Studio</image:title>
+    </image:image>
+  </url>
+  <url>
+    <loc>https://pixelplaceofficial.comundefined</loc>
+    <lastmod>2026-05-21</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.88</priority>
+    <image:image xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">
+      <image:loc>https://pixelplaceofficial.com/logo.png</image:loc>
+      <image:title>Pixel Place Avatar Shop</image:title>
+    </image:image>
+  </url>
+  <url>
+    <loc>https://pixelplaceofficial.comundefined</loc>
+    <lastmod>2026-05-21</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.85</priority>
+    <image:image xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">
+      <image:loc>https://pixelplaceofficial.com/logo.png</image:loc>
+      <image:title>Pixel Coins</image:title>
+    </image:image>
+  </url>
+  <url>
+    <loc>https://pixelplaceofficial.comundefined</loc>
+    <lastmod>2026-05-21</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.84</priority>
+    <image:image xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">
+      <image:loc>https://pixelplaceofficial.com/logo.png</image:loc>
+      <image:title>Pixel Place Friends</image:title>
+    </image:image>
+  </url>
+  <url>
+    <loc>https://pixelplaceofficial.comundefined</loc>
+    <lastmod>2026-05-21</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.80</priority>
+    <image:image xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">
+      <image:loc>https://pixelplaceofficial.com/logo.png</image:loc>
+      <image:title>Pixel Place Safety</image:title>
+    </image:image>
+  </url>
+  <url>
+    <loc>https://pixelplaceofficial.comundefined</loc>
+    <lastmod>2026-05-21</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.82</priority>
+    <image:image xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">
+      <image:loc>https://pixelplaceofficial.com/logo.png</image:loc>
+      <image:title>Pixel Place Settings</image:title>
+    </image:image>
+  </url>
+  <url>
+    <loc>https://pixelplaceofficial.comundefined</loc>
+    <lastmod>2026-05-21</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.75</priority>
+    <image:image xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">
+      <image:loc>https://pixelplaceofficial.com/logo.png</image:loc>
+      <image:title>Support Pixel Place</image:title>
+    </image:image>
+  </url>
+  <url>
+    <loc>https://pixelplaceofficial.comundefined</loc>
+    <lastmod>2026-05-21</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.86</priority>
+    <image:image xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">
+      <image:loc>https://pixelplaceofficial.com/logo.png</image:loc>
+      <image:title>HistoriMac on Pixel Place</image:title>
+    </image:image>
+  </url>
+</urlset>

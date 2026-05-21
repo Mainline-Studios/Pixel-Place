@@ -3,24 +3,26 @@ Allow: /
 Allow: /about
 Allow: /historimac
 Allow: /historimac/
+Allow: /games
+Allow: /studio
+Allow: /avatarshop
+Allow: /coins
+Allow: /friends
+Allow: /report
+Allow: /settings
+Allow: /donation
 
+# Legacy aliases (redirect to / or tabs)
 Disallow: /home
 Disallow: /play
 Disallow: /index.html
+Disallow: /safety
 
-# App shell & account flows (canonical = homepage; avoid duplicate indexing)
-Disallow: /games
-Disallow: /avatarshop
-Disallow: /coins
-Disallow: /friends
-Disallow: /settings
-Disallow: /studio
-Disallow: /donation
+# Account / auth (not for search)
 Disallow: /verify
 Disallow: /signoutall
 Disallow: /mainlinelogin
 
-# API is for the app, not search results
 Disallow: /api/
 
 Sitemap: https://pixelplaceofficial.com/sitemap.xml

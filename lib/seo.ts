@@ -42,8 +42,8 @@ export function absoluteUrl(path = '/'): string {
   return normalized === '/' ? SITE_ORIGIN : `${SITE_ORIGIN}${normalized}`;
 }
 
-/** Paths that share the app shell — consolidate to homepage, do not index separately. */
-export const SEO_APP_SHELL_PATHS = [
+/** Dashboard tab paths (each has dedicated metadata via per-tab page routes). */
+export const SEO_APP_TAB_PATHS = [
   '/games',
   '/avatarshop',
   '/coins',
@@ -51,6 +51,7 @@ export const SEO_APP_SHELL_PATHS = [
   '/settings',
   '/studio',
   '/donation',
+  '/report',
 ] as const;
 
 /** Utility / auth flows — never index. */
@@ -58,13 +59,14 @@ export const SEO_NOINDEX_PATHS = [
   '/verify',
   '/signoutall',
   '/mainlinelogin',
-  ...SEO_APP_SHELL_PATHS,
+  '/safety',
 ] as const;
 
 export function isIndexableMarketingPath(pathname: string): boolean {
   const p = (pathname || '/').replace(/\/+$/, '') || '/';
   if (p === '/' || p === '/about' || p === '/historimac') return true;
-  if (p.startsWith('/historimac/')) return true;
+  if (p.startsWith('/historimac/') && p !== '/historimac') return true;
+  if ((SEO_APP_TAB_PATHS as readonly string[]).includes(p)) return true;
   return false;
 }
 

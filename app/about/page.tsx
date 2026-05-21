@@ -110,11 +110,16 @@ export default function AboutPage() {
       </section>
 
       <section className="seo-about-page__links" aria-labelledby="discover-heading">
-        <h2 id="discover-heading">Explore</h2>
+        <h2 id="discover-heading">Explore the app</h2>
         <ul>
-          <li>
-            <Link href="/historimac">HistoriMac — retro Mac versions in your browser</Link>
-          </li>
+          <li><Link href="/games">Games</Link></li>
+          <li><Link href="/studio">Game Studio</Link></li>
+          <li><Link href="/avatarshop">Avatar Shop</Link></li>
+          <li><Link href="/coins">Pixel Coins</Link></li>
+          <li><Link href="/friends">Friends</Link></li>
+          <li><Link href="/report">Safety &amp; Privacy</Link></li>
+          <li><Link href="/settings">Settings</Link></li>
+          <li><Link href="/historimac">HistoriMac — retro Mac in your browser</Link></li>
         </ul>
       </section>
 
