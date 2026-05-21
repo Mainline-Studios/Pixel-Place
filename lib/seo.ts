@@ -99,7 +99,7 @@ export function buildSiteMetadata(options: MetadataOptions = {}): Metadata {
     applicationName: SITE_NAME,
     category: 'games',
     robots: options.noIndex
-      ? { index: false, follow: false }
+      ? { index: false, follow: true, googleBot: { index: false, follow: true } }
       : {
           index: true,
           follow: true,
