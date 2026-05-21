@@ -47,6 +47,8 @@ export interface User {
 export type Anti67AccountState = {
   locked: boolean;
   playsCompleted: number;
+  /** Total full listens required (starts at 3; +3 on each skip/seek) */
+  requiredPlays?: number;
 };
 
 export type UserAccountPreferences = {

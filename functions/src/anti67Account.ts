@@ -1,26 +1,32 @@
 import type { Express, Request, Response } from 'express';
 
-export const ANTI_67_REQUIRED_PLAYS = 3;
+export const ANTI_67_BASE_REQUIRED_PLAYS = 3;
+export const ANTI_67_SKIP_PENALTY_PLAYS = 3;
 
 export type Anti67State = {
   locked: boolean;
   playsCompleted: number;
+  requiredPlays: number;
 };
 
 export function parseAnti67FromPreferences(prefs: unknown): Anti67State {
   if (!prefs || typeof prefs !== 'object') {
-    return { locked: false, playsCompleted: 0 };
+    return { locked: false, playsCompleted: 0, requiredPlays: ANTI_67_BASE_REQUIRED_PLAYS };
   }
   const raw = (prefs as { anti67?: unknown }).anti67;
   if (!raw || typeof raw !== 'object') {
-    return { locked: false, playsCompleted: 0 };
+    return { locked: false, playsCompleted: 0, requiredPlays: ANTI_67_BASE_REQUIRED_PLAYS };
   }
   const locked = (raw as Anti67State).locked === true;
+  const requiredPlays = Math.max(
+    ANTI_67_BASE_REQUIRED_PLAYS,
+    Number((raw as Anti67State).requiredPlays) || ANTI_67_BASE_REQUIRED_PLAYS,
+  );
   const playsCompleted = Math.min(
-    ANTI_67_REQUIRED_PLAYS,
+    requiredPlays,
     Math.max(0, Number((raw as Anti67State).playsCompleted) || 0),
   );
-  return { locked, playsCompleted };
+  return { locked, playsCompleted, requiredPlays };
 }
 
 type Anti67Deps = {
@@ -61,7 +67,11 @@ export function mountAnti67AccountRoutes(app: Express, deps: Anti67Deps) {
       if (!auth) return;
       const loaded = await loadUserPrefs(auth.username);
       if (!loaded) return res.status(404).json({ error: 'User not found' });
-      const anti67: Anti67State = { locked: true, playsCompleted: 0 };
+      const anti67: Anti67State = {
+        locked: true,
+        playsCompleted: 0,
+        requiredPlays: ANTI_67_BASE_REQUIRED_PLAYS,
+      };
       await saveAnti67(loaded.ref, loaded.prefs as Record<string, unknown>, anti67);
       return res.json({ success: true, anti67 });
     } catch (e) {
@@ -80,13 +90,43 @@ export function mountAnti67AccountRoutes(app: Express, deps: Anti67Deps) {
       if (!current.locked) {
         return res.status(400).json({ error: 'Anti 67 lock is not active' });
       }
-      const playsCompleted = Math.min(ANTI_67_REQUIRED_PLAYS, current.playsCompleted + 1);
-      const anti67: Anti67State = { locked: true, playsCompleted };
+      if (current.playsCompleted >= current.requiredPlays) {
+        return res.json({ success: true, anti67: current });
+      }
+      const playsCompleted = current.playsCompleted + 1;
+      const anti67: Anti67State = {
+        locked: true,
+        playsCompleted,
+        requiredPlays: current.requiredPlays,
+      };
       await saveAnti67(loaded.ref, loaded.prefs as Record<string, unknown>, anti67);
       return res.json({ success: true, anti67 });
     } catch (e) {
       console.error('[anti67] play-complete failed:', e);
       return res.status(500).json({ error: 'Failed to record listen' });
+    }
+  };
+
+  const skipPenaltyHandler = async (req: Request, res: Response) => {
+    try {
+      const auth = requireAuth(req, res);
+      if (!auth) return;
+      const loaded = await loadUserPrefs(auth.username);
+      if (!loaded) return res.status(404).json({ error: 'User not found' });
+      const current = parseAnti67FromPreferences(loaded.prefs);
+      if (!current.locked) {
+        return res.status(400).json({ error: 'Anti 67 lock is not active' });
+      }
+      const anti67: Anti67State = {
+        locked: true,
+        playsCompleted: current.playsCompleted,
+        requiredPlays: current.requiredPlays + ANTI_67_SKIP_PENALTY_PLAYS,
+      };
+      await saveAnti67(loaded.ref, loaded.prefs as Record<string, unknown>, anti67);
+      return res.json({ success: true, anti67, penaltyAdded: ANTI_67_SKIP_PENALTY_PLAYS });
+    } catch (e) {
+      console.error('[anti67] skip-penalty failed:', e);
+      return res.status(500).json({ error: 'Failed to apply skip penalty' });
     }
   };
 
@@ -97,10 +137,14 @@ export function mountAnti67AccountRoutes(app: Express, deps: Anti67Deps) {
       const loaded = await loadUserPrefs(auth.username);
       if (!loaded) return res.status(404).json({ error: 'User not found' });
       const current = parseAnti67FromPreferences(loaded.prefs);
-      if (!current.locked || current.playsCompleted < ANTI_67_REQUIRED_PLAYS) {
-        return res.status(400).json({ error: 'Finish listening 3 times before closing' });
+      if (!current.locked || current.playsCompleted < current.requiredPlays) {
+        return res.status(400).json({ error: 'Finish all required listens before closing' });
       }
-      const anti67: Anti67State = { locked: false, playsCompleted: current.playsCompleted };
+      const anti67: Anti67State = {
+        locked: false,
+        playsCompleted: current.playsCompleted,
+        requiredPlays: current.requiredPlays,
+      };
       await saveAnti67(loaded.ref, loaded.prefs as Record<string, unknown>, anti67);
       return res.json({ success: true, anti67 });
     } catch (e) {
@@ -112,6 +156,9 @@ export function mountAnti67AccountRoutes(app: Express, deps: Anti67Deps) {
   ['/account/anti67/start', '/api/account/anti67/start'].forEach((path) => app.post(path, startHandler));
   ['/account/anti67/play-complete', '/api/account/anti67/play-complete'].forEach((path) =>
     app.post(path, playCompleteHandler),
+  );
+  ['/account/anti67/skip-penalty', '/api/account/anti67/skip-penalty'].forEach((path) =>
+    app.post(path, skipPenaltyHandler),
   );
   ['/account/anti67/dismiss', '/api/account/anti67/dismiss'].forEach((path) => app.post(path, dismissHandler));
 }

@@ -20,6 +20,17 @@ export async function recordAnti67PlayComplete(): Promise<{
   return { ok: true, anti67: data.anti67 };
 }
 
+export async function recordAnti67SkipPenalty(): Promise<{
+  ok: boolean;
+  anti67?: Anti67State;
+  error?: string;
+}> {
+  const res = await authenticatedFetch(apiUrl('/api/account/anti67/skip-penalty'), { method: 'POST' });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) return { ok: false, error: data?.error || 'Could not apply skip penalty' };
+  return { ok: true, anti67: data.anti67 };
+}
+
 export async function dismissAnti67Lock(): Promise<{ ok: boolean; anti67?: Anti67State; error?: string }> {
   const res = await authenticatedFetch(apiUrl('/api/account/anti67/dismiss'), { method: 'POST' });
   const data = await res.json().catch(() => ({}));
