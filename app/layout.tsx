@@ -59,14 +59,14 @@ export default function RootLayout({
             <SecretThemeProvider>
               <SoundProvider>
                 <MobileBetaProvider>
-                  <UserProvider>
-                    <SiteLanguageProvider>
+                  <SiteLanguageProvider>
+                    <UserProvider>
                       <SeoCanonicalRuntime />
                       <SoundEffects />
                       {children}
-                    </SiteLanguageProvider>
-                    <Anti67LockOverlay />
-                  </UserProvider>
+                      <Anti67LockOverlay />
+                    </UserProvider>
+                  </SiteLanguageProvider>
                 </MobileBetaProvider>
               </SoundProvider>
             </SecretThemeProvider>
