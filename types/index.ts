@@ -44,6 +44,11 @@ export interface User {
   accountPreferences?: UserAccountPreferences;
 }
 
+export type Anti67AccountState = {
+  locked: boolean;
+  playsCompleted: number;
+};
+
 export type UserAccountPreferences = {
   colorMode?: 'light' | 'dark';
   styleTheme?: string;
@@ -53,6 +58,8 @@ export type UserAccountPreferences = {
   locale?: string;
   forceDesktop?: boolean;
   particlesEnabled?: boolean;
+  /** Site-wide listen lock (footer 6-7 easter egg) */
+  anti67?: Anti67AccountState;
 };
 
 export interface FriendRequest {

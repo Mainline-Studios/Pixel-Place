@@ -10,6 +10,7 @@ import { SecretThemeProvider } from "@/contexts/SecretThemeContext";
 import { SoundProvider } from "@/contexts/SoundContext";
 import { AccessibilityProvider } from "@/contexts/AccessibilityContext";
 import SoundEffects from "@/components/SoundEffects";
+import Anti67LockOverlay from "@/components/Anti67LockOverlay";
 import { getSchemaOrgJsonLd } from "@/lib/schemaOrg";
 
 export const metadata: Metadata = {
@@ -59,6 +60,7 @@ export default function RootLayout({
                       <SoundEffects />
                       {children}
                     </SiteLanguageProvider>
+                    <Anti67LockOverlay />
                   </UserProvider>
                 </MobileBetaProvider>
               </SoundProvider>

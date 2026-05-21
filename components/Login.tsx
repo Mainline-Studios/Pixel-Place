@@ -7,6 +7,7 @@ import BanScreen from './BanScreen';
 import SiteSocialLinks from './SiteSocialLinks';
 import BrandKitDownloadLink from './BrandKitDownloadLink';
 import SiteLicenseAttribution from './SiteLicenseAttribution';
+import Anti67FooterTriggers from './Anti67FooterTriggers';
 import StatusPageLink from './StatusPageLink';
 import { isSupportedLocale } from '@/lib/locale';
 import { useSiteLanguage } from '@/contexts/SiteLanguageContext';
@@ -618,6 +619,7 @@ export default function Login() {
           </div>
           <div className="login-site-footer__legal">
             <SiteLicenseAttribution />
+            <Anti67FooterTriggers />
           </div>
         </footer>
       </div>

@@ -737,6 +737,7 @@ import {
   getJwtSecret,
 } from './authMiddleware';
 import { postPpafSign, postPpafVerify } from './ppaf';
+import { mountAnti67AccountRoutes } from './anti67Account';
 import { mountStripeEmbeddedWebhook, mountStripeEmbeddedPayRoutes } from './stripeEmbeddedPay';
 
 const DEVICE_ID_MAX = 128;
@@ -3003,6 +3004,9 @@ app.get('/status-page', getStatusPageHandler);
 app.get('/api/status-page', getStatusPageHandler);
 app.put('/status-page', putStatusPageHandler);
 app.put('/api/status-page', putStatusPageHandler);
+
+// Anti 67 account lock (footer easter egg)
+mountAnti67AccountRoutes(app, { db, usersCollection: COLLECTIONS.USERS, requireAuth });
 
 // Signed Pixel Place Account File (PPAF) — backup / restore
 ['/account/ppaf/sign', '/api/account/ppaf/sign'].forEach((path) => app.post(path, postPpafSign));

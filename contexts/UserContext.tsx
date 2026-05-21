@@ -20,6 +20,7 @@ import { hydratePreferencesFromUser, needsAccountSetup } from '@/lib/accountSetu
 import { usePathname } from 'next/navigation';
 import { verifyLoginCode } from '@/lib/loginApi';
 import { isFocusedAuthPathname } from '@/lib/focusedAuthRoutes';
+import { isAnti67Blocking } from '@/lib/anti67';
 
 export type LoginResult = {
   success: boolean;
@@ -59,7 +60,6 @@ const UserContext = createContext<UserContextType | undefined>(undefined);
 export function UserProvider({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const onFocusedAuthRoute = isFocusedAuthPathname(pathname || '');
-  const bypassReadySplash = onFocusedAuthRoute;
   // Restore user from sessionStorage on mount
   const getInitialUser = async (): Promise<User | null> => {
     if (typeof window === 'undefined') return null;
@@ -133,6 +133,15 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
 
   const MIN_READY_WAIT_MS = 6000;  // show loading at least 6 seconds so Firebase/API can load
   const MAX_READY_WAIT_MS = 12000;  // stop waiting after 12 seconds at most
+  const anti67Blocking = Boolean(user && isAnti67Blocking(user.accountPreferences));
+  const bypassReadySplash = onFocusedAuthRoute || anti67Blocking;
+
+  useEffect(() => {
+    if (user && isAnti67Blocking(user.accountPreferences)) {
+      setUserAcceptedReady(true);
+      setAccountSetupOpen(false);
+    }
+  }, [user?.username, user?.accountPreferences?.anti67?.locked, user?.accountPreferences?.anti67?.playsCompleted]);
 
   useEffect(() => {
     if (!user) {

@@ -11,6 +11,7 @@ import ScrollToTop from '../ScrollToTop';
 import SiteSocialLinks from '../SiteSocialLinks';
 import BrandKitDownloadLink from '../BrandKitDownloadLink';
 import SiteLicenseAttribution from '../SiteLicenseAttribution';
+import Anti67FooterTriggers from '../Anti67FooterTriggers';
 import StatusPageLink from '../StatusPageLink';
 import LocalizeText from '@/components/LocalizeText';
 import { useSecretTheme } from '@/contexts/SecretThemeContext';
@@ -233,6 +234,7 @@ export default function Dashboard({ user }: DashboardProps) {
         )}
         <div style={{ marginBottom: 14, lineHeight: 1.65, maxWidth: 640, marginLeft: 'auto', marginRight: 'auto' }}>
           <SiteLicenseAttribution />
+          <Anti67FooterTriggers />
         </div>
         {!isMinimalist ? (
           <div>
