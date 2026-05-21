@@ -1,9 +1,12 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { Suspense, useState, useEffect } from 'react';
 import InstallPrompt from '@/components/InstallPrompt';
 import { useUser } from '@/contexts/UserContext';
 import Login from '@/components/Login';
+import VerifyEmailFlow from '@/components/VerifyEmailFlow';
+import SignOutAllFlow from '@/components/SignOutAllFlow';
+import { isFocusedAuthPathname, isSignOutAllPathname, isVerifyPathname } from '@/lib/focusedAuthRoutes';
 import Dashboard from '@/components/Dashboard/Dashboard';
 import SplashScreen from '@/components/SplashScreen';
 import BreakReminder from '@/components/BreakReminder';
@@ -269,6 +272,7 @@ function AppContent() {
   const [showSplash, setShowSplash] = useState(() => {
     if (typeof window === 'undefined') return true;
     try {
+      if (isFocusedAuthPathname(window.location.pathname || '')) return false;
       if (sessionStorage.getItem('pixelPlaceSkipSplash')) {
         sessionStorage.removeItem('pixelPlaceSkipSplash');
         return false;
@@ -280,12 +284,15 @@ function AppContent() {
   const [payPortal, setPayPortal] = useState<PayPortalClientState>(() => getPayPortalClientState());
   const [publicUserId, setPublicUserId] = useState<number | null>(null);
   const [publicGameId, setPublicGameId] = useState<number | null>(null);
+  const [routePath, setRoutePath] = useState('');
 
   useEffect(() => {
     setPayPortal(getPayPortalClientState());
     if (typeof window !== 'undefined') {
-      const userMatch = window.location.pathname.match(/^\/user\/(\d+)\/?$/);
-      const gameMatch = window.location.pathname.match(/^\/game\/(\d+)\/?$/);
+      const path = window.location.pathname || '/';
+      setRoutePath(path);
+      const userMatch = path.match(/^\/user\/(\d+)\/?$/);
+      const gameMatch = path.match(/^\/game\/(\d+)\/?$/);
       setPublicUserId(userMatch ? Number(userMatch[1]) : null);
       setPublicGameId(gameMatch ? Number(gameMatch[1]) : null);
     }
@@ -318,6 +325,25 @@ function AppContent() {
       }
     };
   }, [user]);
+
+  if (isFocusedAuthPathname(routePath)) {
+    if (isVerifyPathname(routePath)) {
+      return (
+        <Suspense
+          fallback={
+            <div style={{ minHeight: '70vh', display: 'grid', placeItems: 'center', padding: 20 }}>
+              <div style={{ color: 'var(--text-dim)' }}>Loading verification…</div>
+            </div>
+          }
+        >
+          <VerifyEmailFlow />
+        </Suspense>
+      );
+    }
+    if (isSignOutAllPathname(routePath)) {
+      return <SignOutAllFlow />;
+    }
+  }
 
   if (payPortal.kind === 'checkout') {
     return <PixelPlacePay coins={payPortal.coins} />;

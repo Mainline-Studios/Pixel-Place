@@ -19,6 +19,7 @@ import AccountSetupWizard from '@/components/AccountSetupWizard';
 import { hydratePreferencesFromUser, needsAccountSetup } from '@/lib/accountSetup';
 import { usePathname } from 'next/navigation';
 import { verifyLoginCode } from '@/lib/loginApi';
+import { isFocusedAuthPathname } from '@/lib/focusedAuthRoutes';
 
 export type LoginResult = {
   success: boolean;
@@ -57,11 +58,8 @@ const UserContext = createContext<UserContextType | undefined>(undefined);
 
 export function UserProvider({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const bypassReadySplash =
-    pathname === '/signoutall' ||
-    pathname?.startsWith('/signoutall/') ||
-    pathname === '/verify' ||
-    pathname?.startsWith('/verify/');
+  const onFocusedAuthRoute = isFocusedAuthPathname(pathname || '');
+  const bypassReadySplash = onFocusedAuthRoute;
   // Restore user from sessionStorage on mount
   const getInitialUser = async (): Promise<User | null> => {
     if (typeof window === 'undefined') return null;
@@ -633,7 +631,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
   return (
     <UserContext.Provider value={{ user, setUser, login, completeLoginWithCode, loginWithGoogle, createAccount, updateUser, gettingReady, userAcceptedReady, setUserAcceptedReady, bannedSession, clearBannedSession: () => setBannedSession(null), deviceBannedSession, clearDeviceBannedSession: () => setDeviceBannedSession(null), isRestoring }}>
       {children}
-      {user && accountSetupOpen ? (
+      {user && accountSetupOpen && !onFocusedAuthRoute ? (
         <AccountSetupWizard
           onFinished={() => {
             setAccountSetupOpen(false);
