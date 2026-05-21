@@ -55,6 +55,24 @@ Consistency helps brand search (“pixel place games”).
 - Keyword stuffing hidden text (Google penalizes)
 - Scraping emails for blast campaigns
 
+## Fix “Duplicate without user-selected canonical” (Search Console)
+
+Google flags this when many URLs serve the same app but lack a clear canonical (e.g. `/`, `/games`, `/settings` all looked like the homepage).
+
+**What we did in code:**
+
+- Homepage `/` and marketing `/about` + `/historimac/*` each have their own canonical URL.
+- `/games` and other app tabs: `noindex` + canonical → `https://pixelplaceofficial.com`.
+- Sitemap lists only `/`, `/about`, and HistoriMac invites (not `/games`).
+- `robots.txt` disallows app-only paths.
+
+**What you should do in Search Console:**
+
+1. Use property **`https://pixelplaceofficial.com`** (not the `.web.app` URL).
+2. **Settings → Crawling →** confirm sitemap submitted.
+3. Open the duplicate report → **Validate fix** after deploy.
+4. If both `pixel-place-823b1.web.app` and custom domain are properties, set the **custom domain as primary** or remove the `.web.app` property.
+
 ## After deploy checklist
 
 - [ ] `npm run build` (regenerates sitemap)

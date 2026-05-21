@@ -4,6 +4,7 @@ import { notFound } from 'next/navigation';
 import { HISTORIMAC_VERSIONS } from '@/lib/historiMacVersions';
 import { getHistoriMacVersionByIdParam, historiMacInviteOgTitle } from '@/lib/historiMacInvite';
 import HistoriMacInviteShell from '@/components/Games/HistoriMacInviteShell';
+import { absoluteUrl, buildSiteMetadata } from '@/lib/seo';
 
 type Props = { params: Promise<{ versionId: string }> };
 
@@ -18,14 +19,13 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   if (!v) return { title: 'HistoriMac — Pixel Place' };
   const title = historiMacInviteOgTitle(v.label);
   const description = `Open this invite to play ${v.label} in your browser — HistoriMac on Pixel Place (Infinite Mac).`;
+  const path = `/historimac/${encodeURIComponent(v.id)}`;
   return {
-    title,
-    description,
-    /** Apple Messages & iOS use Open Graph; we skip Twitter-specific tags for now. */
+    ...buildSiteMetadata({ title, description, path }),
     openGraph: {
       title,
       description,
-      url: `/historimac/${encodeURIComponent(v.id)}`,
+      url: absoluteUrl(path),
       siteName: 'Pixel Place',
       type: 'website',
       locale: 'en_US',

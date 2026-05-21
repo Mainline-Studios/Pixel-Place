@@ -17,7 +17,6 @@ const historimacIds = [...historimacSrc.matchAll(/^\s+id: '([^']+)'/gm)].map((m)
 const pages = [
   { loc: '/', priority: '1.0', changefreq: 'daily' },
   { loc: '/about', priority: '0.95', changefreq: 'weekly' },
-  { loc: '/games', priority: '0.9', changefreq: 'daily' },
   ...historimacIds.map((id) => ({
     loc: `/historimac/${encodeURIComponent(id)}`,
     priority: '0.65',

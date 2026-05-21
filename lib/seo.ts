@@ -38,7 +38,34 @@ export const SEO_KEYWORDS = [
 
 export function absoluteUrl(path = '/'): string {
   const p = path.startsWith('/') ? path : `/${path}`;
-  return `${SITE_ORIGIN}${p}`;
+  const normalized = p.replace(/\/+$/, '') || '/';
+  return normalized === '/' ? SITE_ORIGIN : `${SITE_ORIGIN}${normalized}`;
+}
+
+/** Paths that share the app shell — consolidate to homepage, do not index separately. */
+export const SEO_APP_SHELL_PATHS = [
+  '/games',
+  '/avatarshop',
+  '/coins',
+  '/friends',
+  '/settings',
+  '/studio',
+  '/donation',
+] as const;
+
+/** Utility / auth flows — never index. */
+export const SEO_NOINDEX_PATHS = [
+  '/verify',
+  '/signoutall',
+  '/mainlinelogin',
+  ...SEO_APP_SHELL_PATHS,
+] as const;
+
+export function isIndexableMarketingPath(pathname: string): boolean {
+  const p = (pathname || '/').replace(/\/+$/, '') || '/';
+  if (p === '/' || p === '/about') return true;
+  if (p.startsWith('/historimac/')) return true;
+  return false;
 }
 
 type MetadataOptions = {
@@ -84,7 +111,10 @@ export function buildSiteMetadata(options: MetadataOptions = {}): Metadata {
             'max-video-preview': -1,
           },
         },
-    alternates: { canonical: url },
+    alternates: {
+      canonical: url,
+      languages: { 'en-US': url },
+    },
     openGraph: {
       type: 'website',
       locale: 'en_US',

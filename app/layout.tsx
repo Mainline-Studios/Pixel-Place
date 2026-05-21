@@ -12,9 +12,12 @@ import { AccessibilityProvider } from "@/contexts/AccessibilityContext";
 import SoundEffects from "@/components/SoundEffects";
 import Anti67LockOverlay from "@/components/Anti67LockOverlay";
 import { getSchemaOrgJsonLd } from "@/lib/schemaOrg";
-import { buildSiteMetadata } from "@/lib/seo";
+import { SITE_ORIGIN } from "@/lib/seo";
+import SeoCanonicalRuntime from "@/components/SeoCanonicalRuntime";
 
-export const metadata: Metadata = buildSiteMetadata();
+export const metadata: Metadata = {
+  metadataBase: new URL(SITE_ORIGIN),
+};
 
 export default function RootLayout({
   children,
@@ -58,6 +61,7 @@ export default function RootLayout({
                 <MobileBetaProvider>
                   <UserProvider>
                     <SiteLanguageProvider>
+                      <SeoCanonicalRuntime />
                       <SoundEffects />
                       {children}
                     </SiteLanguageProvider>

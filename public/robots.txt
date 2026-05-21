@@ -1,8 +1,19 @@
 User-agent: *
 Allow: /
 Allow: /about
-Allow: /games
 Allow: /historimac/
+
+# App shell & account flows (canonical = homepage; avoid duplicate indexing)
+Disallow: /games
+Disallow: /avatarshop
+Disallow: /coins
+Disallow: /friends
+Disallow: /settings
+Disallow: /studio
+Disallow: /donation
+Disallow: /verify
+Disallow: /signoutall
+Disallow: /mainlinelogin
 
 # API is for the app, not search results
 Disallow: /api/
