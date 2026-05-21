@@ -18,6 +18,17 @@ import LoadingScreenWithGame from '@/components/LoadingScreenWithGame';
 import AccountSetupWizard from '@/components/AccountSetupWizard';
 import { hydratePreferencesFromUser, needsAccountSetup } from '@/lib/accountSetup';
 import { usePathname } from 'next/navigation';
+import { verifyLoginCode } from '@/lib/loginApi';
+
+export type LoginResult = {
+  success: boolean;
+  message: string;
+  ban?: any;
+  deviceBanned?: boolean;
+  requiresLoginCode?: boolean;
+  challengeToken?: string;
+  maskedEmail?: string;
+};
 
 export interface BannedSession {
   username: string;
@@ -27,7 +38,8 @@ export interface BannedSession {
 interface UserContextType {
   user: User | null;
   setUser: (user: User | null) => void;
-  login: (username: string, password: string) => Promise<{ success: boolean; message: string; ban?: any; deviceBanned?: boolean }>;
+  login: (username: string, password: string) => Promise<LoginResult>;
+  completeLoginWithCode: (challengeToken: string, code: string) => Promise<LoginResult>;
   loginWithGoogle: (googleUser: User, apiToken?: string) => Promise<void>;
   createAccount: (username: string, password: string, gender: string) => Promise<{ success: boolean; message: string; ban?: any; deviceBanned?: boolean }>;
   updateUser: (updates: Partial<User>) => void;
@@ -286,12 +298,31 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     };
   }, [user?.username]);
 
-  const login = async (username: string, password: string): Promise<{ success: boolean; message: string; ban?: any; deviceBanned?: boolean }> => {
+  const establishSession = (u: User, token: string) => {
+    setAuthToken(token);
+    if (!u.ownedSkins) u.ownedSkins = ['pixel_placer'];
+    if (!u.ownedAccessories) u.ownedAccessories = [];
+    if (!u.equippedAccessories) u.equippedAccessories = {};
+    if (!u.ownedFaces) u.ownedFaces = [];
+    if (u.setupCompleted !== false) u.setupCompleted = true;
+    firstSyncDone.current = false;
+    readyStartTime.current = Date.now();
+    setGettingReady(true);
+    setUser(u);
+    if (typeof window !== 'undefined') {
+      sessionStorage.setItem('pixelPlaceLoggedInUser', u.username);
+      sessionStorage.removeItem('pixelPlaceOffline');
+      if (u.emailVerified !== true) {
+        sessionStorage.setItem('pixelplace_show_verify_prompt', '1');
+      }
+    }
+  };
+
+  const login = async (username: string, password: string): Promise<LoginResult> => {
     if (!username || !password) {
       return { success: false, message: 'Enter username and password.' };
     }
 
-    // Authenticate via backend only (no offline password check — secure)
     try {
       const fingerprint = typeof getDeviceFingerprint === 'function'
         ? getDeviceFingerprint()
@@ -308,22 +339,18 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       });
 
       const authData = await authRes.json().catch(() => ({}));
+      if (authRes.ok && authData.success && authData.requiresLoginCode && authData.challengeToken) {
+        return {
+          success: true,
+          message: '',
+          requiresLoginCode: true,
+          challengeToken: String(authData.challengeToken),
+          maskedEmail: String(authData.maskedEmail || 'your email'),
+        };
+      }
       if (authRes.ok && authData.success && authData.token && authData.user) {
-        setAuthToken(authData.token);
         const u = authData.user as User;
-        if (!u.ownedSkins) u.ownedSkins = ['pixel_placer'];
-        if (!u.ownedAccessories) u.ownedAccessories = [];
-        if (!u.equippedAccessories) u.equippedAccessories = {};
-        if (!u.ownedFaces) u.ownedFaces = [];
-        if (u.setupCompleted !== false) u.setupCompleted = true;
-        firstSyncDone.current = false;
-        readyStartTime.current = Date.now();
-        setGettingReady(true);
-        setUser(u);
-        if (typeof window !== 'undefined') {
-          sessionStorage.setItem('pixelPlaceLoggedInUser', u.username);
-          sessionStorage.removeItem('pixelPlaceOffline');
-        }
+        establishSession(u, authData.token);
         return { success: true, message: '' };
       }
       if (authRes.status === 401) {
@@ -332,13 +359,35 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
         }
         return { success: false, message: authData.error || 'Invalid credentials.', ban: authData.ban };
       }
+      return { success: false, message: authData?.error || 'Could not sign in. Try again.' };
     } catch (_e) {
       return { success: false, message: 'Could not reach server. Try again when online.' };
+    }
+    return { success: false, message: 'Could not sign in.' };
+  };
+
+  const completeLoginWithCode = async (challengeToken: string, code: string): Promise<LoginResult> => {
+    if (!challengeToken || !code.trim()) {
+      return { success: false, message: 'Enter the login code from your email.' };
+    }
+    try {
+      const { res, data } = await verifyLoginCode(challengeToken, code);
+      if (!res.ok || !data?.success || !data?.token || !data?.user) {
+        return { success: false, message: data?.error || 'Invalid or expired login code.' };
+      }
+      const u = data.user as User;
+      establishSession(u, data.token);
+      return { success: true, message: '' };
+    } catch {
+      return { success: false, message: 'Could not verify login code. Try again.' };
     }
   };
 
   const loginWithGoogle = async (googleUser: User, apiToken?: string): Promise<void> => {
-    if (apiToken) setAuthToken(apiToken);
+    if (apiToken) {
+      establishSession(googleUser, apiToken);
+      return;
+    }
     // Check if user is banned
     try {
       const isBanned = await isUserBanned(googleUser.username);
@@ -358,20 +407,21 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     if (!googleUser.equippedAccessories) googleUser.equippedAccessories = {};
 
     if (googleUser.setupCompleted !== false) googleUser.setupCompleted = true;
-    firstSyncDone.current = false;
-    readyStartTime.current = Date.now();
-    setGettingReady(true);
     setUser(googleUser);
-
-    // Persist to sessionStorage
     if (typeof window !== 'undefined') {
       try {
         sessionStorage.setItem('pixelPlaceLoggedInUser', googleUser.username);
-        sessionStorage.removeItem('pixelPlaceOffline'); // Google sign-in is always online
+        sessionStorage.removeItem('pixelPlaceOffline');
+        if (googleUser.emailVerified !== true) {
+          sessionStorage.setItem('pixelplace_show_verify_prompt', '1');
+        }
       } catch (error) {
         console.error('Error saving user session:', error);
       }
     }
+    firstSyncDone.current = false;
+    readyStartTime.current = Date.now();
+    setGettingReady(true);
   };
 
   const createAccount = async (username: string, password: string, gender: string): Promise<{ success: boolean; message: string }> => {
@@ -572,7 +622,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <UserContext.Provider value={{ user, setUser, login, loginWithGoogle, createAccount, updateUser, gettingReady, userAcceptedReady, setUserAcceptedReady, bannedSession, clearBannedSession: () => setBannedSession(null), deviceBannedSession, clearDeviceBannedSession: () => setDeviceBannedSession(null), isRestoring }}>
+    <UserContext.Provider value={{ user, setUser, login, completeLoginWithCode, loginWithGoogle, createAccount, updateUser, gettingReady, userAcceptedReady, setUserAcceptedReady, bannedSession, clearBannedSession: () => setBannedSession(null), deviceBannedSession, clearDeviceBannedSession: () => setDeviceBannedSession(null), isRestoring }}>
       {children}
       {user && accountSetupOpen ? (
         <AccountSetupWizard

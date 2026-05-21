@@ -17,6 +17,7 @@ import cors from 'cors';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import nodemailer from 'nodemailer';
+import { dispatchLoginCodeEmail, maskEmailForDisplay } from './loginCodeEmail';
 
 admin.initializeApp();
 const firestoreDb = admin.firestore();
@@ -55,6 +56,8 @@ const STORAGE_PATH_MAX = 220;
 const EMAIL_VERIFY_CODE_TTL_MS = 20 * 60 * 1000;
 const EMAIL_VERIFY_RESEND_COOLDOWN_MS = 45 * 1000;
 const EMAIL_VERIFY_REWARD_COINS = 20;
+const LOGIN_CODE_TTL_MS = 10 * 60 * 1000;
+const LOGIN_CODE_RESEND_COOLDOWN_MS = 45 * 1000;
 
 type WhereOperator = '==' | '<' | '<=' | '>' | '>=' | 'array-contains' | 'in' | 'array-contains-any';
 type QueryState = {
@@ -272,6 +275,87 @@ function isValidEmail(email: string): boolean {
 
 function hashVerificationCode(code: string): string {
   return createHash('sha256').update(code).digest('hex');
+}
+
+function userNeedsLoginCode(d: Record<string, unknown>): boolean {
+  if (d.email_verified !== true) return false;
+  const email = normalizeEmail(d.email);
+  return isValidEmail(email);
+}
+
+async function completePasswordLoginResponse(
+  doc: any,
+  usernameLower: string,
+  rawData: Record<string, unknown>,
+) {
+  const founder = await applyFounderRewardsAndConsumeCelebration(usernameLower, rawData);
+  const user = {
+    ...userFromDoc(doc),
+    coins: founder.data.coins ?? rawData.coins ?? 0,
+    founderLifetimeCoins: founder.data.founder_lifetime_coins === true,
+    founderOrdinal:
+      typeof founder.data.founder_ordinal === 'number' ? founder.data.founder_ordinal : undefined,
+    showFounderCelebration: founder.showCelebration,
+  };
+
+  if (!userNeedsLoginCode(rawData)) {
+    const token = jwt.sign({ username: user.username, role: user.role }, getJwtSecret(), { expiresIn: '7d' });
+    return {
+      success: true,
+      user,
+      token,
+      requiresLoginCode: false,
+      emailVerified: rawData.email_verified === true,
+    };
+  }
+
+  const email = normalizeEmail(rawData.email);
+  const now = Date.now();
+  const lastSent = Number(rawData.login_code_last_sent_at || 0);
+  if (now - lastSent < LOGIN_CODE_RESEND_COOLDOWN_MS) {
+    return {
+      success: false,
+      error: 'Please wait before requesting another login code',
+      retryAfterMs: LOGIN_CODE_RESEND_COOLDOWN_MS - (now - lastSent),
+    };
+  }
+
+  const code = String(Math.floor(100000 + Math.random() * 900000));
+  const nonce = randomBytes(12).toString('hex');
+  const delivery = await dispatchLoginCodeEmail({ to: email, username: user.username, code });
+  if (!delivery.sent) {
+    return {
+      success: false,
+      error: 'Login code email was not sent. Try again in a moment or contact support.',
+    };
+  }
+
+  await doc.ref.set(
+    {
+      login_code_hash: hashVerificationCode(code),
+      login_code_nonce: nonce,
+      login_code_expires_at: now + LOGIN_CODE_TTL_MS,
+      login_code_last_sent_at: now,
+      login_code_attempts: 0,
+      updated_at: now,
+    },
+    { merge: true },
+  );
+
+  const challengeToken = jwt.sign(
+    { purpose: 'login_code', username: usernameLower, nonce },
+    getJwtSecret(),
+    { expiresIn: '10m' },
+  );
+
+  return {
+    success: true,
+    requiresLoginCode: true,
+    challengeToken,
+    maskedEmail: maskEmailForDisplay(email),
+    user,
+    emailVerified: true,
+  };
 }
 
 function getEmailVerificationSecret(): string {
@@ -1507,9 +1591,28 @@ app.post('/auth/firestore-login', async (req, res) => {
 
     if (deviceId) await recordDevice(String(username), String(deviceId), String(deviceLabel || 'Unknown'));
 
-    const user = userFromData(doc.id, d);
-    const token = jwt.sign({ username: user.username, role: user.role }, getJwtSecret(), { expiresIn: '7d' });
-    return res.json({ success: true, user, token, source: 'firestore-fallback' });
+    const result = await completePasswordLoginResponse(doc, usernameLower, d);
+    if (!result.success) {
+      return res.status(result.retryAfterMs ? 429 : 503).json(result);
+    }
+    if (result.requiresLoginCode) {
+      return res.json({
+        success: true,
+        requiresLoginCode: true,
+        challengeToken: result.challengeToken,
+        maskedEmail: result.maskedEmail,
+        user: result.user,
+        emailVerified: result.emailVerified,
+        source: 'firestore-fallback',
+      });
+    }
+    return res.json({
+      success: true,
+      user: result.user,
+      token: result.token,
+      emailVerified: result.emailVerified,
+      source: 'firestore-fallback',
+    });
   } catch (error) {
     console.error('Firestore fallback login failed:', error);
     return res.status(500).json({ error: 'Authentication failed' });
@@ -1604,17 +1707,26 @@ app.post('/auth', async (req, res) => {
       }
       if (!match) return res.status(401).json({ error: 'Invalid credentials' });
       if (deviceId) await recordDevice(username, deviceId, deviceLabel || 'Unknown');
-      const founder = await applyFounderRewardsAndConsumeCelebration(username.toLowerCase(), d);
-      const user = {
-        ...userFromDoc(doc),
-        coins: founder.data.coins ?? d.coins ?? 0,
-        founderLifetimeCoins: founder.data.founder_lifetime_coins === true,
-        founderOrdinal:
-          typeof founder.data.founder_ordinal === 'number' ? founder.data.founder_ordinal : undefined,
-        showFounderCelebration: founder.showCelebration,
-      };
-      const token = jwt.sign({ username: user.username, role: user.role }, getJwtSecret(), { expiresIn: '7d' });
-      return res.json({ success: true, user, token });
+      const result = await completePasswordLoginResponse(doc, username.toLowerCase(), d);
+      if (!result.success) {
+        return res.status(result.retryAfterMs ? 429 : 503).json(result);
+      }
+      if (result.requiresLoginCode) {
+        return res.json({
+          success: true,
+          requiresLoginCode: true,
+          challengeToken: result.challengeToken,
+          maskedEmail: result.maskedEmail,
+          user: result.user,
+          emailVerified: result.emailVerified,
+        });
+      }
+      return res.json({
+        success: true,
+        user: result.user,
+        token: result.token,
+        emailVerified: result.emailVerified,
+      });
     }
 
     if (action === 'register') {
@@ -1725,6 +1837,112 @@ app.post('/auth/signout-all', async (req, res) => {
   } catch (error) {
     console.error('Failed to sign out all sessions:', error);
     return res.status(500).json({ error: 'Failed to sign out all sessions' });
+  }
+});
+
+app.post('/auth/login/verify-code', async (req, res) => {
+  try {
+    const challengeToken = String(req.body?.challengeToken || '').trim();
+    const code = String(req.body?.code || '').trim().replace(/\s+/g, '');
+    if (!challengeToken || !code) {
+      return res.status(400).json({ error: 'Login challenge and code are required' });
+    }
+    let decoded: { purpose?: string; username?: string; nonce?: string };
+    try {
+      decoded = jwt.verify(challengeToken, getJwtSecret()) as typeof decoded;
+    } catch {
+      return res.status(400).json({ error: 'Login session expired. Sign in again.' });
+    }
+    if (decoded?.purpose !== 'login_code' || !decoded?.username || !decoded?.nonce) {
+      return res.status(400).json({ error: 'Invalid login challenge' });
+    }
+    const id = String(decoded.username).toLowerCase();
+    const ref = db.collection(COLLECTIONS.USERS).doc(id);
+    const doc = await ref.get();
+    if (!doc.exists) return res.status(404).json({ error: 'User not found' });
+    const d = doc.data() || {};
+    const now = Date.now();
+    const expiresAt = Number(d.login_code_expires_at || 0);
+    if (!expiresAt || now > expiresAt) {
+      return res.status(400).json({ error: 'Login code expired. Sign in again to get a new code.' });
+    }
+    if (String(d.login_code_nonce || '') !== String(decoded.nonce)) {
+      return res.status(400).json({ error: 'Invalid login code' });
+    }
+    const incomingHash = hashVerificationCode(code);
+    if (incomingHash !== String(d.login_code_hash || '')) {
+      await ref.set(
+        { login_code_attempts: Number(d.login_code_attempts || 0) + 1, updated_at: now },
+        { merge: true },
+      );
+      return res.status(400).json({ error: 'Invalid login code' });
+    }
+    await ref.set(
+      {
+        login_code_hash: null,
+        login_code_nonce: null,
+        login_code_expires_at: null,
+        login_code_attempts: 0,
+        updated_at: now,
+      },
+      { merge: true },
+    );
+    const founder = await applyFounderRewardsAndConsumeCelebration(id, d);
+    const user = {
+      ...userFromDoc(doc),
+      coins: founder.data.coins ?? d.coins ?? 0,
+      founderLifetimeCoins: founder.data.founder_lifetime_coins === true,
+      founderOrdinal:
+        typeof founder.data.founder_ordinal === 'number' ? founder.data.founder_ordinal : undefined,
+      showFounderCelebration: founder.showCelebration,
+    };
+    const token = jwt.sign({ username: user.username, role: user.role }, getJwtSecret(), { expiresIn: '7d' });
+    return res.json({
+      success: true,
+      user,
+      token,
+      emailVerified: d.email_verified === true,
+    });
+  } catch (error: any) {
+    console.error('Failed to verify login code:', error);
+    return res.status(500).json({ error: error?.message || 'Failed to verify login code' });
+  }
+});
+
+app.post('/auth/login/resend-code', async (req, res) => {
+  try {
+    const challengeToken = String(req.body?.challengeToken || '').trim();
+    if (!challengeToken) return res.status(400).json({ error: 'Login challenge is required' });
+    let decoded: { purpose?: string; username?: string; nonce?: string };
+    try {
+      decoded = jwt.verify(challengeToken, getJwtSecret()) as typeof decoded;
+    } catch {
+      return res.status(400).json({ error: 'Login session expired. Sign in again.' });
+    }
+    if (decoded?.purpose !== 'login_code' || !decoded?.username) {
+      return res.status(400).json({ error: 'Invalid login challenge' });
+    }
+    const id = String(decoded.username).toLowerCase();
+    const doc = await db.collection(COLLECTIONS.USERS).doc(id).get();
+    if (!doc.exists) return res.status(404).json({ error: 'User not found' });
+    const d = doc.data() || {};
+    if (!userNeedsLoginCode(d)) {
+      return res.status(400).json({ error: 'Login code is not required for this account' });
+    }
+    const result = await completePasswordLoginResponse(doc, id, d);
+    if (!result.success) {
+      return res.status(result.retryAfterMs ? 429 : 503).json(result);
+    }
+    return res.json({
+      success: true,
+      requiresLoginCode: true,
+      challengeToken: result.challengeToken,
+      maskedEmail: result.maskedEmail,
+      sent: true,
+    });
+  } catch (error: any) {
+    console.error('Failed to resend login code:', error);
+    return res.status(500).json({ error: error?.message || 'Failed to resend login code' });
   }
 });
 

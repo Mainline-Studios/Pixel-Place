@@ -20,6 +20,7 @@ import {
   isExtendedGenderBranch,
 } from '@/lib/genderIdentityOptions';
 import { getPasswordStrength } from '@/lib/passwordStrength';
+import { resendLoginCode } from '@/lib/loginApi';
 
 export default function Login() {
   const { locale, setLocale, localeChoices } = useSiteLanguage();
@@ -40,7 +41,10 @@ export default function Login() {
   const [banInfo, setBanInfo] = useState<{ ban: any; deviceBanned?: boolean } | null>(null);
   const [showTerms, setShowTerms] = useState(false);
   const [showPrivacy, setShowPrivacy] = useState(false);
-  const { login, createAccount } = useUser();
+  const { login, completeLoginWithCode, createAccount } = useUser();
+  const [loginChallenge, setLoginChallenge] = useState<{ challengeToken: string; maskedEmail: string } | null>(null);
+  const [loginCode, setLoginCode] = useState('');
+  const [loginCodeBusy, setLoginCodeBusy] = useState(false);
   const { playSuccess, playError } = useSound();
   const text = getLoginUiStrings(locale);
   const monthNames = text.monthNames;
@@ -55,18 +59,68 @@ export default function Login() {
     if (result.ban) {
       setBanInfo({ ban: result.ban, deviceBanned: 'deviceBanned' in result ? !!result.deviceBanned : false });
       playError();
+    } else if (!result.success) {
+      setMessage(result.message);
+      playError();
+      setBanInfo(null);
+    } else if (result.requiresLoginCode && result.challengeToken) {
+      setLoginChallenge({
+        challengeToken: result.challengeToken,
+        maskedEmail: result.maskedEmail || 'your email',
+      });
+      setLoginCode('');
+      setMessage(`We sent a login code to ${result.maskedEmail}. Enter it below.`);
+      playSuccess();
+      setBanInfo(null);
     } else {
-      if (!result.success) {
-        setMessage(result.message);
-        playError();
-      } else {
-        playSuccess();
-        setMessage('');
-        setUsername('');
-        setPassword('');
-      }
+      playSuccess();
+      setMessage('');
+      setUsername('');
+      setPassword('');
+      setLoginChallenge(null);
       setBanInfo(null);
     }
+  };
+
+  const handleLoginCodeSubmit = async () => {
+    if (!loginChallenge) return;
+    if (!loginCode.trim()) {
+      setMessage('Enter the 6-digit code from your email.');
+      playError();
+      return;
+    }
+    setLoginCodeBusy(true);
+    const result = await completeLoginWithCode(loginChallenge.challengeToken, loginCode);
+    setLoginCodeBusy(false);
+    if (!result.success) {
+      setMessage(result.message);
+      playError();
+      return;
+    }
+    playSuccess();
+    setMessage('');
+    setLoginChallenge(null);
+    setLoginCode('');
+    setUsername('');
+    setPassword('');
+  };
+
+  const handleResendLoginCode = async () => {
+    if (!loginChallenge) return;
+    setLoginCodeBusy(true);
+    const { res, data } = await resendLoginCode(loginChallenge.challengeToken);
+    setLoginCodeBusy(false);
+    if (!res.ok || !data?.challengeToken) {
+      setMessage(data?.error || 'Could not resend code. Try signing in again.');
+      playError();
+      return;
+    }
+    setLoginChallenge({
+      challengeToken: String(data.challengeToken),
+      maskedEmail: String(data.maskedEmail || loginChallenge.maskedEmail),
+    });
+    setMessage(`A new code was sent to ${data.maskedEmail || loginChallenge.maskedEmail}.`);
+    playSuccess();
   };
 
   // Note: We can't reliably filter emojis during typing for login/signup
@@ -175,6 +229,58 @@ export default function Login() {
 
           {mode === 'signin' ? (
             <>
+              {loginChallenge ? (
+                <>
+                  <p style={{ margin: '0 0 12px', lineHeight: 1.45, color: 'var(--text-dim)' }}>
+                    Two-step verification: enter the code we emailed to{' '}
+                    <strong>{loginChallenge.maskedEmail}</strong>.
+                  </p>
+                  <input
+                    id="login-code"
+                    inputMode="numeric"
+                    autoComplete="one-time-code"
+                    placeholder="6-digit login code"
+                    value={loginCode}
+                    onChange={(e) => setLoginCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                    onKeyPress={(e) => e.key === 'Enter' && void handleLoginCodeSubmit()}
+                  />
+                  <button
+                    className="btn auth-btn signin-btn"
+                    type="button"
+                    disabled={loginCodeBusy}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      void handleLoginCodeSubmit();
+                    }}
+                  >
+                    {loginCodeBusy ? 'Verifying…' : 'Verify code and sign in'}
+                  </button>
+                  <button
+                    className="btn auth-btn"
+                    type="button"
+                    disabled={loginCodeBusy}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      void handleResendLoginCode();
+                    }}
+                  >
+                    Resend code
+                  </button>
+                  <button
+                    className="btn auth-btn"
+                    type="button"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      setLoginChallenge(null);
+                      setLoginCode('');
+                      setMessage('');
+                    }}
+                  >
+                    Back to password
+                  </button>
+                </>
+              ) : (
+                <>
               <input
                 id="user"
                 placeholder={text.usernameEmailPhone}
@@ -202,6 +308,8 @@ export default function Login() {
               >
                 {text.signIn}
               </button>
+                </>
+              )}
               <button 
                 className="btn auth-btn" 
                 onClick={(e) => {

@@ -1,0 +1,13 @@
+Two Step Verification
+
+We detected a suspicious login attempt. To log in, enter the code shown.
+Your one-time code
+One-Time code:
+{{CODE}}
+This code is valid for a limited time. If the link or code expires, you can request a new one.
+If this looks suspicious or you didn't try to log in, visit:
+{{SIGNOUT_URL}}
+Do not share this code with anybody, as the code is yours and yours alone.
+Pixel Place Customer Support
+This is an automated message. Please do not reply directly.
+Pixel Place by Mainline Studios

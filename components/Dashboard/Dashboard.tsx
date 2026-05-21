@@ -23,6 +23,7 @@ import CoinsTab from '../Tabs/CoinsTab';
 import FriendsTab from '../Tabs/FriendsTab';
 import SettingsTab from '../Tabs/SettingsTab';
 import ReportTab from '../Tabs/ReportTab';
+import VerifyAccountPrompt from '../VerifyAccountPrompt';
 
 interface DashboardProps {
   user: User;
@@ -42,6 +43,19 @@ export default function Dashboard({ user }: DashboardProps) {
   const [currentTab, setCurrentTab] = useState<TabType>('games');
   const [editMode, setEditMode] = useState(false);
   const [showFounderCelebration, setShowFounderCelebration] = useState<boolean>(!!user?.showFounderCelebration);
+  const [showVerifyPrompt, setShowVerifyPrompt] = useState(false);
+
+  useEffect(() => {
+    if (!user || user.emailVerified === true) {
+      setShowVerifyPrompt(false);
+      return;
+    }
+    if (typeof window !== 'undefined') {
+      const flagged = sessionStorage.getItem('pixelplace_show_verify_prompt') === '1';
+      if (flagged) sessionStorage.removeItem('pixelplace_show_verify_prompt');
+      setShowVerifyPrompt(true);
+    }
+  }, [user?.username, user?.emailVerified]);
 
   useEffect(() => {
     if (user?.showFounderCelebration) setShowFounderCelebration(true);
@@ -283,6 +297,7 @@ export default function Dashboard({ user }: DashboardProps) {
           </div>
         </div>
       )}
+      <VerifyAccountPrompt open={showVerifyPrompt} onClose={() => setShowVerifyPrompt(false)} />
     </div>
   );
 }
