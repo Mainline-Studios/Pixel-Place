@@ -48,8 +48,8 @@ function escapeXml(value) {
     .replace(/'/g, '&apos;');
 }
 
-function urlEntry({ loc, priority, changefreq, imageTitle }) {
-  const full = loc === '/' ? `${SITE}/` : `${SITE}${loc}`;
+function urlEntry({ path, priority, changefreq, imageTitle }) {
+  const full = path === '/' ? `${SITE}/` : `${SITE}${path}`;
   return `  <url>
     <loc>${escapeXml(full)}</loc>
     <lastmod>${today}</lastmod>
