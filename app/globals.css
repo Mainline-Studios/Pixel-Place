@@ -2836,3 +2836,148 @@ footer a:hover {
   image-rendering: pixelated;
   image-rendering: crisp-edges;
 }
+
+/* SEO — crawler-visible home copy (screen-reader / indexable, not over login UI) */
+.seo-home-blurb {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.login-site-footer__about {
+  margin: 8px 0 0;
+  font-size: 12px;
+  text-align: center;
+}
+.login-site-footer__about a {
+  color: var(--accent);
+  text-decoration: none;
+}
+.login-site-footer__about a:hover {
+  text-decoration: underline;
+}
+
+/* SEO — public /about landing */
+.seo-about-page {
+  min-height: 100vh;
+  background: var(--bg-main);
+  color: var(--text-main);
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  line-height: 1.55;
+  padding: 24px 20px 48px;
+}
+.seo-about-page__hero {
+  max-width: 720px;
+  margin: 0 auto 40px;
+  text-align: center;
+}
+.seo-about-page__logo-link img {
+  border-radius: 16px;
+  margin-bottom: 12px;
+}
+.seo-about-page h1 {
+  font-size: clamp(1.75rem, 5vw, 2.5rem);
+  font-weight: 800;
+  margin: 0 0 12px;
+  background: linear-gradient(90deg, var(--brand-sky), #a78bfa);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.seo-about-page__lead {
+  font-size: 1.125rem;
+  color: var(--text-dim);
+  margin: 0 0 24px;
+}
+.seo-about-page__cta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  justify-content: center;
+}
+.seo-about-page__btn {
+  display: inline-block;
+  padding: 12px 22px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  color: var(--text-main);
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 15px;
+}
+.seo-about-page__btn--primary {
+  background: linear-gradient(90deg, #38bdf8, #818cf8);
+  border-color: transparent;
+  color: #0f172a;
+}
+.seo-about-page__grid,
+.seo-about-page__faq,
+.seo-about-page__links {
+  max-width: 720px;
+  margin: 0 auto 36px;
+}
+.seo-about-page h2 {
+  font-size: 1.35rem;
+  margin: 0 0 16px;
+}
+.seo-about-page__grid ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 16px;
+}
+.seo-about-page__grid li {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--panel-radius);
+  padding: 16px 18px;
+  box-shadow: var(--shadow-card);
+}
+.seo-about-page__grid h3 {
+  margin: 0 0 8px;
+  font-size: 1.05rem;
+}
+.seo-about-page__grid p {
+  margin: 0;
+  color: var(--text-dim);
+  font-size: 0.95rem;
+}
+.seo-about-page__faq dl > div {
+  margin-bottom: 14px;
+}
+.seo-about-page__faq dt {
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+.seo-about-page__faq dd {
+  margin: 0;
+  color: var(--text-dim);
+}
+.seo-about-page__links ul {
+  padding-left: 1.25rem;
+}
+.seo-about-page__links a {
+  color: var(--accent);
+}
+.seo-about-page__footer {
+  max-width: 720px;
+  margin: 0 auto;
+  text-align: center;
+  font-size: 14px;
+  color: var(--text-dim);
+}
+.seo-about-page__footer a {
+  color: var(--accent);
+}
+.seo-about-page__fine {
+  margin-top: 8px;
+  font-size: 12px;
+  opacity: 0.85;
+}

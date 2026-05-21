@@ -157,10 +157,6 @@ export default function Login() {
       setMessage('');
       setBanInfo(null);
     }
-    if (result.success) {
-      // Auto sign in after successful sign up
-      await handleSignIn();
-    }
   };
 
   const handleAppealSubmitted = () => {
@@ -617,6 +613,9 @@ export default function Login() {
           <div className="login-site-footer__brand-kit">
             <BrandKitDownloadLink variant="login" />
           </div>
+          <p className="login-site-footer__about">
+            <a href="/about">About Pixel Place — free browser games</a>
+          </p>
           <div className="login-site-footer__legal">
             <SiteLicenseAttribution />
             <Anti67FooterTriggers />

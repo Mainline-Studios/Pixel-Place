@@ -1,0 +1,117 @@
+import type { Metadata } from 'next';
+import {
+  MAINLINE_STUDIOS_DISCORD,
+  PIXEL_PLACE_GITHUB,
+  PIXEL_PLACE_YOUTUBE,
+} from '@/lib/siteLinks';
+
+/** Canonical public site URL (Search Console, OG, sitemap). */
+export const SITE_URL =
+  (typeof process !== 'undefined' && process.env.NEXT_PUBLIC_BASE_URL) ||
+  'https://pixelplaceofficial.com';
+
+export const SITE_ORIGIN = SITE_URL.replace(/\/+$/, '');
+
+export const SITE_NAME = 'Pixel Place';
+
+export const SITE_TAGLINE = 'Free browser games, avatars & Game Studio — by Mainline Studios';
+
+/** High-intent phrases people search (Roblox-adjacent, free games, studio). */
+export const SEO_KEYWORDS = [
+  'Pixel Place',
+  'Pixel Place games',
+  'Mainline Studios',
+  'free online games',
+  'browser games',
+  'play games online free',
+  'make your own game',
+  'game studio online',
+  'avatar creator',
+  'customize avatar',
+  'multiplayer browser games',
+  'Roblox alternative',
+  'free game platform',
+  '3D avatar games',
+  'HistoriMac',
+  'Pixel Coins',
+];
+
+export function absoluteUrl(path = '/'): string {
+  const p = path.startsWith('/') ? path : `/${path}`;
+  return `${SITE_ORIGIN}${p}`;
+}
+
+type MetadataOptions = {
+  title?: string;
+  description?: string;
+  path?: string;
+  noIndex?: boolean;
+};
+
+export function buildSiteMetadata(options: MetadataOptions = {}): Metadata {
+  const path = options.path ?? '/';
+  const url = absoluteUrl(path);
+  const title = options.title ?? `${SITE_NAME} — ${SITE_TAGLINE}`;
+  const description =
+    options.description ??
+    'Play free browser games, customize your 3D avatar, earn Pixel Coins, and build games in Game Studio. Pixel Place is a free gaming platform by Mainline Studios — no download required.';
+
+  const ogImage = absoluteUrl('/logo.png');
+
+  return {
+    metadataBase: new URL(SITE_ORIGIN),
+    title: {
+      default: title,
+      template: `%s | ${SITE_NAME}`,
+    },
+    description,
+    keywords: SEO_KEYWORDS,
+    authors: [{ name: 'Mainline Studios', url: SITE_ORIGIN }],
+    creator: 'Mainline Studios',
+    publisher: 'Mainline Studios',
+    applicationName: SITE_NAME,
+    category: 'games',
+    robots: options.noIndex
+      ? { index: false, follow: false }
+      : {
+          index: true,
+          follow: true,
+          googleBot: {
+            index: true,
+            follow: true,
+            'max-image-preview': 'large',
+            'max-snippet': -1,
+            'max-video-preview': -1,
+          },
+        },
+    alternates: { canonical: url },
+    openGraph: {
+      type: 'website',
+      locale: 'en_US',
+      url,
+      siteName: SITE_NAME,
+      title,
+      description,
+      images: [
+        {
+          url: ogImage,
+          width: 512,
+          height: 512,
+          alt: `${SITE_NAME} logo`,
+        },
+      ],
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title,
+      description,
+      images: [ogImage],
+    },
+    other: {
+      'og:see_also': [PIXEL_PLACE_YOUTUBE, PIXEL_PLACE_GITHUB, MAINLINE_STUDIOS_DISCORD].join(','),
+    },
+    ...(process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION
+      ? { verification: { google: process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION } }
+      : {}),
+  };
+}

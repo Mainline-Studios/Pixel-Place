@@ -568,10 +568,17 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
         }
         return { success: false, message: regData.error || 'Registration failed.' };
       }
+      if (!regRes.ok) {
+        return {
+          success: false,
+          message: regData.error || 'Could not create account. Try again in a moment.',
+        };
+      }
     } catch (_e) {
       // Backend unreachable — fall back to offline flow below
     }
 
+    let isOffline = false;
     let users: User[] = [];
     try {
       users = await getUsers();

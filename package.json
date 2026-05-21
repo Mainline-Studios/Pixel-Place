@@ -7,7 +7,7 @@
         "dev": "node server-integrated.js",
         "dev:next": "next dev -p 3000",
         "server": "node server.js",
-        "build": "next build && node scripts/bundle-update-logs.mjs",
+        "build": "node scripts/generate-sitemap.mjs && next build && node scripts/bundle-update-logs.mjs",
         "start": "next start",
         "lint": "next lint",
         "deploy": "firebase deploy",

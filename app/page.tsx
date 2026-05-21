@@ -1,5 +1,11 @@
 import HomeClient from './HomeClient';
+import SeoHomeBlurb from '@/components/SeoHomeBlurb';
 
 export default function Home() {
-  return <HomeClient />;
+  return (
+    <>
+      <SeoHomeBlurb />
+      <HomeClient />
+    </>
+  );
 }

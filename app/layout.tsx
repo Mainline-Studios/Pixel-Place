@@ -12,11 +12,9 @@ import { AccessibilityProvider } from "@/contexts/AccessibilityContext";
 import SoundEffects from "@/components/SoundEffects";
 import Anti67LockOverlay from "@/components/Anti67LockOverlay";
 import { getSchemaOrgJsonLd } from "@/lib/schemaOrg";
+import { buildSiteMetadata } from "@/lib/seo";
 
-export const metadata: Metadata = {
-  title: "Pixel Place",
-  description: "Pixel Place by Mainline Studios",
-};
+export const metadata: Metadata = buildSiteMetadata();
 
 export default function RootLayout({
   children,
@@ -42,6 +40,9 @@ export default function RootLayout({
           rel="stylesheet"
         />
         <link rel="icon" href="/logo.png" type="image/png" />
+        <link rel="apple-touch-icon" href="/icon-192x192.png" />
+        <link rel="manifest" href="/manifest.json" />
+        <meta name="theme-color" content="#4a90e2" />
         <Script src="/pyx-client.js" strategy="beforeInteractive" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes" />
         <meta name="mobile-web-app-capable" content="yes" />

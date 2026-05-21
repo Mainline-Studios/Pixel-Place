@@ -1003,12 +1003,28 @@ async function ensureSequentialUserIds(): Promise<void> {
   sequentialUserIdsEnsured = true;
 }
 
-async function nextSequentialUserId(): Promise<number> {
-  await ensureSequentialUserIds();
+async function bootstrapUserCounterIfNeeded(): Promise<void> {
+  const counterRef = firestoreDb.collection('meta').doc('user_counter');
+  const snap = await counterRef.get();
+  const existing = Number(snap.data()?.next_user_id);
+  if (snap.exists && Number.isFinite(existing) && existing > 0) return;
   const q = await db.collection(COLLECTIONS.USERS).orderBy('user_id', 'desc').limit(1).get();
-  if (q.empty) return 1;
-  const current = Number(q.docs[0].data()?.user_id || 0);
-  return Number.isFinite(current) && current > 0 ? current + 1 : 1;
+  const maxExisting = q.empty ? 0 : Number(q.docs[0].data()?.user_id || 0);
+  const start = Number.isFinite(maxExisting) && maxExisting > 0 ? maxExisting + 1 : 1;
+  await counterRef.set({ next_user_id: start, updated_at: Date.now() }, { merge: true });
+}
+
+/** Fast counter for new signups — avoids scanning/backfilling all users on every auth request. */
+async function nextSequentialUserId(): Promise<number> {
+  await bootstrapUserCounterIfNeeded();
+  const counterRef = firestoreDb.collection('meta').doc('user_counter');
+  return firestoreDb.runTransaction(async (tx) => {
+    const snap = await tx.get(counterRef);
+    const next = Number(snap.data()?.next_user_id || 1);
+    const assigned = Number.isFinite(next) && next > 0 ? next : 1;
+    tx.set(counterRef, { next_user_id: assigned + 1, updated_at: Date.now() }, { merge: true });
+    return assigned;
+  });
 }
 
 /**
@@ -1698,7 +1714,6 @@ app.post('/auth', async (req, res) => {
   try {
     const { username, password, action, gender, role, coins, deviceId, deviceLabel, email } = req.body;
     if (!username || !password) return res.status(400).json({ error: 'Username and password required' });
-    await ensureSequentialUserIds();
 
     if (action === 'login') {
       if (deviceId && (await isDeviceBanned(deviceId))) {
@@ -1876,7 +1891,12 @@ app.post('/auth', async (req, res) => {
       await db.collection(COLLECTIONS.USERS).doc(id).set(userData);
       if (deviceId) await recordDevice(username, deviceId, deviceLabel || 'Unknown');
       const createdDoc = await db.collection(COLLECTIONS.USERS).doc(id).get();
-      const founder = await applyFounderRewardsAndConsumeCelebration(id, createdDoc.data() || userData);
+      let founder = { data: createdDoc.data() || userData, showCelebration: false };
+      try {
+        founder = await applyFounderRewardsAndConsumeCelebration(id, createdDoc.data() || userData);
+      } catch (founderErr) {
+        console.warn('[register] Founder rewards skipped:', founderErr);
+      }
       const user = {
         ...userFromDoc(createdDoc),
         setupCompleted: false,
@@ -1892,6 +1912,7 @@ app.post('/auth', async (req, res) => {
 
     return res.status(400).json({ error: 'Invalid action' });
   } catch (e) {
+    console.error('Auth error:', e);
     res.status(500).json({ error: 'Authentication failed' });
   }
 });
