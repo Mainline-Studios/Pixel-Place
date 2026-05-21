@@ -45,7 +45,11 @@ const UserContext = createContext<UserContextType | undefined>(undefined);
 
 export function UserProvider({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const bypassReadySplash = pathname === '/signoutall' || pathname?.startsWith('/signoutall/');
+  const bypassReadySplash =
+    pathname === '/signoutall' ||
+    pathname?.startsWith('/signoutall/') ||
+    pathname === '/verify' ||
+    pathname?.startsWith('/verify/');
   // Restore user from sessionStorage on mount
   const getInitialUser = async (): Promise<User | null> => {
     if (typeof window === 'undefined') return null;
