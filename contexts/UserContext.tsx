@@ -153,6 +153,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
   const [gettingReady, setGettingReady] = useState(false);
   const [userAcceptedReady, setUserAcceptedReady] = useState(false);
   const [accountSetupOpen, setAccountSetupOpen] = useState(false);
+  const [readyGeneration, setReadyGeneration] = useState(0);
   const [bannedSession, setBannedSession] = useState<BannedSession | null>(null);
   const [deviceBannedSession, setDeviceBannedSession] = useState<BannedSession | null>(null);
   const firstSyncDone = useRef(false);
@@ -294,20 +295,19 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     if (!user?.username) return;
     let minWaitTimer: ReturnType<typeof setTimeout> | null = null;
 
-    const tryFinishReady = () => {
-      if (!firstSyncDone.current) {
-        firstSyncDone.current = true;
-        setGettingReady(false);
-      }
+    const finishReadySplash = () => {
+      if (firstSyncDone.current) return;
+      firstSyncDone.current = true;
+      setGettingReady(false);
     };
 
     const unsub = subscribeToUser(user.username, (firestoreUser) => {
       if (!firstSyncDone.current) {
         const elapsed = Date.now() - readyStartTime.current;
         if (elapsed >= MIN_READY_WAIT_MS) {
-          tryFinishReady();
+          finishReadySplash();
         } else {
-          minWaitTimer = setTimeout(tryFinishReady, MIN_READY_WAIT_MS - elapsed);
+          minWaitTimer = setTimeout(finishReadySplash, MIN_READY_WAIT_MS - elapsed);
         }
       }
       if (firestoreUser) {
@@ -345,7 +345,8 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
 
     const maxTimer = setTimeout(() => {
       if (minWaitTimer) clearTimeout(minWaitTimer);
-      tryFinishReady();
+      firstSyncDone.current = true;
+      setGettingReady(false);
     }, MAX_READY_WAIT_MS);
 
     return () => {
@@ -353,7 +354,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       if (minWaitTimer) clearTimeout(minWaitTimer);
       clearTimeout(maxTimer);
     };
-  }, [user?.username]);
+  }, [user?.username, readyGeneration]);
 
   // Sync safety points from backend (Firebase)
   useEffect(() => {
@@ -730,8 +731,10 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
           onFinished={() => {
             setAccountSetupOpen(false);
             setUserAcceptedReady(false);
+            firstSyncDone.current = false;
             readyStartTime.current = Date.now();
             setGettingReady(true);
+            setReadyGeneration((n) => n + 1);
           }}
         />
       ) : null}

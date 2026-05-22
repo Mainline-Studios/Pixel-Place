@@ -78,14 +78,13 @@ export default function AccountSetupWizard({ onFinished }: AccountSetupWizardPro
     try {
       const prefs = preferencesFromDraft(draft);
       applySetupDraftLocally(draft);
-      await updateUser({
+      void updateUser({
         setupCompleted: true,
         accountPreferences: prefs,
       });
       onFinished();
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Could not save your setup. Try again.');
-    } finally {
       setBusy(false);
     }
   };
