@@ -129,13 +129,15 @@ export default function AccountSetupWizard({ onFinished }: AccountSetupWizardPro
       }}
     >
       <div
-        className="main-card"
+        className="account-setup-dialog"
         style={{
           width: 'min(560px, 100%)',
           maxHeight: 'min(92vh, 720px)',
           overflow: 'auto',
           margin: 0,
-          boxShadow: '0 24px 64px rgba(0,0,0,0.55)',
+          borderRadius: 'var(--panel-radius)',
+          border: '1px solid var(--border)',
+          padding: '24px 26px',
         }}
       >
         <div style={{ marginBottom: 16 }}>
@@ -174,7 +176,7 @@ export default function AccountSetupWizard({ onFinished }: AccountSetupWizardPro
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
           <Image src="/logo.png" alt="" width={40} height={40} />
           <div>
-            <h2 id="account-setup-title" style={{ margin: 0, fontSize: 22 }}>
+            <h2 id="account-setup-title" style={{ margin: 0, fontSize: 22, color: 'inherit' }}>
               Set up Pixel Place
             </h2>
             <p style={{ margin: '4px 0 0', fontSize: 13, color: 'var(--text-dim)' }}>
@@ -220,7 +222,7 @@ export default function AccountSetupWizard({ onFinished }: AccountSetupWizardPro
                   <span style={{ fontSize: 28, display: 'block', marginBottom: 6 }}>
                     {mode === 'dark' ? '🌙' : '☀️'}
                   </span>
-                  <span style={{ fontWeight: 700 }}>{mode === 'dark' ? 'Dark mode' : 'Light mode'}</span>
+                  <span style={{ fontWeight: 700, color: 'inherit' }}>{mode === 'dark' ? 'Dark mode' : 'Light mode'}</span>
                 </button>
               ))}
             </div>
@@ -253,7 +255,7 @@ export default function AccountSetupWizard({ onFinished }: AccountSetupWizardPro
                       draft.styleTheme === opt.id ? 'var(--accent-bg-hover)' : 'var(--accent-bg)',
                   }}
                 >
-                  {opt.label}
+                  <span style={{ color: 'inherit' }}>{opt.label}</span>
                 </button>
               ))}
             </div>
@@ -262,48 +264,48 @@ export default function AccountSetupWizard({ onFinished }: AccountSetupWizardPro
 
         {step === 'extras' && (
           <div style={{ display: 'grid', gap: 12 }}>
-            <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', color: 'inherit' }}>
               <input
                 type="checkbox"
                 checked={draft.soundsEnabled}
                 onChange={(e) => patchDraft({ soundsEnabled: e.target.checked })}
               />
-              <span>Sound effects (clicks, tabs, purchases)</span>
+              <span style={{ color: 'inherit' }}>Sound effects (clicks, tabs, purchases)</span>
             </label>
-            <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', color: 'inherit' }}>
               <input
                 type="checkbox"
                 checked={draft.reduceMotion}
                 onChange={(e) => patchDraft({ reduceMotion: e.target.checked })}
               />
-              <span>Reduce motion</span>
+              <span style={{ color: 'inherit' }}>Reduce motion</span>
             </label>
-            <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', color: 'inherit' }}>
               <input
                 type="checkbox"
                 checked={draft.invertColors}
                 onChange={(e) => patchDraft({ invertColors: e.target.checked })}
               />
-              <span>Invert colors</span>
+              <span style={{ color: 'inherit' }}>Invert colors</span>
             </label>
-            <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', color: 'inherit' }}>
               <input
                 type="checkbox"
                 checked={draft.particlesEnabled}
                 onChange={(e) => patchDraft({ particlesEnabled: e.target.checked })}
               />
-              <span>Ambient floating particles on the dashboard</span>
+              <span style={{ color: 'inherit' }}>Ambient floating particles on the dashboard</span>
             </label>
-            <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', color: 'inherit' }}>
               <input
                 type="checkbox"
                 checked={draft.forceDesktop}
                 onChange={(e) => patchDraft({ forceDesktop: e.target.checked })}
               />
-              <span>Use full desktop layout on this device (not recommended on phones)</span>
+              <span style={{ color: 'inherit' }}>Use full desktop layout on this device (not recommended on phones)</span>
             </label>
             <div>
-              <label htmlFor="setup-locale" style={{ display: 'block', marginBottom: 6, fontSize: 13 }}>
+              <label htmlFor="setup-locale" style={{ display: 'block', marginBottom: 6, fontSize: 13, color: 'inherit' }}>
                 Language
               </label>
               <select
@@ -313,7 +315,14 @@ export default function AccountSetupWizard({ onFinished }: AccountSetupWizardPro
                   const v = e.target.value;
                   if (isSupportedLocale(v)) patchDraft({ locale: v });
                 }}
-                style={{ width: '100%', padding: '10px 12px', borderRadius: 10 }}
+                style={{
+                  width: '100%',
+                  padding: '10px 12px',
+                  borderRadius: 10,
+                  background: 'var(--panel-alt)',
+                  border: '1px solid var(--border)',
+                  color: 'inherit',
+                }}
               >
                 {localeChoices.map((c) => (
                   <option key={c.value} value={c.value}>
@@ -327,8 +336,8 @@ export default function AccountSetupWizard({ onFinished }: AccountSetupWizardPro
 
         {step === 'done' && (
           <div style={previewCardStyle}>
-            <p style={{ margin: 0, fontWeight: 700 }}>Your setup</p>
-            <ul style={{ margin: '10px 0 0', paddingLeft: 18, fontSize: 13, lineHeight: 1.7 }}>
+            <p style={{ margin: 0, fontWeight: 700, color: 'inherit' }}>Your setup</p>
+            <ul style={{ margin: '10px 0 0', paddingLeft: 18, fontSize: 13, lineHeight: 1.7, color: 'inherit' }}>
               <li>{draft.colorMode === 'light' ? 'Light mode' : 'Dark mode'}</li>
               <li>Theme: {SETUP_STYLE_OPTIONS.find((o) => o.id === draft.styleTheme)?.label}</li>
               <li>Sounds: {draft.soundsEnabled ? 'On' : 'Off'}</li>
