@@ -412,6 +412,7 @@ export default function HistoriMac({
   if (!selected) {
     return (
       <HistoriMacPicker
+        standaloneCatalog={!onClose && !standaloneInvite}
         onClose={standaloneInvite ? undefined : onClose}
         onExitGame={handleExitGame}
         attribution={attributionPicker}

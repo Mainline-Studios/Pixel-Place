@@ -17,14 +17,7 @@ export const metadata: Metadata = {
  */
 export default function HistoriMacInviteLayout({ children }: { children: ReactNode }) {
   return (
-    <div
-      data-historimac-invite-layout
-      style={{
-        minHeight: '100vh',
-        background: 'linear-gradient(145deg, #1a1d2e 0%, #0f1118 50%, #16192a 100%)',
-        color: '#e8e8ef',
-      }}
-    >
+    <div data-historimac-invite-layout style={{ minHeight: '100vh' }}>
       {children}
     </div>
   );

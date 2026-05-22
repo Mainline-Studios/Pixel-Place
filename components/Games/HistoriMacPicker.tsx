@@ -62,7 +62,13 @@ import {
 import { historiMacRunUsesImage, historiMacRunImageSrc } from '@/lib/historiMacRunAssets';
 import HistoriMacTimelineStrip from './HistoriMacTimelineStrip';
 import HistoriMacCustomPanel from './HistoriMacCustomPanel';
-import { AQUA_FONT, aquaTrafficLight } from '@/lib/historiMacAquaStyles';
+import { AQUA_FONT, aquaTrafficLight, aquaGelButtonBlue } from '@/lib/historiMacAquaStyles';
+import {
+  HISTORIMAC_FEATURED_BLURBS,
+  HISTORIMAC_FEATURED_IDS,
+  HISTORIMAC_HERO_LEAD,
+  HISTORIMAC_TAGLINE,
+} from '@/lib/historiMacMarketing';
 
 const HISTORIMAC_PLAY_ICON = '/images/games/historimac-play.png';
 
@@ -96,6 +102,8 @@ function VersionTitle({ label, theme }: { label: string; theme: HistoriMacCardTh
 }
 
 export type HistoriMacPickerProps = {
+  /** `/historimac` hub — enhanced hero + featured row (nav is outside). */
+  standaloneCatalog?: boolean;
   onClose?: () => void;
   onExitGame: () => void;
   /** Powered by Infinite Mac + Infinite Monkey links */
@@ -113,6 +121,7 @@ export type HistoriMacPickerProps = {
 };
 
 export default function HistoriMacPicker({
+  standaloneCatalog = false,
   onClose,
   onExitGame,
   attribution,
@@ -158,6 +167,14 @@ export default function HistoriMacPicker({
     if (!timelineModel) return null;
     return `${Math.round(timelineModel.rangeStart)}–${Math.round(timelineModel.rangeEnd)}`;
   }, [timelineModel]);
+
+  const featuredVersions = useMemo(
+    () =>
+      HISTORIMAC_FEATURED_IDS.map((id) => HISTORIMAC_VERSIONS.find((v) => v.id === id)).filter(
+        Boolean,
+      ) as HistoriMacVersion[],
+    [],
+  );
 
   const filteredSorted = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -225,7 +242,7 @@ export default function HistoriMacPicker({
         style={{
           maxWidth: '1100px',
           margin: '0 auto',
-          padding: '28px 20px 48px',
+          padding: standaloneCatalog ? '16px 20px 48px' : '28px 20px 48px',
           display: 'flex',
           flexDirection: 'column',
           gap: '24px',
@@ -277,7 +294,7 @@ export default function HistoriMacPicker({
                   fontFamily: shellBodyFont(shellTheme),
                 }}
               >
-                Infinite Mac in one place
+                {standaloneCatalog ? 'Pixel Place × Infinite Mac' : 'Infinite Mac in one place'}
               </p>
               <h1
                 title="A nod to history — and to every “one more thing” that shipped anyway."
@@ -291,15 +308,29 @@ export default function HistoriMacPicker({
               <p
                 style={{
                   margin: '0 auto 14px',
-                  maxWidth: '520px',
-                  fontSize: 14,
-                  lineHeight: 1.55,
+                  maxWidth: '560px',
+                  fontSize: standaloneCatalog ? 15 : 14,
+                  lineHeight: 1.6,
                   color: shellHeroBodyText(shellTheme),
                   fontFamily: shellBodyFont(shellTheme),
                 }}
               >
-                Every major era — System through OS X and NeXT — one click. Fullscreen recommended once you’re in.
+                {standaloneCatalog ? HISTORIMAC_TAGLINE : HISTORIMAC_HERO_LEAD}
               </p>
+              {standaloneCatalog ? (
+                <p
+                  style={{
+                    margin: '0 auto 16px',
+                    maxWidth: '520px',
+                    fontSize: 13,
+                    lineHeight: 1.55,
+                    color: shellHeroBodyMuted(shellTheme),
+                    fontFamily: shellBodyFont(shellTheme),
+                  }}
+                >
+                  {HISTORIMAC_HERO_LEAD}
+                </p>
+              ) : null}
 
               <div
                 style={{
@@ -368,6 +399,78 @@ export default function HistoriMacPicker({
             </div>
           </div>
         </header>
+
+        {standaloneCatalog && featuredVersions.length > 0 ? (
+          <section aria-label="Featured Mac versions" style={{ maxWidth: '900px', margin: '0 auto', width: '100%' }}>
+            <h2 style={{ ...shellSectionHeadingStyle(shellTheme), marginBottom: 12 }}>Start here</h2>
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 260px), 1fr))',
+                gap: 14,
+              }}
+            >
+              {featuredVersions.map((v) => {
+                const blurb = HISTORIMAC_FEATURED_BLURBS[v.id as keyof typeof HISTORIMAC_FEATURED_BLURBS];
+                const cardTheme = inferHistoriMacCardTheme(v);
+                return (
+                  <article
+                    key={v.id}
+                    style={{
+                      ...cardArticleStyle(cardTheme),
+                      padding: '18px 18px 16px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: 12,
+                      position: 'relative',
+                      overflow: 'hidden',
+                    }}
+                  >
+                    {usesClassicPlatinumPixelUi(cardTheme) ? (
+                      <div aria-hidden style={classicPlatinumPixelOverlayStyle()} />
+                    ) : null}
+                    <div style={{ position: 'relative', zIndex: 1 }}>
+                      <div style={{ fontSize: 'clamp(16px, 2vw, 18px)' }}>
+                        <VersionTitle label={v.label} theme={cardTheme} />
+                      </div>
+                      {v.timelineYear != null ? (
+                        <span style={{ ...themeYearStyle(cardTheme), marginTop: 8, display: 'inline-block' }}>
+                          {v.timelineYear}
+                        </span>
+                      ) : null}
+                      {blurb ? (
+                        <p style={{ margin: '10px 0 0', ...themeBlurbStyle(cardTheme), lineHeight: 1.5 }}>{blurb}</p>
+                      ) : null}
+                      <button
+                        type="button"
+                        onClick={() => onPlay(v)}
+                        style={{
+                          ...(cardTheme === 'aqua' ? aquaGelButtonBlue : cardRunButtonStyle(cardTheme)),
+                          marginTop: 14,
+                          width: '100%',
+                          minHeight: cardTheme === 'aqua' ? 40 : 44,
+                          cursor: 'pointer',
+                        }}
+                      >
+                        {cardTheme === 'aqua' ? 'Run now' : historiMacRunUsesImage(cardTheme) ? (
+                          <img
+                            src={historiMacRunImageSrc(cardTheme)}
+                            alt=""
+                            width={44}
+                            height={44}
+                            style={{ display: 'block', imageRendering: 'pixelated' }}
+                          />
+                        ) : (
+                          'Run'
+                        )}
+                      </button>
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+          </section>
+        ) : null}
 
         {/* Search + sort */}
         <div

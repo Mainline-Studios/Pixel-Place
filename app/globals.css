@@ -2902,6 +2902,26 @@ footer a:hover {
   image-rendering: crisp-edges;
 }
 
+/* HistoriMac hub (`/historimac`) — Aqua desktop catalog */
+[data-historimac-hub] {
+  min-height: 100vh;
+  background-color: #b0b0b0;
+  background-image:
+    repeating-linear-gradient(0deg, #f2f2f2 0px, #f2f2f2 1px, #dadada 1px, #dadada 2px),
+    linear-gradient(180deg, #d8d8d8 0%, #a8a8a8 100%);
+}
+
+[data-historimac-root][data-shell-era='aqua'] {
+  background-color: transparent;
+  background-image: none;
+}
+
+/* HistoriMac invite deep links — keep cinematic dark chrome */
+[data-historimac-invite-layout]:not(:has([data-historimac-hub])) {
+  background: linear-gradient(145deg, #1a1d2e 0%, #0f1118 50%, #16192a 100%);
+  color: #e8e8ef;
+}
+
 /* SEO — crawler-visible home copy (screen-reader / indexable, not over login UI) */
 .seo-home-blurb {
   position: absolute;
