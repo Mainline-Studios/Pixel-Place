@@ -53,6 +53,7 @@ interface UserContextType {
   createAccount: (username: string, password: string, gender: string) => Promise<{ success: boolean; message: string; ban?: any; deviceBanned?: boolean }>;
   updateUser: (updates: Partial<User>) => void;
   gettingReady: boolean;
+  warmupComplete: boolean;
   userAcceptedReady: boolean;
   setUserAcceptedReady: (v: boolean) => void;
   bannedSession: BannedSession | null;
@@ -151,9 +152,9 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isRestoring, setIsRestoring] = useState(true);
   const [gettingReady, setGettingReady] = useState(false);
+  const [warmupComplete, setWarmupComplete] = useState(false);
   const [userAcceptedReady, setUserAcceptedReady] = useState(false);
   const [accountSetupOpen, setAccountSetupOpen] = useState(false);
-  const [readyGeneration, setReadyGeneration] = useState(0);
   const [bannedSession, setBannedSession] = useState<BannedSession | null>(null);
   const [deviceBannedSession, setDeviceBannedSession] = useState<BannedSession | null>(null);
   const firstSyncDone = useRef(false);
@@ -214,6 +215,10 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     if (needsAccountSetup(user)) {
       setAccountSetupOpen(true);
       setUserAcceptedReady(true);
+      if (!firstSyncDone.current) {
+        readyStartTime.current = Date.now();
+        setGettingReady(true);
+      }
     } else {
       setAccountSetupOpen(false);
       hydratePreferencesFromUser(user);
@@ -244,12 +249,14 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
           } else {
             setUser(restoredUser);
             firstSyncDone.current = false;
+            setWarmupComplete(false);
             readyStartTime.current = Date.now();
             setGettingReady(true);
           }
         } else {
           setUser(restoredUser);
           firstSyncDone.current = false;
+          setWarmupComplete(false);
           readyStartTime.current = Date.now();
           setGettingReady(true);
         }
@@ -270,6 +277,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!user) {
       setUserAcceptedReady(false);
+      setWarmupComplete(false);
       firstSyncDone.current = false;
     }
     if (typeof window !== 'undefined') {
@@ -299,6 +307,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       if (firstSyncDone.current) return;
       firstSyncDone.current = true;
       setGettingReady(false);
+      setWarmupComplete(true);
     };
 
     const unsub = subscribeToUser(user.username, (firestoreUser) => {
@@ -347,6 +356,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       if (minWaitTimer) clearTimeout(minWaitTimer);
       firstSyncDone.current = true;
       setGettingReady(false);
+      setWarmupComplete(true);
     }, MAX_READY_WAIT_MS);
 
     return () => {
@@ -354,7 +364,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       if (minWaitTimer) clearTimeout(minWaitTimer);
       clearTimeout(maxTimer);
     };
-  }, [user?.username, readyGeneration]);
+  }, [user?.username]);
 
   // Sync safety points from backend (Firebase)
   useEffect(() => {
@@ -392,6 +402,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     if (!u.ownedFaces) u.ownedFaces = [];
     if (u.setupCompleted !== false) u.setupCompleted = true;
     firstSyncDone.current = false;
+    setWarmupComplete(false);
     readyStartTime.current = Date.now();
     setGettingReady(true);
     setUser(u);
@@ -552,6 +563,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
         if (!u.ownedAccessories) u.ownedAccessories = [];
         if (!u.equippedAccessories) u.equippedAccessories = {};
         firstSyncDone.current = false;
+        setWarmupComplete(false);
         readyStartTime.current = Date.now();
         setGettingReady(true);
         if (!u.ownedFaces) u.ownedFaces = [];
@@ -724,17 +736,18 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <UserContext.Provider value={{ user, setUser, login, completeLoginWithCode, loginWithGoogle, createAccount, updateUser, gettingReady, userAcceptedReady, setUserAcceptedReady, bannedSession, clearBannedSession: () => setBannedSession(null), deviceBannedSession, clearDeviceBannedSession: () => setDeviceBannedSession(null), isRestoring }}>
+    <UserContext.Provider value={{ user, setUser, login, completeLoginWithCode, loginWithGoogle, createAccount, updateUser, gettingReady, warmupComplete, userAcceptedReady, setUserAcceptedReady, bannedSession, clearBannedSession: () => setBannedSession(null), deviceBannedSession, clearDeviceBannedSession: () => setDeviceBannedSession(null), isRestoring }}>
       {children}
       {user && accountSetupOpen && !onFocusedAuthRoute ? (
         <AccountSetupWizard
           onFinished={() => {
             setAccountSetupOpen(false);
-            setUserAcceptedReady(false);
-            firstSyncDone.current = false;
-            readyStartTime.current = Date.now();
-            setGettingReady(true);
-            setReadyGeneration((n) => n + 1);
+            if (warmupComplete) {
+              setUserAcceptedReady(true);
+            } else {
+              setUserAcceptedReady(false);
+              setGettingReady(true);
+            }
           }}
         />
       ) : null}

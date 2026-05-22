@@ -36,7 +36,7 @@ type AccountSetupWizardProps = {
 };
 
 export default function AccountSetupWizard({ onFinished }: AccountSetupWizardProps) {
-  const { user, updateUser } = useUser();
+  const { user, updateUser, warmupComplete, gettingReady } = useUser();
   const { setStyle } = useStyle();
   const { setColorMode } = useColorMode();
   const { setSoundsEnabled } = useSound();
@@ -161,13 +161,23 @@ export default function AccountSetupWizard({ onFinished }: AccountSetupWizardPro
             style={{
               display: 'flex',
               justifyContent: 'space-between',
+              alignItems: 'center',
+              gap: 8,
               marginTop: 8,
               fontSize: 11,
               color: 'var(--text-dim)',
+              flexWrap: 'wrap',
             }}
           >
             <span>
               Step {stepIndex + 1} of {STEPS.length} — {STEP_LABELS[step]}
+            </span>
+            <span style={{ color: warmupComplete ? '#86efac' : 'var(--text-dim)' }}>
+              {warmupComplete
+                ? 'Account ready in the background'
+                : gettingReady
+                  ? 'Preparing your account in the background…'
+                  : 'Starting background setup…'}
             </span>
           </div>
         </div>
