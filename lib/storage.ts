@@ -515,9 +515,11 @@ export async function createReport(reportedUsername: string, reporterUsername: s
   };
 
   try {
-    const response = await fetch(apiUrl('/api/reports'), {      method: 'POST',
+    const { authenticatedFetch } = await import('@/lib/api');
+    const response = await authenticatedFetch(apiUrl('/api/reports'), {
+      method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(newReport)
+      body: JSON.stringify(newReport),
     });
     if (response.ok) {
       const saved = await response.json();

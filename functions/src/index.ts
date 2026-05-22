@@ -739,6 +739,7 @@ import {
 import { postPpafSign, postPpafVerify } from './ppaf';
 import { mountAnti67AccountRoutes } from './anti67Account';
 import { mountUpdateLogsRoutes } from './updateLogsGithub';
+import { bumpSafetyScoreOnReport, mountUserBoardRoutes } from './userBoard';
 import { mountStripeEmbeddedWebhook, mountStripeEmbeddedPayRoutes } from './stripeEmbeddedPay';
 
 const DEVICE_ID_MAX = 128;
@@ -2797,7 +2798,73 @@ const deleteBansHandler = async (req: any, res: any) => {
 };
 app.delete('/bans', deleteBansHandler);
 app.delete('/api/bans', deleteBansHandler);
-app.get('/reports', async (_req, res) => { try { res.json((await db.collection(COLLECTIONS.REPORTS).get()).docs.map((d: any) => ({ id: d.id, ...d.data() }))); } catch (e) { res.status(500).json({ error: 'Failed' }); } });
+const getReportsHandler = async (_req: any, res: any) => {
+  try {
+    const snap = await db.collection(COLLECTIONS.REPORTS).get();
+    const rows = snap.docs.map((d: any) => {
+      const data = d.data();
+      return {
+        id: d.id,
+        reportedUsername: data.reported_username,
+        reporterUsername: data.reported_by,
+        reason: data.reason,
+        description: data.description || '',
+        timestamp: data.created_at ?? Date.now(),
+        status: data.status || 'pending',
+        reviewedBy: data.reviewed_by,
+        adminNotes: data.admin_notes,
+      };
+    });
+    rows.sort((a, b) => (b.timestamp ?? 0) - (a.timestamp ?? 0));
+    res.json(rows);
+  } catch (e) {
+    res.status(500).json({ error: 'Failed' });
+  }
+};
+app.get('/reports', getReportsHandler);
+app.get('/api/reports', getReportsHandler);
+
+const postReportsHandler = async (req: any, res: any) => {
+  const auth = requireAuth(req, res);
+  if (!auth) return;
+  const body = req.body || {};
+  const reportedUsername = String(body.reportedUsername ?? '').trim();
+  const reason = String(body.reason ?? '').trim();
+  const description = String(body.description ?? '').trim();
+  if (!reportedUsername) return res.status(400).json({ error: 'reportedUsername required' });
+  if (!reason) return res.status(400).json({ error: 'reason required' });
+  if (!description) return res.status(400).json({ error: 'description required' });
+  if (reportedUsername.toLowerCase() === auth.username.toLowerCase()) {
+    return res.status(400).json({ error: 'Cannot report yourself' });
+  }
+  try {
+    const createdAt = Date.now();
+    const docRef = await db.collection(COLLECTIONS.REPORTS).add({
+      reported_username: reportedUsername,
+      reported_by: auth.username,
+      reason,
+      description,
+      status: 'pending',
+      created_at: createdAt,
+    });
+    const newScore = await bumpSafetyScoreOnReport(db, COLLECTIONS, reportedUsername);
+    res.status(200).json({
+      id: docRef.id,
+      reportedUsername,
+      reporterUsername: auth.username,
+      reason,
+      description,
+      timestamp: createdAt,
+      status: 'pending',
+      userBoardScoreAfter: newScore,
+    });
+  } catch (e) {
+    console.error('POST /reports failed:', e);
+    res.status(500).json({ error: 'Failed to create report' });
+  }
+};
+app.post('/reports', postReportsHandler);
+app.post('/api/reports', postReportsHandler);
 app.get('/appeals', async (_req, res) => {
   try {
     const snap = await db.collection(COLLECTIONS.APPEALS).orderBy('created_at', 'desc').get();
@@ -3032,6 +3099,8 @@ mountAnti67AccountRoutes(app, { db, usersCollection: COLLECTIONS.USERS, requireA
 
 // Update logs — GitHub "Latest Update Logs" folder → markdown compiler API
 mountUpdateLogsRoutes(app);
+
+mountUserBoardRoutes(app, db, COLLECTIONS);
 
 // Signed Pixel Place Account File (PPAF) — backup / restore
 ['/account/ppaf/sign', '/api/account/ppaf/sign'].forEach((path) => app.post(path, postPpafSign));

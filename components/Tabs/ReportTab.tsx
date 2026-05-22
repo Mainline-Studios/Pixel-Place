@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { User } from '@/types';
 import { createReport } from '@/lib/storage';
 import SafetyPrivacyPanel from '@/components/SafetyPrivacyPanel';
+import UserBoardPanel from '@/components/UserBoardPanel';
 import { useSound } from '@/contexts/SoundContext';
 import { useAccessibility } from '@/contexts/AccessibilityContext';
 import { useUser } from '@/contexts/UserContext';
@@ -224,6 +225,8 @@ export default function ReportTab({ user }: ReportTabProps) {
       <h2 className="section-title">🚨 Report a User</h2>
 
       <SafetyPrivacyPanel user={user} />
+
+      <UserBoardPanel user={user} />
 
       <div
         className="ai-box"
