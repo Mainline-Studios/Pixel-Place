@@ -2815,7 +2815,7 @@ const getReportsHandler = async (_req: any, res: any) => {
         adminNotes: data.admin_notes,
       };
     });
-    rows.sort((a, b) => (b.timestamp ?? 0) - (a.timestamp ?? 0));
+    rows.sort((a: { timestamp?: number }, b: { timestamp?: number }) => (b.timestamp ?? 0) - (a.timestamp ?? 0));
     res.json(rows);
   } catch (e) {
     res.status(500).json({ error: 'Failed' });
