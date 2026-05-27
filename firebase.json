@@ -40,6 +40,8 @@
         {"source": "/report/**", "destination": "/report.html"},
         {"source": "/about", "destination": "/about.html"},
         {"source": "/historimac", "destination": "/historimac.html"},
+        {"source": "/web-deploy", "destination": "/web-deploy.html"},
+        {"source": "/web-deploy/**", "destination": "/web-deploy.html"},
         {"source": "/mainlinelogin", "destination": "/mainlinelogin.html"},
         {"source": "/mainlinelogin/**", "destination": "/mainlinelogin.html"},
         {"source": "/verify", "destination": "/verify.html"},

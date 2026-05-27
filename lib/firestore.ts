@@ -103,7 +103,9 @@ export const COLLECTIONS = {
   USER_SAFETY: 'user_safety', // User safety points and break tracking
   USER_DEVICES: 'user_devices', // per-user list of devices (deviceId + label)
   DEVICE_USERS: 'device_users', // per-device list of usernames that used it
-  HARDWARE_BANS: 'hardware_bans' // banned deviceIds (reversible)
+  HARDWARE_BANS: 'hardware_bans', // banned deviceIds (reversible)
+  WEB_DEPLOY_REQUESTS: 'web_deploy_requests',
+  WEB_DEPLOY_SITES: 'web_deploy_sites',
 };
 
 const RTDB_COLLECTIONS = new Set<string>([

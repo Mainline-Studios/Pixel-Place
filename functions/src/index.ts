@@ -46,6 +46,8 @@ const COLLECTIONS = {
   PRESENCE: 'presence',
   GAME_SESSIONS: 'game_sessions',
   STATUS_PAGE: 'status_page',
+  WEB_DEPLOY_REQUESTS: 'web_deploy_requests',
+  WEB_DEPLOY_SITES: 'web_deploy_sites',
   STRIPE_PAYMENT_CREDITS: 'stripe_payment_credits',
 };
 
@@ -740,6 +742,7 @@ import { postPpafSign, postPpafVerify } from './ppaf';
 import { mountAnti67AccountRoutes } from './anti67Account';
 import { mountUpdateLogsRoutes } from './updateLogsGithub';
 import { bumpSafetyScoreOnReport, mountUserBoardRoutes } from './userBoard';
+import { mountWebDeployRoutes } from './webDeploy';
 import { mountStripeEmbeddedWebhook, mountStripeEmbeddedPayRoutes } from './stripeEmbeddedPay';
 
 const DEVICE_ID_MAX = 128;
@@ -3101,6 +3104,8 @@ mountAnti67AccountRoutes(app, { db, usersCollection: COLLECTIONS.USERS, requireA
 mountUpdateLogsRoutes(app);
 
 mountUserBoardRoutes(app, db, COLLECTIONS);
+
+mountWebDeployRoutes(app, db, COLLECTIONS);
 
 // Signed Pixel Place Account File (PPAF) — backup / restore
 ['/account/ppaf/sign', '/api/account/ppaf/sign'].forEach((path) => app.post(path, postPpafSign));

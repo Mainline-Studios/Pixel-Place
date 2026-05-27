@@ -6,6 +6,7 @@ import { User, Report, Ban, GameSubmission, UserMadeGame, DeviceRecord, Hardware
 import { getUsers, getReports, banUser, unbanUser, updateReportStatus, saveBannedUsers, saveUsers, ADMIN_ACCOUNTS_LIST, getBanAppeals, updateBanAppealStatus, getMessagesAPI, sendMessage, getGameSubmissions, saveUserMadeGame, deleteGameSubmission, getHardwareBans, addHardwareBan as addHardwareBanApi, removeHardwareBan, getDevicesForUser, getAppealMessagesAdmin } from '@/lib/storage';
 import { subscribeToUsers, subscribeToBans } from '@/lib/firestoreClient';
 import { FilteredUsername } from '@/components/FilteredText';
+import AdminPanelWebDeploy from '@/components/AdminPanelWebDeploy';
 import { formatGenderForDisplay } from '@/lib/formatGenderDisplay';
 
 interface AdminPanelTabProps {
@@ -18,7 +19,9 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
   const [bans, setBans] = useState<Ban[]>([]);
   const [reports, setReports] = useState<Report[]>([]);
   const [appeals, setAppeals] = useState<any[]>([]);
-  const [activeTab, setActiveTab] = useState<'users' | 'bans' | 'hardwarebans' | 'reports' | 'appeals' | 'gamesubmissions'>('users');
+  const [activeTab, setActiveTab] = useState<
+    'users' | 'bans' | 'hardwarebans' | 'reports' | 'appeals' | 'gamesubmissions' | 'webdeploy'
+  >('users');
   const [gameSubmissions, setGameSubmissions] = useState<GameSubmission[]>([]);
   const [banUsername, setBanUsername] = useState('');
   const [banReason, setBanReason] = useState('');
@@ -414,6 +417,12 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
           onClick={() => setActiveTab('gamesubmissions')}
         >
           Game Submissions ({gameSubmissions.filter(s => s.status === 'pending').length} pending)
+        </button>
+        <button
+          className={`btn ${activeTab === 'webdeploy' ? 'active' : ''}`}
+          onClick={() => setActiveTab('webdeploy')}
+        >
+          Web Deploy
         </button>
       </div>
 
@@ -1394,6 +1403,15 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
                   ))}
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'webdeploy' && (
+        <div className="ai-box" style={{ marginBottom: 0 }}>
+          <div className="ai-label">Pixel Place Web Deploy Services</div>
+          <div className="ai-output">
+            <AdminPanelWebDeploy />
           </div>
         </div>
       )}
