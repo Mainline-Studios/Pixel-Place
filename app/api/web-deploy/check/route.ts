@@ -1,3 +1,5 @@
+export const dynamic = 'force-static';
+
 import { NextRequest, NextResponse } from 'next/server';
 import { getDocuments, getDocument, COLLECTIONS } from '@/lib/firestore';
 import { validatePredomain, predomainToLiveUrl } from '@/lib/webDeploy';
