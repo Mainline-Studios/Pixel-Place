@@ -484,7 +484,7 @@ export async function checkDeviceBanStatus(): Promise<{ banned: boolean; ban?: B
 export async function getReports(): Promise<Report[]> {
   if (typeof window === 'undefined') return [];
   try {
-    const response = await fetch(apiUrl('/api/reports'));
+    const response = await authenticatedFetch(apiUrl('/api/reports'));
     if (!response.ok) throw new Error('Failed to fetch reports');
     return await response.json();
   } catch (e) {
@@ -531,12 +531,13 @@ export async function createReport(reportedUsername: string, reporterUsername: s
   return newReport.id;
 }
 
-export async function updateReportStatus(reportId: string, status: Report['status'], adminUsername: string, notes?: string): Promise<void> {
+export async function updateReportStatus(reportId: string, status: Report['status'], _adminUsername: string, notes?: string): Promise<void> {
   if (typeof window === 'undefined') return;
   try {
-    await fetch(apiUrl('/api/reports'), {      method: 'PUT',
+    await authenticatedFetch(apiUrl('/api/reports'), {
+      method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id: reportId, status, reviewedBy: adminUsername, adminNotes: notes })
+      body: JSON.stringify({ id: reportId, status, adminNotes: notes })
     });
   } catch (e) {
     console.error('Error updating report:', e);

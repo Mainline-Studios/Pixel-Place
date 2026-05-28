@@ -4,7 +4,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getDocuments, addDocument, updateDocument, getDocument, setDocument, COLLECTIONS } from '@/lib/firestore';
 import { Report } from '@/types';
 import { clampUserBoardScore, USERBOARD_REPORT_BUMP } from '@/lib/userBoard';
-import { requireAuth } from '@/lib/middleware';
+import { requireAuth, requireAdmin } from '@/lib/middleware';
 
 async function bumpUserBoardScoreOnReport(reportedUsername: string) {
   const id = reportedUsername.trim().toLowerCase();
@@ -42,8 +42,11 @@ function reportFromDoc(doc: any): Report {
     reviewedAt: doc.reviewed_at  };
 }
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    const auth = requireAdmin(request);
+    if (auth.error) return auth.error;
+
     const reports = await getDocuments(COLLECTIONS.REPORTS, (ref) => ref.orderBy('created_at', 'desc'));
     return NextResponse.json(reports.map(reportFromDoc));  } catch (error) {
     console.error('Error reading reports:', error);
@@ -95,7 +98,19 @@ export async function POST(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
   try {
-    const { id, status, reviewedBy, adminNotes } = await request.json();
+    const auth = requireAdmin(request);
+    if (auth.error) return auth.error;
+
+    const { id, status, adminNotes } = await request.json();
+
+    if (!id || typeof id !== 'string') {
+      return NextResponse.json({ error: 'id required' }, { status: 400 });
+    }
+
+    const VALID_STATUSES = ['pending', 'resolved', 'dismissed'];
+    if (!VALID_STATUSES.includes(status)) {
+      return NextResponse.json({ error: `status must be one of: ${VALID_STATUSES.join(', ')}` }, { status: 400 });
+    }
     
     const reports = await getDocuments(COLLECTIONS.REPORTS);
     const report = reports.find(r => r.id === id);
@@ -103,12 +118,17 @@ export async function PUT(request: NextRequest) {
     if (!report) {
       return NextResponse.json({ error: 'Report not found' }, { status: 404 });
     }
-    
-    await updateDocument(COLLECTIONS.REPORTS, id, {
+
+    const updateData: Record<string, any> = {
       status: status,
-      reviewed_by: reviewedBy,
-      reviewed_at: Date.now()
-    });
+      reviewed_by: auth.user!.username,
+      reviewed_at: Date.now(),
+    };
+    if (adminNotes !== undefined) {
+      updateData.admin_notes = adminNotes;
+    }
+    
+    await updateDocument(COLLECTIONS.REPORTS, id, updateData);
     
     const updated = await getDocuments(COLLECTIONS.REPORTS);
     const updatedReport = updated.find(r => r.id === id);
