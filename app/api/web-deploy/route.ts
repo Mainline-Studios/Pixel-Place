@@ -1,5 +1,3 @@
-export const dynamic = 'force-dynamic';
-
 import { NextRequest, NextResponse } from 'next/server';
 import { addDocument, getDocuments, getDocument, setDocument, updateDocument, COLLECTIONS } from '@/lib/firestore';
 import { requireAuth, requireAdmin } from '@/lib/middleware';
