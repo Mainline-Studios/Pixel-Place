@@ -1,10 +1,12 @@
 const path = require('path');
+const isAppHostingStandaloneBuild = process.env.NEXT_PRIVATE_STANDALONE === 'true';
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   // Pin tracing to this app (avoids picking ~/package-lock.json as workspace root).
   outputFileTracingRoot: path.join(__dirname),
-  output: 'export',
+  // Firebase App Hosting's Next.js adapter requires standalone output.
+  output: isAppHostingStandaloneBuild ? undefined : 'export',
   images: {
     unoptimized: true
   },
