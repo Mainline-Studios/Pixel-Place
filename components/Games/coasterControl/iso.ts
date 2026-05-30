@@ -14,13 +14,40 @@ export function tileToScreen(tx: number, ty: number, height = 0): { x: number; y
   };
 }
 
+/** Inverse of tileToScreen — picks the diamond tile under a canvas pixel. */
 export function screenToTile(px: number, py: number): { x: number; y: number } | null {
   const lx = px - ORIGIN_X;
   const ly = py - ORIGIN_Y;
-  const tx = (lx / (TW / 2) + ly / (TH / 2)) / 2;
-  const ty = (ly / (TH / 2) - lx / (TW / 2)) / 2;
-  const x = Math.floor(tx);
-  const y = Math.floor(ty);
+  const fx = (lx / (TW / 2) + ly / (TH / 2)) / 2;
+  const fy = (ly / (TH / 2) - lx / (TW / 2)) / 2;
+
+  let best: { x: number; y: number } | null = null;
+  let bestDist = Infinity;
+
+  const candidates = [
+    { x: Math.floor(fx), y: Math.floor(fy) },
+    { x: Math.ceil(fx), y: Math.floor(fy) },
+    { x: Math.floor(fx), y: Math.ceil(fy) },
+    { x: Math.ceil(fx), y: Math.ceil(fy) },
+    { x: Math.round(fx), y: Math.round(fy) },
+  ];
+
+  for (const c of candidates) {
+    if (c.x < 0 || c.y < 0 || c.x >= MAP_W || c.y >= MAP_H) continue;
+    const center = tileToScreen(c.x, c.y);
+    const dx = Math.abs(px - center.x) / (TW / 2);
+    const dy = Math.abs(py - center.y) / (TH / 2);
+    const dist = dx + dy;
+    if (dist <= 1.05 && dist < bestDist) {
+      bestDist = dist;
+      best = c;
+    }
+  }
+
+  if (best) return best;
+
+  const x = Math.round(fx);
+  const y = Math.round(fy);
   if (x < 0 || y < 0 || x >= MAP_W || y >= MAP_H) return null;
   return { x, y };
 }

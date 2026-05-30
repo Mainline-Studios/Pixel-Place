@@ -181,8 +181,9 @@ export default function CoasterControl({ onClose }: CoasterControlProps) {
     const rect = canvas.getBoundingClientRect();
     const scaleX = width / rect.width;
     const scaleY = height / rect.height;
-    const px = (clientX - rect.left) * scaleX + camRef.current.x;
-    const py = (clientY - rect.top) * scaleY + camRef.current.y;
+    // Canvas bitmap coords (draw uses translate(-cam); do not add cam again here)
+    const px = (clientX - rect.left) * scaleX;
+    const py = (clientY - rect.top) * scaleY;
     return isoScreenToTile(px, py);
   }, [width, height]);
 

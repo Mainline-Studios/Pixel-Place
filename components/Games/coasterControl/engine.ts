@@ -107,8 +107,9 @@ function spend(state: ParkState, cost: number): ParkState {
   return { ...state, money: state.money - cost };
 }
 
-function moveGuest(g: Guest, nx: number, ny: number): Guest {
+function moveGuest(state: ParkState, g: Guest, nx: number, ny: number): Guest {
   if (g.x === nx && g.y === ny) return g;
+  if (!isWalkable(state, nx, ny)) return g;
   return { ...g, animX: g.x, animY: g.y, x: nx, y: ny };
 }
 
@@ -155,7 +156,30 @@ function neighbors4(x: number, y: number): Array<{ x: number; y: number }> {
 function isWalkable(state: ParkState, x: number, y: number): boolean {
   const c = cellAt(state, x, y);
   if (!c || c.terrain === 'water') return false;
-  return c.terrain === 'path' || c.structure === 'entrance';
+  if (c.terrain === 'path' || c.structure === 'entrance') return true;
+  if (c.rideId != null && c.ridePart === 'station') return true;
+  return false;
+}
+
+function nearestWalkableTo(
+  state: ParkState,
+  tx: number,
+  ty: number
+): { x: number; y: number } | null {
+  if (isWalkable(state, tx, ty)) return { x: tx, y: ty };
+  let best: { x: number; y: number } | null = null;
+  let bestD = Infinity;
+  for (let y = 0; y < MAP_H; y++) {
+    for (let x = 0; x < MAP_W; x++) {
+      if (!isWalkable(state, x, y)) continue;
+      const d = Math.abs(x - tx) + Math.abs(y - ty);
+      if (d < bestD) {
+        bestD = d;
+        best = { x, y };
+      }
+    }
+  }
+  return best;
 }
 
 function findPath(
@@ -321,7 +345,7 @@ function tickGuests(state: ParkState): ParkState {
         if (g.path.length && g.pathIndex < g.path.length - 1) {
           g.pathIndex += 1;
           const p = g.path[g.pathIndex];
-          g = moveGuest(g, p.x, p.y);
+          g = moveGuest(next, g, p.x, p.y);
         } else if (g.x === ent.x && g.y === ent.y) {
           toRemove.push(g.id);
         }
@@ -373,7 +397,8 @@ function tickGuests(state: ParkState): ParkState {
           g.path = [];
           next.rides = next.rides.map((r) => (r.id === ride.id ? ride : r));
         } else if (!g.path.length) {
-          const path = findPath(next, { x: g.x, y: g.y }, st);
+          const goal = nearestWalkableTo(next, st.x, st.y) ?? st;
+          const path = findPath(next, { x: g.x, y: g.y }, goal);
           if (path) {
             g.path = path;
             g.pathIndex = 0;
@@ -390,13 +415,13 @@ function tickGuests(state: ParkState): ParkState {
       if (g.path.length && g.pathIndex < g.path.length - 1) {
         g.pathIndex += 1;
         const p = g.path[g.pathIndex];
-        g = moveGuest(g, p.x, p.y);
+        g = moveGuest(next, g, p.x, p.y);
       } else {
         g.path = [];
         const dirs = neighbors4(g.x, g.y).filter((n) => isWalkable(next, n.x, n.y));
         if (dirs.length) {
           const d = dirs[Math.floor(Math.random() * dirs.length)];
-          g = moveGuest(g, d.x, d.y);
+          g = moveGuest(next, g, d.x, d.y);
         }
       }
     }
@@ -586,9 +611,10 @@ export function finishCoaster(state: ParkState): ParkState {
 
   for (const p of trackCells) {
     const ci = idx(p.x, p.y);
+    const base = cells[ci].terrain === 'water' ? 'grass' : cells[ci].terrain;
     cells[ci] = {
       ...cells[ci],
-      terrain: cells[ci].terrain === 'water' ? 'grass' : cells[ci].terrain,
+      terrain: base === 'grass' ? 'path' : base,
       rideId,
       ridePart: p.x === draft.station!.x && p.y === draft.station!.y ? 'station' : 'track',
       structure: undefined,
