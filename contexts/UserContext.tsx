@@ -28,6 +28,14 @@ import {
 } from '@/lib/anti67';
 import { fetchAnti67Status } from '@/lib/anti67Api';
 import { readAnti67Session, syncAnti67Session } from '@/lib/anti67Session';
+import {
+  clearSessionFlags,
+  isInactiveBeyondLimit,
+  isReadyAccepted,
+  isSplashDone,
+  markReadyAccepted,
+  touchActivity,
+} from '@/lib/appSession';
 
 export type LoginResult = {
   success: boolean;
@@ -160,8 +168,9 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
   const firstSyncDone = useRef(false);
   const readyStartTime = useRef<number>(0);
 
-  const MIN_READY_WAIT_MS = 6000;  // show loading at least 6 seconds so Firebase/API can load
-  const MAX_READY_WAIT_MS = 12000;  // stop waiting after 12 seconds at most
+  const MIN_READY_WAIT_MS = 6000;
+  const MIN_READY_RETURNING_MS = 350;
+  const MAX_READY_WAIT_MS = 12000;
   const anti67Blocking = Boolean(user && isAnti67Blocking(user.accountPreferences));
   const bypassReadySplash = onFocusedAuthRoute || anti67Blocking;
 
@@ -255,10 +264,16 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
           }
         } else {
           setUser(restoredUser);
-          firstSyncDone.current = false;
-          setWarmupComplete(false);
-          readyStartTime.current = Date.now();
-          setGettingReady(true);
+          if (isReadyAccepted()) {
+            firstSyncDone.current = true;
+            setWarmupComplete(true);
+            setGettingReady(false);
+          } else {
+            firstSyncDone.current = false;
+            setWarmupComplete(false);
+            readyStartTime.current = Date.now();
+            setGettingReady(true);
+          }
         }
       } else {
         // No saved user — check if device is banned so we show ban screen on open instead of login
@@ -291,12 +306,52 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
         try {
           sessionStorage.removeItem('pixelPlaceLoggedInUser');
           removeAuthToken();
+          clearSessionFlags();
         } catch (error) {
           console.error('Error clearing user session:', error);
         }
       }
     }
   }, [user]);
+
+  // Persist "ready" overlay skip across /games, /coins, etc.
+  useEffect(() => {
+    if (userAcceptedReady) markReadyAccepted();
+  }, [userAcceptedReady]);
+
+  // Log out only after 1 hour without input (tab switches do not reset session)
+  useEffect(() => {
+    if (!user?.username) return;
+    touchActivity();
+
+    const bump = () => touchActivity();
+    const events = ['mousedown', 'keydown', 'touchstart', 'scroll', 'click'] as const;
+    for (const ev of events) {
+      window.addEventListener(ev, bump, { passive: true });
+    }
+
+    const onVisibility = () => {
+      if (document.visibilityState !== 'visible') return;
+      if (isInactiveBeyondLimit()) {
+        setUser(null);
+        return;
+      }
+      touchActivity();
+    };
+    document.addEventListener('visibilitychange', onVisibility);
+
+    const interval = window.setInterval(() => {
+      if (isInactiveBeyondLimit()) setUser(null);
+    }, 60_000);
+
+    return () => {
+      for (const ev of events) {
+        window.removeEventListener(ev, bump);
+      }
+      document.removeEventListener('visibilitychange', onVisibility);
+      window.clearInterval(interval);
+    };
+  }, [user?.username]);
 
   // Real-time Firestore sync: when admin changes role/coins/etc in Firestore, user sees it instantly
   useEffect(() => {
@@ -308,15 +363,20 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       firstSyncDone.current = true;
       setGettingReady(false);
       setWarmupComplete(true);
+      if (isSplashDone()) {
+        markReadyAccepted();
+        setUserAcceptedReady(true);
+      }
     };
 
     const unsub = subscribeToUser(user.username, (firestoreUser) => {
       if (!firstSyncDone.current) {
         const elapsed = Date.now() - readyStartTime.current;
-        if (elapsed >= MIN_READY_WAIT_MS) {
+        const minWait = isReadyAccepted() ? MIN_READY_RETURNING_MS : MIN_READY_WAIT_MS;
+        if (elapsed >= minWait) {
           finishReadySplash();
         } else {
-          minWaitTimer = setTimeout(finishReadySplash, MIN_READY_WAIT_MS - elapsed);
+          minWaitTimer = setTimeout(finishReadySplash, minWait - elapsed);
         }
       }
       if (firestoreUser) {
@@ -406,6 +466,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     readyStartTime.current = Date.now();
     setGettingReady(true);
     setUser(u);
+    touchActivity();
     if (typeof window !== 'undefined') {
       sessionStorage.setItem('pixelPlaceLoggedInUser', u.username);
       sessionStorage.removeItem('pixelPlaceOffline');
@@ -752,7 +813,13 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
         />
       ) : null}
       {user && !accountSetupOpen && !userAcceptedReady && !bypassReadySplash ? (
-        <LoadingScreenWithGame gettingReady={gettingReady} onGoToApp={() => setUserAcceptedReady(true)} />
+        <LoadingScreenWithGame
+          gettingReady={gettingReady}
+          onGoToApp={() => {
+            markReadyAccepted();
+            setUserAcceptedReady(true);
+          }}
+        />
       ) : null}
     </UserContext.Provider>
   );

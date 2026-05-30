@@ -86,6 +86,16 @@ const games: GameInfo[] = [
     component: GymPumpEngine,
   },
   {
+    id: 'coasterControl',
+    name: 'Coaster Control',
+    description:
+      'RCT2-style park sim: 100+ rides, scenarios, sandbox mode, and smooth guest animations.',
+    icon: '🎢',
+    thumbnail: '/images/games/coaster-control.svg',
+    category: 'Simulation',
+    component: CoasterControl,
+  },
+  {
     id: 'hypnosia',
     name: 'Hypnosia',
     description: 'Test your deduction skills in this mysterious game!',
@@ -165,16 +175,6 @@ const games: GameInfo[] = [
     thumbnail: '/images/games/floor-is-lava.svg',
     category: 'Action',
     component: FloorIsLava,
-  },
-  {
-    id: 'coasterControl',
-    name: 'Coaster Control',
-    description:
-      'RCT2-style park sim: 90+ rides (coasters, gentle, thrill, transport, water), scenarios, sandbox, search & build tools.',
-    icon: '🎢',
-    thumbnail: '/images/games/coaster-control.svg',
-    category: 'Simulation',
-    component: CoasterControl,
   },
   {
     id: 'jungleJourney',

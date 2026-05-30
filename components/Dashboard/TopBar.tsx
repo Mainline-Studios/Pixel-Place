@@ -10,6 +10,7 @@ import { useSiteLanguage } from '@/contexts/SiteLanguageContext';
 import { useStyle } from '@/components/StyleProvider';
 import LocalizeText from '@/components/LocalizeText';
 import { isSupportedLocale } from '@/lib/locale';
+import { clearSessionFlags } from '@/lib/appSession';
 import { useState, useEffect, useRef, type CSSProperties } from 'react';
 
 interface TopBarProps {
@@ -101,12 +102,11 @@ export default function TopBar({ currentTab, onTabChange, user }: TopBarProps) {
   } : null;
 
   const handleLogout = () => {
-    // Clear user session
     setUser(null);
-    // Clear sessionStorage (which will be done automatically by UserContext useEffect, but we can also do it here)
     if (typeof window !== 'undefined') {
       try {
         sessionStorage.removeItem('pixelPlaceLoggedInUser');
+        clearSessionFlags();
       } catch (error) {
         console.error('Error clearing session:', error);
       }

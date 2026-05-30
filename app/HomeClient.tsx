@@ -9,6 +9,7 @@ import SignOutAllFlow from '@/components/SignOutAllFlow';
 import { isFocusedAuthPathname, isSignOutAllPathname, isVerifyPathname } from '@/lib/focusedAuthRoutes';
 import Dashboard from '@/components/Dashboard/Dashboard';
 import SplashScreen from '@/components/SplashScreen';
+import { markSplashDone, shouldShowSplash } from '@/lib/appSession';
 import BreakReminder from '@/components/BreakReminder';
 import BanScreen from '@/components/BanScreen';
 import LoginNotice from '@/components/LoginNotice';
@@ -269,17 +270,8 @@ function PublicGameProfilePage({ gameId }: { gameId: number }) {
 
 function AppContent() {
   const { user, bannedSession, clearBannedSession, deviceBannedSession, clearDeviceBannedSession, isRestoring } = useUser();
-  const [showSplash, setShowSplash] = useState(() => {
-    if (typeof window === 'undefined') return true;
-    try {
-      if (isFocusedAuthPathname(window.location.pathname || '')) return false;
-      if (sessionStorage.getItem('pixelPlaceSkipSplash')) {
-        sessionStorage.removeItem('pixelPlaceSkipSplash');
-        return false;
-      }
-    } catch {}
-    return true;
-  });
+  const [showSplash, setShowSplash] = useState(false);
+  const [splashVariant, setSplashVariant] = useState<'full' | 'quick'>('full');
   const prevUserRef = React.useRef<User | null>(null);
   const [payPortal, setPayPortal] = useState<PayPortalClientState>(() => getPayPortalClientState());
   const [publicUserId, setPublicUserId] = useState<number | null>(null);
@@ -297,6 +289,14 @@ function AppContent() {
       setPublicGameId(gameMatch ? Number(gameMatch[1]) : null);
     }
   }, []);
+
+  useEffect(() => {
+    if (isRestoring) return;
+    if (isFocusedAuthPathname(routePath)) return;
+    if (!shouldShowSplash(!!user)) return;
+    setSplashVariant(user ? 'quick' : 'full');
+    setShowSplash(true);
+  }, [isRestoring, user?.username, routePath]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -366,7 +366,13 @@ function AppContent() {
       <UrgentGameBanner />
       {!showSplash && <LoginNotice />}
       {showSplash ? (
-        <SplashScreen onComplete={() => setShowSplash(false)} />
+        <SplashScreen
+          variant={splashVariant}
+          onComplete={() => {
+            markSplashDone();
+            setShowSplash(false);
+          }}
+        />
       ) : bannedSession ? (
         <BanScreen
           ban={bannedSession.ban}
