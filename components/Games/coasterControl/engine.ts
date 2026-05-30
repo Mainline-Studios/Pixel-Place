@@ -756,6 +756,66 @@ export function setTool(state: ParkState, tool: BuildTool): ParkState {
   };
 }
 
+export function toggleRideOpen(state: ParkState, rideId: number): ParkState {
+  const ride = state.rides.find((r) => r.id === rideId);
+  if (!ride) return state;
+  const def = RIDE_DEF[ride.kind];
+  const open = !ride.open;
+  const rides = state.rides.map((r) =>
+    r.id === rideId ? { ...r, open, running: open ? r.running : 0 } : r
+  );
+  let next: ParkState = {
+    ...state,
+    rides,
+    messages: pushMessage(state, `${def.label} ${open ? 'opened' : 'closed'}.`),
+  };
+  return { ...next, ...recalcParkStats(next) };
+}
+
+export function setAllRidesOpen(state: ParkState, open: boolean): ParkState {
+  const rides = state.rides.map((r) => ({ ...r, open, running: open ? r.running : 0 }));
+  let next: ParkState = {
+    ...state,
+    rides,
+    messages: pushMessage(state, open ? 'All rides opened.' : 'All rides closed.'),
+  };
+  return { ...next, ...recalcParkStats(next) };
+}
+
+export function testRide(state: ParkState, rideId: number): ParkState {
+  const ride = state.rides.find((r) => r.id === rideId);
+  if (!ride || !ride.open) {
+    return { ...state, messages: pushMessage(state, 'Open the ride before testing.') };
+  }
+  const def = RIDE_DEF[ride.kind];
+  const rides = state.rides.map((r) =>
+    r.id === rideId ? { ...r, running: def.capacity, queue: 0 } : r
+  );
+  return {
+    ...state,
+    rides,
+    messages: pushMessage(state, `Test run: ${def.label}.`),
+  };
+}
+
+export function demolishRide(state: ParkState, rideId: number): ParkState {
+  const ride = state.rides.find((r) => r.id === rideId);
+  if (!ride) return state;
+  const cells = [...state.cells];
+  for (let j = 0; j < cells.length; j++) {
+    if (cells[j].rideId === rideId) cells[j] = clearCell(cells[j]);
+  }
+  const rides = state.rides.filter((r) => r.id !== rideId);
+  const def = RIDE_DEF[ride.kind];
+  let next: ParkState = {
+    ...state,
+    cells,
+    rides,
+    messages: pushMessage(state, `${def.label} demolished.`),
+  };
+  return { ...next, ...recalcParkStats(next) };
+}
+
 export function payLoan(state: ParkState, amount: number): ParkState {
   if (state.sandbox) return state;
   const pay = Math.min(amount, state.loan, state.money);

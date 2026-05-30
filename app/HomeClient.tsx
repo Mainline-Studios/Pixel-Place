@@ -1,6 +1,6 @@
 'use client';
 
-import React, { Suspense, useState, useEffect } from 'react';
+import React, { Suspense, useState, useEffect, useLayoutEffect } from 'react';
 import InstallPrompt from '@/components/InstallPrompt';
 import { useUser } from '@/contexts/UserContext';
 import Login from '@/components/Login';
@@ -9,7 +9,7 @@ import SignOutAllFlow from '@/components/SignOutAllFlow';
 import { isFocusedAuthPathname, isSignOutAllPathname, isVerifyPathname } from '@/lib/focusedAuthRoutes';
 import Dashboard from '@/components/Dashboard/Dashboard';
 import SplashScreen from '@/components/SplashScreen';
-import { markSplashDone, shouldShowSplash } from '@/lib/appSession';
+import { isSplashDone, markSplashDone, shouldShowSplash } from '@/lib/appSession';
 import BreakReminder from '@/components/BreakReminder';
 import BanScreen from '@/components/BanScreen';
 import LoginNotice from '@/components/LoginNotice';
@@ -270,7 +270,12 @@ function PublicGameProfilePage({ gameId }: { gameId: number }) {
 
 function AppContent() {
   const { user, bannedSession, clearBannedSession, deviceBannedSession, clearDeviceBannedSession, isRestoring } = useUser();
-  const [showSplash, setShowSplash] = useState(false);
+  const [showSplash, setShowSplash] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    const path = window.location.pathname || '/';
+    if (isFocusedAuthPathname(path)) return false;
+    return !isSplashDone();
+  });
   const [splashVariant, setSplashVariant] = useState<'full' | 'quick'>('full');
   const prevUserRef = React.useRef<User | null>(null);
   const [payPortal, setPayPortal] = useState<PayPortalClientState>(() => getPayPortalClientState());
@@ -290,13 +295,27 @@ function AppContent() {
     }
   }, []);
 
+  useLayoutEffect(() => {
+    if (isFocusedAuthPathname(routePath)) {
+      setShowSplash(false);
+      return;
+    }
+    if (isSplashDone()) {
+      setShowSplash(false);
+      return;
+    }
+  }, [routePath]);
+
   useEffect(() => {
     if (isRestoring) return;
     if (isFocusedAuthPathname(routePath)) return;
-    if (!shouldShowSplash(!!user)) return;
+    if (!shouldShowSplash(!!user)) {
+      setShowSplash(false);
+      return;
+    }
     setSplashVariant(user ? 'quick' : 'full');
     setShowSplash(true);
-  }, [isRestoring, user?.username, routePath]);
+  }, [isRestoring, user, routePath]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;

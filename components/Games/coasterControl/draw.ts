@@ -1,211 +1,252 @@
-import { MAP_H, MAP_W, RIDE_DEF, TILE } from './catalog';
+import { MAP_H, MAP_W, RIDE_DEF } from './catalog';
 import type { RideCategory } from './ridesRegistry';
 import type { Guest, ParkState, Structure } from './types';
+import { TW, TH, canvasSize, diamondPath, tileToScreen } from './iso';
 
-const COLORS = {
-  grass: ['#3d7a37', '#458a3f', '#367232'],
-  path: '#9a8b73',
-  water: '#2a6f9e',
-  guest: '#ffeb3b',
-  guestOutline: '#5d4037',
+export { canvasSize };
+
+const PAL = {
+  grass: ['#4d8a3a', '#5a9a45', '#3f7832', '#6bab52'],
+  pathTop: '#d4bc8a',
+  pathLeft: '#a89068',
+  pathRight: '#c9b080',
+  waterTop: '#4a9fd4',
+  waterDeep: '#2e6f9e',
+  cliff: '#3d5c34',
+  peep: ['#ffeb3b', '#ffb74d', '#ef5350'],
+  outline: '#1a2418',
 };
 
 function idx(x: number, y: number): number {
   return y * MAP_W + x;
 }
 
-export function guestDrawPos(g: Guest, alpha: number): { px: number; py: number } {
-  const center = (tx: number, ty: number) => ({
-    px: tx * TILE + TILE / 2,
-    py: ty * TILE + TILE / 2,
-  });
+export function guestDrawPos(g: Guest, alpha: number): { x: number; y: number } {
+  const center = (tx: number, ty: number) => {
+    const p = tileToScreen(tx, ty, 6);
+    return { x: p.x, y: p.y };
+  };
   if (g.path.length > 0 && g.pathIndex < g.path.length - 1) {
     const a = g.path[g.pathIndex];
     const b = g.path[g.pathIndex + 1];
     const ca = center(a.x, a.y);
     const cb = center(b.x, b.y);
     const t = Math.min(1, Math.max(0, alpha));
-    return { px: ca.px + (cb.px - ca.px) * t, py: ca.py + (cb.py - ca.py) * t };
+    return { x: ca.x + (cb.x - ca.x) * t, y: ca.y + (cb.y - ca.y) * t };
   }
   const target = center(g.x, g.y);
   const from = center(g.animX, g.animY);
   const t = Math.min(1, Math.max(0, alpha));
-  return { px: from.px + (target.px - from.px) * t, py: from.py + (target.py - from.py) * t };
+  return { x: from.x + (target.x - from.x) * t, y: from.y + (target.y - from.y) * t };
 }
 
-function drawStructure(
+function fillPx(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, color: string): void {
+  ctx.fillStyle = color;
+  ctx.fillRect(Math.floor(x), Math.floor(y), w, h);
+}
+
+function drawGrassTile(ctx: CanvasRenderingContext2D, x: number, y: number, seed: number): void {
+  const { x: cx, y: cy } = tileToScreen(x, y);
+  const c = PAL.grass[seed % PAL.grass.length];
+  diamondPath(ctx, cx, cy);
+  ctx.fillStyle = c;
+  ctx.fill();
+  ctx.strokeStyle = PAL.cliff;
+  ctx.lineWidth = 1;
+  ctx.stroke();
+  if (seed % 5 === 0) {
+    fillPx(ctx, cx - 2, cy - 5, 2, 2, '#3d6b30');
+  }
+}
+
+function drawPathTile(ctx: CanvasRenderingContext2D, x: number, y: number): void {
+  const { x: cx, y: cy } = tileToScreen(x, y, 1);
+  diamondPath(ctx, cx, cy);
+  ctx.fillStyle = PAL.pathTop;
+  ctx.fill();
+  ctx.beginPath();
+  ctx.moveTo(cx, cy);
+  ctx.lineTo(cx - TW / 2, cy);
+  ctx.lineTo(cx, cy + TH / 2);
+  ctx.closePath();
+  ctx.fillStyle = PAL.pathLeft;
+  ctx.fill();
+  ctx.beginPath();
+  ctx.moveTo(cx, cy);
+  ctx.lineTo(cx + TW / 2, cy);
+  ctx.lineTo(cx, cy + TH / 2);
+  ctx.closePath();
+  ctx.fillStyle = PAL.pathRight;
+  ctx.fill();
+}
+
+function drawWaterTile(ctx: CanvasRenderingContext2D, x: number, y: number, animTime: number): void {
+  const { x: cx, y: cy } = tileToScreen(x, y, -2);
+  diamondPath(ctx, cx, cy);
+  ctx.fillStyle = PAL.waterDeep;
+  ctx.fill();
+  diamondPath(ctx, cx, cy - 2);
+  ctx.fillStyle = PAL.waterTop;
+  ctx.fill();
+  const wave = Math.sin(animTime * 4 + x * 0.5 + y * 0.3) * 2;
+  fillPx(ctx, cx - 6 + wave, cy - 4, 12, 2, 'rgba(255,255,255,0.35)');
+}
+
+function drawStructureIso(
   ctx: CanvasRenderingContext2D,
   structure: Structure,
-  px: number,
-  py: number,
+  x: number,
+  y: number,
   animTime: number
 ): void {
-  const cx = px + TILE / 2;
-  const cy = py + TILE / 2;
+  const { x: cx, y: cy } = tileToScreen(x, y, 4);
+  const h = 14;
   switch (structure) {
-    case 'tree': {
-      const sway = Math.sin(animTime * 2 + px * 0.1) * 0.5;
-      ctx.fillStyle = '#2d5a27';
-      ctx.beginPath();
-      ctx.arc(cx + sway, cy + 2, TILE / 2 - 2, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.fillStyle = '#5d4037';
-      ctx.fillRect(cx - 2, py + TILE - 4, 4, 5);
-      break;
-    }
-    case 'bench':
-      ctx.fillStyle = '#8d6e63';
-      ctx.fillRect(px + 3, py + TILE - 6, TILE - 6, 4);
-      break;
-    case 'food':
-      ctx.fillStyle = '#ff6f00';
-      ctx.fillRect(px + 2, py + 3, TILE - 4, TILE - 6);
-      break;
-    case 'toilet':
-      ctx.fillStyle = '#eceff1';
-      ctx.fillRect(px + 3, py + 3, TILE - 6, TILE - 6);
-      ctx.strokeStyle = '#607d8b';
-      ctx.strokeRect(px + 3, py + 3, TILE - 6, TILE - 6);
+    case 'tree':
+      fillPx(ctx, cx - 2, cy - h - 8, 4, 10, '#4a3520');
+      fillPx(ctx, cx - 6, cy - h - 4, 12, 10, '#2d6b22');
+      fillPx(ctx, cx - 4, cy - h - 8, 8, 6, '#3d8a32');
       break;
     case 'entrance':
-      ctx.fillStyle = '#ffd54f';
-      ctx.fillRect(px + 1, py + 1, TILE - 2, TILE - 2);
+      fillPx(ctx, cx - 10, cy - 4, 20, 12, '#8b6914');
+      fillPx(ctx, cx - 8, cy - h - 2, 16, h, '#c62828');
+      fillPx(ctx, cx - 6, cy - h + 2, 12, 4, '#ffeb3b');
       ctx.fillStyle = '#000';
-      ctx.font = 'bold 7px sans-serif';
-      ctx.fillText('IN', px + 4, py + TILE - 5);
+      ctx.font = 'bold 8px monospace';
+      ctx.fillText('IN', cx - 5, cy - 2);
       break;
-    case 'flower': {
-      const pulse = 0.85 + Math.sin(animTime * 4 + px) * 0.15;
-      ctx.fillStyle = `rgba(236, 64, 122, ${pulse})`;
-      ctx.beginPath();
-      ctx.arc(cx, cy, 4, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.fillStyle = '#4caf50';
-      ctx.fillRect(cx - 1, cy + 2, 2, 4);
+    case 'food':
+      fillPx(ctx, cx - 8, cy - 2, 16, 10, '#e65100');
+      fillPx(ctx, cx - 4, cy - h, 8, h, '#ff8f00');
       break;
-    }
+    case 'toilet':
+      fillPx(ctx, cx - 7, cy - 2, 14, 10, '#eceff1');
+      fillPx(ctx, cx - 5, cy - h, 10, h, '#90a4ae');
+      break;
     case 'fountain': {
-      ctx.fillStyle = '#78909c';
-      ctx.fillRect(px + 4, py + TILE - 5, TILE - 8, 4);
-      const h = 3 + Math.abs(Math.sin(animTime * 6)) * 5;
-      ctx.fillStyle = 'rgba(100, 181, 246, 0.85)';
-      ctx.fillRect(cx - 2, cy - h, 4, h);
-      ctx.beginPath();
-      ctx.arc(cx, cy - h, 3 + Math.sin(animTime * 8) * 1.5, 0, Math.PI * 2);
-      ctx.fill();
+      fillPx(ctx, cx - 8, cy, 16, 6, '#78909c');
+      const fh = 6 + Math.abs(Math.sin(animTime * 5)) * 6;
+      fillPx(ctx, cx - 2, cy - fh, 4, fh, '#64b5f6');
       break;
     }
     case 'statue':
-      ctx.fillStyle = '#9e9e9e';
-      ctx.fillRect(cx - 3, py + 4, 6, TILE - 6);
-      ctx.fillStyle = '#bdbdbd';
-      ctx.fillRect(cx - 4, py + 2, 8, 6);
+      fillPx(ctx, cx - 6, cy, 12, 6, '#757575');
+      fillPx(ctx, cx - 5, cy - h - 4, 10, h + 4, '#bdbdbd');
       break;
-    case 'lamp': {
-      const glow = 0.4 + Math.sin(animTime * 3) * 0.25;
-      ctx.fillStyle = `rgba(255, 235, 59, ${glow})`;
-      ctx.beginPath();
-      ctx.arc(cx, py + 4, 5, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.fillStyle = '#455a64';
-      ctx.fillRect(cx - 1, py + 6, 2, TILE - 8);
+    case 'bench':
+      fillPx(ctx, cx - 8, cy - 2, 16, 6, '#6d4c41');
       break;
-    }
+    case 'flower':
+      fillPx(ctx, cx - 3, cy - 6, 6, 6, '#e91e63');
+      break;
+    case 'flowerBed':
+      for (let i = 0; i < 3; i++) {
+        fillPx(ctx, cx - 6 + i * 4, cy - 5, 3, 3, ['#e91e63', '#ffeb3b', '#9c27b0'][i]);
+      }
+      break;
     case 'bush':
-      ctx.fillStyle = '#388e3c';
-      ctx.beginPath();
-      ctx.ellipse(cx, cy + 1, TILE / 2 - 2, TILE / 3, 0, 0, Math.PI * 2);
-      ctx.fill();
+      fillPx(ctx, cx - 7, cy - 4, 14, 8, '#388e3c');
       break;
     case 'hedge':
-      ctx.fillStyle = '#2e7d32';
-      ctx.fillRect(px + 1, py + TILE / 2 - 2, TILE - 2, TILE / 2);
+      fillPx(ctx, cx - 9, cy - 2, 18, 8, '#2e7d32');
       break;
     case 'rock':
-      ctx.fillStyle = '#757575';
-      ctx.beginPath();
-      ctx.ellipse(cx, cy + 2, 5, 4, 0.3, 0, Math.PI * 2);
-      ctx.fill();
+      fillPx(ctx, cx - 6, cy - 2, 12, 8, '#616161');
       break;
-    case 'flowerBed': {
-      for (let i = 0; i < 4; i++) {
-        const angle = animTime * 2 + i * 1.5;
-        ctx.fillStyle = ['#e91e63', '#ffeb3b', '#9c27b0', '#ff5722'][i];
-        ctx.beginPath();
-        ctx.arc(cx + Math.cos(angle) * 3, cy + Math.sin(angle) * 2, 2.5, 0, Math.PI * 2);
-        ctx.fill();
-      }
-      ctx.fillStyle = '#33691e';
-      ctx.fillRect(px + 2, py + TILE - 5, TILE - 4, 4);
+    case 'lamp':
+      fillPx(ctx, cx - 2, cy - h - 6, 4, 6, '#ffee58');
+      fillPx(ctx, cx - 1, cy - 2, 2, h, '#455a64');
       break;
-    }
     default:
       break;
   }
 }
 
-function drawFlatRide(
+function drawRideBlock(
   ctx: CanvasRenderingContext2D,
-  px: number,
-  py: number,
-  rideId: number,
-  color: string,
-  animTime: number,
-  category: RideCategory,
-  running: number
+  x: number,
+  y: number,
+  top: string,
+  left: string,
+  right: string,
+  height: number,
+  open: boolean
 ): void {
-  const cx = px + TILE / 2;
-  const cy = py + TILE / 2;
-  const spin = animTime * 2 + rideId;
-  const active = running > 0;
-  ctx.save();
-  ctx.translate(cx, cy);
-
-  if (category === 'transport') {
-    const chug = Math.sin(animTime * 8 + rideId) * 1.5;
-    ctx.fillStyle = color;
-    ctx.fillRect(-TILE / 2 + 1 + chug, -3, TILE - 4, 6);
-    ctx.fillStyle = '#37474f';
-    ctx.fillRect(-TILE / 2 - 2 + chug, -2, 4, 4);
-    ctx.fillStyle = active ? '#ffeb3b' : '#90a4ae';
-    ctx.beginPath();
-    ctx.arc(TILE / 2 - 4 + chug, 0, 2, 0, Math.PI * 2);
-    ctx.fill();
-  } else if (category === 'water') {
-    const wave = Math.sin(animTime * 5 + rideId) * 2;
-    ctx.fillStyle = 'rgba(33, 150, 243, 0.35)';
-    ctx.fillRect(-TILE / 2, TILE / 4, TILE, TILE / 3);
-    ctx.fillStyle = color;
-    ctx.rotate(Math.sin(spin) * 0.06);
-    ctx.fillRect(-TILE / 2 + 2, -TILE / 2 + 2 + wave, TILE - 4, TILE - 5);
-    if (active) {
-      ctx.fillStyle = 'rgba(255,255,255,0.5)';
-      for (let i = 0; i < 3; i++) {
-        ctx.beginPath();
-        ctx.arc(-4 + i * 4, -6 + Math.sin(animTime * 10 + i) * 2, 1.5, 0, Math.PI * 2);
-        ctx.fill();
-      }
-    }
-  } else if (category === 'thrill') {
-    ctx.rotate(Math.sin(spin * 1.5) * (active ? 0.25 : 0.06));
-    ctx.fillStyle = color;
-    ctx.fillRect(-TILE / 2 + 2, -TILE / 2 + 2, TILE - 4, TILE - 4);
-    ctx.strokeStyle = 'rgba(255,255,255,0.5)';
-    ctx.strokeRect(-TILE / 2 + 2, -TILE / 2 + 2, TILE - 4, TILE - 4);
-  } else {
-    ctx.rotate(Math.sin(spin) * (active ? 0.12 : 0.05));
-    ctx.fillStyle = color;
-    ctx.fillRect(-TILE / 2 + 2, -TILE / 2 + 2, TILE - 4, TILE - 4);
-    ctx.strokeStyle = 'rgba(255,255,255,0.35)';
-    ctx.lineWidth = 1;
-    ctx.strokeRect(-TILE / 2 + 2, -TILE / 2 + 2, TILE - 4, TILE - 4);
-    ctx.fillStyle = '#fff';
-    ctx.beginPath();
-    ctx.arc(0, 0, 3 + Math.sin(spin * 2) * 1, 0, Math.PI * 2);
-    ctx.fill();
+  const { x: cx, y: cy } = tileToScreen(x, y, 2);
+  const h = height * 5;
+  if (!open) {
+    fillPx(ctx, cx - 10, cy - 4, 20, 10, '#546e7a');
+    ctx.fillStyle = '#cfd8dc';
+    ctx.font = '7px monospace';
+    ctx.fillText('CLOSED', cx - 12, cy);
+    return;
   }
-  ctx.restore();
+  diamondPath(ctx, cx, cy);
+  ctx.fillStyle = right;
+  ctx.fill();
+  fillPx(ctx, cx - 8, cy - h, 16, h, top);
+  ctx.beginPath();
+  ctx.moveTo(cx, cy);
+  ctx.lineTo(cx - TW / 2, cy);
+  ctx.lineTo(cx - 8, cy - h);
+  ctx.lineTo(cx + 8, cy - h);
+  ctx.closePath();
+  ctx.fillStyle = left;
+  ctx.fill();
 }
+
+function drawCoasterTrack(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  part: 'station' | 'track',
+  colors: { color: string; trackColor: string },
+  running: boolean,
+  animTime: number
+): void {
+  const pulse = running ? 0.9 + Math.sin(animTime * 10) * 0.1 : 1;
+  const top = part === 'station' ? colors.color : colors.trackColor;
+  const left = shade(top, -30);
+  const right = shade(top, 15);
+  drawRideBlock(ctx, x, y, top, left, right, part === 'station' ? 8 : 5, true);
+  if (running && part === 'track') {
+    const p = tileToScreen(x, y, 12);
+    fillPx(ctx, p.x - 2, p.y - 14, 4, 4, `rgba(255,255,255,${0.4 * pulse})`);
+  }
+}
+
+function shade(hex: string, amt: number): string {
+  const n = parseInt(hex.slice(1), 16);
+  let r = (n >> 16) + amt;
+  let g = ((n >> 8) & 0xff) + amt;
+  let b = (n & 0xff) + amt;
+  r = Math.max(0, Math.min(255, r));
+  g = Math.max(0, Math.min(255, g));
+  b = Math.max(0, Math.min(255, b));
+  return `#${((r << 16) | (g << 8) | b).toString(16).padStart(6, '0')}`;
+}
+
+function drawFlatRideIso(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  def: { color: string; category: RideCategory },
+  open: boolean,
+  running: number,
+  animTime: number,
+  rideId: number
+): void {
+  const h = def.category === 'thrill' ? 14 : def.category === 'transport' ? 10 : 8;
+  const top = def.color;
+  drawRideBlock(ctx, x, y, top, shade(top, -25), shade(top, 12), h, open);
+  if (open && running > 0) {
+    const { x: cx, y: cy } = tileToScreen(x, y, h + 8);
+    const spin = Math.sin(animTime * 4 + rideId) * 3;
+    fillPx(ctx, cx + spin - 2, cy - 10, 4, 4, '#fff');
+  }
+}
+
+type DrawItem = { z: number; draw: () => void };
 
 export function drawPark(
   ctx: CanvasRenderingContext2D,
@@ -215,112 +256,116 @@ export function drawPark(
   animTime: number,
   moveAlpha: number
 ): void {
-  const w = MAP_W * TILE;
-  const h = MAP_H * TILE;
+  const { width, height } = canvasSize();
   ctx.save();
   ctx.translate(-cam.x, -cam.y);
-  ctx.fillStyle = '#1a2f1a';
-  ctx.fillRect(0, 0, w, h);
+  ctx.fillStyle = '#6eb5e8';
+  ctx.fillRect(0, 0, width + cam.x + 200, height + cam.y + 200);
+
+  const items: DrawItem[] = [];
 
   for (let y = 0; y < MAP_H; y++) {
     for (let x = 0; x < MAP_W; x++) {
       const c = state.cells[idx(x, y)];
-      const px = x * TILE;
-      const py = y * TILE;
+      const z = x + y;
+      items.push({
+        z,
+        draw: () => {
+          if (c.terrain === 'water') drawWaterTile(ctx, x, y, animTime);
+          else {
+            drawGrassTile(ctx, x, y, (x * 17 + y * 31) % 7);
+            if (c.terrain === 'path') drawPathTile(ctx, x, y);
+          }
+        },
+      });
+    }
+  }
 
-      if (c.terrain === 'water') {
-        const wave = Math.sin(animTime * 3 + x * 0.4 + y * 0.3) * 0.08;
-        ctx.fillStyle = COLORS.water;
-        ctx.fillRect(px, py, TILE, TILE);
-        ctx.fillStyle = `rgba(144, 202, 249, ${0.2 + wave})`;
-        ctx.fillRect(px + 2, py + 4 + wave * 4, TILE - 4, 3);
-        continue;
-      }
-
-      const hash = (x * 17 + y * 31) % COLORS.grass.length;
-      ctx.fillStyle = COLORS.grass[hash];
-      ctx.fillRect(px, py, TILE, TILE);
-
-      if (c.terrain === 'path') {
-        ctx.fillStyle = COLORS.path;
-        ctx.fillRect(px + 1, py + 1, TILE - 2, TILE - 2);
-      }
-
+  for (let y = 0; y < MAP_H; y++) {
+    for (let x = 0; x < MAP_W; x++) {
+      const c = state.cells[idx(x, y)];
+      const z = x + y + 0.3;
       if (c.structure) {
-        drawStructure(ctx, c.structure, px, py, animTime);
+        items.push({ z, draw: () => drawStructureIso(ctx, c.structure!, x, y, animTime) });
       }
-
       if (c.rideId != null) {
         const ride = state.rides.find((r) => r.id === c.rideId);
-        const def = ride ? RIDE_DEF[ride.kind] : RIDE_DEF.mini;
-        if (ride && !ride.isCoaster) {
-          if (c.ridePart === 'station') {
-            drawFlatRide(ctx, px, py, ride.id, def.color, animTime, def.category, ride.running);
-          }
-        } else {
-          const pulse =
-            ride && ride.running > 0
-              ? 0.85 + Math.sin(animTime * 12 + ride.id) * 0.15
-              : 1;
-          ctx.globalAlpha = pulse;
-          ctx.fillStyle = c.ridePart === 'station' ? def.color : def.trackColor;
-          ctx.fillRect(px + 1, py + 1, TILE - 2, TILE - 2);
-          if (c.ridePart === 'station') {
-            ctx.fillStyle = '#fff';
-            ctx.fillRect(px + 4, py + 5, TILE - 8, 3);
-          }
-          ctx.globalAlpha = 1;
+        if (ride) {
+          const def = RIDE_DEF[ride.kind];
+          items.push({
+            z: z + 0.5,
+            draw: () => {
+              if (!ride.isCoaster && c.ridePart === 'station') {
+                drawFlatRideIso(ctx, x, y, def, ride.open, ride.running, animTime, ride.id);
+              } else if (ride.isCoaster) {
+                drawCoasterTrack(
+                  ctx,
+                  x,
+                  y,
+                  c.ridePart === 'station' ? 'station' : 'track',
+                  def,
+                  ride.running > 0,
+                  animTime
+                );
+              }
+            },
+          });
         }
       }
     }
   }
 
+  items.sort((a, b) => a.z - b.z);
+  for (const it of items) it.draw();
+
   if (state.coasterDraft?.station) {
     const draft = state.coasterDraft;
     const def = RIDE_DEF[draft.kind];
-    const all = [draft.station, ...draft.cells];
-    const dash = 4 + Math.sin(animTime * 5) * 2;
-    ctx.strokeStyle = def.trackColor;
-    ctx.lineWidth = 2;
-    ctx.setLineDash([dash, 3]);
-    for (const p of all) {
-      ctx.strokeRect(p.x * TILE + 1, p.y * TILE + 1, TILE - 2, TILE - 2);
+    for (const p of [draft.station, ...draft.cells]) {
+      const { x: cx, y: cy } = tileToScreen(p.x, p.y, 6);
+      diamondPath(ctx, cx, cy);
+      ctx.strokeStyle = def.trackColor;
+      ctx.lineWidth = 2;
+      ctx.setLineDash([4, 3]);
+      ctx.stroke();
+      ctx.setLineDash([]);
     }
-    ctx.setLineDash([]);
   }
 
   for (const g of state.guests) {
-    const { px, py } = guestDrawPos(g, moveAlpha);
-    const bob = Math.sin(animTime * 8 + g.id) * 0.6;
-    ctx.fillStyle = COLORS.guestOutline;
-    ctx.beginPath();
-    ctx.arc(px, py + bob, 4, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = g.happiness > 70 ? COLORS.guest : g.happiness > 40 ? '#ffb74d' : '#ef5350';
-    ctx.beginPath();
-    ctx.arc(px, py + bob - 1, 3, 0, Math.PI * 2);
-    ctx.fill();
-    if (g.state === 'riding') {
-      ctx.strokeStyle = 'rgba(255,255,255,0.6)';
-      ctx.beginPath();
-      ctx.arc(px, py + bob, 6 + Math.sin(animTime * 15) * 2, 0, Math.PI * 2);
-      ctx.stroke();
-    }
+    const pos = guestDrawPos(g, moveAlpha);
+    const bob = Math.sin(animTime * 8 + g.id) * 1;
+    fillPx(ctx, pos.x - 2, pos.y + bob - 5, 4, 5, PAL.outline);
+    fillPx(
+      ctx,
+      pos.x - 1,
+      pos.y + bob - 4,
+      2,
+      3,
+      g.happiness > 70 ? PAL.peep[0] : g.happiness > 40 ? PAL.peep[1] : PAL.peep[2]
+    );
   }
 
-  if (hover) {
-    const { x, y } = hover;
-    if (x >= 0 && y >= 0 && x < MAP_W && y < MAP_H) {
-      const pulse = 0.5 + Math.sin(animTime * 6) * 0.5;
-      ctx.strokeStyle = `rgba(255,255,255,${0.5 + pulse * 0.35})`;
-      ctx.lineWidth = 2;
-      ctx.strokeRect(x * TILE + 1, y * TILE + 1, TILE - 2, TILE - 2);
+  if (hover && hover.x >= 0 && hover.y >= 0 && hover.x < MAP_W && hover.y < MAP_H) {
+    const { x: cx, y: cy } = tileToScreen(hover.x, hover.y, 8);
+    diamondPath(ctx, cx, cy);
+    ctx.strokeStyle = 'rgba(255,255,240,0.9)';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    const cell = state.cells[idx(hover.x, hover.y)];
+    if (cell.rideId != null) {
+      const ride = state.rides.find((r) => r.id === cell.rideId);
+      if (ride) {
+        const def = RIDE_DEF[ride.kind];
+        const label = `${def.label}${ride.open ? '' : ' (closed)'}`;
+        ctx.font = 'bold 10px monospace';
+        const tw = ctx.measureText(label).width + 10;
+        fillPx(ctx, cx - tw / 2, cy - 36, tw, 14, 'rgba(30,30,30,0.85)');
+        ctx.fillStyle = ride.open ? '#fff9c4' : '#ffcdd2';
+        ctx.fillText(label, cx - tw / 2 + 5, cy - 26);
+      }
     }
   }
 
   ctx.restore();
-}
-
-export function canvasSize(): { width: number; height: number } {
-  return { width: MAP_W * TILE, height: MAP_H * TILE };
 }

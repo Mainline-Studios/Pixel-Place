@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { TabType, User } from '@/types';
 import { useSound } from '@/contexts/SoundContext';
+import { armAppSessionForRouteChange } from '@/lib/appSession';
 import { pathToTab, tabToPath } from '@/lib/routing';
 import TopBar from './TopBar';
 import Sidebar from './Sidebar';
@@ -84,6 +85,7 @@ export default function Dashboard({ user }: DashboardProps) {
 
   const handleTabChange = useCallback((tab: TabType) => {
     playTabSwitch();
+    armAppSessionForRouteChange();
     setCurrentTab(tab);
     if (typeof window !== 'undefined') {
       const path = tabToPath(tab);

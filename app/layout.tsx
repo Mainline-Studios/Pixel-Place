@@ -12,6 +12,7 @@ import { AccessibilityProvider } from "@/contexts/AccessibilityContext";
 import SoundEffects from "@/components/SoundEffects";
 import Anti67LockOverlay from "@/components/Anti67LockOverlay";
 import SiteBanGate from "@/components/SiteBanGate";
+import TabRouteSessionArm from "@/components/TabRouteSessionArm";
 import { getSchemaOrgJsonLd } from "@/lib/schemaOrg";
 import { SITE_ORIGIN } from "@/lib/seo";
 import SeoCanonicalRuntime from "@/components/SeoCanonicalRuntime";
@@ -64,6 +65,7 @@ export default function RootLayout({
                     <UserProvider>
                       <SiteBanGate>
                         <SeoCanonicalRuntime />
+                        <TabRouteSessionArm />
                         <SoundEffects />
                         {children}
                         <Anti67LockOverlay />

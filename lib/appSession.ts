@@ -89,3 +89,10 @@ export function shouldShowSplash(isLoggedIn: boolean): boolean {
   if (isSplashDone()) return false;
   return true;
 }
+
+/** Call before in-app tab navigation or full loads to /games, /coins, etc. */
+export function armAppSessionForRouteChange(): void {
+  markSplashDone();
+  markReadyAccepted();
+  touchActivity();
+}

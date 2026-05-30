@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
+import React, { createContext, useContext, useState, useEffect, useLayoutEffect, useRef } from 'react';
 import { User, Ban } from '@/types';
 import { initializeStorage, getUsers, saveUsers, ADMIN_ACCOUNTS_LIST, isUserBanned, getBanForUser, checkDeviceBanStatus } from '@/lib/storage';
 import { subscribeToUser } from '@/lib/firestoreClient';
@@ -159,13 +159,27 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
 
   const [user, setUser] = useState<User | null>(null);
   const [isRestoring, setIsRestoring] = useState(true);
-  const [gettingReady, setGettingReady] = useState(false);
-  const [warmupComplete, setWarmupComplete] = useState(false);
-  const [userAcceptedReady, setUserAcceptedReady] = useState(false);
+  const [gettingReady, setGettingReady] = useState(
+    () => !(typeof window !== 'undefined' && isReadyAccepted())
+  );
+  const [warmupComplete, setWarmupComplete] = useState(
+    () => typeof window !== 'undefined' && isReadyAccepted()
+  );
+  const [userAcceptedReady, setUserAcceptedReady] = useState(
+    () => typeof window !== 'undefined' && isReadyAccepted()
+  );
   const [accountSetupOpen, setAccountSetupOpen] = useState(false);
   const [bannedSession, setBannedSession] = useState<BannedSession | null>(null);
   const [deviceBannedSession, setDeviceBannedSession] = useState<BannedSession | null>(null);
-  const firstSyncDone = useRef(false);
+  const firstSyncDone = useRef(typeof window !== 'undefined' && isReadyAccepted());
+
+  useLayoutEffect(() => {
+    if (!isReadyAccepted()) return;
+    firstSyncDone.current = true;
+    setGettingReady(false);
+    setWarmupComplete(true);
+    setUserAcceptedReady(true);
+  }, []);
   const readyStartTime = useRef<number>(0);
 
   const MIN_READY_WAIT_MS = 6000;
