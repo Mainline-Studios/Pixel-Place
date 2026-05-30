@@ -106,6 +106,7 @@ export const COLLECTIONS = {
   HARDWARE_BANS: 'hardware_bans', // banned deviceIds (reversible)
   WEB_DEPLOY_REQUESTS: 'web_deploy_requests',
   WEB_DEPLOY_SITES: 'web_deploy_sites',
+  WEB_DEPLOY_ACCOUNTS: 'web_deploy_accounts',
 };
 
 const RTDB_COLLECTIONS = new Set<string>([

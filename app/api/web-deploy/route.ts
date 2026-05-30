@@ -2,17 +2,31 @@ export const dynamic = 'force-static';
 
 import { NextRequest, NextResponse } from 'next/server';
 import { addDocument, getDocuments, getDocument, setDocument, updateDocument, COLLECTIONS } from '@/lib/firestore';
-import { requireAuth, requireAdmin } from '@/lib/middleware';
+import { requireWebDeployAuth, requireAdmin } from '@/lib/middleware';
 import { validatePredomain, predomainToLiveUrl, type WebDeployRequest } from '@/lib/webDeploy';
 
 function requestFromDoc(doc: { id: string; [key: string]: unknown }): WebDeployRequest {
+  const uploadedRaw = doc.uploaded_files;
+  const uploadedFiles = Array.isArray(uploadedRaw)
+    ? uploadedRaw.map((f: Record<string, unknown>) => ({
+        name: String(f.name ?? ''),
+        storagePath: String(f.storage_path ?? ''),
+        size: Number(f.size) || 0,
+        contentType: String(f.content_type ?? ''),
+      }))
+    : undefined;
   return {
     id: doc.id,
     requestedBy: String(doc.requested_by ?? ''),
     predomain: String(doc.predomain ?? ''),
-    sourceType: doc.source_type === 'files' ? 'files' : 'git',
+    sourceType:
+      doc.source_type === 'files' ? 'files' : doc.source_type === 'coded' ? 'coded' : 'git',
     gitUrl: doc.git_url ? String(doc.git_url) : undefined,
+    gitProvider: doc.git_provider ? String(doc.git_provider) : undefined,
+    gitRepoName: doc.git_repo_name ? String(doc.git_repo_name) : undefined,
+    uploadedFiles: uploadedFiles?.length ? uploadedFiles : undefined,
     filesDescription: doc.files_description ? String(doc.files_description) : undefined,
+    codeRequestBrief: doc.code_request_brief ? String(doc.code_request_brief) : undefined,
     projectName: String(doc.project_name ?? ''),
     contactEmail: doc.contact_email ? String(doc.contact_email) : undefined,
     notes: doc.notes ? String(doc.notes) : undefined,
@@ -41,15 +55,19 @@ async function isPredomainTaken(predomain: string, exceptRequestId?: string) {
 
 export async function GET(request: NextRequest) {
   try {
-    const auth = requireAuth(request);
-    if (auth.error) return auth.error;
     const { searchParams } = new URL(request.url);
-    const isMod = auth.user!.role === 'admin' || auth.user!.role === 'head_admin';
-    const all = isMod && searchParams.get('all') === '1';
-    const reqs = await getDocuments(COLLECTIONS.WEB_DEPLOY_REQUESTS);
-    const filtered = all
-      ? reqs
-      : reqs.filter((r) => String(r.requested_by_lower ?? r.requested_by).toLowerCase() === auth.user!.username.toLowerCase());
+    const listAll = searchParams.get('all') === '1';
+    let filtered: Awaited<ReturnType<typeof getDocuments>>;
+    if (listAll) {
+      const mod = requireAdmin(request);
+      if (mod.error) return mod.error;
+      filtered = await getDocuments(COLLECTIONS.WEB_DEPLOY_REQUESTS);
+    } else {
+      const auth = requireWebDeployAuth(request);
+      if (auth.error) return auth.error;
+      const reqs = await getDocuments(COLLECTIONS.WEB_DEPLOY_REQUESTS);
+      filtered = reqs.filter((r) => String(r.deploy_uid ?? '') === auth.user!.deployUid);
+    }
     const requests = filtered.map(requestFromDoc).sort((a, b) => b.createdAt - a.createdAt);
     return NextResponse.json({ requests });
   } catch (e) {
@@ -60,31 +78,43 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const auth = requireAuth(request);
+    const auth = requireWebDeployAuth(request);
     if (auth.error) return auth.error;
     const body = await request.json();
     const parsed = validatePredomain(body.predomain ?? '');
     if (!parsed.ok) return NextResponse.json({ error: parsed.error }, { status: 400 });
-    const sourceType = body.sourceType === 'files' ? 'files' : 'git';
+    const rawSource = String(body.sourceType ?? '').toLowerCase();
+    const sourceType = rawSource === 'files' ? 'files' : rawSource === 'coded' ? 'coded' : 'git';
     const projectName = String(body.projectName ?? '').trim();
     if (!projectName) return NextResponse.json({ error: 'Project name required' }, { status: 400 });
     if (sourceType === 'git' && !String(body.gitUrl ?? '').trim()) {
       return NextResponse.json({ error: 'Git URL required' }, { status: 400 });
     }
-    if (sourceType === 'files' && !String(body.filesDescription ?? '').trim()) {
-      return NextResponse.json({ error: 'Files description required' }, { status: 400 });
+    const uploadedFiles = Array.isArray(body.uploadedFiles) ? body.uploadedFiles : [];
+    if (sourceType === 'files' && !String(body.filesDescription ?? '').trim() && uploadedFiles.length === 0) {
+      return NextResponse.json({ error: 'Import files or add a description' }, { status: 400 });
+    }
+    const codeRequestBrief = String(body.codeRequestBrief ?? '').trim();
+    if (sourceType === 'coded' && codeRequestBrief.length < 24) {
+      return NextResponse.json({ error: 'Describe what you want built' }, { status: 400 });
     }
     if (await isPredomainTaken(parsed.value)) {
       return NextResponse.json({ error: 'Subdomain unavailable' }, { status: 409 });
     }
     const now = Date.now();
     const id = await addDocument(COLLECTIONS.WEB_DEPLOY_REQUESTS, {
-      requested_by: auth.user!.username,
-      requested_by_lower: auth.user!.username.toLowerCase(),
+      deploy_uid: auth.user!.deployUid,
+      requested_by: auth.user!.displayName,
+      requested_by_email: auth.user!.email,
+      requested_by_lower: auth.user!.email.toLowerCase(),
       predomain: parsed.value,
       source_type: sourceType,
       git_url: sourceType === 'git' ? String(body.gitUrl).trim() : null,
-      files_description: sourceType === 'files' ? String(body.filesDescription).trim() : null,
+      git_provider: sourceType === 'git' ? String(body.gitProvider ?? '').trim() || null : null,
+      git_repo_name: sourceType === 'git' ? String(body.gitRepoName ?? '').trim() || null : null,
+      uploaded_files: sourceType === 'files' && uploadedFiles.length ? uploadedFiles : null,
+      files_description: sourceType === 'files' ? String(body.filesDescription ?? '').trim() || null : null,
+      code_request_brief: sourceType === 'coded' ? codeRequestBrief.slice(0, 4000) : null,
       project_name: projectName.slice(0, 120),
       contact_email: String(body.contactEmail ?? '').trim().slice(0, 200) || null,
       notes: String(body.notes ?? '').trim().slice(0, 1500) || null,
@@ -94,7 +124,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       request: {
         id,
-        requestedBy: auth.user!.username,
+        requestedBy: auth.user!.displayName,
         predomain: parsed.value,
         sourceType,
         projectName,
@@ -135,12 +165,17 @@ export async function PUT(request: NextRequest) {
         return NextResponse.json({ error: 'Subdomain unavailable' }, { status: 409 });
       }
       const liveUrl = predomainToLiveUrl(predomain);
+      const sourceType =
+        doc.source_type === 'files' ? 'files' : doc.source_type === 'coded' ? 'coded' : 'git';
       await setDocument(COLLECTIONS.WEB_DEPLOY_SITES, predomain, {
         predomain,
         live_url: liveUrl,
         request_id: id,
         approved_by: auth.user!.username,
         approved_at: now,
+        project_name: String(doc.project_name ?? predomain),
+        source_type: sourceType,
+        status: 'approved',
       });
       await updateDocument(COLLECTIONS.WEB_DEPLOY_REQUESTS, id, {
         status: 'approved',
@@ -160,6 +195,7 @@ export async function PUT(request: NextRequest) {
         admin_notes: note || null,
         reviewed_at: now,
       });
+      await setDocument(COLLECTIONS.WEB_DEPLOY_SITES, predomain, { status: 'live', live_at: now });
       return NextResponse.json({ success: true, status: 'live', liveUrl });
     }
     return NextResponse.json({ error: 'Invalid action' }, { status: 400 });

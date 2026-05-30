@@ -25,11 +25,23 @@ export async function POST(request: NextRequest) {
   if (auth.error) return auth.error;
   try {
     const body = await request.json().catch(() => ({}));
-    const { deviceId, reason } = body as { deviceId?: string; reason?: string };
+    const { deviceId, reason, banKind, terminated, terminatedSubject } = body as {
+      deviceId?: string;
+      reason?: string;
+      banKind?: string;
+      terminated?: boolean;
+      terminatedSubject?: string;
+    };
     if (!deviceId || typeof deviceId !== 'string') {
       return NextResponse.json({ error: 'deviceId required' }, { status: 400 });
     }
-    const result = await addHardwareBan(deviceId, auth.user.username, reason);
+    const mode =
+      banKind === 'terminated' || terminated === true ? ('terminated' as const) : ('hardware' as const);
+    const result = await addHardwareBan(deviceId, auth.user.username, {
+      reason,
+      mode,
+      terminatedSubject,
+    });
     return NextResponse.json({
       success: true,
       bannedUsernames: result.bannedUsernames,

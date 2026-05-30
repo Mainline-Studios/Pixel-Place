@@ -55,14 +55,15 @@ export default function Anti67FooterTriggers() {
         opacity: 0.5,
         verticalAlign: 'middle',
       }}
-      aria-label="6-7"
+      aria-label="Anti 6-7 vote"
     >
       <button
         type="button"
         style={triggerStyle}
         disabled={busy}
         onClick={() => void onTrigger('no')}
-        title="6-7"
+        title="Vote no on 6-7 (Anti 67)"
+        aria-label="Vote no on 6-7"
       >
         <s>6-7</s>
       </button>
@@ -71,7 +72,8 @@ export default function Anti67FooterTriggers() {
         style={{ ...triggerStyle, textDecoration: 'none' }}
         disabled={busy}
         onClick={() => void onTrigger('yes')}
-        title="6-7"
+        title="Vote yes on 6-7 (Anti 67)"
+        aria-label="Vote yes on 6-7"
       >
         6-7
       </button>

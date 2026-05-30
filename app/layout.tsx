@@ -11,6 +11,7 @@ import { SoundProvider } from "@/contexts/SoundContext";
 import { AccessibilityProvider } from "@/contexts/AccessibilityContext";
 import SoundEffects from "@/components/SoundEffects";
 import Anti67LockOverlay from "@/components/Anti67LockOverlay";
+import SiteBanGate from "@/components/SiteBanGate";
 import { getSchemaOrgJsonLd } from "@/lib/schemaOrg";
 import { SITE_ORIGIN } from "@/lib/seo";
 import SeoCanonicalRuntime from "@/components/SeoCanonicalRuntime";
@@ -33,7 +34,7 @@ export default function RootLayout({
         />
         <script
           dangerouslySetInnerHTML={{
-            __html: `(function(){var m=localStorage.getItem('pixelplace_color_mode');document.documentElement.setAttribute('data-color-mode',m==='light'?'light':'dark');var s=localStorage.getItem('pixelplace_style');if(s&&/^(modern|futuristic|normal|90s|80s|lowcontrast|highcontrast|maximalist|minimalist)$/.test(s))document.documentElement.setAttribute('data-style',s);else document.documentElement.setAttribute('data-style','normal');})();`,
+            __html: `(function(){try{if(localStorage.getItem('pixelplace_terminated_lock_v1')==='1'){document.documentElement.setAttribute('data-terminated-ban','1');document.documentElement.style.background='#050000';}}catch(e){}var m=localStorage.getItem('pixelplace_color_mode');document.documentElement.setAttribute('data-color-mode',m==='light'?'light':'dark');var s=localStorage.getItem('pixelplace_style');if(s&&/^(modern|futuristic|normal|90s|80s|lowcontrast|highcontrast|maximalist|minimalist)$/.test(s))document.documentElement.setAttribute('data-style',s);else document.documentElement.setAttribute('data-style','normal');})();`,
           }}
         />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -61,10 +62,12 @@ export default function RootLayout({
                 <MobileBetaProvider>
                   <SiteLanguageProvider>
                     <UserProvider>
-                      <SeoCanonicalRuntime />
-                      <SoundEffects />
-                      {children}
-                      <Anti67LockOverlay />
+                      <SiteBanGate>
+                        <SeoCanonicalRuntime />
+                        <SoundEffects />
+                        {children}
+                        <Anti67LockOverlay />
+                      </SiteBanGate>
                     </UserProvider>
                   </SiteLanguageProvider>
                 </MobileBetaProvider>

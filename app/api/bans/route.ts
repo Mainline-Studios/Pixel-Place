@@ -12,6 +12,9 @@ function banFromDoc(doc: any): Ban {
     timestamp: doc.banned_at || doc.timestamp || Date.now(),
     expiresAt: doc.expires_at,
     permanent: doc.permanent === true,
+    banKind: doc.ban_kind,
+    terminatedSubject: doc.terminated_subject,
+    appealsBlocked: doc.ban_kind === 'terminated',
     hardwareBanDeviceId: doc.hardware_ban_device_id,
   };
 }
@@ -66,6 +69,8 @@ export async function POST(request: NextRequest) {
       banned_at: newBan.timestamp || Date.now(),
       expires_at: newBan.expiresAt,
       permanent: newBan.permanent || false,
+      ...(newBan.banKind ? { ban_kind: newBan.banKind } : {}),
+      ...(newBan.terminatedSubject ? { terminated_subject: newBan.terminatedSubject } : {}),
       created_at: Date.now()
     });    
     return NextResponse.json(newBan);

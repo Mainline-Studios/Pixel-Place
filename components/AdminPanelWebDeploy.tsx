@@ -3,8 +3,11 @@
 import { useCallback, useEffect, useState } from 'react';
 import { apiUrl } from '@/lib/apiBaseUrl';
 import { authenticatedFetch, authErrorMessage } from '@/lib/api';
+import WebDeployGitProviderIcon from '@/components/WebDeployGitProviderIcon';
 import type { WebDeployRequest } from '@/lib/webDeploy';
-import { WEB_DEPLOY_BASE_HOST } from '@/lib/webDeploy';
+import { WEB_DEPLOY_BASE_HOST, webDeploySourceLabel } from '@/lib/webDeploy';
+import type { GitProviderId } from '@/lib/webDeployGit';
+import { formatBytes } from '@/lib/webDeployFiles';
 
 export default function AdminPanelWebDeploy() {
   const [requests, setRequests] = useState<WebDeployRequest[]>([]);
@@ -30,7 +33,7 @@ export default function AdminPanelWebDeploy() {
     void load();
   }, [load]);
 
-  const act = async (id: string, action: 'approve' | 'reject' | 'mark_live') => {
+  const act = async (id: string, action: 'approve' | 'reject' | 'mark_live' | 'deploy') => {
     setBusyId(id);
     try {
       const res = await authenticatedFetch(apiUrl('/api/web-deploy'), {
@@ -77,19 +80,37 @@ export default function AdminPanelWebDeploy() {
                 {r.projectName} — <code>{r.predomain}</code>.{WEB_DEPLOY_BASE_HOST}
               </div>
               <div style={{ fontSize: 13, color: 'var(--text-dim)', marginBottom: 8 }}>
-                By {r.requestedBy} · {r.sourceType === 'git' ? 'Git' : 'Files'}
+                By {r.requestedBy} · {webDeploySourceLabel(r.sourceType)}
                 {r.gitUrl ? (
                   <>
                     <br />
-                    <a href={r.gitUrl} target="_blank" rel="noopener noreferrer">
-                      {r.gitUrl}
-                    </a>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, marginTop: 4 }}>
+                      {r.gitProvider ? (
+                        <WebDeployGitProviderIcon provider={r.gitProvider as GitProviderId} size={16} />
+                      ) : null}
+                      <a href={r.gitUrl} target="_blank" rel="noopener noreferrer">
+                        {r.gitRepoName || r.gitUrl}
+                      </a>
+                    </span>
+                  </>
+                ) : null}
+                {r.uploadedFiles?.length ? (
+                  <>
+                    <br />
+                    Uploads:{' '}
+                    {r.uploadedFiles.map((f) => `${f.name} (${formatBytes(f.size)})`).join(', ')}
                   </>
                 ) : null}
                 {r.filesDescription ? (
                   <>
                     <br />
-                    Files: {r.filesDescription}
+                    File notes: {r.filesDescription}
+                  </>
+                ) : null}
+                {r.codeRequestBrief ? (
+                  <>
+                    <br />
+                    <strong>Build brief:</strong> {r.codeRequestBrief}
                   </>
                 ) : null}
                 {r.notes ? (
@@ -110,6 +131,11 @@ export default function AdminPanelWebDeploy() {
                 <button type="button" className="btn" disabled={busyId === r.id} onClick={() => void act(r.id, 'approve')}>
                   Approve subdomain
                 </button>
+                {r.sourceType === 'git' && r.gitUrl ? (
+                  <button type="button" className="btn" disabled={busyId === r.id} onClick={() => void act(r.id, 'deploy')}>
+                    Deploy from Git
+                  </button>
+                ) : null}
                 <button type="button" className="btn" disabled={busyId === r.id} onClick={() => void act(r.id, 'reject')}>
                   Reject
                 </button>
@@ -126,6 +152,17 @@ export default function AdminPanelWebDeploy() {
             .map((r) => (
               <div key={r.id} style={{ marginBottom: 10, fontSize: 13 }}>
                 <code>{r.predomain}</code> — {r.liveUrl ?? '—'}
+                {r.sourceType === 'git' && r.gitUrl ? (
+                  <button
+                    type="button"
+                    className="btn"
+                    style={{ marginLeft: 8, fontSize: 12, padding: '4px 10px' }}
+                    disabled={busyId === r.id}
+                    onClick={() => void act(r.id, 'deploy')}
+                  >
+                    Deploy from Git
+                  </button>
+                ) : null}
                 <button
                   type="button"
                   className="btn"

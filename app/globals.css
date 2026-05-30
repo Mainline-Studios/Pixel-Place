@@ -399,6 +399,18 @@ textarea {
   text-underline-offset: 2px;
 }
 
+.login-site-footer__legal .web-deploy-footer-link:hover {
+  color: #bae6fd;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.web-deploy-footer-link:hover {
+  opacity: 1;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
 .login-site-footer__brand-kit {
   margin-bottom: 12px;
 }

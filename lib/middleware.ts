@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthUser } from './auth';
+import { getWebDeployAuthFromRequest } from './webDeployAuthServer';
+import type { WebDeploySession } from './webDeployAuth';
 
 /** AuthN: require valid JWT. Identity from token only — never trust body/query. */
 export function requireAuth(request: NextRequest): { user: any; error: null } | { user: null; error: NextResponse } {
@@ -56,4 +58,18 @@ export function requireOwnerOrAdmin(
   }
 
   return authResult;
+}
+
+/** Web Deploy Services — separate JWT (aud pp_web_deploy), not Pixel Place accounts. */
+export function requireWebDeployAuth(
+  request: NextRequest,
+): { user: WebDeploySession; error: null } | { user: null; error: NextResponse } {
+  const user = getWebDeployAuthFromRequest(request);
+  if (!user) {
+    return {
+      user: null,
+      error: NextResponse.json({ error: 'Sign in with Google on Web Deploy Services' }, { status: 401 }),
+    };
+  }
+  return { user, error: null };
 }

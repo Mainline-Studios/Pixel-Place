@@ -1,36 +1,54 @@
 /**
- * Firebase Web SDK config — values MUST come from environment at build time.
- * Never commit real API keys; copy keys from Firebase Console → Project settings → Your apps.
- *
- * Required for client Firestore/Auth: NEXT_PUBLIC_FIREBASE_* (see .env.example).
+ * Firebase Web SDK config for the Pixel Place web app.
+ * Use NEXT_PUBLIC_FIREBASE_* at build time when set; otherwise the public fallback below
+ * (same values as Firebase Console → Project settings → Pixel Place Web).
  */
 import type { FirebaseOptions } from 'firebase/app';
 import { getApps, initializeApp, type FirebaseApp } from 'firebase/app';
 
-function readPublicEnv(name: string): string {
-  if (typeof process === 'undefined') return '';
-  const v = process.env[name];
-  return typeof v === 'string' ? v.trim() : '';
+/** Public web client config — not a secret; restrict by domain in Google Cloud Console. */
+const PIXEL_PLACE_WEB_FALLBACK: FirebaseOptions = {
+  apiKey: 'AIzaSyCccrF6i4LBBjuFU8KH3WOQeJjXdc0NlfY',
+  authDomain: 'pixel-place-823b1.firebaseapp.com',
+  projectId: 'pixel-place-823b1',
+  databaseURL: 'https://pixel-place-823b1-default-rtdb.firebaseio.com',
+  storageBucket: 'pixel-place-823b1.firebasestorage.app',
+  messagingSenderId: '78021257708',
+  appId: '1:78021257708:web:19fabf7a291e1baba3f8c9',
+  measurementId: 'G-QLXJJKGQW4',
+};
+
+function pick(envValue: string | undefined, fallback: string): string {
+  const v = typeof envValue === 'string' ? envValue.trim() : '';
+  return v || fallback;
 }
 
 export const firebaseConfig: FirebaseOptions = {
-  apiKey: readPublicEnv('NEXT_PUBLIC_FIREBASE_API_KEY'),
-  authDomain: readPublicEnv('NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN'),
-  projectId: readPublicEnv('NEXT_PUBLIC_FIREBASE_PROJECT_ID'),
-  databaseURL: readPublicEnv('NEXT_PUBLIC_FIREBASE_DATABASE_URL'),
-  storageBucket: readPublicEnv('NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET'),
-  messagingSenderId: readPublicEnv('NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID'),
-  appId: readPublicEnv('NEXT_PUBLIC_FIREBASE_APP_ID'),
+  apiKey: pick(process.env.NEXT_PUBLIC_FIREBASE_API_KEY, PIXEL_PLACE_WEB_FALLBACK.apiKey!),
+  authDomain: pick(process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN, PIXEL_PLACE_WEB_FALLBACK.authDomain!),
+  projectId: pick(process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID, PIXEL_PLACE_WEB_FALLBACK.projectId!),
+  databaseURL: pick(process.env.NEXT_PUBLIC_FIREBASE_DATABASE_URL, PIXEL_PLACE_WEB_FALLBACK.databaseURL!),
+  storageBucket: pick(
+    process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
+    PIXEL_PLACE_WEB_FALLBACK.storageBucket!,
+  ),
+  messagingSenderId: pick(
+    process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+    PIXEL_PLACE_WEB_FALLBACK.messagingSenderId!,
+  ),
+  appId: pick(process.env.NEXT_PUBLIC_FIREBASE_APP_ID, PIXEL_PLACE_WEB_FALLBACK.appId!),
 };
 
-const measurementId = readPublicEnv('NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID');
+const measurementId = pick(
+  process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID,
+  (PIXEL_PLACE_WEB_FALLBACK as FirebaseOptions & { measurementId?: string }).measurementId || '',
+);
 if (measurementId) {
   (firebaseConfig as FirebaseOptions & { measurementId?: string }).measurementId = measurementId;
 }
 
 if (!firebaseConfig.databaseURL && firebaseConfig.projectId) {
-  (firebaseConfig as FirebaseOptions & { databaseURL?: string }).databaseURL =
-    `https://${firebaseConfig.projectId}-default-rtdb.firebaseio.com`;
+  firebaseConfig.databaseURL = `https://${firebaseConfig.projectId}-default-rtdb.firebaseio.com`;
 }
 
 export function isFirebaseClientConfigured(): boolean {
@@ -42,9 +60,6 @@ export function isFirebaseClientConfigured(): boolean {
   );
 }
 
-/**
- * Single Firebase app for browser SDK. Returns null if env is incomplete (no keys in repo).
- */
 export function getOrInitFirebaseApp(): FirebaseApp | null {
   if (!isFirebaseClientConfigured()) return null;
   try {
@@ -55,5 +70,3 @@ export function getOrInitFirebaseApp(): FirebaseApp | null {
     return null;
   }
 }
-
-// Pixel Place Pay: orders + fulfillment run in Cloud Functions; optional PIXEL_PAY_INSTRUCTIONS in functions/.env.

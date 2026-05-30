@@ -316,6 +316,9 @@ export default function GamePlayer({ game, onClose }: GamePlayerProps) {
             case 'gymPump':
               GameComponent = (await import('@/components/Games/GymPump')).default;
               break;
+            case 'coasterControl':
+              GameComponent = (await import('@/components/Games/CoasterControl')).default;
+              break;
             default:
               setError(`Built-in game "${gameId}" not found`);
               return;

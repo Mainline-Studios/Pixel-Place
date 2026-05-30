@@ -18,6 +18,12 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import nodemailer from 'nodemailer';
 import { dispatchLoginCodeEmail, maskEmailForDisplay } from './loginCodeEmail';
+import {
+  TERMINATED_BAN_KIND,
+  TERMINATED_FIRE_MESSAGE,
+  banPayloadFromAccountBanDoc,
+  banPayloadFromHardwareDoc,
+} from './terminatedBan';
 
 admin.initializeApp();
 const firestoreDb = admin.firestore();
@@ -48,11 +54,13 @@ const COLLECTIONS = {
   STATUS_PAGE: 'status_page',
   WEB_DEPLOY_REQUESTS: 'web_deploy_requests',
   WEB_DEPLOY_SITES: 'web_deploy_sites',
+  WEB_DEPLOY_ACCOUNTS: 'web_deploy_accounts',
   STRIPE_PAYMENT_CREDITS: 'stripe_payment_credits',
+  PAYPAL_ORDERS: 'paypal_orders',
+  PAYPAL_PAYMENT_CREDITS: 'paypal_payment_credits',
 };
 
 const RTDB_COLLECTIONS = new Set<string>(['users', 'bans', 'hardware_bans', 'skins_catalog']);
-const storageBucket = admin.storage().bucket();
 const STORAGE_SIGNED_URL_MS = 15 * 60 * 1000;
 const STORAGE_PATH_MAX = 220;
 const EMAIL_VERIFY_CODE_TTL_MS = 20 * 60 * 1000;
@@ -742,8 +750,15 @@ import { postPpafSign, postPpafVerify } from './ppaf';
 import { mountAnti67AccountRoutes } from './anti67Account';
 import { mountUpdateLogsRoutes } from './updateLogsGithub';
 import { bumpSafetyScoreOnReport, mountUserBoardRoutes } from './userBoard';
-import { mountWebDeployRoutes } from './webDeploy';
+import { mountWebDeployRoutes, webDeploySubdomainFromHost } from './webDeploy';
+import { mountWebDeployAuthRoutes, WEB_DEPLOY_JWT_AUD } from './webDeployAuth';
+import { getAppStorageBucket } from './appStorage';
+import { serveWebDeploySite } from './webDeployServe';
+import { maybeProxyOpenCut } from './webDeployOpenCutProxy';
+
+const storageBucket = getAppStorageBucket();
 import { mountStripeEmbeddedWebhook, mountStripeEmbeddedPayRoutes } from './stripeEmbeddedPay';
+import { mountPaypalPayRoutes } from './paypalPay';
 
 const DEVICE_ID_MAX = 128;
 const LABEL_MAX = 64;
@@ -833,18 +848,13 @@ async function isDeviceBanned(deviceId: string): Promise<boolean> {
   return doc.exists;
 }
 
-/** Get hardware ban details for showing the ban screen (reason, banned_by, banned_at). */
-async function getHardwareBanDetails(deviceId: string): Promise<{ reason: string; bannedBy: string; bannedAt: number } | null> {
+/** Get hardware ban payload for ban screen (includes terminated employment bans). */
+async function getHardwareBanDetails(deviceId: string) {
   const id = sanitizeDeviceId(deviceId);
   if (!id) return null;
   const doc = await db.collection(COLLECTIONS.HARDWARE_BANS).doc(id).get();
   if (!doc.exists) return null;
-  const d = doc.data()!;
-  return {
-    reason: d.reason || 'Access from this browser profile is blocked.',
-    bannedBy: d.banned_by || 'Administrator',
-    bannedAt: d.banned_at || Date.now(),
-  };
+  return banPayloadFromHardwareDoc(doc.data() as Record<string, unknown>);
 }
 
 async function recordDevice(username: string, deviceId: string, label: string): Promise<void> {
@@ -1075,6 +1085,33 @@ async function nextSequentialGameId(): Promise<number> {
 const app = express();
 app.use(cors({ origin: true }));
 
+// OpenCut customer — proxy to Cloud Run (MIT-licensed app; see /LICENSE on site)
+app.use((req, res, next) => {
+  const host = String(req.headers['x-forwarded-host'] || req.headers.host || '');
+  const sub = webDeploySubdomainFromHost(host);
+  if (sub !== 'opencut') return next();
+  const pathOnly = String(req.path || req.url || '').split('?')[0];
+  if (pathOnly.startsWith('/api/web-deploy')) return next();
+  maybeProxyOpenCut(req, res, next, sub);
+});
+
+// Web Deploy subdomains (pixelplace-deploy hosting → this function): serve placeholder HTML
+app.use(async (req, res, next) => {
+  if (req.method !== 'GET' && req.method !== 'HEAD') return next();
+  const host = String(req.headers['x-forwarded-host'] || req.headers.host || '');
+  const sub = webDeploySubdomainFromHost(host);
+  if (!sub || sub === 'opencut') return next();
+  const pathOnly = String(req.path || req.url || '').split('?')[0];
+  if (pathOnly.startsWith('/api') || pathOnly.startsWith('/web-deploy')) return next();
+  try {
+    await serveWebDeploySite(storageBucket, sub, pathOnly || '/', res, firestoreDb, COLLECTIONS);
+    return;
+  } catch (e) {
+    console.error('web-deploy host serve failed:', e);
+    return next();
+  }
+});
+
 // Cloud Functions URL is .../api - requests to .../api/users have path /api/users
 // Strip /api so our routes match /users, /skins, etc. (Hosting rewrite may leave path as /api/...)
 app.use((req, res, next) => {
@@ -1091,13 +1128,26 @@ mountStripeEmbeddedWebhook(app, firestoreDb, COLLECTIONS.USERS, COLLECTIONS.STRI
 app.use(express.json());
 
 mountStripeEmbeddedPayRoutes(app, firestoreDb);
+mountPaypalPayRoutes(
+  app,
+  firestoreDb,
+  COLLECTIONS.USERS,
+  COLLECTIONS.PAYPAL_ORDERS,
+  COLLECTIONS.PAYPAL_PAYMENT_CREDITS,
+);
 
 app.use(async (req, res, next) => {
   try {
     const token = getBearerTokenFromRequest(req);
     if (!token) return next();
-    const payload = jwt.verify(token, getJwtSecret()) as { username?: string; iat?: number };
-    if (!payload?.username || typeof payload?.iat !== 'number') {
+    const payload = jwt.verify(token, getJwtSecret()) as {
+      username?: string;
+      iat?: number;
+      aud?: string;
+    };
+    // Web Deploy Services JWT — validated in webDeploy routes, not Pixel Place session
+    if (payload?.aud === WEB_DEPLOY_JWT_AUD) return next();
+    if (!payload?.username || typeof payload.iat !== 'number') {
       return res.status(401).json({ error: 'Unauthorized' });
     }
     const revoked = await isJwtRevokedForUser(payload.username, payload.iat);
@@ -1256,15 +1306,13 @@ app.get('/auth/check-device', async (req, res) => {
     const banned = await isDeviceBanned(deviceId);
     if (!banned) return res.json({ banned: false });
     const details = await getHardwareBanDetails(deviceId);
-    const ban = details
-      ? { username: 'This device', reason: details.reason, bannedBy: details.bannedBy, timestamp: details.bannedAt, permanent: true }
-      : {
-          username: 'This device',
-          reason: 'Access from this browser profile is blocked.',
-          bannedBy: 'Administrator',
-          timestamp: Date.now(),
-          permanent: true,
-        };
+    const ban = details || {
+      username: 'This device',
+      reason: 'Access from this browser profile is blocked.',
+      bannedBy: 'Administrator',
+      timestamp: Date.now(),
+      permanent: true,
+    };
     return res.json({ banned: true, ban });
   } catch (e) {
     res.json({ banned: false });
@@ -1649,17 +1697,10 @@ app.post('/auth/firestore-login', async (req, res) => {
       if (did) {
         const hwDoc = await firestoreDb.collection(COLLECTIONS.HARDWARE_BANS).doc(did).get();
         if (hwDoc.exists) {
-          const bd = hwDoc.data() || {};
           return res.status(401).json({
             error: 'Access from this browser profile is blocked. You cannot sign in.',
             deviceBanned: true,
-            ban: {
-              username: 'This device',
-              reason: bd.reason || 'Access from this browser profile is blocked.',
-              bannedBy: bd.banned_by || 'Administrator',
-              timestamp: bd.banned_at || Date.now(),
-              permanent: true,
-            },
+            ban: banPayloadFromHardwareDoc((hwDoc.data() || {}) as Record<string, unknown>),
           });
         }
       }
@@ -1722,21 +1763,13 @@ app.post('/auth', async (req, res) => {
     if (action === 'login') {
       if (deviceId && (await isDeviceBanned(deviceId))) {
         const details = await getHardwareBanDetails(deviceId);
-        const ban = details
-          ? {
-              username: 'This device',
-              reason: details.reason,
-              bannedBy: details.bannedBy,
-              timestamp: details.bannedAt,
-              permanent: true,
-            }
-          : {
-              username: 'This device',
-              reason: 'Access from this browser profile is blocked.',
-              bannedBy: 'Administrator',
-              timestamp: Date.now(),
-              permanent: true,
-            };
+        const ban = details || {
+          username: 'This device',
+          reason: 'Access from this browser profile is blocked.',
+          bannedBy: 'Administrator',
+          timestamp: Date.now(),
+          permanent: true,
+        };
         return res.status(401).json({
           error: 'Access from this browser profile is blocked. You cannot sign in.',
           deviceBanned: true,
@@ -1799,6 +1832,18 @@ app.post('/auth', async (req, res) => {
         }
       }
       if (!match) return res.status(401).json({ error: 'Invalid credentials' });
+      const accountBanSnap = await db.collection(COLLECTIONS.BANS).doc(username.toLowerCase()).get();
+      if (accountBanSnap.exists) {
+        const ban = banPayloadFromAccountBanDoc(
+          accountBanSnap.data() as Record<string, unknown>,
+          username,
+        );
+        return res.status(401).json({
+          error: ban.banKind === TERMINATED_BAN_KIND ? 'Access permanently revoked.' : 'Account banned',
+          banned: true,
+          ban,
+        });
+      }
       if (deviceId) await recordDevice(username, deviceId, deviceLabel || 'Unknown');
       const synced = await syncAccountEmailVerifiedFlag(doc, d);
       const result = await completePasswordLoginResponse(doc, username.toLowerCase(), synced);
@@ -1829,21 +1874,13 @@ app.post('/auth', async (req, res) => {
       }
       if (deviceId && (await isDeviceBanned(deviceId))) {
         const details = await getHardwareBanDetails(deviceId);
-        const ban = details
-          ? {
-              username: 'This device',
-              reason: details.reason,
-              bannedBy: details.bannedBy,
-              timestamp: details.bannedAt,
-              permanent: true,
-            }
-          : {
-              username: 'This device',
-              reason: 'Access from this browser profile is blocked.',
-              bannedBy: 'Administrator',
-              timestamp: Date.now(),
-              permanent: true,
-            };
+        const ban = details || {
+          username: 'This device',
+          reason: 'Access from this browser profile is blocked.',
+          bannedBy: 'Administrator',
+          timestamp: Date.now(),
+          permanent: true,
+        };
         return res.status(400).json({
           error: 'Access from this browser profile is blocked. You cannot create new accounts here.',
           deviceBanned: true,
@@ -2596,6 +2633,8 @@ const getHardwareBansHandler = async (req: any, res: any) => {
         bannedAt: data.banned_at || 0,
         bannedBy: data.banned_by || '',
         reason: data.reason,
+        banKind: data.ban_kind,
+        terminatedSubject: data.terminated_subject,
         linkedUsernames: Array.isArray(data.linked_usernames) ? data.linked_usernames : [],
       };
     });
@@ -2608,7 +2647,7 @@ const postHardwareBansHandler = async (req: any, res: any) => {
   try {
     const auth = requireAdmin(req, res);
     if (!auth) return;
-    const { deviceId: rawId, reason } = req.body || {};
+    const { deviceId: rawId, reason, banKind: rawBanKind, terminatedSubject: rawSubject, terminated } = req.body || {};
     const id = sanitizeDeviceId(typeof rawId === 'string' ? rawId : '');
     if (!id) return res.status(400).json({ error: 'deviceId required' });
 
@@ -2616,7 +2655,13 @@ const postHardwareBansHandler = async (req: any, res: any) => {
     const groupId = randomUUID();
     const now = Date.now();
     const linked = [...usernames];
-    const reasonText = reason || '';
+    const banKind =
+      rawBanKind === TERMINATED_BAN_KIND || terminated === true ? TERMINATED_BAN_KIND : undefined;
+    const terminatedSubject =
+      typeof rawSubject === 'string' && rawSubject.trim() ? rawSubject.trim().slice(0, 120) : undefined;
+    const reasonText =
+      (typeof reason === 'string' && reason.trim()) ||
+      (banKind === TERMINATED_BAN_KIND ? TERMINATED_FIRE_MESSAGE : '');
 
     let batch = db.batch();
     let n = 0;
@@ -2634,6 +2679,8 @@ const postHardwareBansHandler = async (req: any, res: any) => {
           banned_at: now,
           banned_by: auth.username,
           reason: reasonText,
+          ...(banKind ? { ban_kind: banKind } : {}),
+          ...(terminatedSubject ? { terminated_subject: terminatedSubject } : {}),
           linked_usernames: linked,
           group_id: groupId,
           root_device_id: id,
@@ -2651,7 +2698,7 @@ const postHardwareBansHandler = async (req: any, res: any) => {
     for (const un of usernames) {
       const banRef = db.collection(COLLECTIONS.BANS).doc(un);
       const banSnap = await banRef.get();
-      if (banSnap.exists) continue;
+      if (banSnap.exists && banKind !== TERMINATED_BAN_KIND) continue;
       await banRef.set({
         username: un,
         username_lower: un,
@@ -2660,6 +2707,8 @@ const postHardwareBansHandler = async (req: any, res: any) => {
         banned_at: now,
         expires_at: null,
         permanent: true,
+        ...(banKind ? { ban_kind: banKind } : {}),
+        ...(terminatedSubject ? { terminated_subject: terminatedSubject } : {}),
         hardware_ban_device_id: id,
         hardware_ban_group_id: groupId,
         hardware_ban_device_ids: deviceIdsForBan,
@@ -2748,6 +2797,11 @@ const postBansHandler = async (req: any, res: any) => {
   const permanent = body.permanent === true;
   const timestamp = typeof body.timestamp === 'number' ? body.timestamp : Date.now();
   const expiresAt = permanent ? undefined : (typeof body.expiresAt === 'number' ? body.expiresAt : undefined);
+  const banKind = body.banKind === TERMINATED_BAN_KIND ? TERMINATED_BAN_KIND : undefined;
+  const terminatedSubject =
+    typeof body.terminatedSubject === 'string' && body.terminatedSubject.trim()
+      ? body.terminatedSubject.trim().slice(0, 120)
+      : undefined;
   const usernameLower = username.toLowerCase();
   try {
     const existing = await db.collection(COLLECTIONS.BANS).where('username_lower', '==', usernameLower).get();
@@ -2762,6 +2816,8 @@ const postBansHandler = async (req: any, res: any) => {
       banned_at: timestamp,
       expires_at: expiresAt ?? null,
       permanent,
+      ...(banKind ? { ban_kind: banKind } : {}),
+      ...(terminatedSubject ? { terminated_subject: terminatedSubject } : {}),
       created_at: Date.now(),
     });
     res.status(200).json({
@@ -3105,6 +3161,7 @@ mountUpdateLogsRoutes(app);
 
 mountUserBoardRoutes(app, db, COLLECTIONS);
 
+mountWebDeployAuthRoutes(app, db, COLLECTIONS);
 mountWebDeployRoutes(app, db, COLLECTIONS);
 
 // Signed Pixel Place Account File (PPAF) — backup / restore
@@ -3121,4 +3178,7 @@ app.use((req: any, res) => {
   });
 });
 
-export const api = functions.region('us-central1').https.onRequest(app);
+export const api = functions
+  .runWith({ secrets: ['PAYPAL_CLIENT_SECRET'] })
+  .region('us-central1')
+  .https.onRequest(app);

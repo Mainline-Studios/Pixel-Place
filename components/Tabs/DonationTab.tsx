@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { User } from '@/types';
-import { useUser } from '@/contexts/UserContext';
+import { navigateToTab } from '@/lib/routing';
 
 interface DonationTabProps {
   user: User;
@@ -18,28 +18,15 @@ const donationTiers = [
 ];
 
 export default function DonationTab({ user, editMode }: DonationTabProps) {
-  const { updateUser } = useUser();
   const [selectedTier, setSelectedTier] = useState<number | null>(null);
 
   const handleDonate = (tier: typeof donationTiers[0]) => {
-    if (confirm(`Donate ${tier.label} to support Pixel Place?\n\nYou'll receive:\n- ${tier.coins} Pixel Coins\n- ${tier.tier} tier benefits\n- Full AI Coder access`)) {
-      // Simulate payment - in production, this would go through payment processor
-      const newCoins = (user.coins || 0) + tier.coins;
-      const isDonor = true;
-      const donationAmount = (user.donationAmount || 0) + tier.amount;
-      
-      updateUser({ 
-        coins: newCoins, 
-        isDonor,
-        donationAmount
-      });
-      
-      setSelectedTier(tier.amount);
-      setTimeout(() => {
-        alert(`Thank you for your ${tier.label} donation! You now have access to Full AI Coder and received ${tier.coins} coins.`);
-        setSelectedTier(null);
-      }, 100);
-    }
+    // Donations grant real Pixel Coins, so they must go through real payment.
+    // Route to the Pixel Coins tab (Pixel Place Pay) instead of granting coins for free.
+    alert(
+      `Donations are handled through Pixel Coins.\n\nThe ${tier.tier} tier (${tier.label}) gives you ${tier.coins.toLocaleString()} coins. Taking you to Pixel Coins to complete your purchase.`,
+    );
+    navigateToTab('coins');
   };
 
   const isDonor = user.isDonor || false;

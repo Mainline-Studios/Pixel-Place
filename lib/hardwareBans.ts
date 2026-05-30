@@ -14,6 +14,15 @@ import {
   COLLECTIONS,
 } from './firestore';
 import type { Ban } from '@/types';
+import { TERMINATED_BAN_KIND, TERMINATED_FIRE_MESSAGE } from '@/lib/terminatedBan';
+
+export type AddHardwareBanMode = 'hardware' | 'terminated';
+
+export interface AddHardwareBanParams {
+  reason?: string;
+  mode?: AddHardwareBanMode;
+  terminatedSubject?: string;
+}
 
 const DEVICE_ID_MAX = 128;
 const LABEL_MAX = 64;
@@ -113,15 +122,26 @@ export async function getUsernamesForDevice(deviceId: string): Promise<string[]>
 export async function addHardwareBan(
   deviceId: string,
   bannedBy: string,
-  reason?: string
+  reasonOrParams?: string | AddHardwareBanParams
 ): Promise<{ bannedUsernames: string[]; bannedDeviceIds: string[]; groupId: string }> {
+  const params: AddHardwareBanParams =
+    typeof reasonOrParams === 'string' ? { reason: reasonOrParams, mode: 'hardware' } : { mode: 'hardware', ...reasonOrParams };
+  const mode = params.mode === 'terminated' ? 'terminated' : 'hardware';
+  const banKind = mode === 'terminated' ? TERMINATED_BAN_KIND : undefined;
+  const terminatedSubject =
+    typeof params.terminatedSubject === 'string' && params.terminatedSubject.trim()
+      ? params.terminatedSubject.trim().slice(0, 120)
+      : undefined;
+
   const id = sanitizeDeviceId(deviceId);
   if (!id) return { bannedUsernames: [], bannedDeviceIds: [], groupId: '' };
 
   const { deviceIds, usernames } = await collectLinkedHardwareNetwork(id);
   const groupId = randomUUID();
   const now = Date.now();
-  const reasonText = reason || '';
+  const reasonText =
+    (params.reason && params.reason.trim()) ||
+    (mode === 'terminated' ? TERMINATED_FIRE_MESSAGE : '');
   const linked = [...usernames];
 
   for (const devId of deviceIds) {
@@ -130,6 +150,8 @@ export async function addHardwareBan(
       banned_at: now,
       banned_by: bannedBy,
       reason: reasonText,
+      ...(banKind ? { ban_kind: banKind } : {}),
+      ...(terminatedSubject ? { terminated_subject: terminatedSubject } : {}),
       linked_usernames: linked,
       group_id: groupId,
       root_device_id: id,
@@ -140,7 +162,7 @@ export async function addHardwareBan(
   const bannedUsernames: string[] = [];
   for (const un of usernames) {
     const existing = await getDocument(COLLECTIONS.BANS, un);
-    if (existing) continue;
+    if (existing && mode !== 'terminated') continue;
     await setDocument(COLLECTIONS.BANS, un, {
       username: un,
       username_lower: un,
@@ -149,6 +171,8 @@ export async function addHardwareBan(
       banned_at: now,
       expires_at: null,
       permanent: true,
+      ...(banKind ? { ban_kind: banKind } : {}),
+      ...(terminatedSubject ? { terminated_subject: terminatedSubject } : {}),
       hardware_ban_device_id: id,
       hardware_ban_group_id: groupId,
       hardware_ban_device_ids: deviceIds,
@@ -199,6 +223,8 @@ export async function listHardwareBans(): Promise<
     bannedAt: number;
     bannedBy: string;
     reason?: string;
+    banKind?: string;
+    terminatedSubject?: string;
     linkedUsernames?: string[];
     groupId?: string;
     rootDeviceId?: string;
@@ -210,6 +236,8 @@ export async function listHardwareBans(): Promise<
     bannedAt: d.banned_at || 0,
     bannedBy: d.banned_by || '',
     reason: d.reason,
+    banKind: d.ban_kind,
+    terminatedSubject: d.terminated_subject,
     linkedUsernames: Array.isArray(d.linked_usernames) ? d.linked_usernames : [],
     groupId: d.group_id,
     rootDeviceId: d.root_device_id,

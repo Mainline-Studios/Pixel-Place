@@ -21,6 +21,7 @@ import Chess from '../Games/Chess';
 import FloorIsLava from '../Games/FloorIsLava';
 import VoidArcade from '../Games/VoidArcade';
 import EcoHero from '../Games/EcoHero';
+import CoasterControl from '../Games/CoasterControl';
 import HistoriMac from '../Games/HistoriMac';
 import AnimationTest from '../Games/AnimationTest';
 import ObstacleCourse from '../Games/ObstacleCourse';
@@ -164,6 +165,16 @@ const games: GameInfo[] = [
     thumbnail: '/images/games/floor-is-lava.svg',
     category: 'Action',
     component: FloorIsLava,
+  },
+  {
+    id: 'coasterControl',
+    name: 'Coaster Control',
+    description:
+      'RCT2-style park sim: 90+ rides (coasters, gentle, thrill, transport, water), scenarios, sandbox, search & build tools.',
+    icon: '🎢',
+    thumbnail: '/images/games/coaster-control.svg',
+    category: 'Simulation',
+    component: CoasterControl,
   },
   {
     id: 'jungleJourney',
@@ -334,7 +345,7 @@ export default function GamesTab({ user, editMode }: GamesTabProps) {
     };
     
     // Components that support onClose prop
-    const supportsOnClose = ['gymPump', 'hypnosia', 'voidArcade', 'ecoHero', 'historiMac', 'animationTest', 'obstacleCourse', 'squishBubbles', 'squishSlime'].includes(selectedGame);
+    const supportsOnClose = ['gymPump', 'hypnosia', 'voidArcade', 'ecoHero', 'historiMac', 'animationTest', 'obstacleCourse', 'squishBubbles', 'squishSlime', 'coasterControl'].includes(selectedGame);
     
     // Prepare props based on game type - pass user to games that need it
     const baseProps = selectedGame === 'gymPump'
@@ -356,6 +367,8 @@ export default function GamesTab({ user, editMode }: GamesTabProps) {
       : selectedGame === 'obstacleCourse'
       ? { user, onClose: handleClose }
       : selectedGame === 'squishBubbles' || selectedGame === 'squishSlime'
+      ? { onClose: handleClose }
+      : selectedGame === 'coasterControl'
       ? { onClose: handleClose }
       : selectedGame === 'showdown'
       ? { user }

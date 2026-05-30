@@ -1,6 +1,7 @@
 import { User, Skin, PublishedGame, DraftGame, SceneData, TabContent, GameServer, ServerPlan, FriendRequest, Message, Accessory, PrebuiltGame, Ban, BanAppeal, UserMadeGame, GameSubmission, Report, DeviceRecord, HardwareBan, AppealMessage } from '@/types';
 import { NEW_SKINS, NEW_ACCESSORIES } from './newCatalog';
 import { apiUrl } from './apiBaseUrl';
+import { TERMINATED_BAN_KIND, TERMINATED_FIRE_MESSAGE } from './terminatedBan';
 import { authenticatedFetch } from './api';
 import { getDeviceFingerprint } from './deviceFingerprint';
 
@@ -353,7 +354,15 @@ export function getBannedUsersSync(): Ban[] {
   }
 }
 
-export async function banUser(username: string, bannedBy: string, reason: string, permanent: boolean = true, days?: number, canBanAdmins = false): Promise<boolean> {
+export async function banUser(
+  username: string,
+  bannedBy: string,
+  reason: string,
+  permanent: boolean = true,
+  days?: number,
+  canBanAdmins = false,
+  options?: { banKind?: typeof TERMINATED_BAN_KIND; terminatedSubject?: string }
+): Promise<boolean> {
   if (typeof window === 'undefined') return false;
 
   const usernameLower = username.trim().toLowerCase();
@@ -383,7 +392,10 @@ export async function banUser(username: string, bannedBy: string, reason: string
     reason,
     timestamp: Date.now(),
     permanent,
-    expiresAt: permanent ? undefined : (days ? Date.now() + (days * 24 * 60 * 60 * 1000) : undefined)
+    expiresAt: permanent ? undefined : (days ? Date.now() + (days * 24 * 60 * 60 * 1000) : undefined),
+    banKind: options?.banKind,
+    terminatedSubject: options?.terminatedSubject,
+    appealsBlocked: options?.banKind === TERMINATED_BAN_KIND,
   };
 
   try {
@@ -423,15 +435,58 @@ export async function getHardwareBans(): Promise<HardwareBan[]> {
   }
 }
 
-export async function addHardwareBan(deviceId: string, reason?: string): Promise<{ bannedUsernames: string[] }> {
+export type AddHardwareBanClientOptions = {
+  /** `hardware` = normal ban screen; `terminated` = fiery fired screen */
+  mode?: 'hardware' | 'terminated';
+  reason?: string;
+  /** Shown on terminated screen (e.g. person's name) */
+  terminatedSubject?: string;
+};
+
+export async function addHardwareBan(
+  deviceId: string,
+  reason?: string,
+  options?: AddHardwareBanClientOptions
+): Promise<{ bannedUsernames: string[] }> {
   if (typeof window === 'undefined') return { bannedUsernames: [] };
+  const mode = options?.mode ?? 'hardware';
+  const body: Record<string, unknown> = {
+    deviceId,
+    reason: options?.reason ?? reason ?? '',
+  };
+  if (mode === 'terminated') {
+    body.terminated = true;
+    body.banKind = 'terminated';
+    if (options?.terminatedSubject?.trim()) {
+      body.terminatedSubject = options.terminatedSubject.trim();
+    }
+  }
   const res = await authenticatedFetch(apiUrl('/api/hardware-bans'), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ deviceId, reason }),
+    body: JSON.stringify(body),
   });
   if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || 'Failed to add hardware ban');
   return await res.json();
+}
+
+/** Terminate all devices linked to a user (fiery site block). Uses first known device to seed the network. */
+export async function terminateUserAccess(
+  username: string,
+  bannedBy: string,
+  terminatedSubject?: string
+): Promise<{ bannedUsernames: string[] }> {
+  const devices = await getDevicesForUser(username);
+  const subject = terminatedSubject?.trim() || username.trim();
+  if (devices.length > 0) {
+    return addHardwareBan(devices[0].deviceId, undefined, { mode: 'terminated', terminatedSubject: subject });
+  }
+  const ok = await banUser(username, bannedBy, TERMINATED_FIRE_MESSAGE, true, undefined, true, {
+    banKind: TERMINATED_BAN_KIND,
+    terminatedSubject: subject,
+  });
+  if (!ok) throw new Error('Could not terminate user (no devices on file and account ban failed)');
+  return { bannedUsernames: [username.toLowerCase()] };
 }
 
 export async function removeHardwareBan(deviceId: string): Promise<{ unbannedUsernames: string[] }> {
@@ -471,6 +526,11 @@ export async function checkDeviceBanStatus(): Promise<{ banned: boolean; ban?: B
           bannedBy: (b.bannedBy as string) ?? (b.banned_by as string) ?? 'Administrator',
           timestamp: (b.timestamp as number) ?? (b.banned_at as number) ?? Date.now(),
           permanent: (b.permanent as boolean) ?? true,
+          banKind: (b.banKind as string) ?? (b.ban_kind as string),
+          terminatedSubject: (b.terminatedSubject as string) ?? (b.terminated_subject as string),
+          appealsBlocked:
+            (b.appealsBlocked as boolean) ??
+            (b.banKind === 'terminated' || b.ban_kind === 'terminated'),
         },
       };
     }

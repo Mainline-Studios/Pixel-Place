@@ -5,6 +5,7 @@ import { User, FriendRequest, Message } from '@/types';
 import { getUsers } from '@/lib/storage';
 import { apiUrl } from '@/lib/apiBaseUrl';import { useUser } from '@/contexts/UserContext';
 import { useFriendsOnlineStatus, useOnlineStatus, updateCurrentGame, OnlineStatus } from '@/lib/onlineStatus';
+import { navigateToTab } from '@/lib/routing';
 
 interface FriendsTabProps {
   user: User;
@@ -301,68 +302,32 @@ export default function FriendsTab({ user, editMode }: FriendsTabProps) {
     }
   };
 
-  // Join friend's game
+  // Join friend's game. There is no standalone /play route (it 301-redirects to /),
+  // so we record the session join (best effort) and take the user to the Games tab,
+  // which is where games actually launch in-app.
   const handleJoinFriend = async (friendUsername: string) => {
     try {
-      // Get friend's current game session
       const presenceResponse = await fetch(apiUrl(`/api/presence?username=${encodeURIComponent(friendUsername)}`));
       if (presenceResponse.ok) {
         const presence = await presenceResponse.json();
         if (presence.isOnline && presence.currentSessionId) {
-          // Friend is in a game - join it
-          const joinResponse = await fetch(apiUrl('/api/game-sessions'), {
+          await fetch(apiUrl('/api/game-sessions'), {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               action: 'join',
               sessionId: presence.currentSessionId,
-              username: user.username
-            })
-          });
-          if (joinResponse.ok) {
-            window.location.href = `/play?session=${presence.currentSessionId}`;
-          } else {
-            alert('Could not join friend\'s game. The session may be full or no longer available.');
-          }
-        } else {
-          // Friend is online but not in a game - create a new game session
-          const gameResponse = await fetch(apiUrl('/api/game-sessions'), {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              action: 'create',
-              gameId: 'multiplayer',
-              hostUsername: user.username
-            })
-          });
-          if (gameResponse.ok) {
-            const result = await gameResponse.json();
-            // Invite friend to join
-            await fetch(apiUrl('/api/game-sessions'), {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                action: 'join',
-                sessionId: result.session.sessionId,
-                username: friendUsername
-              })
-            });
-            window.location.href = `/play?session=${result.session.sessionId}`;
-          }
+              username: user.username,
+            }),
+          }).catch(() => {});
         }
       }
     } catch (error) {
       console.error('Error joining friend:', error);
-      alert('Could not join friend. They may not be in a game.');
+    } finally {
+      // Always land somewhere real instead of the dead /play redirect.
+      navigateToTab('games');
     }
-  };
-
-  // Chat with non-friend user
-  const handleChatWithUser = (targetUsername: string) => {
-    // Send friend request first, then open chat
-    sendFriendRequest(targetUsername);
-    // After friend request is sent, we could open a chat window
-    // For now, just send the request
   };
 
   // Format timestamp
@@ -784,23 +749,6 @@ export default function FriendsTab({ user, editMode }: FriendsTabProps) {
                         </div>
                       </div>
                       <div style={{ display: 'flex', gap: '6px' }}>
-                        {userStatus.isOnline && (
-                          <button
-                            onClick={() => handleChatWithUser(u.username)}
-                            style={{
-                              fontSize: '12px',
-                              padding: '6px 12px',
-                              background: 'var(--accent-bg)',
-                              border: '1px solid var(--accent-hover)',
-                              borderRadius: '4px',
-                              color: 'var(--accent-hover)',
-                              cursor: 'pointer',
-                              fontWeight: '600'
-                            }}
-                          >
-                            Chat
-                          </button>
-                        )}
                         <button
                           onClick={() => sendFriendRequest(u.username)}
                           className="btn"

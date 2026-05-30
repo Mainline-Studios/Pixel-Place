@@ -3,10 +3,9 @@
 import { useState, useEffect } from 'react';
 import { User, CoinPack } from '@/types';
 import { getTabContent } from '@/lib/storage';
-import { apiUrl } from '@/lib/apiBaseUrl';
 import { useUser } from '@/contexts/UserContext';
 import HolidayBundle from '@/components/HolidayBundle';
-import EmbeddedStripePay from '@/components/EmbeddedStripePay';
+import PayPalCheckout from '@/components/PayPalCheckout';
 
 interface CoinsTabProps {
   user: User;
@@ -94,47 +93,21 @@ export default function CoinsTab({ user, editMode }: CoinsTabProps) {
       setLoading(pack.stripePriceId);
 
       try {
-        // Add coins directly without payment
-        const response = await fetch(apiUrl('/api/add-coins'), {          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            userId: user.username,
-            coins: pack.coins,
-          }),
-        });
-
-        const data = await response.json();
-
-        if (!response.ok) {
-          throw new Error(data.error || 'Failed to add coins');
-        }
-
-        // Update user balance locally
+        // Grant coins via updateUser, which persists through /api/users
+        // (the dedicated /api/add-coins endpoint is not served by the Cloud Function).
         const newBalance = bal + pack.coins;
-        updateUser({ coins: newBalance });
-        // Silent success - no alert
-        setLoading(null);
+        await updateUser({ coins: newBalance });
+        alert(`Added ${formatNumber(pack.coins)} coins. New balance: ${formatNumber(newBalance)}.`);
       } catch (error: any) {
         console.error('Add coins error:', error);
-        // Silent error - no alert
+        alert('Could not add coins. Please try again.');
+      } finally {
         setLoading(null);
       }
       return;
     }
 
-    // Admin pack — in-app Stripe (1M coins)
-    if (pack.stripePriceId === 'price_admin_1000000' && (user.role === 'admin' || user.role === 'head_admin')) {
-      if (!confirm(`Buy ${formatNumber(pack.coins)} Coins for ${pack.priceLabel}?\nSee status in the window that opens.\nCurrent balance: ${formatNumber(bal)}`)) {
-        return;
-      }
-      setLoading(null);
-      setEmbedCoins(pack.coins);
-      return;
-    }
-
-    if (!confirm(`Buy ${formatNumber(pack.coins)} Coins for ${pack.priceLabel}?\nPixel Place Pay is still being set up.\nCurrent balance: ${formatNumber(bal)}`)) {
+    if (!confirm(`Buy ${formatNumber(pack.coins)} Coins for ${pack.priceLabel}?\nCurrent balance: ${formatNumber(bal)}`)) {
       return;
     }
 
@@ -176,7 +149,7 @@ export default function CoinsTab({ user, editMode }: CoinsTabProps) {
           ))}
         </div>
         <div className="smalltext">
-          Pixel Place Pay is being implemented. You can open a pack below to see the preview; purchases are not active yet.
+          Secure checkout with PayPal. Pick a pack and pay — coins are added to your balance right after PayPal confirms.
         </div>
       </div>
 
@@ -219,13 +192,15 @@ export default function CoinsTab({ user, editMode }: CoinsTabProps) {
             <h3 id="coins-pay-title" style={{ margin: '0 0 16px', color: '#f1f5f9', fontSize: '1.25rem' }}>
               Pixel Place Pay
             </h3>
-            <EmbeddedStripePay
+            <PayPalCheckout
               coins={embedCoins}
               role={user.role}
               onClose={() => setEmbedCoins(null)}
-              onPaid={async () => {
+              onPaid={async (result) => {
+                updateUser({ coins: result.newBalance });
                 setEmbedCoins(null);
                 await refreshCoinsAfterPay();
+                alert(`Payment complete! ${formatNumber(result.coins)} coins added.`);
               }}
             />
           </div>

@@ -1,0 +1,14 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    // Web Deploy placeholder pages (written by Cloud Functions only)
+    match /web-deploy-hosting/{allPaths=**} {
+      allow read: if true;
+      allow write: if false;
+    }
+    // User uploads via signed URLs from Functions
+    match /web-deploy-uploads/{deployUid}/{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

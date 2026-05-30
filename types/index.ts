@@ -334,6 +334,11 @@ export interface Ban {
   timestamp: number;
   permanent: boolean;
   expiresAt?: number;
+  /** `terminated` = fired / permanent site block with special screen; appeals disabled */
+  banKind?: 'terminated' | string;
+  /** Display name on terminated screen (e.g. "Oliver L") */
+  terminatedSubject?: string;
+  appealsBlocked?: boolean;
   /** If set, this account ban was caused by a hardware ban; unbanning the device will remove it */
   hardwareBanDeviceId?: string;
   /** Same wave as other hardware_bans docs when an admin bans all linked devices */
@@ -356,6 +361,9 @@ export interface HardwareBan {
   bannedAt: number;
   bannedBy: string;
   reason?: string;
+  /** `terminated` = fiery fired screen; omit = standard hardware ban screen */
+  banKind?: 'terminated' | string;
+  terminatedSubject?: string;
   /** Usernames that were banned because of this device (for display) */
   linkedUsernames?: string[];
   /** Ties multiple device docs to one admin action (remove any device in the group to clear all) */

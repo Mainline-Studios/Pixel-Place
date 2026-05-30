@@ -72,6 +72,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Username and appeal message required' }, { status: 400 });
     }
 
+    if (body.ban?.banKind === 'terminated' || body.ban?.appealsBlocked === true) {
+      return NextResponse.json({ error: 'Appeals are not available for this ban.' }, { status: 403 });
+    }
+
     const isDeviceBan = username.toLowerCase() === 'this device';
     let banReason = 'Not specified';
     let bannedBy = 'System';
@@ -103,6 +107,9 @@ export async function POST(request: NextRequest) {
       banReason = ban.reason || 'Not specified';
       bannedBy = ban.banned_by || 'System';
       banForResponse = banFromDoc(ban);
+      if (ban.ban_kind === 'terminated') {
+        return NextResponse.json({ error: 'Appeals are not available for this ban.' }, { status: 403 });
+      }
     }
 
     const appealId = await addDocument(COLLECTIONS.BAN_APPEALS, {

@@ -3,7 +3,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { User, Report, Ban, GameSubmission, UserMadeGame, DeviceRecord, HardwareBan, AppealMessage } from '@/types';
-import { getUsers, getReports, banUser, unbanUser, updateReportStatus, saveBannedUsers, saveUsers, ADMIN_ACCOUNTS_LIST, getBanAppeals, updateBanAppealStatus, getMessagesAPI, sendMessage, getGameSubmissions, saveUserMadeGame, deleteGameSubmission, getHardwareBans, addHardwareBan as addHardwareBanApi, removeHardwareBan, getDevicesForUser, getAppealMessagesAdmin } from '@/lib/storage';
+import { getUsers, getReports, banUser, unbanUser, updateReportStatus, saveBannedUsers, saveUsers, ADMIN_ACCOUNTS_LIST, getBanAppeals, updateBanAppealStatus, getMessagesAPI, sendMessage, getGameSubmissions, saveUserMadeGame, deleteGameSubmission, getHardwareBans, addHardwareBan as addHardwareBanApi, removeHardwareBan, getDevicesForUser, getAppealMessagesAdmin, terminateUserAccess } from '@/lib/storage';
+import { TERMINATED_FIRE_MESSAGE } from '@/lib/terminatedBan';
 import { subscribeToUsers, subscribeToBans } from '@/lib/firestoreClient';
 import { FilteredUsername } from '@/components/FilteredText';
 import AdminPanelWebDeploy from '@/components/AdminPanelWebDeploy';
@@ -36,6 +37,9 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
   const [hardwareBans, setHardwareBans] = useState<HardwareBan[]>([]);
   const [deviceBanId, setDeviceBanId] = useState('');
   const [deviceBanReason, setDeviceBanReason] = useState('');
+  const [deviceTerminateSubject, setDeviceTerminateSubject] = useState('');
+  const [terminateUsername, setTerminateUsername] = useState('');
+  const [terminateSubject, setTerminateSubject] = useState('');
   const [usersLoadError, setUsersLoadError] = useState<string | null>(null);
   const [devicesModalUser, setDevicesModalUser] = useState<string | null>(null);
   const [devicesModalList, setDevicesModalList] = useState<DeviceRecord[]>([]);
@@ -80,6 +84,9 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
           timestamp: d.banned_at ?? d.timestamp ?? now,
           expiresAt: d.expires_at,
           permanent: d.permanent === true,
+          banKind: d.ban_kind,
+          terminatedSubject: d.terminated_subject,
+          appealsBlocked: d.ban_kind === 'terminated',
           hardwareBanDeviceId: d.hardware_ban_device_id,
         }))
         .filter((b: Ban) => b.permanent || (b.expiresAt != null && b.expiresAt > now));
@@ -272,20 +279,26 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
 
   const handleBan = async () => {
     if (!banUsername.trim()) {
-      // Silent validation - no alert
+      alert('Enter a username to ban.');
       return;
     }
     if (!banReason.trim()) {
-      // Silent validation - no alert
+      alert('Enter a ban reason.');
       return;
     }
 
     const usernameToBan = banUsername.trim().toLowerCase();
 
+    if (usernameToBan === user.username.toLowerCase()) {
+      alert('You cannot ban yourself.');
+      return;
+    }
+
     // Check if user is an admin (head_admin can ban admins)
     const canBanAdmins = user.role === 'head_admin';
     const targetUser = allUsers.find(u => u.username.toLowerCase() === usernameToBan);
     if (!canBanAdmins && targetUser && (targetUser.role === 'admin' || targetUser.role === 'head_admin')) {
+      alert('Admins are protected from bans. Only a head admin can ban an admin.');
       return;
     }
 
@@ -299,8 +312,9 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
       setBanReason('');
       setBanPermanent(true);
       await loadData();
+      alert(`${usernameToBanFinal} has been banned.`);
     } else {
-      console.error('Cannot ban administrators. Admins are protected from bans.');
+      alert('Could not ban this user. Admins are protected, or the request failed. Check you are signed in as admin.');
     }
   };
 
@@ -654,9 +668,9 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
                           className="btn"
                           style={{ padding: '6px 12px', fontSize: '12px', background: '#ff4d4d' }}
                           onClick={async () => {
-                            if (!confirm('Ban this device? All accounts that used it will be blocked from signing in.')) return;
+                            if (!confirm('Hardware-ban this device? Linked accounts see the normal ban screen (appeals allowed).')) return;
                             try {
-                              await addHardwareBanApi(d.deviceId, `From admin panel (user ${devicesModalUser})`);
+                              await addHardwareBanApi(d.deviceId, `From admin panel (user ${devicesModalUser})`, { mode: 'hardware' });
                               setHardwareBans(await getHardwareBans());
                               setDevicesModalList((prev) => prev.filter((x) => x.deviceId !== d.deviceId));
                             } catch (e: any) {
@@ -664,7 +678,27 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
                             }
                           }}
                         >
-                          Ban this device
+                          Hardware ban
+                        </button>
+                        <button
+                          type="button"
+                          className="btn"
+                          style={{ padding: '6px 12px', fontSize: '12px', background: '#b91c1c', border: '1px solid #ff6b35' }}
+                          onClick={async () => {
+                            if (!confirm(`TERMINATE this device for ${devicesModalUser}? Fiery fired screen, no appeals, all linked profiles blocked.`)) return;
+                            try {
+                              await addHardwareBanApi(d.deviceId, undefined, {
+                                mode: 'terminated',
+                                terminatedSubject: devicesModalUser || 'You',
+                              });
+                              setHardwareBans(await getHardwareBans());
+                              setDevicesModalList((prev) => prev.filter((x) => x.deviceId !== d.deviceId));
+                            } catch (e: any) {
+                              alert(e?.message || 'Failed');
+                            }
+                          }}
+                        >
+                          Terminate 🔥
                         </button>
                       </div>
                     </div>
@@ -748,8 +782,82 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
                   )}
                 </div>
                 <button className="btn" onClick={handleBan} style={{ background: '#ff4d4d' }}>
-                  Ban User
+                  Ban user (account)
                 </button>
+              </div>
+            </div>
+          </div>
+
+          <div className="ai-box" style={{ marginBottom: '16px' }}>
+            <div className="ai-label">Terminate user (fiery site block)</div>
+            <div className="ai-output">
+              <p className="smalltext" style={{ marginBottom: '12px' }}>
+                Blocks all linked browser profiles with the <strong>fired</strong> full-screen (no appeals). Uses device history when available; otherwise account-only terminated ban.
+              </p>
+              <div style={{ display: 'grid', gap: '12px', gridTemplateColumns: '1fr 1fr auto' }}>
+                <div>
+                  <label style={{ display: 'block', marginBottom: '4px', fontSize: '14px' }}>Username:</label>
+                  <input
+                    type="text"
+                    value={terminateUsername}
+                    onChange={(e) => setTerminateUsername(e.target.value)}
+                    placeholder="Username to terminate"
+                    style={{
+                      width: '100%',
+                      padding: '10px',
+                      borderRadius: '8px',
+                      border: '1px solid var(--border)',
+                      background: 'var(--panel-soft)',
+                      color: 'var(--text)',
+                    }}
+                  />
+                </div>
+                <div>
+                  <label style={{ display: 'block', marginBottom: '4px', fontSize: '14px' }}>Name on fired screen:</label>
+                  <input
+                    type="text"
+                    value={terminateSubject}
+                    onChange={(e) => setTerminateSubject(e.target.value)}
+                    placeholder="e.g. Oliver L"
+                    style={{
+                      width: '100%',
+                      padding: '10px',
+                      borderRadius: '8px',
+                      border: '1px solid var(--border)',
+                      background: 'var(--panel-soft)',
+                      color: 'var(--text)',
+                    }}
+                  />
+                </div>
+                <div style={{ alignSelf: 'end' }}>
+                  <button
+                    className="btn"
+                    style={{ background: '#b91c1c', border: '1px solid #ff6b35' }}
+                    onClick={async () => {
+                      const un = terminateUsername.trim();
+                      if (!un) return;
+                      if (!confirm(`Terminate ${un}? Fiery block on all linked devices — cannot be appealed.`)) return;
+                      try {
+                        const result = await terminateUserAccess(
+                          un,
+                          user.username,
+                          terminateSubject.trim() || un,
+                        );
+                        setTerminateUsername('');
+                        setTerminateSubject('');
+                        await loadOtherData();
+                        setHardwareBans(await getHardwareBans());
+                        alert(
+                          `Terminated. Blocked account(s): ${result.bannedUsernames.length ? result.bannedUsernames.join(', ') : 'see hardware bans list'}`,
+                        );
+                      } catch (e: any) {
+                        alert(e?.message || 'Failed to terminate');
+                      }
+                    }}
+                  >
+                    Terminate 🔥
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -778,17 +886,22 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
                         }}
                       >
                         <div>
-                          <div style={{ fontWeight: 600, marginBottom: '4px', color: '#ff4d4d' }}>
+                          <div style={{ fontWeight: 600, marginBottom: '4px', color: ban.banKind === 'terminated' ? '#ff6b35' : '#ff4d4d' }}>
                             {ban.username}
+                            {ban.banKind === 'terminated' ? (
+                              <span style={{ marginLeft: '8px', fontSize: '11px', fontWeight: 700, color: '#ff6b35' }}>TERMINATED 🔥</span>
+                            ) : ban.hardwareBanDeviceId ? (
+                              <span style={{ marginLeft: '8px', fontSize: '11px', color: 'var(--text-dim)' }}>Hardware</span>
+                            ) : null}
                           </div>
                           <div className="smalltext">
-                            Reason: {ban.reason}
+                            Reason: {ban.banKind === 'terminated' ? 'Fired — site access revoked' : ban.reason}
                             <br />
                             Banned by: {ban.bannedBy}
                             <br />
                             Date: {new Date(ban.timestamp).toLocaleString()}
                             <br />
-                            Type: {ban.permanent ? 'Permanent' : `Temporary (expires ${ban.expiresAt ? new Date(ban.expiresAt).toLocaleString() : 'N/A'})`}
+                            Type: {ban.banKind === 'terminated' ? 'Terminated (no appeals)' : ban.permanent ? 'Permanent' : `Temporary (expires ${ban.expiresAt ? new Date(ban.expiresAt).toLocaleString() : 'N/A'})`}
                           </div>
                         </div>
                         <div style={{ display: 'flex', gap: '8px' }}>
@@ -911,12 +1024,14 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
       {activeTab === 'hardwarebans' && (
         <div>
           <div className="ai-box" style={{ marginBottom: '16px' }}>
-            <div className="ai-label">Ban a device (hardware ban)</div>
+            <div className="ai-label">Device actions</div>
             <div className="ai-output">
               <p className="smalltext" style={{ marginBottom: '12px' }}>
-                Bans this device: no one can sign in or create accounts from it. All accounts that have used this device will be banned. Reversible.
+                <strong>Hardware ban</strong> — standard ban screen, appeals allowed, reversible.
+                <br />
+                <strong>Terminate</strong> — fiery &quot;YOU ARE FIRED&quot; screen, no appeals, blocks all linked browser profiles.
               </p>
-              <div style={{ display: 'grid', gap: '12px', gridTemplateColumns: '1fr 1fr auto' }}>
+              <div style={{ display: 'grid', gap: '12px', gridTemplateColumns: '1fr 1fr 1fr' }}>
                 <div>
                   <label style={{ display: 'block', marginBottom: '4px', fontSize: '14px' }}>Device ID:</label>
                   <input
@@ -937,7 +1052,7 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
                   />
                 </div>
                 <div>
-                  <label style={{ display: 'block', marginBottom: '4px', fontSize: '14px' }}>Reason (optional):</label>
+                  <label style={{ display: 'block', marginBottom: '4px', fontSize: '14px' }}>Reason (hardware ban):</label>
                   <input
                     type="text"
                     value={deviceBanReason}
@@ -953,28 +1068,72 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
                     }}
                   />
                 </div>
-                <div style={{ alignSelf: 'end' }}>
-                  <button
-                    className="btn"
-                    style={{ background: '#ff4d4d' }}
-                    onClick={async () => {
-                      if (!deviceBanId.trim()) return;
-                      try {
-                        const result = await addHardwareBanApi(deviceBanId.trim(), deviceBanReason.trim());
-                        setDeviceBanId('');
-                        setDeviceBanReason('');
-                        setHardwareBans(await getHardwareBans());
-                        await loadOtherData();
-                        alert(`Device banned. Account(s) banned: ${result.bannedUsernames.length ? result.bannedUsernames.join(', ') : 'none (already banned or no linked accounts)'}`);
-                      } catch (e: any) {
-                        alert(e?.message || 'Failed to ban device');
-                      }
+                <div>
+                  <label style={{ display: 'block', marginBottom: '4px', fontSize: '14px' }}>Fired screen name (terminate):</label>
+                  <input
+                    type="text"
+                    value={deviceTerminateSubject}
+                    onChange={(e) => setDeviceTerminateSubject(e.target.value)}
+                    placeholder="e.g. Oliver L"
+                    style={{
+                      width: '100%',
+                      padding: '10px',
+                      borderRadius: '8px',
+                      border: '1px solid var(--border)',
+                      background: 'var(--panel-soft)',
+                      color: 'var(--text)'
                     }}
-                  >
-                    Ban device
-                  </button>
+                  />
                 </div>
               </div>
+              <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', marginTop: '12px' }}>
+                <button
+                  className="btn"
+                  style={{ background: '#ff4d4d' }}
+                  onClick={async () => {
+                    if (!deviceBanId.trim()) return;
+                    if (!confirm('Hardware-ban this device? Normal ban screen with appeals.')) return;
+                    try {
+                      const result = await addHardwareBanApi(deviceBanId.trim(), deviceBanReason.trim(), { mode: 'hardware' });
+                      setDeviceBanId('');
+                      setDeviceBanReason('');
+                      setHardwareBans(await getHardwareBans());
+                      await loadOtherData();
+                      alert(`Hardware ban applied. Account(s): ${result.bannedUsernames.length ? result.bannedUsernames.join(', ') : 'none'}`);
+                    } catch (e: any) {
+                      alert(e?.message || 'Failed to hardware ban device');
+                    }
+                  }}
+                >
+                  Hardware ban
+                </button>
+                <button
+                  className="btn"
+                  style={{ background: '#b91c1c', border: '1px solid #ff6b35' }}
+                  onClick={async () => {
+                    if (!deviceBanId.trim()) return;
+                    if (!confirm('TERMINATE this device? Fiery fired screen, no appeals.')) return;
+                    try {
+                      const result = await addHardwareBanApi(deviceBanId.trim(), undefined, {
+                        mode: 'terminated',
+                        terminatedSubject: deviceTerminateSubject.trim() || 'You',
+                      });
+                      setDeviceBanId('');
+                      setDeviceTerminateSubject('');
+                      setHardwareBans(await getHardwareBans());
+                      await loadOtherData();
+                      alert(`Terminated. Account(s): ${result.bannedUsernames.length ? result.bannedUsernames.join(', ') : 'none'}`);
+                    } catch (e: any) {
+                      alert(e?.message || 'Failed to terminate device');
+                    }
+                  }}
+                >
+                  Terminate 🔥
+                </button>
+              </div>
+              <p className="smalltext" style={{ marginTop: '10px', opacity: 0.85 }}>
+                Terminate message preview: {TERMINATED_FIRE_MESSAGE.split('\n')[0]}…
+              </p>
             </div>
           </div>
           <div className="ai-box" style={{ marginBottom: 0 }}>
@@ -1002,10 +1161,16 @@ export default function AdminPanelTab({ user }: AdminPanelTabProps) {
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ fontFamily: 'monospace', fontSize: '12px', marginBottom: '4px', wordBreak: 'break-all' }}>
                           {hb.deviceId || '—'}
+                          {hb.banKind === 'terminated' ? (
+                            <span style={{ marginLeft: '8px', color: '#ff6b35', fontFamily: 'inherit', fontWeight: 700 }}>TERMINATED 🔥</span>
+                          ) : (
+                            <span style={{ marginLeft: '8px', color: 'var(--text-dim)', fontFamily: 'inherit' }}>Hardware</span>
+                          )}
                         </div>
                         <div className="smalltext">
                           Banned by: {hb.bannedBy} • {new Date(hb.bannedAt).toLocaleString()}
-                          {hb.reason ? ` • ${hb.reason}` : ''}
+                          {hb.banKind === 'terminated' && hb.terminatedSubject ? ` • Subject: ${hb.terminatedSubject}` : ''}
+                          {hb.reason && hb.banKind !== 'terminated' ? ` • ${hb.reason}` : ''}
                           {hb.linkedUsernames?.length ? (
                             <> • Accounts: {hb.linkedUsernames.join(', ')}</>
                           ) : null}

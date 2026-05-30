@@ -86,6 +86,15 @@ export const BUILTIN_GAMES: PublishedGame[] = [
     gameCode: 'builtin_celestialSeries',
     thumbnail: undefined,
   },
+  {
+    title: 'Coaster Control',
+    desc: 'Build a 2D theme park — paths, shops, guests, and custom roller coasters.',
+    owner: 'System',
+    ts: Date.now() - 86400000 * 0.25,
+    playable: true,
+    gameCode: 'builtin_coasterControl',
+    thumbnail: '/images/games/coaster-control.svg',
+  },
   // Note: InternationalSportsHQ and MusicalMayhem are not React components
   // They can be added later if converted to React components
 ];

@@ -25,6 +25,7 @@ import CoinsTab from '../Tabs/CoinsTab';
 import FriendsTab from '../Tabs/FriendsTab';
 import SettingsTab from '../Tabs/SettingsTab';
 import ReportTab from '../Tabs/ReportTab';
+import DonationTab from '../Tabs/DonationTab';
 import VerifyAccountPrompt from '../VerifyAccountPrompt';
 
 interface DashboardProps {
@@ -161,6 +162,8 @@ export default function Dashboard({ user }: DashboardProps) {
         );
       case 'report':
         return <ReportTab user={user} editMode={editMode} />;
+      case 'donation':
+        return <DonationTab user={user} editMode={editMode} />;
       default:
         return (
           <div>

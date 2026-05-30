@@ -20,6 +20,7 @@
         "@genkit-ai/googleai": "^1.28.0",
         "@google/generative-ai": "^0.24.1",
         "@opentelemetry/api": "^1.9.0",
+        "@paypal/react-paypal-js": "^9.2.0",
         "@stripe/react-stripe-js": "^3.10.0",
         "@stripe/stripe-js": "^5.10.0",
         "@types/bcryptjs": "^2.4.6",

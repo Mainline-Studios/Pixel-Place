@@ -31,8 +31,42 @@ export const WEB_DEPLOY_RESERVED_SUBDOMAINS = new Set([
   'web-deploy',
 ]);
 
-export type WebDeploySourceType = 'git' | 'files';
+export type WebDeploySourceType = 'git' | 'files' | 'coded';
+
+export function normalizeWebDeploySourceType(raw: unknown): WebDeploySourceType {
+  const s = String(raw ?? '').toLowerCase();
+  if (s === 'files') return 'files';
+  if (s === 'coded' || s === 'code' || s === 'build') return 'coded';
+  return 'git';
+}
+
+export function webDeploySourceLabel(sourceType: WebDeploySourceType): string {
+  switch (sourceType) {
+    case 'git':
+      return 'Git repository';
+    case 'files':
+      return 'Imported files';
+    case 'coded':
+      return 'Code for you';
+  }
+}
 export type WebDeployRequestStatus = 'pending' | 'approved' | 'rejected' | 'live';
+
+export type WebDeployUploadedFileMeta = {
+  name: string;
+  storagePath: string;
+  size: number;
+  contentType: string;
+};
+
+export type WebDeployDnsRecord = {
+  type: string;
+  name: string;
+  content: string;
+  purpose?: string;
+  proxied?: boolean;
+  ttl?: number;
+};
 
 export interface WebDeployRequest {
   id: string;
@@ -40,7 +74,12 @@ export interface WebDeployRequest {
   predomain: string;
   sourceType: WebDeploySourceType;
   gitUrl?: string;
+  gitProvider?: string;
+  gitRepoName?: string;
+  uploadedFiles?: WebDeployUploadedFileMeta[];
   filesDescription?: string;
+  /** What the requester wants built when sourceType is coded */
+  codeRequestBrief?: string;
   projectName: string;
   contactEmail?: string;
   notes?: string;
@@ -50,6 +89,12 @@ export interface WebDeployRequest {
   reviewedAt?: number;
   createdAt: number;
   liveUrl?: string;
+  deployPaths?: string[];
+  deployEntry?: string;
+  githubBranch?: string;
+  hostingStatus?: string;
+  dnsRecords?: WebDeployDnsRecord[];
+  placeholderStoragePath?: string;
 }
 
 export function normalizePredomain(raw: string): string {

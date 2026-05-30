@@ -7,6 +7,7 @@
       "hosting": {
         "main": ["pixel-place-823b1"],
         "pay": ["pixelplace-pay"],
+        "deploy": ["pixelplace-deploy"],
         "status": ["pixelplace-status"]
       }
     }
