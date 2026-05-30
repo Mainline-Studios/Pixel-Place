@@ -97,6 +97,7 @@ export default function CoasterControl({ onClose }: CoasterControlProps) {
   const [cam, setCam] = useState({ x: 0, y: 0 });
   const [panel, setPanel] = useState<PanelId>(null);
   const [selectedRideId, setSelectedRideId] = useState<number | null>(null);
+  const [showGuide, setShowGuide] = useState(false);
   const camRef = useRef(cam);
   camRef.current = cam;
 
@@ -112,10 +113,6 @@ export default function CoasterControl({ onClose }: CoasterControlProps) {
   const tutorialActive = !state.sandbox && state.tutorialStep > 0 && state.tutorialStep <= 5;
   const highlightBuild = tutorialActive && state.tutorialStep === 1;
   const highlightRides = tutorialActive && state.tutorialStep === 5;
-
-  useEffect(() => {
-    if (state.phase === 'menu') setStartedScenario(false);
-  }, [state.phase]);
 
   useEffect(() => {
     if (panel === 'rides' && state.tutorialStep === 5 && !state.sandbox) {
@@ -217,7 +214,6 @@ export default function CoasterControl({ onClose }: CoasterControlProps) {
 
   const handleStartScenario = (id: ScenarioId) => {
     dispatch({ type: 'START', scenarioId: id });
-    setStartedScenario(true);
     const sc = getScenario(id);
     if (!sc.sandbox) {
       setPanel('build');
@@ -228,7 +224,6 @@ export default function CoasterControl({ onClose }: CoasterControlProps) {
 
   const handleContinue = () => {
     dispatch({ type: 'LOAD' });
-    setStartedScenario(true);
   };
 
   const ratingStars = Math.min(5, Math.floor(state.rating / 200));
