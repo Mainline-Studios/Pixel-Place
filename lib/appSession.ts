@@ -45,10 +45,10 @@ export function markSplashDone(): void {
   safeRemove(KEYS.skipSplash);
 }
 
+/** One-shot skip for error recovery links — does not block splash on the next visit. */
 export function consumeSkipSplashFlag(): boolean {
   if (safeGet(KEYS.skipSplash) === '1') {
     safeRemove(KEYS.skipSplash);
-    markSplashDone();
     return true;
   }
   return false;
@@ -63,7 +63,6 @@ export function markReadyAccepted(): void {
 }
 
 export function clearSessionFlags(): void {
-  safeRemove(KEYS.splashDone);
   safeRemove(KEYS.readyAccepted);
   safeRemove(KEYS.lastActivity);
   safeRemove(KEYS.skipSplash);
@@ -84,15 +83,8 @@ export function isInactiveBeyondLimit(limitMs = INACTIVITY_LOGOUT_MS): boolean {
   return Date.now() - getLastActivityAt() > limitMs;
 }
 
-export function shouldShowSplash(isLoggedIn: boolean): boolean {
-  if (consumeSkipSplashFlag()) return false;
-  if (isSplashDone()) return false;
-  return true;
-}
-
-/** Call before in-app tab navigation or full loads to /games, /coins, etc. */
+/** Call before in-app tab navigation — skips loading overlay only, not the branding splash. */
 export function armAppSessionForRouteChange(): void {
-  markSplashDone();
   markReadyAccepted();
   touchActivity();
 }

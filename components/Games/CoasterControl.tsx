@@ -11,10 +11,12 @@ import {
 } from './coasterControl/catalog';
 import {
   BuildPanel,
+  HowToPlayModal,
   ParkPanel,
   RidesPanel,
   type PanelId,
 } from './coasterControl/CoasterControlPanels';
+import { HOW_TO_PLAY_STEPS, getTutorialObjective, isGuideSeen, markGuideSeen } from './coasterControl/guide';
 import { canvasSize, drawPark } from './coasterControl/draw';
 import {
   cancelCoaster,
@@ -107,6 +109,27 @@ export default function CoasterControl({ onClose }: CoasterControlProps) {
   const { width, height } = canvasSize();
   const scenario = getScenario(state.scenarioId);
   const viewportRef = useRef<HTMLDivElement>(null);
+  const tutorialActive = !state.sandbox && state.tutorialStep > 0 && state.tutorialStep <= 5;
+  const highlightBuild = tutorialActive && state.tutorialStep === 1;
+  const highlightRides = tutorialActive && state.tutorialStep === 5;
+
+  useEffect(() => {
+    if (state.phase === 'menu') setStartedScenario(false);
+  }, [state.phase]);
+
+  useEffect(() => {
+    if (panel === 'rides' && state.tutorialStep === 5 && !state.sandbox) {
+      dispatch({ type: 'PATCH', patch: { tutorialStep: 0 } });
+    }
+  }, [panel, state.tutorialStep, state.sandbox]);
+
+  useEffect(() => {
+    if (state.sandbox || state.phase !== 'playing') return;
+    if (state.tutorialStep === 3 && state.tool !== 'path') {
+      setPanel('build');
+      dispatch({ type: 'TOOL', tool: 'path' });
+    }
+  }, [state.tutorialStep, state.sandbox, state.phase, state.tool]);
 
   useEffect(() => {
     if (state.phase !== 'playing') return;
@@ -169,7 +192,43 @@ export default function CoasterControl({ onClose }: CoasterControlProps) {
   const onCanvasClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
     if (state.phase !== 'playing' || state.paused) return;
     const t = screenToTile(e.clientX, e.clientY);
-    if (t) dispatch({ type: 'CLICK', x: t.x, y: t.y });
+    if (!t) return;
+    if (state.tool === 'select') {
+      const cell = state.cells[t.y * state.mapW + t.x];
+      if (cell?.rideId != null) {
+        setSelectedRideId(cell.rideId);
+        setPanel('rides');
+        return;
+      }
+    }
+    dispatch({ type: 'CLICK', x: t.x, y: t.y });
+  };
+
+  const panBy = (dx: number, dy: number) => {
+    const el = viewportRef.current;
+    const vw = el?.clientWidth ?? 800;
+    const vh = el?.clientHeight ?? 500;
+    const { width: cw, height: ch } = isoCanvasSize();
+    setCam((c) => ({
+      x: Math.max(0, Math.min(Math.max(0, cw - vw), c.x + dx)),
+      y: Math.max(0, Math.min(Math.max(0, ch - vh), c.y + dy)),
+    }));
+  };
+
+  const handleStartScenario = (id: ScenarioId) => {
+    dispatch({ type: 'START', scenarioId: id });
+    setStartedScenario(true);
+    const sc = getScenario(id);
+    if (!sc.sandbox) {
+      setPanel('build');
+      dispatch({ type: 'TOOL', tool: 'entrance' });
+    }
+    if (!isGuideSeen()) setShowGuide(true);
+  };
+
+  const handleContinue = () => {
+    dispatch({ type: 'LOAD' });
+    setStartedScenario(true);
   };
 
   const ratingStars = Math.min(5, Math.floor(state.rating / 200));
@@ -179,8 +238,8 @@ export default function CoasterControl({ onClose }: CoasterControlProps) {
       <div className="coaster-control-root">
         <MenuScreen
           onClose={onClose}
-          onStart={(id) => dispatch({ type: 'START', scenarioId: id })}
-          onContinue={() => dispatch({ type: 'LOAD' })}
+          onStart={handleStartScenario}
+          onContinue={handleContinue}
           hasSave={!!loadSave()}
         />
       </div>
@@ -231,11 +290,14 @@ export default function CoasterControl({ onClose }: CoasterControlProps) {
             Y{state.year} M{state.month} D{state.day}
           </span>
         </div>
-        <div className="cc-hud-block">
+        <div className="cc-hud-block" title={state.guestsInPark === 0 ? 'Place an entrance and paths so guests can enter.' : undefined}>
           <span className="cc-label">Guests</span>
           <span>
             {state.guestsInPark} / {state.guestsTotal}
           </span>
+          {state.guestsInPark === 0 && state.phase === 'playing' && (
+            <span className="cc-muted"> — need entrance + paths</span>
+          )}
         </div>
         <div className="cc-hud-block">
           <span className="cc-label">Rating</span>
@@ -312,10 +374,17 @@ export default function CoasterControl({ onClose }: CoasterControlProps) {
         </div>
         </div>
 
+        {tutorialActive && getTutorialObjective(state.tutorialStep) && (
+          <div className="cc-objective-bar" role="status">
+            <span className="cc-objective-label">Objective</span>
+            {getTutorialObjective(state.tutorialStep)}
+          </div>
+        )}
+
         <div className="cc-dock">
           <button
             type="button"
-            className={`cc-dock-btn ${panel === 'build' ? 'cc-dock-on' : ''}`}
+            className={`cc-dock-btn ${panel === 'build' ? 'cc-dock-on' : ''} ${highlightBuild ? 'cc-dock-highlight' : ''}`}
             onClick={() => setPanel(panel === 'build' ? null : 'build')}
           >
             <span className="cc-dock-icon">🔨</span>
@@ -323,7 +392,7 @@ export default function CoasterControl({ onClose }: CoasterControlProps) {
           </button>
           <button
             type="button"
-            className={`cc-dock-btn ${panel === 'rides' ? 'cc-dock-on' : ''}`}
+            className={`cc-dock-btn ${panel === 'rides' ? 'cc-dock-on' : ''} ${highlightRides ? 'cc-dock-highlight' : ''}`}
             onClick={() => setPanel(panel === 'rides' ? null : 'rides')}
           >
             <span className="cc-dock-icon">🎢</span>
@@ -353,6 +422,10 @@ export default function CoasterControl({ onClose }: CoasterControlProps) {
             <span className="cc-dock-icon">🚧</span>
             <span>Bulldoze</span>
           </button>
+          <button type="button" className="cc-dock-btn" onClick={() => setShowGuide(true)} title="How to play">
+            <span className="cc-dock-icon">?</span>
+            <span>Help</span>
+          </button>
           <div className="cc-dock-tool">
             {activeTool ? (
               <>
@@ -365,6 +438,7 @@ export default function CoasterControl({ onClose }: CoasterControlProps) {
           </div>
           {coasterBuilding && (
             <div className="cc-dock-coaster">
+              <span className="cc-dock-coaster-hint">Station → track → Finish</span>
               <button type="button" className="cc-mini-btn" onClick={() => dispatch({ type: 'FINISH_COASTER' })}>
                 Finish
               </button>
@@ -374,8 +448,23 @@ export default function CoasterControl({ onClose }: CoasterControlProps) {
             </div>
           )}
         </div>
-        <p className="cc-status-hint">{TOOL_HINTS[state.tool]}</p>
+        <p className="cc-status-hint">
+          {coasterBuilding
+            ? 'Coaster: place station, add connected track tiles, then Finish.'
+            : TOOL_HINTS[state.tool]}
+        </p>
       </div>
+
+      {showGuide && (
+        <HowToPlayModal
+          steps={HOW_TO_PLAY_STEPS}
+          onClose={() => setShowGuide(false)}
+          onDontShowAgain={() => {
+            markGuideSeen();
+            setShowGuide(false);
+          }}
+        />
+      )}
 
       {panel === 'build' && (
         <BuildPanel
@@ -506,7 +595,14 @@ function MenuScreen({
           {picked ? `Start ${SCENARIOS.find((s) => s.id === picked)?.name}` : 'Select a scenario'}
         </button>
         </div>
-        <p className="cc-credits">Build & Rides open pop-up panels · Inspect a ride to manage it</p>
+        <div className="cc-quickstart">
+          <span>Quick start:</span>
+          <span>🎫 Entrance</span>
+          <span>🛤️ Path</span>
+          <span>🎠 Ride</span>
+          <span>🎢 Rides panel</span>
+        </div>
+        <p className="cc-credits">Press ? in-game for the full how-to-play guide</p>
       </div>
     </>
   );
@@ -650,6 +746,47 @@ const COASTER_STYLES = `
   background: #3e2723;
   color: #ffcc80;
   border-top: 1px solid rgba(0,0,0,0.3);
+}
+.cc-objective-bar {
+  padding: 10px 14px;
+  background: linear-gradient(90deg, #1b5e20, #2e7d32);
+  color: #e8f5e9;
+  font-size: 13px;
+  font-weight: 600;
+  border-top: 2px solid #81c784;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.cc-objective-label {
+  text-transform: uppercase;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  opacity: 0.85;
+}
+.cc-dock-highlight {
+  animation: ccPulse 1.2s ease-in-out infinite;
+  box-shadow: 0 0 0 3px #ffeb3b, 0 0 12px rgba(255,235,59,0.6);
+}
+@keyframes ccPulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.04); }
+}
+.cc-dock-coaster-hint { font-size: 10px; color: #ffcc80; margin-right: 6px; }
+.cc-guide-intro { margin: 0 0 12px; font-size: 13px; color: #4e342e; }
+.cc-guide-steps { margin: 0 0 16px; padding-left: 22px; font-size: 12px; line-height: 1.5; }
+.cc-guide-steps li { margin-bottom: 10px; }
+.cc-guide-steps p { margin: 4px 0 0; color: #5d4037; }
+.cc-guide-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.cc-quickstart {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 16px;
+  justify-content: center;
+  margin: 16px 0 8px;
+  font-size: 12px;
+  color: rgba(255,255,255,0.75);
 }
 .cc-popup-backdrop {
   position: fixed;

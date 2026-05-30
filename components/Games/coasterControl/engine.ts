@@ -26,6 +26,10 @@ export function cellAt(state: ParkState, x: number, y: number): Cell | null {
   return state.cells[idx(x, y)];
 }
 
+export function countPathTiles(state: ParkState): number {
+  return state.cells.filter((c) => c.terrain === 'path').length;
+}
+
 function makeCell(x: number, y: number, waterBias: number): Cell {
   const edge =
     x <= 1 || x >= MAP_W - 2 || y <= 1 || y >= MAP_H - 2;
@@ -552,6 +556,9 @@ export function placeFlatRide(state: ParkState, x: number, y: number, kind: Ride
     tool: 'select',
     messages: pushMessage(state, `${def.label} opened!${state.sandbox ? '' : ` -$${cost}`}`),
   };
+  if (!state.sandbox && next.tutorialStep === 4) {
+    next = { ...next, tutorialStep: 5 };
+  }
   return { ...next, ...recalcParkStats(next) };
 }
 
@@ -698,7 +705,11 @@ export function handleTileClick(state: ParkState, x: number, y: number): ParkSta
     }
     const cells = [...state.cells];
     cells[idx(x, y)] = { ...c, terrain: 'path' };
-    return { ...spend({ ...state, cells }, cost), ...recalcParkStats({ ...state, cells }) };
+    let next = { ...spend({ ...state, cells }, cost), ...recalcParkStats({ ...state, cells }) };
+    if (!state.sandbox && next.tutorialStep === 3 && countPathTiles(next) >= 4) {
+      next = { ...next, tutorialStep: 4 };
+    }
+    return next;
   }
 
   const structure = toolToStructure(state.tool);
@@ -722,7 +733,9 @@ export function handleTileClick(state: ParkState, x: number, y: number): ParkSta
       cells,
       messages: pushMessage(state, `Built ${structure}.`),
     };
-    if (structure === 'entrance' && next.tutorialStep < 2) next.tutorialStep = 2;
+    if (structure === 'entrance' && !state.sandbox && next.tutorialStep <= 2) {
+      next = { ...next, tutorialStep: 3 };
+    }
     return { ...next, ...recalcParkStats(next) };
   }
 

@@ -32,7 +32,6 @@ import {
   clearSessionFlags,
   isInactiveBeyondLimit,
   isReadyAccepted,
-  isSplashDone,
   markReadyAccepted,
   touchActivity,
 } from '@/lib/appSession';
@@ -377,8 +376,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       firstSyncDone.current = true;
       setGettingReady(false);
       setWarmupComplete(true);
-      if (isSplashDone()) {
-        markReadyAccepted();
+      if (isReadyAccepted()) {
         setUserAcceptedReady(true);
       }
     };

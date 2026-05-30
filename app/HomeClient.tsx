@@ -9,7 +9,7 @@ import SignOutAllFlow from '@/components/SignOutAllFlow';
 import { isFocusedAuthPathname, isSignOutAllPathname, isVerifyPathname } from '@/lib/focusedAuthRoutes';
 import Dashboard from '@/components/Dashboard/Dashboard';
 import SplashScreen from '@/components/SplashScreen';
-import { isSplashDone, markSplashDone, shouldShowSplash } from '@/lib/appSession';
+import { consumeSkipSplashFlag, markReadyAccepted } from '@/lib/appSession';
 import BreakReminder from '@/components/BreakReminder';
 import BanScreen from '@/components/BanScreen';
 import LoginNotice from '@/components/LoginNotice';
@@ -274,7 +274,7 @@ function AppContent() {
     if (typeof window === 'undefined') return false;
     const path = window.location.pathname || '/';
     if (isFocusedAuthPathname(path)) return false;
-    return !isSplashDone();
+    return true;
   });
   const [splashVariant, setSplashVariant] = useState<'full' | 'quick'>('full');
   const prevUserRef = React.useRef<User | null>(null);
@@ -300,21 +300,15 @@ function AppContent() {
       setShowSplash(false);
       return;
     }
-    if (isSplashDone()) {
+    if (consumeSkipSplashFlag()) {
       setShowSplash(false);
-      return;
     }
   }, [routePath]);
 
   useEffect(() => {
     if (isRestoring) return;
     if (isFocusedAuthPathname(routePath)) return;
-    if (!shouldShowSplash(!!user)) {
-      setShowSplash(false);
-      return;
-    }
     setSplashVariant(user ? 'quick' : 'full');
-    setShowSplash(true);
   }, [isRestoring, user, routePath]);
 
   useEffect(() => {
@@ -388,7 +382,7 @@ function AppContent() {
         <SplashScreen
           variant={splashVariant}
           onComplete={() => {
-            markSplashDone();
+            markReadyAccepted();
             setShowSplash(false);
           }}
         />

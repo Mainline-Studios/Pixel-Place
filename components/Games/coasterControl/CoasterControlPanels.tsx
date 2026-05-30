@@ -77,10 +77,12 @@ export function BuildPanel({ state, onClose, onPickTool, onFinishCoaster, onCanc
       />
       {coasterBuilding && (
         <div className="cc-coaster-bar">
+          <strong>Coaster build:</strong>
+          <span>1. Place station on map · 2. Click adjacent tiles for track · 3. Press Finish in the dock</span>
           <span>
             {state.coasterDraft?.station
-              ? `Track pieces: ${state.coasterDraft.cells.length}`
-              : 'Click map — place station first'}
+              ? `Track: ${state.coasterDraft.cells.length} piece(s)`
+              : 'Waiting for station…'}
           </span>
           <button type="button" className="cc-popup-btn" onClick={onFinishCoaster}>
             Finish ride
@@ -289,6 +291,36 @@ export function ParkPanel({ state, scenarioName, scenarioIcon, goals, onClose }:
           <li key={`${i}-${m.slice(0, 8)}`}>{m}</li>
         ))}
       </ul>
+    </ModalFrame>
+  );
+}
+
+type HowToPlayModalProps = {
+  onClose: () => void;
+  onDontShowAgain: () => void;
+  steps: Array<{ title: string; body: string }>;
+};
+
+export function HowToPlayModal({ onClose, onDontShowAgain, steps }: HowToPlayModalProps) {
+  return (
+    <ModalFrame title="How to Play" onClose={onClose} wide>
+      <p className="cc-guide-intro">RCT2-style park management — follow these steps to open your park.</p>
+      <ol className="cc-guide-steps">
+        {steps.map((s, i) => (
+          <li key={i}>
+            <strong>{i + 1}. {s.title}</strong>
+            <p>{s.body}</p>
+          </li>
+        ))}
+      </ol>
+      <div className="cc-guide-actions">
+        <button type="button" className="cc-popup-btn" onClick={onClose}>
+          Got it
+        </button>
+        <button type="button" className="cc-popup-btn cc-popup-btn-muted" onClick={onDontShowAgain}>
+          Don&apos;t show again
+        </button>
+      </div>
     </ModalFrame>
   );
 }
