@@ -41,17 +41,18 @@ export type PixelBrandLayout = {
   titleLetterSpacingEm: number;
 };
 
-export const MAINLINE_MARK_SIZE = 132;
-export const PIXEL_LOGO_SIZE = 148;
-export const PIXEL_LOGO_RADIUS = 22;
+/** Match on-screen overlay scale (compact — dots morph to this size). */
+export const MAINLINE_MARK_SIZE = 96;
+export const PIXEL_LOGO_SIZE = 108;
+export const PIXEL_LOGO_RADIUS = 16;
 
 export function computeMainlineBrandLayout(viewW: number, viewH: number): MainlineBrandLayout {
   const cx = viewW / 2;
   const markSize = MAINLINE_MARK_SIZE;
-  const titleFontPx = clamp3(REM, viewW * 0.032, REM * 1.55);
-  const presentsFontPx = clamp3(REM * 0.85, viewW * 0.025, REM * 1.15);
-  const titleMarginTop = REM * 1.1;
-  const presentsMarginTop = REM * 0.65;
+  const titleFontPx = clamp3(REM * 0.8, viewW * 0.024, REM * 1.15);
+  const presentsFontPx = clamp3(REM * 0.68, viewW * 0.018, REM * 0.95);
+  const titleMarginTop = REM * 0.75;
+  const presentsMarginTop = REM * 0.45;
   const titleLine = titleFontPx * 1.15;
   const presentsLine = presentsFontPx * 1.15;
 
@@ -82,8 +83,8 @@ export function computeMainlineBrandLayout(viewW: number, viewH: number): Mainli
 export function computePixelBrandLayout(viewW: number, viewH: number): PixelBrandLayout {
   const cx = viewW / 2;
   const logoSize = PIXEL_LOGO_SIZE;
-  const titleFontPx = clamp3(REM * 1.85, viewW * 0.06, REM * 3);
-  const titleMarginTop = REM * 1.25;
+  const titleFontPx = clamp3(REM * 1.35, viewW * 0.042, REM * 2.1);
+  const titleMarginTop = REM * 0.85;
   const titleLine = titleFontPx * 1.1;
   const stackHeight = logoSize + titleMarginTop + titleLine;
   const stackTop = viewH / 2 - stackHeight / 2;

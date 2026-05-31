@@ -92,7 +92,7 @@ function sampleViewportCanvas(
     tx: p.tx,
     ty: p.ty,
     hue: p.hue,
-    size: 2.2 + (idx % 4) * 0.35,
+    size: 1.65 + (idx % 4) * 0.28,
     neighbors: [],
   }));
 
@@ -158,7 +158,7 @@ export function buildMainlineBrandDots(viewW: number, viewH: number, maxDots: nu
     '#7ec8ff'
   );
 
-  return sampleViewportCanvas(ctx, viewW, viewH, maxDots, 198, 18);
+  return sampleViewportCanvas(ctx, viewW, viewH, maxDots, 198, 14);
 }
 
 /** Paint + sample using measured DOM positions (pixel-perfect vs overlay). */
@@ -251,7 +251,7 @@ export async function buildPixelPlaceMorphDots(
     '#ffffff'
   );
 
-  return sampleViewportCanvas(ctx, viewW, viewH, maxDots, 210, 18);
+  return sampleViewportCanvas(ctx, viewW, viewH, maxDots, 210, 14);
 }
 
 export function buildPixelPlaceMorphDotsFromDom(

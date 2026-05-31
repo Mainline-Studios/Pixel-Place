@@ -153,13 +153,13 @@ export default function StartupSplashAnimation({
 
       const mainlineEl = mainlineBrandRef.current;
       if (mainlineEl) {
-        const measured = buildMainlineBrandDotsFromDom(w, h, mainlineEl, 420);
+        const measured = buildMainlineBrandDotsFromDom(w, h, mainlineEl, 340);
         if (measured.length > 0) mainlineTargetsRef.current = measured;
       }
 
       const pixelEl = pixelMeasureRef.current ?? pixelBrandRef.current;
       if (pixelEl) {
-        const measured = buildPixelPlaceMorphDotsFromDom(w, h, pixelEl, 500);
+        const measured = buildPixelPlaceMorphDotsFromDom(w, h, pixelEl, 400);
         if (measured.length > 0) pixelTargetsRef.current = measured;
       }
     };
@@ -172,8 +172,8 @@ export default function StartupSplashAnimation({
 
       const mainlineLayout = computeMainlineBrandLayout(w, h);
       burstGridRef.current = buildBurstGrid(w, h, mainlineLayout.cy);
-      mainlineTargetsRef.current = loadMainlineTargets(w, h, 420);
-      void loadPixelPlaceTargets(w, h, 500).then((targets) => {
+      mainlineTargetsRef.current = loadMainlineTargets(w, h, 340);
+      void loadPixelPlaceTargets(w, h, 400).then((targets) => {
         if (!cancelled) pixelTargetsRef.current = targets;
       });
       requestAnimationFrame(() => {
@@ -512,8 +512,8 @@ export default function StartupSplashAnimation({
         }
         .splash-brand__glow {
           position: absolute;
-          width: min(320px, 70vw);
-          height: min(320px, 70vw);
+          width: min(220px, 52vw);
+          height: min(220px, 52vw);
           border-radius: 50%;
           background: radial-gradient(circle, rgba(43, 108, 176, 0.45) 0%, transparent 70%);
           filter: blur(24px);

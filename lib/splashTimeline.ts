@@ -224,7 +224,7 @@ export function buildBurstGrid(width: number, height: number, centerY?: number):
         tx: ox + col * gapX,
         ty: oy + row * gapY,
         hue: 195 + (i % 7) * 18 + (row / rows) * 40,
-        size: 4.5 + (i % 3) * 0.8,
+        size: 3 + (i % 3) * 0.45,
         delay: (col / cols) * 0.35 + (row / rows) * 0.25,
       });
     }
@@ -319,7 +319,7 @@ export function updateDotsForPhase(
         dots[i].ty = m.ty;
         dots[i].hue = m.hue;
       }
-      dots[i].size = m.size * (1.05 + t * 0.6);
+      dots[i].size = m.size * (0.72 + t * 0.28);
       if (t < 0.12) {
         const angle = i * GOLDEN;
         const spawn = 40 + hashOffset(i, 24);
@@ -548,7 +548,7 @@ export function drawSplashFrame(
   if (dotAlpha > 0.02) {
     ctx.globalCompositeOperation = 'lighter';
     for (const dot of dots) {
-      const glowR = dot.size * (phase === 'burst' || phase === 'cover' || phase === 'assemble' ? 7 : 5.5);
+      const glowR = dot.size * (phase === 'burst' || phase === 'cover' || phase === 'assemble' ? 4.5 : 4);
       const glow = ctx.createRadialGradient(dot.x, dot.y, 0, dot.x, dot.y, glowR);
       glow.addColorStop(0, `hsla(${dot.hue}, 100%, 78%, ${0.9 * dotAlpha})`);
       glow.addColorStop(0.35, `hsla(${dot.hue}, 95%, 55%, ${0.35 * dotAlpha})`);
