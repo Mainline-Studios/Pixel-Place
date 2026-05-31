@@ -5,6 +5,7 @@ import Image from 'next/image';
 import {
   buildBurstGrid,
   drawSplashFrame,
+  splashCanvasNeedsOpaqueBackground,
   loadMainlineTargets,
   loadPixelPlaceTargets,
   resolvePhase,
@@ -172,8 +173,8 @@ export default function StartupSplashAnimation({
 
       const mainlineLayout = computeMainlineBrandLayout(w, h);
       burstGridRef.current = buildBurstGrid(w, h, mainlineLayout.cy);
-      mainlineTargetsRef.current = loadMainlineTargets(w, h, 340);
-      void loadPixelPlaceTargets(w, h, 400).then((targets) => {
+      mainlineTargetsRef.current = loadMainlineTargets(w, h, 420);
+      void loadPixelPlaceTargets(w, h, 500).then((targets) => {
         if (!cancelled) pixelTargetsRef.current = targets;
       });
       requestAnimationFrame(() => {
@@ -253,7 +254,8 @@ export default function StartupSplashAnimation({
           pr,
           iconLabel,
           capA,
-          dotAlpha
+          dotAlpha,
+          bo
         );
       }
 
@@ -261,7 +263,7 @@ export default function StartupSplashAnimation({
         setPixelReveal(1);
         setBrandOverlay(0);
         setCaption('');
-        drawSplashFrame(ctx, canvas.width, canvas.height, dotsRef.current, 'assemble', now, 1, '', 0, 0.35);
+        drawSplashFrame(ctx, canvas.width, canvas.height, dotsRef.current, 'assemble', now, 1, '', 0, 0.35, 0);
       }
 
       if (phase === 'exit') {
@@ -302,9 +304,14 @@ export default function StartupSplashAnimation({
   const mainlineLayout = vw > 0 ? computeMainlineBrandLayout(vw, vh) : null;
   const pixelLayout = vw > 0 ? computePixelBrandLayout(vw, vh) : null;
 
-  const dotsOverMainline = splashPhase === 'burst' || splashPhase === 'cover';
-  const dotsUnderPixel =
-    splashPhase === 'assemble' || splashPhase === 'hold' || splashPhase === 'exit';
+  const showMainlineBrand =
+    mainlineLayout && (brandOverlay > 0.03 || splashPhase === 'cover');
+  const showPixelBrand =
+    pixelLayout && (pixelReveal > 0.02 || splashPhase === 'assemble' || splashPhase === 'hold');
+  const dotsOverMainline = showMainlineBrand && (splashPhase === 'burst' || splashPhase === 'cover');
+  const dotsUnderPixel = showPixelBrand;
+  const canvasOpaque =
+    splashCanvasNeedsOpaqueBackground(splashPhase, brandOverlay);
 
   return (
     <div
@@ -347,7 +354,7 @@ export default function StartupSplashAnimation({
         </div>
       )}
 
-      {brandOverlay > 0.03 && mainlineLayout && (
+      {showMainlineBrand && (
         <div
           className="splash-mainline-layer"
           style={{ opacity: brandOverlay }}
@@ -358,7 +365,7 @@ export default function StartupSplashAnimation({
 
       <canvas
         ref={canvasRef}
-        className={`splash-canvas${dotsOverMainline ? ' splash-canvas--over-brand' : ''}${dotsUnderPixel ? ' splash-canvas--under-logo' : ''}`}
+        className={`splash-canvas${dotsOverMainline ? ' splash-canvas--over-brand' : ''}${dotsUnderPixel ? ' splash-canvas--under-logo' : ''}${!canvasOpaque ? ' splash-canvas--transparent' : ''}`}
       />
 
       {caption && captionAlpha > 0.05 && (
@@ -367,7 +374,7 @@ export default function StartupSplashAnimation({
         </p>
       )}
 
-      {pixelReveal > 0.02 && pixelLayout && (
+      {showPixelBrand && (
         <div
           ref={pixelBrandRef}
           className="splash-brand"
@@ -438,10 +445,13 @@ export default function StartupSplashAnimation({
           z-index: 3;
         }
         .splash-canvas--over-brand {
-          z-index: 4;
+          z-index: 5;
         }
         .splash-canvas--under-logo {
           z-index: 2;
+        }
+        .splash-canvas--transparent {
+          background: transparent;
         }
         .splash-brand-measure {
           position: fixed;
@@ -465,7 +475,7 @@ export default function StartupSplashAnimation({
           display: flex;
           align-items: center;
           justify-content: center;
-          z-index: 3;
+          z-index: 4;
           pointer-events: none;
         }
         .splash-mainline-brand {

@@ -477,6 +477,16 @@ function drawBackground(ctx: CanvasRenderingContext2D, width: number, height: nu
   ctx.fillRect(0, 0, width, height);
 }
 
+/** Opaque fill only when no HTML brand/logo should show through the canvas. */
+export function splashCanvasNeedsOpaqueBackground(
+  phase: SplashPhase,
+  brandOverlay: number
+): boolean {
+  if (phase === 'cover' || phase === 'assemble' || phase === 'hold') return false;
+  if (phase === 'burst') return brandOverlay < 0.06;
+  return phase === 'disperse' || phase === 'split' || phase === 'multiply' || phase === 'icons';
+}
+
 export function drawSplashFrame(
   ctx: CanvasRenderingContext2D,
   width: number,
@@ -487,9 +497,14 @@ export function drawSplashFrame(
   pixelReveal: number,
   iconLabel: string,
   captionAlpha: number,
-  dotAlpha: number
+  dotAlpha: number,
+  brandOverlay: number
 ): void {
-  drawBackground(ctx, width, height, time);
+  if (splashCanvasNeedsOpaqueBackground(phase, brandOverlay)) {
+    drawBackground(ctx, width, height, time);
+  } else {
+    ctx.clearRect(0, 0, width, height);
+  }
 
   const cx = width / 2;
   const cy = height / 2;
