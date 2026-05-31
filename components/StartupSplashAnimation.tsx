@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Image from 'next/image';
 import {
+  buildBurstGrid,
   drawSplashFrame,
   loadMainlineTargets,
   loadPixelPlaceTargets,
@@ -10,6 +11,7 @@ import {
   totalDuration,
   updateDotsForPhase,
   type AnimDot,
+  type GridPoint,
   type MorphDot,
   type SplashPhase,
 } from '@/lib/splashTimeline';
@@ -40,6 +42,7 @@ export default function StartupSplashAnimation({
 }: StartupSplashAnimationProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const dotsRef = useRef<AnimDot[]>([]);
+  const burstGridRef = useRef<GridPoint[] | null>(null);
   const mainlineTargetsRef = useRef<MorphDot[] | null>(null);
   const pixelTargetsRef = useRef<MorphDot[] | null>(null);
   const lastIconIndexRef = useRef(-1);
@@ -51,7 +54,7 @@ export default function StartupSplashAnimation({
 
   const [brandOverlay, setBrandOverlay] = useState(1);
   const [pixelReveal, setPixelReveal] = useState(0);
-  const [splashPhase, setSplashPhase] = useState<SplashPhase>('intro');
+  const [splashPhase, setSplashPhase] = useState<SplashPhase>('burst');
   const [shellOpacity, setShellOpacity] = useState(1);
   const [captionAlpha, setCaptionAlpha] = useState(0);
   const [caption, setCaption] = useState('');
@@ -96,6 +99,7 @@ export default function StartupSplashAnimation({
     let cancelled = false;
 
     const loadTargets = () => {
+      burstGridRef.current = buildBurstGrid(canvas.width, canvas.height);
       mainlineTargetsRef.current = loadMainlineTargets(canvas.width, canvas.height, 420);
       void loadPixelPlaceTargets(canvas.width, canvas.height, 500).then((targets) => {
         if (!cancelled) pixelTargetsRef.current = targets;
@@ -134,7 +138,8 @@ export default function StartupSplashAnimation({
           pixelTargetsRef.current,
           now,
           lastIconIndexRef.current,
-          storedIconPointsRef.current
+          storedIconPointsRef.current,
+          burstGridRef.current
         );
 
         setBrandOverlay(bo);
@@ -170,7 +175,7 @@ export default function StartupSplashAnimation({
         setPixelReveal(1);
         setBrandOverlay(0);
         setCaption('');
-        drawSplashFrame(ctx, canvas.width, canvas.height, dotsRef.current, 'assemble', now, 1, '', 0, 0);
+        drawSplashFrame(ctx, canvas.width, canvas.height, dotsRef.current, 'assemble', now, 1, '', 0, 0.35);
       }
 
       if (phase === 'exit') {
@@ -208,8 +213,7 @@ export default function StartupSplashAnimation({
 
   const markSize = 132;
   const logoSize = 148;
-  const dotsOverMainline = splashPhase === 'cover';
-  const dotsBehindMainline = splashPhase === 'intro';
+  const dotsOverMainline = splashPhase === 'burst' || splashPhase === 'cover';
   const dotsUnderPixel =
     splashPhase === 'assemble' || splashPhase === 'hold' || splashPhase === 'exit';
 
@@ -234,7 +238,7 @@ export default function StartupSplashAnimation({
 
       <canvas
         ref={canvasRef}
-        className={`splash-canvas${dotsOverMainline ? ' splash-canvas--over-brand' : ''}${dotsUnderPixel || dotsBehindMainline ? ' splash-canvas--under-logo' : ''}`}
+        className={`splash-canvas${dotsOverMainline ? ' splash-canvas--over-brand' : ''}${dotsUnderPixel ? ' splash-canvas--under-logo' : ''}`}
       />
 
       {caption && captionAlpha > 0.05 && (

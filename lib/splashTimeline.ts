@@ -9,7 +9,7 @@ import {
 import { FEATURE_ICONS, sampleShape, type ShapePoint } from '@/lib/splashDotShapes';
 
 export type SplashPhase =
-  | 'intro'
+  | 'burst'
   | 'cover'
   | 'disperse'
   | 'split'
@@ -26,12 +26,15 @@ export type AnimDot = {
   ty: number;
   hue: number;
   size: number;
+  delay: number;
   trail: [number, number][];
 };
 
+export type GridPoint = { tx: number; ty: number; hue: number; size: number; delay: number };
+
 export const DURATIONS = {
-  intro: 1400,
-  cover: 2400,
+  burst: 2600,
+  cover: 2800,
   disperse: 1300,
   split: 1000,
   multiply: 2000,
@@ -61,8 +64,8 @@ export function timelineOffset(): Record<SplashPhase, number> {
   const D = DURATIONS;
   let t = 0;
   const o = {} as Record<SplashPhase, number>;
-  o.intro = t;
-  t += D.intro;
+  o.burst = t;
+  t += D.burst;
   o.cover = t;
   t += D.cover;
   o.disperse = t;
@@ -94,7 +97,7 @@ export function resolvePhase(
   const iconDur = D.icons / FEATURE_ICONS.length;
 
   if (elapsed < o.cover) {
-    return { phase: 'intro', localT: elapsed / D.intro, iconIndex: 0, iconLabel: '' };
+    return { phase: 'burst', localT: elapsed / D.burst, iconIndex: 0, iconLabel: '' };
   }
   if (elapsed < o.disperse) {
     return { phase: 'cover', localT: (elapsed - o.cover) / D.cover, iconIndex: 0, iconLabel: '' };
@@ -193,11 +196,54 @@ export function resizeDotPool(dots: AnimDot[], count: number, cx: number, cy: nu
       ty: cy,
       hue: baseHue + (dots.length % 12) * 8,
       size: 2.4 + (dots.length % 3) * 0.35,
+      delay: 0,
       trail: [],
     });
   }
   if (dots.length > count) dots.length = count;
   return dots;
+}
+
+/** HTML-style opening: all dots spawn at center, expand into a staggered grid. */
+export function buildBurstGrid(width: number, height: number): GridPoint[] {
+  const cols = 12;
+  const rows = 9;
+  const gapX = Math.min(72, (width * 0.72) / cols);
+  const gapY = Math.min(58, (height * 0.55) / rows);
+  const gridW = (cols - 1) * gapX;
+  const gridH = (rows - 1) * gapY;
+  const ox = width / 2 - gridW / 2;
+  const oy = height / 2 - gridH / 2;
+  const points: GridPoint[] = [];
+
+  for (let row = 0; row < rows; row++) {
+    for (let col = 0; col < cols; col++) {
+      const i = row * cols + col;
+      points.push({
+        tx: ox + col * gapX,
+        ty: oy + row * gapY,
+        hue: 195 + (i % 7) * 18 + (row / rows) * 40,
+        size: 4.5 + (i % 3) * 0.8,
+        delay: (col / cols) * 0.35 + (row / rows) * 0.25,
+      });
+    }
+  }
+  return points;
+}
+
+function initBurstDots(dots: AnimDot[], grid: GridPoint[], cx: number, cy: number): void {
+  resizeDotPool(dots, grid.length, cx, cy, 200);
+  for (let i = 0; i < grid.length; i++) {
+    const g = grid[i];
+    dots[i].x = cx + (Math.random() - 0.5) * 18;
+    dots[i].y = cy + (Math.random() - 0.5) * 18;
+    dots[i].tx = g.tx;
+    dots[i].ty = g.ty;
+    dots[i].hue = g.hue;
+    dots[i].size = g.size;
+    dots[i].delay = g.delay;
+    dots[i].trail = [];
+  }
 }
 
 export function updateDotsForPhase(
@@ -211,7 +257,8 @@ export function updateDotsForPhase(
   pixelTargets: MorphDot[] | null,
   time: number,
   prevIconIndex: number,
-  prevIconPoints: ShapePoint[]
+  prevIconPoints: ShapePoint[],
+  burstGrid: GridPoint[] | null
 ): {
   pixelReveal: number;
   brandOverlay: number;
@@ -226,48 +273,60 @@ export function updateDotsForPhase(
   let dotAlpha = 1;
   let iconPoints: ShapePoint[] = prevIconPoints;
 
-  if (phase === 'intro') {
-    if (mainlineTargets?.length) {
-      const count = mainlineTargets.length;
-      resizeDotPool(dots, count, cx, cy, 210);
-      for (let i = 0; i < count; i++) {
-        const m = mainlineTargets[i];
-        dots[i].x = m.tx;
-        dots[i].y = m.ty;
-        dots[i].tx = m.tx;
-        dots[i].ty = m.ty;
-        dots[i].hue = m.hue;
-        dots[i].size = m.size * 0.3;
-        dots[i].x += hashOffset(i, 80);
-        dots[i].y += hashOffset(i + 3, 80);
-      }
+  if (phase === 'burst' && burstGrid?.length) {
+    const globalEase = smoothstep(localT);
+    if (dots.length !== burstGrid.length) {
+      initBurstDots(dots, burstGrid, cx, cy);
     }
-    brandOverlay = 1;
-    dotAlpha = 0.28;
+
+    for (let i = 0; i < dots.length; i++) {
+      const g = burstGrid[i];
+      const delay = g.delay;
+      const t = Math.max(0, Math.min(1, (globalEase - delay) / Math.max(0.08, 1 - delay * 0.85)));
+      const ease = smoothstep(t);
+      dots[i].tx = g.tx;
+      dots[i].ty = g.ty;
+      dots[i].hue = g.hue;
+      dots[i].size = g.size;
+      dots[i].x += (dots[i].tx - dots[i].x) * (0.06 + ease * 0.05);
+      dots[i].y += (dots[i].ty - dots[i].y) * (0.06 + ease * 0.05);
+      pushTrail(dots[i]);
+    }
+
+    brandOverlay = smoothstep(Math.max(0, (localT - 0.78) / 0.22));
+    dotAlpha = 1;
     return { pixelReveal: 0, brandOverlay, iconPoints, dotAlpha };
   }
 
   if (phase === 'cover' && mainlineTargets?.length) {
     const t = easeOutCubic(localT);
     const count = mainlineTargets.length;
+    const grid = burstGrid ?? [];
     resizeDotPool(dots, count, cx, cy, 210);
     brandOverlay = brandOverlayFade(localT);
-    dotAlpha = 0.55 + t * 0.45;
+    dotAlpha = 0.65 + t * 0.35;
 
     for (let i = 0; i < count; i++) {
       const m = mainlineTargets[i];
-      const spawn = 72 + hashOffset(i, 48);
-      const angle = i * GOLDEN;
-      if (t < 0.18) {
-        dots[i].x = m.tx + Math.cos(angle) * spawn;
-        dots[i].y = m.ty + Math.sin(angle) * spawn;
+      const g = grid[i % Math.max(1, grid.length)];
+      if (g && t < 0.35) {
+        dots[i].tx = g.tx + (m.tx - g.tx) * smoothstep(t / 0.35);
+        dots[i].ty = g.ty + (m.ty - g.ty) * smoothstep(t / 0.35);
+        dots[i].hue = g.hue + (m.hue - g.hue) * t;
+      } else {
+        dots[i].tx = m.tx;
+        dots[i].ty = m.ty;
+        dots[i].hue = m.hue;
       }
-      dots[i].tx = m.tx;
-      dots[i].ty = m.ty;
-      dots[i].hue = m.hue;
-      dots[i].size = m.size * (1.1 + t * 0.55);
+      dots[i].size = m.size * (1.05 + t * 0.6);
+      if (t < 0.12) {
+        const angle = i * GOLDEN;
+        const spawn = 40 + hashOffset(i, 24);
+        dots[i].x += (m.tx + Math.cos(angle) * spawn - dots[i].x) * 0.15;
+        dots[i].y += (m.ty + Math.sin(angle) * spawn - dots[i].y) * 0.15;
+      }
     }
-    lerpDots(dots, 0.12 + t * 0.14);
+    lerpDots(dots, 0.1 + t * 0.16);
     return { pixelReveal: 0, brandOverlay, iconPoints, dotAlpha };
   }
 
@@ -432,8 +491,10 @@ export function drawSplashFrame(
 
   const cx = width / 2;
   const cy = height / 2;
-  const showTrails = phase === 'multiply' || phase === 'split' || phase === 'disperse' || phase === 'cover';
-  const lineCap = phase === 'cover' ? dots.length : dots.length > 100 ? 80 : dots.length;
+  const showTrails =
+    phase === 'burst' || phase === 'multiply' || phase === 'split' || phase === 'disperse' || phase === 'cover';
+  const lineCap =
+    phase === 'burst' || phase === 'cover' ? dots.length : dots.length > 100 ? 80 : dots.length;
 
   if (showTrails) {
     for (let i = 0; i < Math.min(lineCap, dots.length); i++) {
@@ -453,23 +514,27 @@ export function drawSplashFrame(
   const lineAlpha =
     phase === 'assemble'
       ? dotAlpha * 0.38
+      : phase === 'burst'
+        ? 0.38 * dotAlpha
       : phase === 'icons'
         ? 0.32
         : phase === 'multiply'
           ? 0.22
           : phase === 'cover'
-            ? 0.42
+            ? 0.45
             : 0.14;
 
-  if (lineAlpha > 0.02 && dots.length > 1 && (phase === 'cover' || dots.length <= 220)) {
-    ctx.lineWidth = 1;
+  const lineDist = phase === 'burst' ? 95 : 50;
+
+  if (lineAlpha > 0.02 && dots.length > 1 && (phase === 'burst' || phase === 'cover' || dots.length <= 220)) {
+    ctx.lineWidth = phase === 'burst' ? 1.2 : 1;
     for (let i = 0; i < dots.length; i++) {
       const a = dots[i];
-      for (let j = i + 1; j < Math.min(i + 3, dots.length); j++) {
+      for (let j = i + 1; j < Math.min(i + 4, dots.length); j++) {
         const b = dots[j];
         const d = Math.hypot(a.x - b.x, a.y - b.y);
-        if (d > 50) continue;
-        const alpha = (1 - d / 50) * lineAlpha;
+        if (d > lineDist) continue;
+        const alpha = (1 - d / lineDist) * lineAlpha;
         ctx.strokeStyle = `hsla(${(a.hue + b.hue) / 2}, 88%, 64%, ${alpha})`;
         ctx.beginPath();
         ctx.moveTo(a.x, a.y);
@@ -482,7 +547,7 @@ export function drawSplashFrame(
   if (dotAlpha > 0.02) {
     ctx.globalCompositeOperation = 'lighter';
     for (const dot of dots) {
-      const glowR = dot.size * (phase === 'cover' || phase === 'assemble' ? 7 : 5.5);
+      const glowR = dot.size * (phase === 'burst' || phase === 'cover' || phase === 'assemble' ? 7 : 5.5);
       const glow = ctx.createRadialGradient(dot.x, dot.y, 0, dot.x, dot.y, glowR);
       glow.addColorStop(0, `hsla(${dot.hue}, 100%, 78%, ${0.9 * dotAlpha})`);
       glow.addColorStop(0.35, `hsla(${dot.hue}, 95%, 55%, ${0.35 * dotAlpha})`);
@@ -496,8 +561,22 @@ export function drawSplashFrame(
       ctx.arc(dot.x, dot.y, dot.size, 0, Math.PI * 2);
       ctx.fillStyle = `hsla(${dot.hue}, 100%, 88%, ${dotAlpha})`;
       ctx.fill();
+      if (phase === 'burst' || phase === 'cover') {
+        ctx.strokeStyle = `rgba(255,255,255,${0.75 * dotAlpha})`;
+        ctx.lineWidth = 1;
+        ctx.stroke();
+      }
     }
     ctx.globalCompositeOperation = 'source-over';
+  }
+
+  if (phase === 'burst' && dotAlpha > 0.4) {
+    const pulse = 0.35 + Math.sin(time * 0.004) * 0.15;
+    ctx.strokeStyle = `rgba(100, 181, 246, ${pulse * dotAlpha})`;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(cx, cy, 36 + pulse * 28, 0, Math.PI * 2);
+    ctx.stroke();
   }
 
   if (iconLabel && captionAlpha > 0.05) {

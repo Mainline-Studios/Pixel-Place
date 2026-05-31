@@ -158,7 +158,7 @@ export class SplashAudioController {
 
     const t = ctx.currentTime;
 
-    if (!this.melodyPlayed && (phase === 'intro' || phase === 'cover')) {
+    if (!this.melodyPlayed && (phase === 'burst' || phase === 'cover')) {
       this.melodyPlayed = true;
       this.playMelody(ctx, t);
     }
@@ -199,8 +199,15 @@ export class SplashAudioController {
       }
     }
 
-    if (phase === 'multiply' || phase === 'icons' || phase === 'assemble' || phase === 'disperse' || phase === 'cover') {
-      const interval = phase === 'cover' ? 100 : phase === 'multiply' ? 90 : 115;
+    if (
+      phase === 'burst' ||
+      phase === 'multiply' ||
+      phase === 'icons' ||
+      phase === 'assemble' ||
+      phase === 'disperse' ||
+      phase === 'cover'
+    ) {
+      const interval = phase === 'burst' ? 95 : phase === 'cover' ? 100 : phase === 'multiply' ? 90 : 115;
       const step = Math.floor(elapsedMs / interval);
       if (step !== this.lastArpStep) {
         this.lastArpStep = step;
