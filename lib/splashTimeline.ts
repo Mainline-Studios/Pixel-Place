@@ -205,7 +205,7 @@ export function resizeDotPool(dots: AnimDot[], count: number, cx: number, cy: nu
 }
 
 /** HTML-style opening: all dots spawn at center, expand into a staggered grid. */
-export function buildBurstGrid(width: number, height: number): GridPoint[] {
+export function buildBurstGrid(width: number, height: number, centerY?: number): GridPoint[] {
   const cols = 12;
   const rows = 9;
   const gapX = Math.min(72, (width * 0.72) / cols);
@@ -213,7 +213,8 @@ export function buildBurstGrid(width: number, height: number): GridPoint[] {
   const gridW = (cols - 1) * gapX;
   const gridH = (rows - 1) * gapY;
   const ox = width / 2 - gridW / 2;
-  const oy = height / 2 - gridH / 2;
+  const cy = centerY ?? height / 2;
+  const oy = cy - gridH / 2;
   const points: GridPoint[] = [];
 
   for (let row = 0; row < rows; row++) {

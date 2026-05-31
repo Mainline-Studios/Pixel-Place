@@ -17,21 +17,64 @@ import {
 } from '@/lib/splashTimeline';
 import type { ShapePoint } from '@/lib/splashDotShapes';
 import { SplashAudioController } from '@/lib/splashAudio';
+import {
+  computeMainlineBrandLayout,
+  computePixelBrandLayout,
+  PIXEL_LOGO_RADIUS,
+  type MainlineBrandLayout,
+  type PixelBrandLayout,
+} from '@/lib/splashBrandLayout';
+import {
+  buildMainlineBrandDotsFromDom,
+  buildPixelPlaceMorphDotsFromDom,
+} from '@/lib/splashMorphTargets';
 
 type StartupSplashAnimationProps = {
   onComplete: () => void;
   audioEnabled?: boolean;
 };
 
-function MainlineBrandMark({ markSize }: { markSize: number }) {
+function MainlineBrandMark({
+  layout,
+  rootRef,
+}: {
+  layout: MainlineBrandLayout;
+  rootRef: React.RefObject<HTMLDivElement | null>;
+}) {
   return (
-    <div className="splash-mainline-brand">
-      <svg width={markSize} height={markSize} viewBox="0 0 100 100" aria-hidden>
+    <div
+      ref={rootRef}
+      className="splash-mainline-brand"
+      style={{ height: layout.stackHeight, justifyContent: 'flex-start' }}
+    >
+      <svg width={layout.markSize} height={layout.markSize} viewBox="0 0 100 100" aria-hidden>
         <rect x="10" y="10" width="80" height="80" rx="10" fill="none" stroke="#5eb0f7" strokeWidth="3" />
         <rect x="25" y="25" width="50" height="50" rx="5" fill="#2b6cb0" />
       </svg>
-      <p className="splash-mainline-brand__title">MAINLINE STUDIOS</p>
-      <p className="splash-mainline-brand__presents">PRESENTS</p>
+      <p
+        data-splash-text
+        className="splash-mainline-brand__title"
+        style={{
+          margin: `${layout.titleMarginTop}px 0 0`,
+          fontSize: layout.titleFontPx,
+          letterSpacing: `${layout.titleLetterSpacingEm}em`,
+          textIndent: `${layout.titleLetterSpacingEm}em`,
+        }}
+      >
+        MAINLINE STUDIOS
+      </p>
+      <p
+        data-splash-text
+        className="splash-mainline-brand__presents"
+        style={{
+          margin: `${layout.presentsMarginTop}px 0 0`,
+          fontSize: layout.presentsFontPx,
+          letterSpacing: `${layout.presentsLetterSpacingEm}em`,
+          textIndent: `${layout.presentsLetterSpacingEm}em`,
+        }}
+      >
+        PRESENTS
+      </p>
     </div>
   );
 }
@@ -51,8 +94,13 @@ export default function StartupSplashAnimation({
   const rafRef = useRef(0);
   const completedRef = useRef(false);
   const audioRef = useRef<SplashAudioController | null>(null);
+  const mainlineBrandRef = useRef<HTMLDivElement | null>(null);
+  const pixelBrandRef = useRef<HTMLDivElement | null>(null);
+  const pixelMeasureRef = useRef<HTMLDivElement | null>(null);
+  const domTargetsSyncedRef = useRef(false);
 
   const [brandOverlay, setBrandOverlay] = useState(1);
+  const [viewport, setViewport] = useState({ w: 0, h: 0 });
   const [pixelReveal, setPixelReveal] = useState(0);
   const [splashPhase, setSplashPhase] = useState<SplashPhase>('burst');
   const [shellOpacity, setShellOpacity] = useState(1);
@@ -98,11 +146,38 @@ export default function StartupSplashAnimation({
 
     let cancelled = false;
 
+    const syncTargetsFromDom = () => {
+      const w = canvas.width;
+      const h = canvas.height;
+      if (w < 1 || h < 1) return;
+
+      const mainlineEl = mainlineBrandRef.current;
+      if (mainlineEl) {
+        const measured = buildMainlineBrandDotsFromDom(w, h, mainlineEl, 420);
+        if (measured.length > 0) mainlineTargetsRef.current = measured;
+      }
+
+      const pixelEl = pixelMeasureRef.current ?? pixelBrandRef.current;
+      if (pixelEl) {
+        const measured = buildPixelPlaceMorphDotsFromDom(w, h, pixelEl, 500);
+        if (measured.length > 0) pixelTargetsRef.current = measured;
+      }
+    };
+
     const loadTargets = () => {
-      burstGridRef.current = buildBurstGrid(canvas.width, canvas.height);
-      mainlineTargetsRef.current = loadMainlineTargets(canvas.width, canvas.height, 420);
-      void loadPixelPlaceTargets(canvas.width, canvas.height, 500).then((targets) => {
+      const w = canvas.width;
+      const h = canvas.height;
+      setViewport({ w, h });
+      domTargetsSyncedRef.current = false;
+
+      const mainlineLayout = computeMainlineBrandLayout(w, h);
+      burstGridRef.current = buildBurstGrid(w, h, mainlineLayout.cy);
+      mainlineTargetsRef.current = loadMainlineTargets(w, h, 420);
+      void loadPixelPlaceTargets(w, h, 500).then((targets) => {
         if (!cancelled) pixelTargetsRef.current = targets;
+      });
+      requestAnimationFrame(() => {
+        if (!cancelled) syncTargetsFromDom();
       });
     };
 
@@ -143,6 +218,17 @@ export default function StartupSplashAnimation({
         );
 
         setBrandOverlay(bo);
+        if (
+          !domTargetsSyncedRef.current &&
+          (phase === 'burst' || phase === 'cover') &&
+          bo > 0.12
+        ) {
+          domTargetsSyncedRef.current = true;
+          syncTargetsFromDom();
+        }
+        if (phase === 'assemble' && localT < 0.08 && pixelMeasureRef.current) {
+          syncTargetsFromDom();
+        }
         setPixelReveal((r) => (phase === 'assemble' || phase === 'hold' ? Math.max(r, pr) : r));
 
         const capA = phase === 'icons' ? captionAlphaFromLocal(localT) : 0;
@@ -211,8 +297,11 @@ export default function StartupSplashAnimation({
     );
   }
 
-  const markSize = 132;
-  const logoSize = 148;
+  const vw = viewport.w || (typeof window !== 'undefined' ? window.innerWidth : 0);
+  const vh = viewport.h || (typeof window !== 'undefined' ? window.innerHeight : 0);
+  const mainlineLayout = vw > 0 ? computeMainlineBrandLayout(vw, vh) : null;
+  const pixelLayout = vw > 0 ? computePixelBrandLayout(vw, vh) : null;
+
   const dotsOverMainline = splashPhase === 'burst' || splashPhase === 'cover';
   const dotsUnderPixel =
     splashPhase === 'assemble' || splashPhase === 'hold' || splashPhase === 'exit';
@@ -227,12 +316,43 @@ export default function StartupSplashAnimation({
     >
       <div className="splash-vignette" aria-hidden />
 
-      {brandOverlay > 0.03 && (
+      {pixelLayout && (
+        <div className="splash-brand-measure" aria-hidden>
+          <div ref={pixelMeasureRef} className="splash-brand splash-brand--measure">
+            <div
+              className="splash-brand__logo-wrap"
+              style={{ borderRadius: PIXEL_LOGO_RADIUS, width: pixelLayout.logoSize, height: pixelLayout.logoSize }}
+            >
+              <Image
+                src="/logo.png"
+                alt=""
+                width={pixelLayout.logoSize}
+                height={pixelLayout.logoSize}
+                priority
+              />
+            </div>
+            <h1
+              data-splash-text
+              className="splash-brand__title"
+              style={{
+                margin: `${pixelLayout.titleMarginTop}px 0 0`,
+                fontSize: pixelLayout.titleFontPx,
+                letterSpacing: `${pixelLayout.titleLetterSpacingEm}em`,
+                textIndent: `${pixelLayout.titleLetterSpacingEm}em`,
+              }}
+            >
+              PIXEL PLACE
+            </h1>
+          </div>
+        </div>
+      )}
+
+      {brandOverlay > 0.03 && mainlineLayout && (
         <div
           className="splash-mainline-layer"
           style={{ opacity: brandOverlay }}
         >
-          <MainlineBrandMark markSize={markSize} />
+          <MainlineBrandMark layout={mainlineLayout} rootRef={mainlineBrandRef} />
         </div>
       )}
 
@@ -247,8 +367,9 @@ export default function StartupSplashAnimation({
         </p>
       )}
 
-      {pixelReveal > 0.02 && (
+      {pixelReveal > 0.02 && pixelLayout && (
         <div
+          ref={pixelBrandRef}
           className="splash-brand"
           style={{
             opacity: pixelReveal,
@@ -257,10 +378,30 @@ export default function StartupSplashAnimation({
           }}
         >
           <div className="splash-brand__glow" style={{ opacity: pixelReveal * 0.85 }} aria-hidden />
-          <div className="splash-brand__logo-wrap">
-            <Image src="/logo.png" alt="Pixel Place" width={logoSize} height={logoSize} priority />
+          <div
+            className="splash-brand__logo-wrap"
+            style={{ borderRadius: PIXEL_LOGO_RADIUS, width: pixelLayout.logoSize, height: pixelLayout.logoSize }}
+          >
+            <Image
+              src="/logo.png"
+              alt="Pixel Place"
+              width={pixelLayout.logoSize}
+              height={pixelLayout.logoSize}
+              priority
+            />
           </div>
-          <h1 className="splash-brand__title">PIXEL PLACE</h1>
+          <h1
+            data-splash-text
+            className="splash-brand__title"
+            style={{
+              margin: `${pixelLayout.titleMarginTop}px 0 0`,
+              fontSize: pixelLayout.titleFontPx,
+              letterSpacing: `${pixelLayout.titleLetterSpacingEm}em`,
+              textIndent: `${pixelLayout.titleLetterSpacingEm}em`,
+            }}
+          >
+            PIXEL PLACE
+          </h1>
           {pixelReveal > 0.88 && <p className="splash-brand__motto">Play · Create · Share</p>}
         </div>
       )}
@@ -302,6 +443,22 @@ export default function StartupSplashAnimation({
         .splash-canvas--under-logo {
           z-index: 2;
         }
+        .splash-brand-measure {
+          position: fixed;
+          inset: 0;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          opacity: 0;
+          visibility: hidden;
+          pointer-events: none;
+          z-index: 0;
+        }
+        .splash-brand--measure {
+          opacity: 1;
+          transform: none;
+          filter: none;
+        }
         .splash-mainline-layer {
           position: fixed;
           inset: 0;
@@ -318,20 +475,14 @@ export default function StartupSplashAnimation({
           text-align: center;
         }
         .splash-mainline-brand__title {
-          margin: 1.1rem 0 0;
-          font-size: clamp(1rem, 3.2vw, 1.55rem);
+          margin: 0;
           font-weight: 700;
-          letter-spacing: 0.28em;
-          text-indent: 0.28em;
           color: rgba(255,255,255,0.95);
           text-shadow: 0 0 36px rgba(43, 108, 176, 0.65);
         }
         .splash-mainline-brand__presents {
-          margin: 0.65rem 0 0;
-          font-size: clamp(0.85rem, 2.5vw, 1.15rem);
+          margin: 0;
           font-weight: 600;
-          letter-spacing: 0.42em;
-          text-indent: 0.42em;
           color: rgba(126, 200, 255, 0.95);
         }
         .splash-caption {
@@ -377,11 +528,8 @@ export default function StartupSplashAnimation({
             0 20px 50px rgba(0,0,0,0.45);
         }
         .splash-brand__title {
-          margin: 1.25rem 0 0;
-          font-size: clamp(1.85rem, 6vw, 3rem);
+          margin: 0;
           font-weight: 700;
-          letter-spacing: 0.14em;
-          text-indent: 0.14em;
           color: #fff;
           text-shadow: 0 0 50px rgba(43, 108, 176, 0.8);
         }

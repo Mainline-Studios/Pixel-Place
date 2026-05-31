@@ -1,5 +1,13 @@
 /** Sample canvas pixels into dot targets for logo morph. */
 
+import {
+  computeMainlineBrandLayout,
+  computePixelBrandLayout,
+  drawMainlineMarkSvgAccurate,
+  PIXEL_LOGO_RADIUS,
+  setCanvasBrandText,
+} from '@/lib/splashBrandLayout';
+
 export type MorphDot = {
   x: number;
   y: number;
@@ -46,67 +54,22 @@ function assignNeighbors(dots: MorphDot[], k: number): void {
   }
 }
 
-/** Mainline Studios mark (rounded square + inner fill) — no wordmark. */
-export function drawMainlineMark(ctx: CanvasRenderingContext2D, cx: number, cy: number, size: number): void {
-  const half = size / 2;
-  const x = cx - half;
-  const y = cy - half;
-  const rx = size * 0.12;
-
-  ctx.strokeStyle = '#ffffff';
-  ctx.lineWidth = Math.max(2, size * 0.04);
-  ctx.beginPath();
-  ctx.moveTo(x + rx, y);
-  ctx.lineTo(x + size - rx, y);
-  ctx.quadraticCurveTo(x + size, y, x + size, y + rx);
-  ctx.lineTo(x + size, y + size - rx);
-  ctx.quadraticCurveTo(x + size, y + size, x + size - rx, y + size);
-  ctx.lineTo(x + rx, y + size);
-  ctx.quadraticCurveTo(x, y + size, x, y + size - rx);
-  ctx.lineTo(x, y + rx);
-  ctx.quadraticCurveTo(x, y, x + rx, y);
-  ctx.closePath();
-  ctx.stroke();
-
-  const inset = size * 0.28;
-  const ix = x + inset;
-  const iy = y + inset;
-  const is = size - inset * 2;
-  const irx = is * 0.1;
-  ctx.fillStyle = '#ffffff';
-  ctx.beginPath();
-  ctx.moveTo(ix + irx, iy);
-  ctx.lineTo(ix + is - irx, iy);
-  ctx.quadraticCurveTo(ix + is, iy, ix + is, iy + irx);
-  ctx.lineTo(ix + is, iy + is - irx);
-  ctx.quadraticCurveTo(ix + is, iy + is, ix + is - irx, iy + is);
-  ctx.lineTo(ix + irx, iy + is);
-  ctx.quadraticCurveTo(ix, iy + is, ix, iy + is - irx);
-  ctx.lineTo(ix, iy + irx);
-  ctx.quadraticCurveTo(ix, iy, ix + irx, iy);
-  ctx.closePath();
-  ctx.fill();
-}
-
-function sampleCanvas(
+function sampleViewportCanvas(
   ctx: CanvasRenderingContext2D,
-  offW: number,
-  offH: number,
   viewW: number,
   viewH: number,
   maxDots: number,
   hueBase: number,
-  spawnJitter = 36
+  spawnJitter = 24
 ): MorphDot[] {
-  const data = ctx.getImageData(0, 0, offW, offH).data;
-  const stride = Math.max(2, Math.floor(Math.sqrt((offW * offH) / (maxDots * 2))));
-  const raw: { tx: number; ty: number; hue: number }[] = [];
-  const ox = viewW / 2 - offW / 2;
-  const oy = viewH / 2 - offH / 2;
+  const data = ctx.getImageData(0, 0, viewW, viewH).data;
+  const stride = Math.max(2, Math.floor(Math.sqrt((viewW * viewH) / (maxDots * 2))));
 
-  for (let y = 0; y < offH; y += stride) {
-    for (let x = 0; x < offW; x += stride) {
-      const i = (y * offW + x) * 4;
+  const raw: { tx: number; ty: number; hue: number }[] = [];
+
+  for (let y = 0; y < viewH; y += stride) {
+    for (let x = 0; x < viewW; x += stride) {
+      const i = (y * viewW + x) * 4;
       if (data[i + 3] < 140) continue;
       const r = data[i];
       const g = data[i + 1];
@@ -114,8 +77,8 @@ function sampleCanvas(
       const lum = (r + g + b) / 3;
       const blueLean = b / Math.max(1, r + g + b);
       raw.push({
-        tx: ox + x,
-        ty: oy + y,
+        tx: x,
+        ty: y,
         hue: hueBase + blueLean * 45 + (lum / 255) * 22,
       });
     }
@@ -124,8 +87,8 @@ function sampleCanvas(
   const picked = subsample(raw, maxDots);
 
   const dots: MorphDot[] = picked.map((p, idx) => ({
-    x: p.tx + (Math.random() - 0.5) * spawnJitter * 0.15,
-    y: p.ty + (Math.random() - 0.5) * spawnJitter * 0.15,
+    x: p.tx + (Math.random() - 0.5) * spawnJitter * 0.12,
+    y: p.ty + (Math.random() - 0.5) * spawnJitter * 0.12,
     tx: p.tx,
     ty: p.ty,
     hue: p.hue,
@@ -137,116 +100,202 @@ function sampleCanvas(
   return dots;
 }
 
-/** Mainline mark + wordmark + presents — dot cover target (blue tones). */
-export function buildMainlineBrandDots(viewW: number, viewH: number, maxDots: number): MorphDot[] {
-  const scale = Math.min(1, Math.min(viewW, viewH) / 900);
-  const markSize = Math.round(Math.min(168, viewW * 0.26) * scale + 64);
-  const titleSize = Math.round(Math.min(28, viewW * 0.038) * scale + 12);
-  const offW = Math.min(720, Math.round(viewW * 0.82));
-  const offH = Math.round(markSize + titleSize * 3.2 + 80);
+function roundRectPath(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  r: number
+): void {
+  const rad = Math.min(r, w / 2, h / 2);
+  ctx.beginPath();
+  ctx.moveTo(x + rad, y);
+  ctx.lineTo(x + w - rad, y);
+  ctx.quadraticCurveTo(x + w, y, x + w, y + rad);
+  ctx.lineTo(x + w, y + h - rad);
+  ctx.quadraticCurveTo(x + w, y + h, x + w - rad, y + h);
+  ctx.lineTo(x + rad, y + h);
+  ctx.quadraticCurveTo(x, y + h, x, y + h - rad);
+  ctx.lineTo(x, y + rad);
+  ctx.quadraticCurveTo(x, y, x + rad, y);
+  ctx.closePath();
+}
 
+/** Mainline mark + wordmark + presents — same layout as HTML overlay. */
+export function buildMainlineBrandDots(viewW: number, viewH: number, maxDots: number): MorphDot[] {
+  if (typeof document === 'undefined' || viewW < 1 || viewH < 1) return [];
+
+  const L = computeMainlineBrandLayout(viewW, viewH);
   const off = document.createElement('canvas');
-  off.width = offW;
-  off.height = offH;
+  off.width = viewW;
+  off.height = viewH;
   const ctx = off.getContext('2d');
   if (!ctx) return [];
 
   ctx.fillStyle = '#000';
-  ctx.fillRect(0, 0, offW, offH);
+  ctx.fillRect(0, 0, viewW, viewH);
 
-  const markCy = offH * 0.36;
-  drawMainlineMarkColored(ctx, offW / 2, markCy, markSize);
+  drawMainlineMarkSvgAccurate(ctx, L.cx, L.markCy, L.markSize);
+  setCanvasBrandText(
+    ctx,
+    'MAINLINE STUDIOS',
+    L.cx,
+    L.titleY,
+    L.titleFontPx,
+    700,
+    L.titleLetterSpacingEm,
+    '#e8f4ff'
+  );
+  setCanvasBrandText(
+    ctx,
+    'PRESENTS',
+    L.cx,
+    L.presentsY,
+    L.presentsFontPx,
+    600,
+    L.presentsLetterSpacingEm,
+    '#7ec8ff'
+  );
 
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.font = `700 ${titleSize}px system-ui, -apple-system, "Segoe UI", sans-serif`;
-  ctx.fillStyle = '#e8f4ff';
-  ctx.fillText('MAINLINE STUDIOS', offW / 2, markCy + markSize * 0.52 + titleSize * 0.9);
-  ctx.font = `600 ${Math.round(titleSize * 0.72)}px system-ui, sans-serif`;
-  ctx.fillStyle = '#7ec8ff';
-  ctx.fillText('PRESENTS', offW / 2, markCy + markSize * 0.52 + titleSize * 2.1);
-
-  return sampleCanvas(ctx, offW, offH, viewW, viewH, maxDots, 198, 120);
+  return sampleViewportCanvas(ctx, viewW, viewH, maxDots, 198, 18);
 }
 
-function drawMainlineMarkColored(ctx: CanvasRenderingContext2D, cx: number, cy: number, size: number): void {
-  const half = size / 2;
-  const x = cx - half;
-  const y = cy - half;
-  const rx = size * 0.12;
+/** Paint + sample using measured DOM positions (pixel-perfect vs overlay). */
+export function buildMainlineBrandDotsFromDom(
+  viewW: number,
+  viewH: number,
+  brandRoot: HTMLElement,
+  maxDots: number
+): MorphDot[] {
+  if (viewW < 1 || viewH < 1) return [];
 
-  ctx.strokeStyle = '#5eb0f7';
-  ctx.lineWidth = Math.max(2, size * 0.04);
-  ctx.beginPath();
-  ctx.moveTo(x + rx, y);
-  ctx.lineTo(x + size - rx, y);
-  ctx.quadraticCurveTo(x + size, y, x + size, y + rx);
-  ctx.lineTo(x + size, y + size - rx);
-  ctx.quadraticCurveTo(x + size, y + size, x + size - rx, y + size);
-  ctx.lineTo(x + rx, y + size);
-  ctx.quadraticCurveTo(x, y + size, x, y + size - rx);
-  ctx.lineTo(x, y + rx);
-  ctx.quadraticCurveTo(x, y, x + rx, y);
-  ctx.closePath();
-  ctx.stroke();
+  const off = document.createElement('canvas');
+  off.width = viewW;
+  off.height = viewH;
+  const ctx = off.getContext('2d');
+  if (!ctx) return [];
 
-  const inset = size * 0.28;
-  const ix = x + inset;
-  const iy = y + inset;
-  const is = size - inset * 2;
-  const irx = is * 0.1;
-  ctx.fillStyle = '#2b6cb0';
-  ctx.beginPath();
-  ctx.moveTo(ix + irx, iy);
-  ctx.lineTo(ix + is - irx, iy);
-  ctx.quadraticCurveTo(ix + is, iy, ix + is, iy + irx);
-  ctx.lineTo(ix + is, iy + is - irx);
-  ctx.quadraticCurveTo(ix + is, iy + is, ix + is - irx, iy + is);
-  ctx.lineTo(ix + irx, iy + is);
-  ctx.quadraticCurveTo(ix, iy + is, ix, iy + is - irx);
-  ctx.lineTo(ix, iy + irx);
-  ctx.quadraticCurveTo(ix, iy, ix + irx, iy);
-  ctx.closePath();
-  ctx.fill();
+  ctx.fillStyle = '#000';
+  ctx.fillRect(0, 0, viewW, viewH);
+
+  const svg = brandRoot.querySelector('svg');
+  if (svg) {
+    const r = svg.getBoundingClientRect();
+    const size = r.width;
+    const cx = r.left + r.width / 2;
+    const cy = r.top + r.height / 2;
+    drawMainlineMarkSvgAccurate(ctx, cx, cy, size);
+  }
+
+  brandRoot.querySelectorAll<HTMLElement>('[data-splash-text]').forEach((el) => {
+    const r = el.getBoundingClientRect();
+    const style = getComputedStyle(el);
+    const fontPx = parseFloat(style.fontSize) || 16;
+    const weight = parseInt(style.fontWeight, 10) || 700;
+    const spacingEm = letterSpacingToEm(style.letterSpacing, fontPx);
+    const color = style.color || '#fff';
+    setCanvasBrandText(ctx, el.textContent?.trim() ?? '', r.left + r.width / 2, r.top + r.height / 2, fontPx, weight, spacingEm, color);
+  });
+
+  return sampleViewportCanvas(ctx, viewW, viewH, maxDots, 198, 12);
+}
+
+function letterSpacingToEm(letterSpacing: string, fontPx: number): number {
+  if (!letterSpacing || letterSpacing === 'normal') return 0;
+  if (letterSpacing.endsWith('em')) return parseFloat(letterSpacing);
+  if (letterSpacing.endsWith('px')) return parseFloat(letterSpacing) / fontPx;
+  return 0;
 }
 
 /** @deprecated Use buildMainlineBrandDots */
 export const buildMainlineMarkDots = buildMainlineBrandDots;
 
-/** Pixel Place logo + title — final morph target. */
+/** Pixel Place logo + title — same layout as HTML overlay. */
 export async function buildPixelPlaceMorphDots(
   viewW: number,
   viewH: number,
   logoSrc: string,
   maxDots: number
 ): Promise<MorphDot[]> {
+  if (typeof document === 'undefined' || viewW < 1 || viewH < 1) return [];
+
   const img = await loadImage(logoSrc);
-  const scale = Math.min(1, Math.min(viewW, viewH) / 900);
-  const logoSize = Math.round(Math.min(200, viewW * 0.28) * scale + 80);
-  const titleSize = Math.round(Math.min(56, viewW * 0.075) * scale + 18);
-  const offW = Math.min(960, Math.round(viewW * 0.92));
-  const offH = Math.round(logoSize + titleSize + 100);
+  const L = computePixelBrandLayout(viewW, viewH);
 
   const off = document.createElement('canvas');
-  off.width = offW;
-  off.height = offH;
+  off.width = viewW;
+  off.height = viewH;
   const ctx = off.getContext('2d');
   if (!ctx) return [];
 
   ctx.fillStyle = '#000';
-  ctx.fillRect(0, 0, offW, offH);
+  ctx.fillRect(0, 0, viewW, viewH);
 
-  const logoX = (offW - logoSize) / 2;
-  const logoY = 40;
-  ctx.drawImage(img, logoX, logoY, logoSize, logoSize);
+  const logoX = L.cx - L.logoSize / 2;
+  const logoY = L.logoTop;
+  ctx.save();
+  roundRectPath(ctx, logoX, logoY, L.logoSize, L.logoSize, L.logoRadius);
+  ctx.clip();
+  ctx.drawImage(img, logoX, logoY, L.logoSize, L.logoSize);
+  ctx.restore();
 
-  ctx.fillStyle = '#ffffff';
-  ctx.font = `700 ${titleSize}px system-ui, -apple-system, "Segoe UI", sans-serif`;
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.fillText('PIXEL PLACE', offW / 2, logoY + logoSize + 48 + titleSize * 0.5);
+  setCanvasBrandText(
+    ctx,
+    'PIXEL PLACE',
+    L.cx,
+    L.titleY,
+    L.titleFontPx,
+    700,
+    L.titleLetterSpacingEm,
+    '#ffffff'
+  );
 
-  return sampleCanvas(ctx, offW, offH, viewW, viewH, maxDots, 210, 36);
+  return sampleViewportCanvas(ctx, viewW, viewH, maxDots, 210, 18);
+}
+
+export function buildPixelPlaceMorphDotsFromDom(
+  viewW: number,
+  viewH: number,
+  brandRoot: HTMLElement,
+  maxDots: number
+): MorphDot[] {
+  if (viewW < 1 || viewH < 1) return [];
+
+  const off = document.createElement('canvas');
+  off.width = viewW;
+  off.height = viewH;
+  const ctx = off.getContext('2d');
+  if (!ctx) return [];
+
+  ctx.fillStyle = '#000';
+  ctx.fillRect(0, 0, viewW, viewH);
+
+  const img = brandRoot.querySelector('img');
+  if (img) {
+    const r = img.getBoundingClientRect();
+    const x = r.left;
+    const y = r.top;
+    const w = r.width;
+    const h = r.height;
+    const radius = parseFloat(getComputedStyle(img.parentElement ?? img).borderRadius) || PIXEL_LOGO_RADIUS;
+    ctx.save();
+    roundRectPath(ctx, x, y, w, h, radius);
+    ctx.clip();
+    ctx.drawImage(img, x, y, w, h);
+    ctx.restore();
+  }
+
+  brandRoot.querySelectorAll<HTMLElement>('[data-splash-text]').forEach((el) => {
+    const r = el.getBoundingClientRect();
+    const style = getComputedStyle(el);
+    const fontPx = parseFloat(style.fontSize) || 16;
+    const weight = parseInt(style.fontWeight, 10) || 700;
+    const spacingEm = letterSpacingToEm(style.letterSpacing, fontPx);
+    setCanvasBrandText(ctx, el.textContent?.trim() ?? '', r.left + r.width / 2, r.top + r.height / 2, fontPx, weight, spacingEm, style.color || '#fff');
+  });
+
+  return sampleViewportCanvas(ctx, viewW, viewH, maxDots, 210, 12);
 }
 
 export function easeMorph(progress: number): number {
