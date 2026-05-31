@@ -14,6 +14,7 @@ const KEYS = {
   skipSplash: 'pixelPlaceSkipSplash',
   firstOpenSplash: 'pixelPlaceFirstOpenSplashDone',
   replaySplash: 'pixelPlaceReplaySplash',
+  splashSessionPlayed: 'pixelPlaceSplashSessionPlayed',
 } as const;
 
 function deviceSplashKey(deviceId: string): string {
@@ -168,9 +169,26 @@ export function isInactiveBeyondLimit(limitMs = INACTIVITY_LOGOUT_MS): boolean {
   return Date.now() - getLastActivityAt() > limitMs;
 }
 
-/** Call before in-app tab navigation — skips loading overlay only, not the branding splash. */
-export function armAppSessionForRouteChange(): void {
+/** Splash already ran or user navigated between tab shells — do not replay. */
+export function hasSplashPlayedThisSession(): boolean {
+  return safeGet(KEYS.splashSessionPlayed) === '1' || isReadyAccepted();
+}
+
+export function markSplashPlayedThisSession(): void {
+  safeSet(KEYS.splashSessionPlayed, '1');
   markReadyAccepted();
+}
+
+export function shouldShowStartupSplash(deviceId: string): boolean {
+  if (consumeSplashReplayFlag()) return true;
+  if (hasSplashPlayedThisSession()) return false;
+  if (SPLASH_SHOW_ON_EVERY_DEVICE_FOR_NOW) return true;
+  return !hasDeviceSeenSplash(deviceId);
+}
+
+/** Call before in-app tab navigation — skips splash on the next HTML shell. */
+export function armAppSessionForRouteChange(): void {
+  markSplashPlayedThisSession();
   touchActivity();
 }
 

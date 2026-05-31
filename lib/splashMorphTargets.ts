@@ -108,11 +108,15 @@ function sampleCanvas(
     for (let x = 0; x < offW; x += stride) {
       const i = (y * offW + x) * 4;
       if (data[i + 3] < 140) continue;
-      const lum = (data[i] + data[i + 1] + data[i + 2]) / 3;
+      const r = data[i];
+      const g = data[i + 1];
+      const b = data[i + 2];
+      const lum = (r + g + b) / 3;
+      const blueLean = b / Math.max(1, r + g + b);
       raw.push({
         tx: ox + x,
         ty: oy + y,
-        hue: hueBase + (lum / 255) * 28 + (x / offW) * 18,
+        hue: hueBase + blueLean * 45 + (lum / 255) * 22,
       });
     }
   }
@@ -133,22 +137,81 @@ function sampleCanvas(
   return dots;
 }
 
-/** Mainline mark only — used when the logo breaks into dots. */
-export function buildMainlineMarkDots(viewW: number, viewH: number, maxDots: number): MorphDot[] {
+/** Mainline mark + wordmark + presents — dot cover target (blue tones). */
+export function buildMainlineBrandDots(viewW: number, viewH: number, maxDots: number): MorphDot[] {
   const scale = Math.min(1, Math.min(viewW, viewH) / 900);
-  const markSize = Math.round(Math.min(200, viewW * 0.3) * scale + 80);
+  const markSize = Math.round(Math.min(168, viewW * 0.26) * scale + 64);
+  const titleSize = Math.round(Math.min(28, viewW * 0.038) * scale + 12);
+  const offW = Math.min(720, Math.round(viewW * 0.82));
+  const offH = Math.round(markSize + titleSize * 3.2 + 80);
+
   const off = document.createElement('canvas');
-  off.width = markSize + 80;
-  off.height = markSize + 80;
+  off.width = offW;
+  off.height = offH;
   const ctx = off.getContext('2d');
   if (!ctx) return [];
 
   ctx.fillStyle = '#000';
-  ctx.fillRect(0, 0, off.width, off.height);
-  drawMainlineMark(ctx, off.width / 2, off.height / 2, markSize);
+  ctx.fillRect(0, 0, offW, offH);
 
-  return sampleCanvas(ctx, off.width, off.height, viewW, viewH, maxDots, 205, 8);
+  const markCy = offH * 0.36;
+  drawMainlineMarkColored(ctx, offW / 2, markCy, markSize);
+
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.font = `700 ${titleSize}px system-ui, -apple-system, "Segoe UI", sans-serif`;
+  ctx.fillStyle = '#e8f4ff';
+  ctx.fillText('MAINLINE STUDIOS', offW / 2, markCy + markSize * 0.52 + titleSize * 0.9);
+  ctx.font = `600 ${Math.round(titleSize * 0.72)}px system-ui, sans-serif`;
+  ctx.fillStyle = '#7ec8ff';
+  ctx.fillText('PRESENTS', offW / 2, markCy + markSize * 0.52 + titleSize * 2.1);
+
+  return sampleCanvas(ctx, offW, offH, viewW, viewH, maxDots, 198, 120);
 }
+
+function drawMainlineMarkColored(ctx: CanvasRenderingContext2D, cx: number, cy: number, size: number): void {
+  const half = size / 2;
+  const x = cx - half;
+  const y = cy - half;
+  const rx = size * 0.12;
+
+  ctx.strokeStyle = '#5eb0f7';
+  ctx.lineWidth = Math.max(2, size * 0.04);
+  ctx.beginPath();
+  ctx.moveTo(x + rx, y);
+  ctx.lineTo(x + size - rx, y);
+  ctx.quadraticCurveTo(x + size, y, x + size, y + rx);
+  ctx.lineTo(x + size, y + size - rx);
+  ctx.quadraticCurveTo(x + size, y + size, x + size - rx, y + size);
+  ctx.lineTo(x + rx, y + size);
+  ctx.quadraticCurveTo(x, y + size, x, y + size - rx);
+  ctx.lineTo(x, y + rx);
+  ctx.quadraticCurveTo(x, y, x + rx, y);
+  ctx.closePath();
+  ctx.stroke();
+
+  const inset = size * 0.28;
+  const ix = x + inset;
+  const iy = y + inset;
+  const is = size - inset * 2;
+  const irx = is * 0.1;
+  ctx.fillStyle = '#2b6cb0';
+  ctx.beginPath();
+  ctx.moveTo(ix + irx, iy);
+  ctx.lineTo(ix + is - irx, iy);
+  ctx.quadraticCurveTo(ix + is, iy, ix + is, iy + irx);
+  ctx.lineTo(ix + is, iy + is - irx);
+  ctx.quadraticCurveTo(ix + is, iy + is, ix + is - irx, iy + is);
+  ctx.lineTo(ix + irx, iy + is);
+  ctx.quadraticCurveTo(ix, iy + is, ix, iy + is - irx);
+  ctx.lineTo(ix, iy + irx);
+  ctx.quadraticCurveTo(ix, iy, ix + irx, iy);
+  ctx.closePath();
+  ctx.fill();
+}
+
+/** @deprecated Use buildMainlineBrandDots */
+export const buildMainlineMarkDots = buildMainlineBrandDots;
 
 /** Pixel Place logo + title — final morph target. */
 export async function buildPixelPlaceMorphDots(
@@ -190,11 +253,16 @@ export function easeMorph(progress: number): number {
   return smoothstep(Math.min(1, Math.max(0, progress)));
 }
 
-export function logoSharpenProgress(localT: number): number {
-  return easeMorph(Math.max(0, (localT - 0.72) / 0.28));
+/** Pixel Place logo fades in over assembled dots (late in assemble phase). */
+export function pixelOverlayFade(localT: number): number {
+  return easeMorph(Math.max(0, (localT - 0.62) / 0.38));
 }
 
-export function logoDotFade(sharpen: number): number {
-  if (sharpen < 0.4) return 1;
-  return Math.max(0, 1 - (sharpen - 0.4) / 0.6);
+export function brandOverlayFade(localT: number): number {
+  return 1 - easeMorph(Math.max(0, (localT - 0.45) / 0.55));
+}
+
+export function dotsOpacityUnderOverlay(overlayFade: number): number {
+  if (overlayFade < 0.35) return 1;
+  return Math.max(0, 1 - (overlayFade - 0.35) / 0.65);
 }

@@ -17,22 +17,24 @@ import { SplashAudioController } from '@/lib/splashAudio';
 
 type StartupSplashAnimationProps = {
   onComplete: () => void;
-  firstOpen?: boolean;
   audioEnabled?: boolean;
 };
 
-function MainlineLogoMark({ size }: { size: number }) {
+function MainlineBrandMark({ markSize }: { markSize: number }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 100 100" aria-hidden>
-      <rect x="10" y="10" width="80" height="80" rx="10" fill="none" stroke="#5eb0f7" strokeWidth="3" />
-      <rect x="25" y="25" width="50" height="50" rx="5" fill="#2b6cb0" />
-    </svg>
+    <div className="splash-mainline-brand">
+      <svg width={markSize} height={markSize} viewBox="0 0 100 100" aria-hidden>
+        <rect x="10" y="10" width="80" height="80" rx="10" fill="none" stroke="#5eb0f7" strokeWidth="3" />
+        <rect x="25" y="25" width="50" height="50" rx="5" fill="#2b6cb0" />
+      </svg>
+      <p className="splash-mainline-brand__title">MAINLINE STUDIOS</p>
+      <p className="splash-mainline-brand__presents">PRESENTS</p>
+    </div>
   );
 }
 
 export default function StartupSplashAnimation({
   onComplete,
-  firstOpen = false,
   audioEnabled = true,
 }: StartupSplashAnimationProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -46,9 +48,7 @@ export default function StartupSplashAnimation({
   const completedRef = useRef(false);
   const audioRef = useRef<SplashAudioController | null>(null);
 
-  const [presentsOpacity, setPresentsOpacity] = useState(0);
-  const [presentsLine2, setPresentsLine2] = useState(0);
-  const [mainlineOverlay, setMainlineOverlay] = useState(0);
+  const [brandOverlay, setBrandOverlay] = useState(1);
   const [pixelReveal, setPixelReveal] = useState(0);
   const [shellOpacity, setShellOpacity] = useState(1);
   const [captionAlpha, setCaptionAlpha] = useState(0);
@@ -64,20 +64,16 @@ export default function StartupSplashAnimation({
   }, [onComplete]);
 
   useEffect(() => {
-    if (!firstOpen) return;
-    const t1 = requestAnimationFrame(() => setPresentsOpacity(1));
-    const t2 = setTimeout(() => setPresentsLine2(1), 420);
-    const t3 = setTimeout(() => setPresentsOpacity(0), 2100);
-    return () => {
-      cancelAnimationFrame(t1);
-      clearTimeout(t2);
-      clearTimeout(t3);
-    };
-  }, [firstOpen]);
-
-  useEffect(() => {
     audioRef.current = new SplashAudioController(audioEnabled);
-    return () => audioRef.current?.dispose();
+    const unlock = () => audioRef.current?.unlock();
+    unlock();
+    window.addEventListener('pointerdown', unlock, { once: true, passive: true });
+    window.addEventListener('keydown', unlock, { once: true, passive: true });
+    return () => {
+      window.removeEventListener('pointerdown', unlock);
+      window.removeEventListener('keydown', unlock);
+      audioRef.current?.dispose();
+    };
   }, [audioEnabled]);
 
   useEffect(() => {
@@ -86,7 +82,7 @@ export default function StartupSplashAnimation({
       window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
     if (reduced) {
-      const t = setTimeout(finish, firstOpen ? 1400 : 700);
+      const t = setTimeout(finish, 1400);
       return () => clearTimeout(t);
     }
 
@@ -98,12 +94,8 @@ export default function StartupSplashAnimation({
     let cancelled = false;
 
     const loadTargets = () => {
-      mainlineTargetsRef.current = loadMainlineTargets(
-        canvas.width,
-        canvas.height,
-        firstOpen ? 380 : 280
-      );
-      void loadPixelPlaceTargets(canvas.width, canvas.height, firstOpen ? 500 : 300).then((targets) => {
+      mainlineTargetsRef.current = loadMainlineTargets(canvas.width, canvas.height, 420);
+      void loadPixelPlaceTargets(canvas.width, canvas.height, 500).then((targets) => {
         if (!cancelled) pixelTargetsRef.current = targets;
       });
     };
@@ -118,19 +110,17 @@ export default function StartupSplashAnimation({
     loadTargets();
 
     startRef.current = performance.now();
-    const duration = totalDuration(firstOpen);
+    const duration = totalDuration();
 
     const loop = (now: number) => {
       if (cancelled) return;
       const elapsed = now - startRef.current;
-      const { phase, localT, iconIndex, iconLabel } = resolvePhase(elapsed, firstOpen);
+      const { phase, localT, iconIndex, iconLabel } = resolvePhase(elapsed);
 
       audioRef.current?.tick(elapsed, phase, localT, iconIndex);
 
-      if (phase === 'presents') {
-        drawSplashFrame(ctx, canvas.width, canvas.height, [], 'singleton', now, 0, '', 0);
-      } else if (phase !== 'exit') {
-        const { reveal, iconPoints, mainlineOverlay: mlOverlay } = updateDotsForPhase(
+      if (phase !== 'exit') {
+        const { pixelReveal: pr, brandOverlay: bo, iconPoints, dotAlpha } = updateDotsForPhase(
           dotsRef.current,
           phase,
           localT,
@@ -144,27 +134,20 @@ export default function StartupSplashAnimation({
           storedIconPointsRef.current
         );
 
-        if (phase === 'mainline') {
-          setMainlineOverlay(1);
-        } else {
-          setMainlineOverlay(mlOverlay);
-        }
+        setBrandOverlay(bo);
+        setPixelReveal((r) => (phase === 'assemble' || phase === 'hold' ? Math.max(r, pr) : r));
 
+        const capA = phase === 'icons' ? captionAlphaFromLocal(localT) : 0;
         if (phase === 'icons') {
           storedIconPointsRef.current = iconPoints;
           if (iconIndex !== lastIconIndexRef.current) {
             lastIconIndexRef.current = iconIndex;
           }
           setCaption(iconLabel);
-          setCaptionAlpha(reveal);
+          setCaptionAlpha(capA);
         } else {
           setCaptionAlpha(0);
         }
-
-        if (phase === 'logo' || phase === 'hold') {
-          setPixelReveal((r) => Math.max(r, reveal));
-        }
-        if (phase === 'hold') setPixelReveal(1);
 
         drawSplashFrame(
           ctx,
@@ -173,24 +156,23 @@ export default function StartupSplashAnimation({
           dotsRef.current,
           phase,
           now,
-          reveal,
+          pr,
           iconLabel,
-          phase === 'icons' ? reveal : 0
+          capA,
+          dotAlpha
         );
       }
 
       if (phase === 'hold') {
         setPixelReveal(1);
-        setMainlineOverlay(0);
+        setBrandOverlay(0);
         setCaption('');
-        drawSplashFrame(ctx, canvas.width, canvas.height, dotsRef.current, 'hold', now, 1, '', 0);
+        drawSplashFrame(ctx, canvas.width, canvas.height, dotsRef.current, 'assemble', now, 1, '', 0, 0);
       }
 
       if (phase === 'exit') {
-        const fade = 1 - localT;
-        setShellOpacity(fade);
-        setPixelReveal(fade);
-        setMainlineOverlay(0);
+        setShellOpacity(1 - localT);
+        setPixelReveal(1 - localT);
       }
 
       if (elapsed < duration) {
@@ -207,7 +189,7 @@ export default function StartupSplashAnimation({
       window.removeEventListener('resize', resize);
       cancelAnimationFrame(rafRef.current);
     };
-  }, [firstOpen, finish]);
+  }, [finish]);
 
   if (done) return null;
 
@@ -217,44 +199,33 @@ export default function StartupSplashAnimation({
 
   if (reduced) {
     return (
-      <div className="splash-shell splash-shell--reduced">
-        {firstOpen ? 'MAINLINE STUDIOS PRESENTS' : 'PIXEL PLACE'}
-      </div>
+      <div className="splash-shell splash-shell--reduced">MAINLINE STUDIOS PRESENTS</div>
     );
   }
 
-  const markSize = firstOpen ? 132 : 96;
-  const logoSize = firstOpen ? 148 : 100;
+  const markSize = 132;
+  const logoSize = 148;
 
   return (
-    <div className="splash-shell" style={{ opacity: shellOpacity }} role="dialog" aria-label="Pixel Place startup">
+    <div
+      className="splash-shell"
+      style={{ opacity: shellOpacity }}
+      role="dialog"
+      aria-label="Pixel Place startup"
+      onPointerDown={() => audioRef.current?.unlock()}
+    >
       <div className="splash-vignette" aria-hidden />
-      <div className="splash-bar splash-bar--top" aria-hidden />
-      <div className="splash-bar splash-bar--bottom" aria-hidden />
-
-      {firstOpen && (
-        <div className="splash-presents" style={{ opacity: presentsOpacity }}>
-          <p className="splash-presents__studio">MAINLINE STUDIOS</p>
-          <p
-            className="splash-presents__tag"
-            style={{ opacity: presentsLine2, transform: `translateY(${(1 - presentsLine2) * 12}px)` }}
-          >
-            PRESENTS
-          </p>
-        </div>
-      )}
-
       <canvas ref={canvasRef} className="splash-canvas" />
 
-      {mainlineOverlay > 0.02 && (
+      {brandOverlay > 0.03 && (
         <div
-          className="splash-mainline-mark"
+          className="splash-mainline-layer"
           style={{
-            opacity: mainlineOverlay,
-            transform: `scale(${0.96 + mainlineOverlay * 0.04})`,
+            opacity: brandOverlay,
+            transition: 'opacity 0.5s ease-out',
           }}
         >
-          <MainlineLogoMark size={markSize} />
+          <MainlineBrandMark markSize={markSize} />
         </div>
       )}
 
@@ -270,7 +241,7 @@ export default function StartupSplashAnimation({
           style={{
             opacity: pixelReveal,
             transform: `scale(${0.94 + pixelReveal * 0.06})`,
-            filter: `blur(${(1 - pixelReveal) * 5}px)`,
+            filter: `blur(${(1 - pixelReveal) * 4}px)`,
           }}
         >
           <div className="splash-brand__glow" style={{ opacity: pixelReveal * 0.85 }} aria-hidden />
@@ -278,9 +249,7 @@ export default function StartupSplashAnimation({
             <Image src="/logo.png" alt="Pixel Place" width={logoSize} height={logoSize} priority />
           </div>
           <h1 className="splash-brand__title">PIXEL PLACE</h1>
-          {firstOpen && pixelReveal > 0.85 && (
-            <p className="splash-brand__motto">Play · Create · Share</p>
-          )}
+          {pixelReveal > 0.88 && <p className="splash-brand__motto">Play · Create · Share</p>}
         </div>
       )}
 
@@ -307,17 +276,6 @@ export default function StartupSplashAnimation({
           background: radial-gradient(ellipse 90% 80% at 50% 45%, transparent 40%, rgba(0,0,0,0.5) 100%);
           z-index: 1;
         }
-        .splash-bar {
-          position: absolute;
-          left: 0;
-          right: 0;
-          height: 6vh;
-          background: linear-gradient(to bottom, rgba(0,0,0,0.65), transparent);
-          pointer-events: none;
-          z-index: 2;
-        }
-        .splash-bar--top { top: 0; }
-        .splash-bar--bottom { bottom: 0; transform: rotate(180deg); }
         .splash-canvas {
           position: fixed;
           inset: 0;
@@ -326,38 +284,7 @@ export default function StartupSplashAnimation({
           pointer-events: none;
           z-index: 0;
         }
-        .splash-presents {
-          position: fixed;
-          inset: 0;
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          justify-content: center;
-          z-index: 4;
-          pointer-events: none;
-          transition: opacity 0.65s ease-in-out;
-          text-align: center;
-          padding: 2rem;
-        }
-        .splash-presents__studio {
-          margin: 0;
-          font-size: clamp(1.2rem, 4vw, 2rem);
-          font-weight: 700;
-          letter-spacing: 0.32em;
-          text-indent: 0.32em;
-          color: rgba(255,255,255,0.94);
-          text-shadow: 0 0 40px rgba(43, 108, 176, 0.6);
-        }
-        .splash-presents__tag {
-          margin: 1.1rem 0 0;
-          font-size: clamp(0.95rem, 3vw, 1.4rem);
-          font-weight: 600;
-          letter-spacing: 0.5em;
-          text-indent: 0.5em;
-          color: rgba(120, 190, 255, 0.95);
-          transition: opacity 0.55s ease-out, transform 0.55s ease-out;
-        }
-        .splash-mainline-mark {
+        .splash-mainline-layer {
           position: fixed;
           inset: 0;
           display: flex;
@@ -365,7 +292,29 @@ export default function StartupSplashAnimation({
           justify-content: center;
           z-index: 2;
           pointer-events: none;
-          transition: opacity 0.35s ease-out, transform 0.5s ease-out;
+        }
+        .splash-mainline-brand {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          text-align: center;
+        }
+        .splash-mainline-brand__title {
+          margin: 1.1rem 0 0;
+          font-size: clamp(1rem, 3.2vw, 1.55rem);
+          font-weight: 700;
+          letter-spacing: 0.28em;
+          text-indent: 0.28em;
+          color: rgba(255,255,255,0.95);
+          text-shadow: 0 0 36px rgba(43, 108, 176, 0.65);
+        }
+        .splash-mainline-brand__presents {
+          margin: 0.65rem 0 0;
+          font-size: clamp(0.85rem, 2.5vw, 1.15rem);
+          font-weight: 600;
+          letter-spacing: 0.42em;
+          text-indent: 0.42em;
+          color: rgba(126, 200, 255, 0.95);
         }
         .splash-caption {
           position: fixed;
@@ -391,7 +340,6 @@ export default function StartupSplashAnimation({
           z-index: 3;
           pointer-events: none;
           padding: 1.5rem;
-          transition: opacity 0.45s ease-out, transform 0.55s cubic-bezier(0.22, 1, 0.36, 1);
         }
         .splash-brand__glow {
           position: absolute;
@@ -433,4 +381,15 @@ export default function StartupSplashAnimation({
       `}</style>
     </div>
   );
+}
+
+function easeCaption(t: number): number {
+  const x = Math.min(1, Math.max(0, t));
+  return x * x * (3 - 2 * x);
+}
+
+function captionAlphaFromLocal(t: number): number {
+  const enter = easeCaption(Math.min(1, t * 3));
+  const exit = easeCaption(Math.min(1, (1 - t) * 3));
+  return Math.min(enter, exit);
 }

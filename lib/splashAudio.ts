@@ -25,17 +25,17 @@ function resume(ctx: AudioContext): void {
 const PAD = [130.81, 164.81, 196.0, 261.63];
 const ARP = [261.63, 329.63, 392.0, 523.25, 659.25, 523.25, 392.0, 329.63];
 
-/** Opening melody (~2.8s) — several notes, not a single blip. */
 const OPENING_MELODY: { freq: number; at: number; dur: number; vol: number; type?: OscillatorType }[] = [
-  { freq: 392, at: 0, dur: 0.42, vol: 0.1 },
-  { freq: 494, at: 0.28, dur: 0.4, vol: 0.09 },
-  { freq: 587, at: 0.55, dur: 0.45, vol: 0.1 },
-  { freq: 659, at: 0.82, dur: 0.48, vol: 0.09 },
-  { freq: 784, at: 1.1, dur: 0.5, vol: 0.11 },
-  { freq: 659, at: 1.45, dur: 0.4, vol: 0.08 },
-  { freq: 523, at: 1.75, dur: 0.55, vol: 0.09 },
-  { freq: 587, at: 2.05, dur: 0.45, vol: 0.08 },
-  { freq: 698, at: 2.35, dur: 0.6, vol: 0.1 },
+  { freq: 392, at: 0, dur: 0.45, vol: 0.11 },
+  { freq: 494, at: 0.25, dur: 0.42, vol: 0.1 },
+  { freq: 587, at: 0.52, dur: 0.48, vol: 0.11 },
+  { freq: 659, at: 0.78, dur: 0.5, vol: 0.1 },
+  { freq: 784, at: 1.05, dur: 0.52, vol: 0.12 },
+  { freq: 659, at: 1.4, dur: 0.42, vol: 0.09 },
+  { freq: 523, at: 1.7, dur: 0.58, vol: 0.1 },
+  { freq: 587, at: 2.0, dur: 0.48, vol: 0.09 },
+  { freq: 698, at: 2.3, dur: 0.65, vol: 0.11 },
+  { freq: 784, at: 2.65, dur: 0.55, vol: 0.1 },
 ];
 
 export class SplashAudioController {
@@ -58,6 +58,16 @@ export class SplashAudioController {
     this.enabled = enabled;
   }
 
+  /** Call on pointer down or first frame — unlocks autoplay policy. */
+  unlock(): void {
+    if (!this.enabled || this.disposed) return;
+    const ctx = getCtx();
+    if (!ctx) return;
+    void ctx.resume().then(() => this.ensureGraph());
+    resume(ctx);
+    this.ensureGraph();
+  }
+
   private ensureGraph(): AudioContext | null {
     if (this.disposed || !this.enabled) return null;
     const ctx = getCtx();
@@ -66,11 +76,11 @@ export class SplashAudioController {
     if (this.started) return ctx;
 
     this.master = ctx.createGain();
-    this.master.gain.value = 0;
+    this.master.gain.value = 0.0001;
     this.master.connect(ctx.destination);
 
     this.padGain = ctx.createGain();
-    this.padGain.gain.value = 0.1;
+    this.padGain.gain.value = 0.11;
     this.padFilter = ctx.createBiquadFilter();
     this.padFilter.type = 'lowpass';
     this.padFilter.frequency.value = 820;
@@ -98,12 +108,11 @@ export class SplashAudioController {
     });
 
     this.arpGain = ctx.createGain();
-    this.arpGain.gain.value = 0.085;
+    this.arpGain.gain.value = 0.09;
     this.arpGain.connect(this.master);
 
     const t = ctx.currentTime;
-    this.master.gain.setValueAtTime(0.0001, t);
-    this.master.gain.exponentialRampToValueAtTime(0.45, t + 2);
+    this.master.gain.exponentialRampToValueAtTime(0.48, t + 1.6);
 
     this.started = true;
     return ctx;
@@ -117,7 +126,7 @@ export class SplashAudioController {
     volume: number,
     type: OscillatorType = 'sine'
   ): void {
-    if (!this.arpGain) return;
+    if (!this.arpGain || !this.master) return;
     const osc = ctx.createOscillator();
     const g = ctx.createGain();
     osc.type = type;
@@ -139,16 +148,17 @@ export class SplashAudioController {
 
   private playPhrase(ctx: AudioContext, freqs: number[], gap: number, vol: number): void {
     const t = ctx.currentTime;
-    freqs.forEach((f, i) => this.playNote(ctx, f, t + i * gap, 0.32, vol, 'triangle'));
+    freqs.forEach((f, i) => this.playNote(ctx, f, t + i * gap, 0.34, vol, 'triangle'));
   }
 
   tick(elapsedMs: number, phase: SplashPhase, localT: number, iconIndex: number): void {
+    this.unlock();
     const ctx = this.ensureGraph();
     if (!ctx || !this.master) return;
 
     const t = ctx.currentTime;
 
-    if (!this.melodyPlayed && (phase === 'presents' || phase === 'mainline')) {
+    if (!this.melodyPlayed && (phase === 'intro' || phase === 'cover')) {
       this.melodyPlayed = true;
       this.playMelody(ctx, t);
     }
@@ -159,21 +169,19 @@ export class SplashAudioController {
         case 'disperse':
           this.playPhrase(ctx, [392, 440, 494, 587], 0.08, 0.11);
           if (this.padFilter) {
-            this.padFilter.frequency.exponentialRampToValueAtTime(1200, t + 1.2);
+            this.padFilter.frequency.exponentialRampToValueAtTime(1300, t + 1.2);
           }
           break;
         case 'split':
-          this.playPhrase(ctx, [523, 659, 784], 0.06, 0.1);
-          break;
-        case 'multiply':
+          this.playPhrase(ctx, [523, 659, 784], 0.07, 0.1);
           break;
         case 'icons':
-          this.playPhrase(ctx, [440, 554, 659], 0.07, 0.09);
+          this.playPhrase(ctx, [440, 554, 659], 0.08, 0.09);
           break;
-        case 'logo':
-          this.playPhrase(ctx, [392, 494, 587, 740, 988], 0.09, 0.12);
+        case 'assemble':
+          this.playPhrase(ctx, [392, 494, 587, 740, 988], 0.1, 0.12);
           if (this.padGain) {
-            this.padGain.gain.exponentialRampToValueAtTime(0.15, t + 2);
+            this.padGain.gain.exponentialRampToValueAtTime(0.14, t + 2);
           }
           break;
         case 'exit':
@@ -191,15 +199,15 @@ export class SplashAudioController {
       }
     }
 
-    if (phase === 'multiply' || phase === 'icons' || phase === 'logo' || phase === 'disperse') {
-      const interval = phase === 'multiply' ? 95 : phase === 'disperse' ? 110 : 120;
+    if (phase === 'multiply' || phase === 'icons' || phase === 'assemble' || phase === 'disperse' || phase === 'cover') {
+      const interval = phase === 'cover' ? 100 : phase === 'multiply' ? 90 : 115;
       const step = Math.floor(elapsedMs / interval);
       if (step !== this.lastArpStep) {
         this.lastArpStep = step;
         const freq = ARP[step % ARP.length];
-        this.playNote(ctx, freq, t, 0.2, phase === 'logo' ? 0.065 : 0.075, 'triangle');
+        this.playNote(ctx, freq, t, 0.22, 0.08, 'triangle');
         if (step % 2 === 0) {
-          this.playNote(ctx, freq * 0.5, t, 0.28, 0.04, 'sine');
+          this.playNote(ctx, freq * 0.5, t + 0.05, 0.3, 0.045, 'sine');
         }
       }
     }

@@ -1,21 +1,21 @@
 import {
-  buildMainlineMarkDots,
+  brandOverlayFade,
+  buildMainlineBrandDots,
   buildPixelPlaceMorphDots,
-  logoDotFade,
-  logoSharpenProgress,
+  dotsOpacityUnderOverlay,
+  pixelOverlayFade,
   type MorphDot,
 } from '@/lib/splashMorphTargets';
 import { FEATURE_ICONS, sampleShape, type ShapePoint } from '@/lib/splashDotShapes';
 
 export type SplashPhase =
-  | 'presents'
-  | 'mainline'
+  | 'intro'
+  | 'cover'
   | 'disperse'
-  | 'singleton'
   | 'split'
   | 'multiply'
   | 'icons'
-  | 'logo'
+  | 'assemble'
   | 'hold'
   | 'exit';
 
@@ -29,35 +29,17 @@ export type AnimDot = {
   trail: [number, number][];
 };
 
-export const DURATIONS_FULL = {
-  presents: 2400,
-  mainline: 1100,
-  disperse: 1400,
-  singleton: 0,
+export const DURATIONS = {
+  intro: 1400,
+  cover: 2400,
+  disperse: 1300,
   split: 1000,
   multiply: 2000,
-  icons: 4800,
-  logo: 4600,
-  hold: 1800,
-  exit: 900,
+  icons: 4600,
+  assemble: 5000,
+  hold: 1600,
+  exit: 850,
 } as const;
-
-export const DURATIONS_QUICK = {
-  presents: 0,
-  mainline: 0,
-  disperse: 0,
-  singleton: 400,
-  split: 500,
-  multiply: 800,
-  icons: 1600,
-  logo: 1800,
-  hold: 700,
-  exit: 550,
-} as const;
-
-function getDurations(firstOpen: boolean) {
-  return firstOpen ? DURATIONS_FULL : DURATIONS_QUICK;
-}
 
 const GOLDEN = Math.PI * (3 - Math.sqrt(5));
 const iconShapeCache = new Map<string, ShapePoint[]>();
@@ -75,63 +57,50 @@ function hashOffset(i: number, scale: number): number {
   return Math.sin(i * 12.9898) * scale;
 }
 
-export function timelineOffset(firstOpen: boolean): Record<SplashPhase, number> {
-  const D = getDurations(firstOpen);
+export function timelineOffset(): Record<SplashPhase, number> {
+  const D = DURATIONS;
   let t = 0;
   const o = {} as Record<SplashPhase, number>;
-  if (firstOpen) {
-    o.presents = t;
-    t += D.presents;
-    o.mainline = t;
-    t += D.mainline;
-    o.disperse = t;
-    t += D.disperse;
-  } else {
-    o.presents = -1;
-    o.mainline = -1;
-    o.disperse = -1;
-  }
-  o.singleton = t;
-  t += D.singleton;
+  o.intro = t;
+  t += D.intro;
+  o.cover = t;
+  t += D.cover;
+  o.disperse = t;
+  t += D.disperse;
   o.split = t;
   t += D.split;
   o.multiply = t;
   t += D.multiply;
   o.icons = t;
   t += D.icons;
-  o.logo = t;
-  t += D.logo;
+  o.assemble = t;
+  t += D.assemble;
   o.hold = t;
   t += D.hold;
   o.exit = t;
   return o;
 }
 
-export function totalDuration(firstOpen: boolean): number {
-  const D = getDurations(firstOpen);
-  const o = timelineOffset(firstOpen);
-  return o.exit + D.exit;
+export function totalDuration(): number {
+  const o = timelineOffset();
+  return o.exit + DURATIONS.exit;
 }
 
 export function resolvePhase(
-  elapsed: number,
-  firstOpen: boolean
+  elapsed: number
 ): { phase: SplashPhase; localT: number; iconIndex: number; iconLabel: string } {
-  const o = timelineOffset(firstOpen);
-  const D = getDurations(firstOpen);
+  const o = timelineOffset();
+  const D = DURATIONS;
   const iconDur = D.icons / FEATURE_ICONS.length;
 
-  if (firstOpen && elapsed < o.mainline) {
-    return { phase: 'presents', localT: elapsed / D.presents, iconIndex: 0, iconLabel: '' };
+  if (elapsed < o.cover) {
+    return { phase: 'intro', localT: elapsed / D.intro, iconIndex: 0, iconLabel: '' };
   }
-  if (firstOpen && elapsed < o.disperse) {
-    return { phase: 'mainline', localT: (elapsed - o.mainline) / D.mainline, iconIndex: 0, iconLabel: '' };
+  if (elapsed < o.disperse) {
+    return { phase: 'cover', localT: (elapsed - o.cover) / D.cover, iconIndex: 0, iconLabel: '' };
   }
-  if (firstOpen && elapsed < o.split) {
+  if (elapsed < o.split) {
     return { phase: 'disperse', localT: (elapsed - o.disperse) / D.disperse, iconIndex: 0, iconLabel: '' };
-  }
-  if (D.singleton > 0 && elapsed < o.split) {
-    return { phase: 'singleton', localT: (elapsed - o.singleton) / D.singleton, iconIndex: 0, iconLabel: '' };
   }
   if (elapsed < o.multiply) {
     return { phase: 'split', localT: (elapsed - o.split) / D.split, iconIndex: 0, iconLabel: '' };
@@ -139,7 +108,7 @@ export function resolvePhase(
   if (elapsed < o.icons) {
     return { phase: 'multiply', localT: (elapsed - o.multiply) / D.multiply, iconIndex: 0, iconLabel: '' };
   }
-  if (elapsed < o.logo) {
+  if (elapsed < o.assemble) {
     const iconElapsed = elapsed - o.icons;
     const iconIndex = Math.min(FEATURE_ICONS.length - 1, Math.floor(iconElapsed / iconDur));
     const localT = (iconElapsed - iconIndex * iconDur) / iconDur;
@@ -151,7 +120,7 @@ export function resolvePhase(
     };
   }
   if (elapsed < o.hold) {
-    return { phase: 'logo', localT: (elapsed - o.logo) / D.logo, iconIndex: 0, iconLabel: '' };
+    return { phase: 'assemble', localT: (elapsed - o.assemble) / D.assemble, iconIndex: 0, iconLabel: '' };
   }
   if (elapsed < o.exit) {
     return { phase: 'hold', localT: (elapsed - o.hold) / D.hold, iconIndex: 0, iconLabel: '' };
@@ -239,32 +208,67 @@ export function updateDotsForPhase(
   width: number,
   height: number,
   mainlineTargets: MorphDot[] | null,
-  logoTargets: MorphDot[] | null,
+  pixelTargets: MorphDot[] | null,
   time: number,
   prevIconIndex: number,
   prevIconPoints: ShapePoint[]
-): { reveal: number; iconPoints: ShapePoint[]; mainlineOverlay: number } {
+): {
+  pixelReveal: number;
+  brandOverlay: number;
+  iconPoints: ShapePoint[];
+  dotAlpha: number;
+} {
   const cx = width / 2;
   const cy = height / 2;
   const iconSize = Math.min(130, width * 0.24);
-  let reveal = 0;
-  let mainlineOverlay = 0;
+  let pixelReveal = 0;
+  let brandOverlay = 0;
+  let dotAlpha = 1;
   let iconPoints: ShapePoint[] = prevIconPoints;
 
-  if (phase === 'mainline' && mainlineTargets?.length) {
+  if (phase === 'intro') {
+    if (mainlineTargets?.length) {
+      const count = mainlineTargets.length;
+      resizeDotPool(dots, count, cx, cy, 210);
+      for (let i = 0; i < count; i++) {
+        const m = mainlineTargets[i];
+        dots[i].x = m.tx;
+        dots[i].y = m.ty;
+        dots[i].tx = m.tx;
+        dots[i].ty = m.ty;
+        dots[i].hue = m.hue;
+        dots[i].size = m.size * 0.3;
+        dots[i].x += hashOffset(i, 80);
+        dots[i].y += hashOffset(i + 3, 80);
+      }
+    }
+    brandOverlay = 1;
+    dotAlpha = 0.15;
+    return { pixelReveal: 0, brandOverlay, iconPoints, dotAlpha };
+  }
+
+  if (phase === 'cover' && mainlineTargets?.length) {
+    const t = easeOutCubic(localT);
     const count = mainlineTargets.length;
     resizeDotPool(dots, count, cx, cy, 210);
+    brandOverlay = brandOverlayFade(localT);
+    dotAlpha = 0.35 + t * 0.65;
+
     for (let i = 0; i < count; i++) {
       const m = mainlineTargets[i];
-      dots[i].x = m.tx;
-      dots[i].y = m.ty;
+      const spawn = 55 + hashOffset(i, 40);
+      const angle = i * GOLDEN;
+      if (t < 0.12) {
+        dots[i].x = m.tx + Math.cos(angle) * spawn;
+        dots[i].y = m.ty + Math.sin(angle) * spawn;
+      }
       dots[i].tx = m.tx;
       dots[i].ty = m.ty;
       dots[i].hue = m.hue;
-      dots[i].size = m.size;
+      dots[i].size = m.size * (0.85 + t * 0.35);
     }
-    mainlineOverlay = 1;
-    return { reveal: 0, iconPoints, mainlineOverlay };
+    lerpDots(dots, 0.09 + t * 0.1);
+    return { pixelReveal: 0, brandOverlay, iconPoints, dotAlpha };
   }
 
   if (phase === 'disperse' && mainlineTargets?.length) {
@@ -272,6 +276,7 @@ export function updateDotsForPhase(
     const count = mainlineTargets.length;
     resizeDotPool(dots, count, cx, cy, 210);
     const maxR = Math.min(width, height) * 0.42;
+    brandOverlay = 0;
     for (let i = 0; i < count; i++) {
       const home = mainlineTargets[i];
       const angle = i * GOLDEN + time * 0.0025;
@@ -279,60 +284,47 @@ export function updateDotsForPhase(
       dots[i].tx = home.tx + Math.cos(angle) * r;
       dots[i].ty = home.ty + Math.sin(angle) * r * 0.86;
       dots[i].hue = home.hue + t * 35;
-      dots[i].size = home.size * (1 + t * 0.5);
-      if (t < 0.08) {
+      dots[i].size = home.size * (1 + t * 0.45);
+      if (t < 0.06) {
         dots[i].x = home.tx;
         dots[i].y = home.ty;
       }
     }
-    mainlineOverlay = Math.max(0, 1 - smoothstep(localT / 0.35));
     lerpDots(dots, 0.07 + t * 0.12);
-    return { reveal: 0, iconPoints, mainlineOverlay };
-  }
-
-  if (phase === 'singleton') {
-    const t = easeOutCubic(localT);
-    resizeDotPool(dots, 1, cx, cy, 215);
-    const pulse = 1 + Math.sin(time * 0.008) * 0.08;
-    dots[0].tx = cx;
-    dots[0].ty = cy;
-    dots[0].hue = 210 + t * 50;
-    dots[0].size = (6 + t * 5) * pulse;
-    lerpDots(dots, 0.12);
-    return { reveal: 0, iconPoints, mainlineOverlay: 0 };
+    return { pixelReveal: 0, brandOverlay: 0, iconPoints, dotAlpha: 1 };
   }
 
   if (phase === 'split') {
     const t = easeOutCubic(localT);
-    const count = Math.max(1, Math.round(1 + t * 7));
+    const count = Math.max(8, Math.round(8 + t * 24));
     resizeDotPool(dots, count, cx, cy, 220);
-    const r = 28 + t * 32;
+    const r = 32 + t * 40;
     for (let i = 0; i < count; i++) {
       const a = (i / count) * Math.PI * 2 - Math.PI / 2;
       dots[i].tx = cx + Math.cos(a) * r;
       dots[i].ty = cy + Math.sin(a) * r;
-      dots[i].hue = 205 + i * 16;
-      dots[i].size = 3.2 + (i % 2) * 0.8;
+      dots[i].hue = 205 + i * 14;
+      dots[i].size = 3 + (i % 2) * 0.7;
     }
     lerpDots(dots, 0.11 + t * 0.04);
-    return { reveal: 0, iconPoints, mainlineOverlay: 0 };
+    return { pixelReveal: 0, brandOverlay: 0, iconPoints, dotAlpha: 1 };
   }
 
   if (phase === 'multiply') {
     const t = easeOutCubic(localT);
-    const count = Math.round(6 + t * 118);
+    const count = Math.round(12 + t * 118);
     resizeDotPool(dots, count, cx, cy, 198);
     const maxR = Math.min(width, height) * 0.36;
     for (let i = 0; i < count; i++) {
       const swirl = time * 0.0018 + i * GOLDEN;
-      const r = 12 + t * maxR * (0.4 + (i % 9) / 14);
+      const r = 14 + t * maxR * (0.4 + (i % 9) / 14);
       dots[i].tx = cx + Math.cos(swirl) * r;
       dots[i].ty = cy + Math.sin(swirl) * r * 0.88;
       dots[i].hue = 192 + (i % 14) * 12 + t * 45;
       dots[i].size = 2 + (i % 5) * 0.35;
     }
     lerpDots(dots, 0.06 + t * 0.06);
-    return { reveal: 0, iconPoints, mainlineOverlay: 0 };
+    return { pixelReveal: 0, brandOverlay: 0, iconPoints, dotAlpha: 1 };
   }
 
   if (phase === 'icons') {
@@ -344,8 +336,7 @@ export function updateDotsForPhase(
     iconPoints = getIconPoints(iconIndex, cx, cy - height * 0.03, iconSize, count);
 
     if (prevIconIndex >= 0 && prevIconPoints.length > 0 && localT < 0.28) {
-      const blend = smoothstep(localT / 0.28);
-      blendTargets(dots, prevIconPoints, iconPoints, blend, cx, cy);
+      blendTargets(dots, prevIconPoints, iconPoints, smoothstep(localT / 0.28), cx, cy);
     } else {
       for (let i = 0; i < count; i++) {
         const p = iconPoints[i % iconPoints.length];
@@ -357,29 +348,36 @@ export function updateDotsForPhase(
       }
     }
     lerpDots(dots, 0.09 + hold * 0.05);
-    return { reveal: hold, iconPoints, mainlineOverlay: 0 };
+    return { pixelReveal: 0, brandOverlay: 0, iconPoints, dotAlpha: 1 };
   }
 
-  if (phase === 'logo') {
+  if (phase === 'assemble') {
     const t = easeOutCubic(localT);
-    reveal = logoSharpenProgress(localT);
-    if (logoTargets && logoTargets.length > 0) {
-      const count = logoTargets.length;
-      resizeDotPool(dots, count, cx, cy, 210);
+    pixelReveal = pixelOverlayFade(localT);
+    dotAlpha = dotsOpacityUnderOverlay(pixelReveal);
+
+    if (pixelTargets && pixelTargets.length > 0) {
+      const count = pixelTargets.length;
+      resizeDotPool(dots, count, cx, cy, 215);
       for (let i = 0; i < count; i++) {
-        const lt = logoTargets[i];
-        dots[i].tx = lt.tx;
-        dots[i].ty = lt.ty;
-        dots[i].hue = lt.hue;
-        dots[i].size = lt.size * (0.92 + t * 0.08);
+        const pt = pixelTargets[i];
+        if (t < 0.08) {
+          const angle = i * GOLDEN + time * 0.002;
+          const r = 80 + hashOffset(i, 30);
+          dots[i].x = cx + Math.cos(angle) * r;
+          dots[i].y = cy + Math.sin(angle) * r * 0.85;
+        }
+        dots[i].tx = pt.tx;
+        dots[i].ty = pt.ty;
+        dots[i].hue = pt.hue;
+        dots[i].size = pt.size * (0.9 + t * 0.15);
       }
-      const snap = localT > 0.65 ? 0.14 + t * 0.06 : 0.06 + t * 0.08;
-      lerpDots(dots, snap);
+      lerpDots(dots, 0.05 + t * 0.11);
     }
-    return { reveal, iconPoints, mainlineOverlay: 0 };
+    return { pixelReveal, brandOverlay: 0, iconPoints, dotAlpha };
   }
 
-  return { reveal: 0, iconPoints, mainlineOverlay: 0 };
+  return { pixelReveal: 0, brandOverlay: 0, iconPoints, dotAlpha: 1 };
 }
 
 function drawBackground(ctx: CanvasRenderingContext2D, width: number, height: number, time: number): void {
@@ -425,22 +423,23 @@ export function drawSplashFrame(
   dots: AnimDot[],
   phase: SplashPhase,
   time: number,
-  reveal: number,
+  pixelReveal: number,
   iconLabel: string,
-  captionAlpha: number
+  captionAlpha: number,
+  dotAlpha: number
 ): void {
   drawBackground(ctx, width, height, time);
 
   const cx = width / 2;
   const cy = height / 2;
-  const showTrails = phase === 'multiply' || phase === 'split' || phase === 'disperse';
+  const showTrails = phase === 'multiply' || phase === 'split' || phase === 'disperse' || phase === 'cover';
   const lineCap = dots.length > 100 ? 48 : dots.length;
 
   if (showTrails) {
     for (let i = 0; i < Math.min(lineCap, dots.length); i++) {
       const dot = dots[i];
       if (dot.trail.length < 2) continue;
-      ctx.strokeStyle = `hsla(${dot.hue}, 90%, 60%, 0.12)`;
+      ctx.strokeStyle = `hsla(${dot.hue}, 90%, 60%, ${0.12 * dotAlpha})`;
       ctx.lineWidth = dot.size * 0.8;
       ctx.beginPath();
       ctx.moveTo(dot.trail[0][0], dot.trail[0][1]);
@@ -452,15 +451,17 @@ export function drawSplashFrame(
   }
 
   const lineAlpha =
-    phase === 'logo'
-      ? logoDotFade(reveal) * 0.4
+    phase === 'assemble'
+      ? dotAlpha * 0.38
       : phase === 'icons'
         ? 0.32
         : phase === 'multiply'
           ? 0.22
-          : 0.14;
+          : phase === 'cover'
+            ? 0.26
+            : 0.14;
 
-  if (lineAlpha > 0.02 && dots.length > 1 && dots.length <= 180) {
+  if (lineAlpha > 0.02 && dots.length > 1 && dots.length <= 200) {
     ctx.lineWidth = 1;
     for (let i = 0; i < dots.length; i++) {
       const a = dots[i];
@@ -478,33 +479,25 @@ export function drawSplashFrame(
     }
   }
 
-  const dotAlpha = phase === 'logo' ? logoDotFade(reveal) : 1;
-  ctx.globalCompositeOperation = 'lighter';
-  for (const dot of dots) {
-    const glowR = dot.size * (phase === 'singleton' ? 8 : 5.5);
-    const glow = ctx.createRadialGradient(dot.x, dot.y, 0, dot.x, dot.y, glowR);
-    glow.addColorStop(0, `hsla(${dot.hue}, 100%, 78%, ${0.9 * dotAlpha})`);
-    glow.addColorStop(0.35, `hsla(${dot.hue}, 95%, 55%, ${0.35 * dotAlpha})`);
-    glow.addColorStop(1, 'transparent');
-    ctx.fillStyle = glow;
-    ctx.beginPath();
-    ctx.arc(dot.x, dot.y, glowR, 0, Math.PI * 2);
-    ctx.fill();
+  if (dotAlpha > 0.02) {
+    ctx.globalCompositeOperation = 'lighter';
+    for (const dot of dots) {
+      const glowR = dot.size * 5.5;
+      const glow = ctx.createRadialGradient(dot.x, dot.y, 0, dot.x, dot.y, glowR);
+      glow.addColorStop(0, `hsla(${dot.hue}, 100%, 78%, ${0.9 * dotAlpha})`);
+      glow.addColorStop(0.35, `hsla(${dot.hue}, 95%, 55%, ${0.35 * dotAlpha})`);
+      glow.addColorStop(1, 'transparent');
+      ctx.fillStyle = glow;
+      ctx.beginPath();
+      ctx.arc(dot.x, dot.y, glowR, 0, Math.PI * 2);
+      ctx.fill();
 
-    ctx.beginPath();
-    ctx.arc(dot.x, dot.y, dot.size, 0, Math.PI * 2);
-    ctx.fillStyle = `hsla(${dot.hue}, 100%, 88%, ${dotAlpha})`;
-    ctx.fill();
-  }
-  ctx.globalCompositeOperation = 'source-over';
-
-  if (phase === 'singleton') {
-    const ring = 0.4 + Math.sin(time * 0.006) * 0.2;
-    ctx.strokeStyle = `rgba(120, 200, 255, ${ring})`;
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.arc(cx, cy, 28 + Math.sin(time * 0.004) * 6, 0, Math.PI * 2);
-    ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(dot.x, dot.y, dot.size, 0, Math.PI * 2);
+      ctx.fillStyle = `hsla(${dot.hue}, 100%, 88%, ${dotAlpha})`;
+      ctx.fill();
+    }
+    ctx.globalCompositeOperation = 'source-over';
   }
 
   if (iconLabel && captionAlpha > 0.05) {
@@ -512,13 +505,11 @@ export function drawSplashFrame(
     ctx.textAlign = 'center';
     ctx.fillStyle = `rgba(255,255,255,${0.85 * captionAlpha})`;
     ctx.fillText(iconLabel.toUpperCase(), cx, cy + height * 0.2);
-    ctx.fillStyle = `rgba(94, 176, 247, ${0.35 * captionAlpha})`;
-    ctx.fillRect(cx - 40, cy + height * 0.2 + 10, 80 * captionAlpha, 2);
   }
 }
 
 export function loadMainlineTargets(width: number, height: number, maxDots: number): MorphDot[] {
-  return buildMainlineMarkDots(width, height, maxDots);
+  return buildMainlineBrandDots(width, height, maxDots);
 }
 
 export async function loadPixelPlaceTargets(
@@ -528,6 +519,3 @@ export async function loadPixelPlaceTargets(
 ): Promise<MorphDot[]> {
   return buildPixelPlaceMorphDots(width, height, '/logo.png', maxDots);
 }
-
-/** @deprecated Use loadPixelPlaceTargets */
-export const loadLogoTargets = loadPixelPlaceTargets;
