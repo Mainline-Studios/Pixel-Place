@@ -11,6 +11,7 @@ import {
   updateDotsForPhase,
   type AnimDot,
   type MorphDot,
+  type SplashPhase,
 } from '@/lib/splashTimeline';
 import type { ShapePoint } from '@/lib/splashDotShapes';
 import { SplashAudioController } from '@/lib/splashAudio';
@@ -50,6 +51,7 @@ export default function StartupSplashAnimation({
 
   const [brandOverlay, setBrandOverlay] = useState(1);
   const [pixelReveal, setPixelReveal] = useState(0);
+  const [splashPhase, setSplashPhase] = useState<SplashPhase>('intro');
   const [shellOpacity, setShellOpacity] = useState(1);
   const [captionAlpha, setCaptionAlpha] = useState(0);
   const [caption, setCaption] = useState('');
@@ -116,6 +118,7 @@ export default function StartupSplashAnimation({
       if (cancelled) return;
       const elapsed = now - startRef.current;
       const { phase, localT, iconIndex, iconLabel } = resolvePhase(elapsed);
+      setSplashPhase(phase);
 
       audioRef.current?.tick(elapsed, phase, localT, iconIndex);
 
@@ -205,6 +208,10 @@ export default function StartupSplashAnimation({
 
   const markSize = 132;
   const logoSize = 148;
+  const dotsOverMainline = splashPhase === 'cover';
+  const dotsBehindMainline = splashPhase === 'intro';
+  const dotsUnderPixel =
+    splashPhase === 'assemble' || splashPhase === 'hold' || splashPhase === 'exit';
 
   return (
     <div
@@ -215,19 +222,20 @@ export default function StartupSplashAnimation({
       onPointerDown={() => audioRef.current?.unlock()}
     >
       <div className="splash-vignette" aria-hidden />
-      <canvas ref={canvasRef} className="splash-canvas" />
 
       {brandOverlay > 0.03 && (
         <div
           className="splash-mainline-layer"
-          style={{
-            opacity: brandOverlay,
-            transition: 'opacity 0.5s ease-out',
-          }}
+          style={{ opacity: brandOverlay }}
         >
           <MainlineBrandMark markSize={markSize} />
         </div>
       )}
+
+      <canvas
+        ref={canvasRef}
+        className={`splash-canvas${dotsOverMainline ? ' splash-canvas--over-brand' : ''}${dotsUnderPixel || dotsBehindMainline ? ' splash-canvas--under-logo' : ''}`}
+      />
 
       {caption && captionAlpha > 0.05 && (
         <p className="splash-caption" style={{ opacity: captionAlpha }}>
@@ -282,7 +290,13 @@ export default function StartupSplashAnimation({
           width: 100%;
           height: 100%;
           pointer-events: none;
-          z-index: 0;
+          z-index: 3;
+        }
+        .splash-canvas--over-brand {
+          z-index: 4;
+        }
+        .splash-canvas--under-logo {
+          z-index: 2;
         }
         .splash-mainline-layer {
           position: fixed;
@@ -290,7 +304,7 @@ export default function StartupSplashAnimation({
           display: flex;
           align-items: center;
           justify-content: center;
-          z-index: 2;
+          z-index: 3;
           pointer-events: none;
         }
         .splash-mainline-brand {
@@ -337,7 +351,7 @@ export default function StartupSplashAnimation({
           flex-direction: column;
           align-items: center;
           justify-content: center;
-          z-index: 3;
+          z-index: 5;
           pointer-events: none;
           padding: 1.5rem;
         }

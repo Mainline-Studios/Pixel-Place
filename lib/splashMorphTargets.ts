@@ -259,7 +259,7 @@ export function pixelOverlayFade(localT: number): number {
 }
 
 export function brandOverlayFade(localT: number): number {
-  return 1 - easeMorph(Math.max(0, (localT - 0.45) / 0.55));
+  return 1 - easeMorph(Math.max(0, (localT - 0.52) / 0.48));
 }
 
 export function dotsOpacityUnderOverlay(overlayFade: number): number {

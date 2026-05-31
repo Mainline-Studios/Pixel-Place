@@ -243,7 +243,7 @@ export function updateDotsForPhase(
       }
     }
     brandOverlay = 1;
-    dotAlpha = 0.15;
+    dotAlpha = 0.28;
     return { pixelReveal: 0, brandOverlay, iconPoints, dotAlpha };
   }
 
@@ -252,22 +252,22 @@ export function updateDotsForPhase(
     const count = mainlineTargets.length;
     resizeDotPool(dots, count, cx, cy, 210);
     brandOverlay = brandOverlayFade(localT);
-    dotAlpha = 0.35 + t * 0.65;
+    dotAlpha = 0.55 + t * 0.45;
 
     for (let i = 0; i < count; i++) {
       const m = mainlineTargets[i];
-      const spawn = 55 + hashOffset(i, 40);
+      const spawn = 72 + hashOffset(i, 48);
       const angle = i * GOLDEN;
-      if (t < 0.12) {
+      if (t < 0.18) {
         dots[i].x = m.tx + Math.cos(angle) * spawn;
         dots[i].y = m.ty + Math.sin(angle) * spawn;
       }
       dots[i].tx = m.tx;
       dots[i].ty = m.ty;
       dots[i].hue = m.hue;
-      dots[i].size = m.size * (0.85 + t * 0.35);
+      dots[i].size = m.size * (1.1 + t * 0.55);
     }
-    lerpDots(dots, 0.09 + t * 0.1);
+    lerpDots(dots, 0.12 + t * 0.14);
     return { pixelReveal: 0, brandOverlay, iconPoints, dotAlpha };
   }
 
@@ -433,7 +433,7 @@ export function drawSplashFrame(
   const cx = width / 2;
   const cy = height / 2;
   const showTrails = phase === 'multiply' || phase === 'split' || phase === 'disperse' || phase === 'cover';
-  const lineCap = dots.length > 100 ? 48 : dots.length;
+  const lineCap = phase === 'cover' ? dots.length : dots.length > 100 ? 80 : dots.length;
 
   if (showTrails) {
     for (let i = 0; i < Math.min(lineCap, dots.length); i++) {
@@ -458,10 +458,10 @@ export function drawSplashFrame(
         : phase === 'multiply'
           ? 0.22
           : phase === 'cover'
-            ? 0.26
+            ? 0.42
             : 0.14;
 
-  if (lineAlpha > 0.02 && dots.length > 1 && dots.length <= 200) {
+  if (lineAlpha > 0.02 && dots.length > 1 && (phase === 'cover' || dots.length <= 220)) {
     ctx.lineWidth = 1;
     for (let i = 0; i < dots.length; i++) {
       const a = dots[i];
@@ -482,7 +482,7 @@ export function drawSplashFrame(
   if (dotAlpha > 0.02) {
     ctx.globalCompositeOperation = 'lighter';
     for (const dot of dots) {
-      const glowR = dot.size * 5.5;
+      const glowR = dot.size * (phase === 'cover' || phase === 'assemble' ? 7 : 5.5);
       const glow = ctx.createRadialGradient(dot.x, dot.y, 0, dot.x, dot.y, glowR);
       glow.addColorStop(0, `hsla(${dot.hue}, 100%, 78%, ${0.9 * dotAlpha})`);
       glow.addColorStop(0.35, `hsla(${dot.hue}, 95%, 55%, ${0.35 * dotAlpha})`);
