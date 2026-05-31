@@ -12,6 +12,16 @@ export type MorphDot = {
 
 const smoothstep = (t: number) => t * t * (3 - 2 * t);
 
+function loadImage(src: string): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => resolve(img);
+    img.onerror = () => reject(new Error(`Failed to load ${src}`));
+    img.src = src;
+  });
+}
+
 function subsample<T>(items: T[], max: number): T[] {
   if (items.length <= max) return items;
   const out: T[] = [];
@@ -36,8 +46,8 @@ function assignNeighbors(dots: MorphDot[], k: number): void {
   }
 }
 
-/** Draw Mainline Studios mark (rounded square + inner fill) for dot sampling. */
-function drawMainlineMark(ctx: CanvasRenderingContext2D, cx: number, cy: number, size: number): void {
+/** Mainline Studios mark (rounded square + inner fill) — no wordmark. */
+export function drawMainlineMark(ctx: CanvasRenderingContext2D, cx: number, cy: number, size: number): void {
   const half = size / 2;
   const x = cx - half;
   const y = cy - half;
@@ -85,7 +95,8 @@ function sampleCanvas(
   viewW: number,
   viewH: number,
   maxDots: number,
-  hueBase: number
+  hueBase: number,
+  spawnJitter = 36
 ): MorphDot[] {
   const data = ctx.getImageData(0, 0, offW, offH).data;
   const stride = Math.max(2, Math.floor(Math.sqrt((offW * offH) / (maxDots * 2))));
@@ -107,12 +118,10 @@ function sampleCanvas(
   }
 
   const picked = subsample(raw, maxDots);
-  const cx = viewW / 2;
-  const cy = viewH / 2;
 
   const dots: MorphDot[] = picked.map((p, idx) => ({
-    x: cx + (Math.random() - 0.5) * 36,
-    y: cy + (Math.random() - 0.5) * 36,
+    x: p.tx + (Math.random() - 0.5) * spawnJitter * 0.15,
+    y: p.ty + (Math.random() - 0.5) * spawnJitter * 0.15,
     tx: p.tx,
     ty: p.ty,
     hue: p.hue,
@@ -124,13 +133,36 @@ function sampleCanvas(
   return dots;
 }
 
-/** Dots settle into the Mainline Studios logo + wordmark. */
-export function buildMainlineMorphDots(viewW: number, viewH: number, maxDots: number): MorphDot[] {
+/** Mainline mark only — used when the logo breaks into dots. */
+export function buildMainlineMarkDots(viewW: number, viewH: number, maxDots: number): MorphDot[] {
   const scale = Math.min(1, Math.min(viewW, viewH) / 900);
-  const markSize = Math.round(Math.min(200, viewW * 0.32) * scale + 72);
-  const titleSize = Math.round(Math.min(36, viewW * 0.048) * scale + 14);
-  const offW = Math.min(920, Math.round(viewW * 0.9));
-  const offH = Math.round(markSize + titleSize + 100);
+  const markSize = Math.round(Math.min(200, viewW * 0.3) * scale + 80);
+  const off = document.createElement('canvas');
+  off.width = markSize + 80;
+  off.height = markSize + 80;
+  const ctx = off.getContext('2d');
+  if (!ctx) return [];
+
+  ctx.fillStyle = '#000';
+  ctx.fillRect(0, 0, off.width, off.height);
+  drawMainlineMark(ctx, off.width / 2, off.height / 2, markSize);
+
+  return sampleCanvas(ctx, off.width, off.height, viewW, viewH, maxDots, 205, 8);
+}
+
+/** Pixel Place logo + title — final morph target. */
+export async function buildPixelPlaceMorphDots(
+  viewW: number,
+  viewH: number,
+  logoSrc: string,
+  maxDots: number
+): Promise<MorphDot[]> {
+  const img = await loadImage(logoSrc);
+  const scale = Math.min(1, Math.min(viewW, viewH) / 900);
+  const logoSize = Math.round(Math.min(200, viewW * 0.28) * scale + 80);
+  const titleSize = Math.round(Math.min(56, viewW * 0.075) * scale + 18);
+  const offW = Math.min(960, Math.round(viewW * 0.92));
+  const offH = Math.round(logoSize + titleSize + 100);
 
   const off = document.createElement('canvas');
   off.width = offW;
@@ -141,30 +173,28 @@ export function buildMainlineMorphDots(viewW: number, viewH: number, maxDots: nu
   ctx.fillStyle = '#000';
   ctx.fillRect(0, 0, offW, offH);
 
-  const markY = offH * 0.38;
-  drawMainlineMark(ctx, offW / 2, markY, markSize);
+  const logoX = (offW - logoSize) / 2;
+  const logoY = 40;
+  ctx.drawImage(img, logoX, logoY, logoSize, logoSize);
 
   ctx.fillStyle = '#ffffff';
   ctx.font = `700 ${titleSize}px system-ui, -apple-system, "Segoe UI", sans-serif`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText('MAINLINE', offW / 2, markY + markSize * 0.52 + titleSize * 0.55);
-  ctx.fillText('STUDIOS', offW / 2, markY + markSize * 0.52 + titleSize * 1.55);
+  ctx.fillText('PIXEL PLACE', offW / 2, logoY + logoSize + 48 + titleSize * 0.5);
 
-  return sampleCanvas(ctx, offW, offH, viewW, viewH, maxDots, 205);
+  return sampleCanvas(ctx, offW, offH, viewW, viewH, maxDots, 210, 36);
 }
 
 export function easeMorph(progress: number): number {
   return smoothstep(Math.min(1, Math.max(0, progress)));
 }
 
-/** Overlay sharpens only after dots have settled (late in logo phase). */
 export function logoSharpenProgress(localT: number): number {
-  return easeMorph(Math.max(0, (localT - 0.78) / 0.22));
+  return easeMorph(Math.max(0, (localT - 0.72) / 0.28));
 }
 
-/** Dots stay visible until the mark is formed, then gently dissolve into the SVG. */
 export function logoDotFade(sharpen: number): number {
-  if (sharpen < 0.35) return 1;
-  return Math.max(0, 1 - (sharpen - 0.35) / 0.65);
+  if (sharpen < 0.4) return 1;
+  return Math.max(0, 1 - (sharpen - 0.4) / 0.6);
 }

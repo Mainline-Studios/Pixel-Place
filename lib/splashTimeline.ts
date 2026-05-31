@@ -1,5 +1,6 @@
 import {
-  buildMainlineMorphDots,
+  buildMainlineMarkDots,
+  buildPixelPlaceMorphDots,
   logoDotFade,
   logoSharpenProgress,
   type MorphDot,
@@ -8,6 +9,8 @@ import { FEATURE_ICONS, sampleShape, type ShapePoint } from '@/lib/splashDotShap
 
 export type SplashPhase =
   | 'presents'
+  | 'mainline'
+  | 'disperse'
   | 'singleton'
   | 'split'
   | 'multiply'
@@ -28,19 +31,23 @@ export type AnimDot = {
 
 export const DURATIONS_FULL = {
   presents: 2400,
-  singleton: 900,
-  split: 1100,
+  mainline: 1100,
+  disperse: 1400,
+  singleton: 0,
+  split: 1000,
   multiply: 2000,
-  icons: 5000,
-  logo: 4800,
+  icons: 4800,
+  logo: 4600,
   hold: 1800,
   exit: 900,
 } as const;
 
 export const DURATIONS_QUICK = {
   presents: 0,
-  singleton: 450,
-  split: 550,
+  mainline: 0,
+  disperse: 0,
+  singleton: 400,
+  split: 500,
   multiply: 800,
   icons: 1600,
   logo: 1800,
@@ -75,8 +82,14 @@ export function timelineOffset(firstOpen: boolean): Record<SplashPhase, number> 
   if (firstOpen) {
     o.presents = t;
     t += D.presents;
+    o.mainline = t;
+    t += D.mainline;
+    o.disperse = t;
+    t += D.disperse;
   } else {
     o.presents = -1;
+    o.mainline = -1;
+    o.disperse = -1;
   }
   o.singleton = t;
   t += D.singleton;
@@ -108,10 +121,16 @@ export function resolvePhase(
   const D = getDurations(firstOpen);
   const iconDur = D.icons / FEATURE_ICONS.length;
 
-  if (firstOpen && elapsed < o.singleton) {
+  if (firstOpen && elapsed < o.mainline) {
     return { phase: 'presents', localT: elapsed / D.presents, iconIndex: 0, iconLabel: '' };
   }
-  if (elapsed < o.split) {
+  if (firstOpen && elapsed < o.disperse) {
+    return { phase: 'mainline', localT: (elapsed - o.mainline) / D.mainline, iconIndex: 0, iconLabel: '' };
+  }
+  if (firstOpen && elapsed < o.split) {
+    return { phase: 'disperse', localT: (elapsed - o.disperse) / D.disperse, iconIndex: 0, iconLabel: '' };
+  }
+  if (D.singleton > 0 && elapsed < o.split) {
     return { phase: 'singleton', localT: (elapsed - o.singleton) / D.singleton, iconIndex: 0, iconLabel: '' };
   }
   if (elapsed < o.multiply) {
@@ -219,16 +238,57 @@ export function updateDotsForPhase(
   iconIndex: number,
   width: number,
   height: number,
+  mainlineTargets: MorphDot[] | null,
   logoTargets: MorphDot[] | null,
   time: number,
   prevIconIndex: number,
   prevIconPoints: ShapePoint[]
-): { reveal: number; iconPoints: ShapePoint[] } {
+): { reveal: number; iconPoints: ShapePoint[]; mainlineOverlay: number } {
   const cx = width / 2;
   const cy = height / 2;
   const iconSize = Math.min(130, width * 0.24);
   let reveal = 0;
+  let mainlineOverlay = 0;
   let iconPoints: ShapePoint[] = prevIconPoints;
+
+  if (phase === 'mainline' && mainlineTargets?.length) {
+    const count = mainlineTargets.length;
+    resizeDotPool(dots, count, cx, cy, 210);
+    for (let i = 0; i < count; i++) {
+      const m = mainlineTargets[i];
+      dots[i].x = m.tx;
+      dots[i].y = m.ty;
+      dots[i].tx = m.tx;
+      dots[i].ty = m.ty;
+      dots[i].hue = m.hue;
+      dots[i].size = m.size;
+    }
+    mainlineOverlay = 1;
+    return { reveal: 0, iconPoints, mainlineOverlay };
+  }
+
+  if (phase === 'disperse' && mainlineTargets?.length) {
+    const t = easeOutCubic(localT);
+    const count = mainlineTargets.length;
+    resizeDotPool(dots, count, cx, cy, 210);
+    const maxR = Math.min(width, height) * 0.42;
+    for (let i = 0; i < count; i++) {
+      const home = mainlineTargets[i];
+      const angle = i * GOLDEN + time * 0.0025;
+      const r = t * maxR * (0.45 + (i % 9) / 14);
+      dots[i].tx = home.tx + Math.cos(angle) * r;
+      dots[i].ty = home.ty + Math.sin(angle) * r * 0.86;
+      dots[i].hue = home.hue + t * 35;
+      dots[i].size = home.size * (1 + t * 0.5);
+      if (t < 0.08) {
+        dots[i].x = home.tx;
+        dots[i].y = home.ty;
+      }
+    }
+    mainlineOverlay = Math.max(0, 1 - smoothstep(localT / 0.35));
+    lerpDots(dots, 0.07 + t * 0.12);
+    return { reveal: 0, iconPoints, mainlineOverlay };
+  }
 
   if (phase === 'singleton') {
     const t = easeOutCubic(localT);
@@ -239,7 +299,7 @@ export function updateDotsForPhase(
     dots[0].hue = 210 + t * 50;
     dots[0].size = (6 + t * 5) * pulse;
     lerpDots(dots, 0.12);
-    return { reveal: 0, iconPoints };
+    return { reveal: 0, iconPoints, mainlineOverlay: 0 };
   }
 
   if (phase === 'split') {
@@ -255,7 +315,7 @@ export function updateDotsForPhase(
       dots[i].size = 3.2 + (i % 2) * 0.8;
     }
     lerpDots(dots, 0.11 + t * 0.04);
-    return { reveal: 0, iconPoints };
+    return { reveal: 0, iconPoints, mainlineOverlay: 0 };
   }
 
   if (phase === 'multiply') {
@@ -272,7 +332,7 @@ export function updateDotsForPhase(
       dots[i].size = 2 + (i % 5) * 0.35;
     }
     lerpDots(dots, 0.06 + t * 0.06);
-    return { reveal: 0, iconPoints };
+    return { reveal: 0, iconPoints, mainlineOverlay: 0 };
   }
 
   if (phase === 'icons') {
@@ -297,7 +357,7 @@ export function updateDotsForPhase(
       }
     }
     lerpDots(dots, 0.09 + hold * 0.05);
-    return { reveal: hold, iconPoints };
+    return { reveal: hold, iconPoints, mainlineOverlay: 0 };
   }
 
   if (phase === 'logo') {
@@ -316,10 +376,10 @@ export function updateDotsForPhase(
       const snap = localT > 0.65 ? 0.14 + t * 0.06 : 0.06 + t * 0.08;
       lerpDots(dots, snap);
     }
-    return { reveal, iconPoints };
+    return { reveal, iconPoints, mainlineOverlay: 0 };
   }
 
-  return { reveal: 0, iconPoints };
+  return { reveal: 0, iconPoints, mainlineOverlay: 0 };
 }
 
 function drawBackground(ctx: CanvasRenderingContext2D, width: number, height: number, time: number): void {
@@ -373,7 +433,7 @@ export function drawSplashFrame(
 
   const cx = width / 2;
   const cy = height / 2;
-  const showTrails = phase === 'multiply' || phase === 'split';
+  const showTrails = phase === 'multiply' || phase === 'split' || phase === 'disperse';
   const lineCap = dots.length > 100 ? 48 : dots.length;
 
   if (showTrails) {
@@ -457,10 +517,17 @@ export function drawSplashFrame(
   }
 }
 
-export async function loadLogoTargets(
+export function loadMainlineTargets(width: number, height: number, maxDots: number): MorphDot[] {
+  return buildMainlineMarkDots(width, height, maxDots);
+}
+
+export async function loadPixelPlaceTargets(
   width: number,
   height: number,
   maxDots: number
 ): Promise<MorphDot[]> {
-  return buildMainlineMorphDots(width, height, maxDots);
+  return buildPixelPlaceMorphDots(width, height, '/logo.png', maxDots);
 }
+
+/** @deprecated Use loadPixelPlaceTargets */
+export const loadLogoTargets = loadPixelPlaceTargets;

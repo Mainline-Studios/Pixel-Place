@@ -1,9 +1,11 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import Image from 'next/image';
 import {
   drawSplashFrame,
-  loadLogoTargets,
+  loadMainlineTargets,
+  loadPixelPlaceTargets,
   resolvePhase,
   totalDuration,
   updateDotsForPhase,
@@ -35,7 +37,8 @@ export default function StartupSplashAnimation({
 }: StartupSplashAnimationProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const dotsRef = useRef<AnimDot[]>([]);
-  const logoTargetsRef = useRef<MorphDot[] | null>(null);
+  const mainlineTargetsRef = useRef<MorphDot[] | null>(null);
+  const pixelTargetsRef = useRef<MorphDot[] | null>(null);
   const lastIconIndexRef = useRef(-1);
   const storedIconPointsRef = useRef<ShapePoint[]>([]);
   const startRef = useRef(0);
@@ -45,7 +48,8 @@ export default function StartupSplashAnimation({
 
   const [presentsOpacity, setPresentsOpacity] = useState(0);
   const [presentsLine2, setPresentsLine2] = useState(0);
-  const [revealOpacity, setRevealOpacity] = useState(0);
+  const [mainlineOverlay, setMainlineOverlay] = useState(0);
+  const [pixelReveal, setPixelReveal] = useState(0);
   const [shellOpacity, setShellOpacity] = useState(1);
   const [captionAlpha, setCaptionAlpha] = useState(0);
   const [caption, setCaption] = useState('');
@@ -63,7 +67,7 @@ export default function StartupSplashAnimation({
     if (!firstOpen) return;
     const t1 = requestAnimationFrame(() => setPresentsOpacity(1));
     const t2 = setTimeout(() => setPresentsLine2(1), 420);
-    const t3 = setTimeout(() => setPresentsOpacity(0), 2000);
+    const t3 = setTimeout(() => setPresentsOpacity(0), 2100);
     return () => {
       cancelAnimationFrame(t1);
       clearTimeout(t2);
@@ -92,9 +96,15 @@ export default function StartupSplashAnimation({
     if (!ctx) return;
 
     let cancelled = false;
+
     const loadTargets = () => {
-      void loadLogoTargets(canvas.width, canvas.height, firstOpen ? 520 : 300).then((targets) => {
-        if (!cancelled) logoTargetsRef.current = targets;
+      mainlineTargetsRef.current = loadMainlineTargets(
+        canvas.width,
+        canvas.height,
+        firstOpen ? 380 : 280
+      );
+      void loadPixelPlaceTargets(canvas.width, canvas.height, firstOpen ? 500 : 300).then((targets) => {
+        if (!cancelled) pixelTargetsRef.current = targets;
       });
     };
 
@@ -120,18 +130,25 @@ export default function StartupSplashAnimation({
       if (phase === 'presents') {
         drawSplashFrame(ctx, canvas.width, canvas.height, [], 'singleton', now, 0, '', 0);
       } else if (phase !== 'exit') {
-        const { reveal, iconPoints } = updateDotsForPhase(
+        const { reveal, iconPoints, mainlineOverlay: mlOverlay } = updateDotsForPhase(
           dotsRef.current,
           phase,
           localT,
           iconIndex,
           canvas.width,
           canvas.height,
-          logoTargetsRef.current,
+          mainlineTargetsRef.current,
+          pixelTargetsRef.current,
           now,
           lastIconIndexRef.current,
           storedIconPointsRef.current
         );
+
+        if (phase === 'mainline') {
+          setMainlineOverlay(1);
+        } else {
+          setMainlineOverlay(mlOverlay);
+        }
 
         if (phase === 'icons') {
           storedIconPointsRef.current = iconPoints;
@@ -144,8 +161,10 @@ export default function StartupSplashAnimation({
           setCaptionAlpha(0);
         }
 
-        if (phase === 'logo') setRevealOpacity((r) => Math.max(r, reveal));
-        if (phase === 'hold') setRevealOpacity(1);
+        if (phase === 'logo' || phase === 'hold') {
+          setPixelReveal((r) => Math.max(r, reveal));
+        }
+        if (phase === 'hold') setPixelReveal(1);
 
         drawSplashFrame(
           ctx,
@@ -161,16 +180,17 @@ export default function StartupSplashAnimation({
       }
 
       if (phase === 'hold') {
-        setRevealOpacity(1);
+        setPixelReveal(1);
+        setMainlineOverlay(0);
         setCaption('');
-        setCaptionAlpha(0);
         drawSplashFrame(ctx, canvas.width, canvas.height, dotsRef.current, 'hold', now, 1, '', 0);
       }
 
       if (phase === 'exit') {
         const fade = 1 - localT;
         setShellOpacity(fade);
-        setRevealOpacity(fade);
+        setPixelReveal(fade);
+        setMainlineOverlay(0);
       }
 
       if (elapsed < duration) {
@@ -203,8 +223,8 @@ export default function StartupSplashAnimation({
     );
   }
 
-  const markSize = firstOpen ? 128 : 96;
-  const showBrand = revealOpacity > 0.02;
+  const markSize = firstOpen ? 132 : 96;
+  const logoSize = firstOpen ? 148 : 100;
 
   return (
     <div className="splash-shell" style={{ opacity: shellOpacity }} role="dialog" aria-label="Pixel Place startup">
@@ -215,7 +235,10 @@ export default function StartupSplashAnimation({
       {firstOpen && (
         <div className="splash-presents" style={{ opacity: presentsOpacity }}>
           <p className="splash-presents__studio">MAINLINE STUDIOS</p>
-          <p className="splash-presents__tag" style={{ opacity: presentsLine2, transform: `translateY(${(1 - presentsLine2) * 12}px)` }}>
+          <p
+            className="splash-presents__tag"
+            style={{ opacity: presentsLine2, transform: `translateY(${(1 - presentsLine2) * 12}px)` }}
+          >
             PRESENTS
           </p>
         </div>
@@ -223,26 +246,40 @@ export default function StartupSplashAnimation({
 
       <canvas ref={canvasRef} className="splash-canvas" />
 
+      {mainlineOverlay > 0.02 && (
+        <div
+          className="splash-mainline-mark"
+          style={{
+            opacity: mainlineOverlay,
+            transform: `scale(${0.96 + mainlineOverlay * 0.04})`,
+          }}
+        >
+          <MainlineLogoMark size={markSize} />
+        </div>
+      )}
+
       {caption && captionAlpha > 0.05 && (
         <p className="splash-caption" style={{ opacity: captionAlpha }}>
           {caption}
         </p>
       )}
 
-      {showBrand && (
+      {pixelReveal > 0.02 && (
         <div
           className="splash-brand"
           style={{
-            opacity: revealOpacity,
-            transform: `scale(${0.94 + revealOpacity * 0.06})`,
-            filter: `blur(${(1 - revealOpacity) * 6}px)`,
+            opacity: pixelReveal,
+            transform: `scale(${0.94 + pixelReveal * 0.06})`,
+            filter: `blur(${(1 - pixelReveal) * 5}px)`,
           }}
         >
-          <div className="splash-brand__glow" style={{ opacity: revealOpacity * 0.85 }} aria-hidden />
-          <MainlineLogoMark size={markSize} />
-          <h1 className="splash-brand__title">MAINLINE STUDIOS</h1>
-          {firstOpen && revealOpacity > 0.88 && (
-            <p className="splash-brand__presents">presents Pixel Place</p>
+          <div className="splash-brand__glow" style={{ opacity: pixelReveal * 0.85 }} aria-hidden />
+          <div className="splash-brand__logo-wrap">
+            <Image src="/logo.png" alt="Pixel Place" width={logoSize} height={logoSize} priority />
+          </div>
+          <h1 className="splash-brand__title">PIXEL PLACE</h1>
+          {firstOpen && pixelReveal > 0.85 && (
+            <p className="splash-brand__motto">Play · Create · Share</p>
           )}
         </div>
       )}
@@ -280,16 +317,14 @@ export default function StartupSplashAnimation({
           z-index: 2;
         }
         .splash-bar--top { top: 0; }
-        .splash-bar--bottom {
-          bottom: 0;
-          transform: rotate(180deg);
-        }
+        .splash-bar--bottom { bottom: 0; transform: rotate(180deg); }
         .splash-canvas {
           position: fixed;
           inset: 0;
           width: 100%;
           height: 100%;
           pointer-events: none;
+          z-index: 0;
         }
         .splash-presents {
           position: fixed;
@@ -298,7 +333,7 @@ export default function StartupSplashAnimation({
           flex-direction: column;
           align-items: center;
           justify-content: center;
-          z-index: 3;
+          z-index: 4;
           pointer-events: none;
           transition: opacity 0.65s ease-in-out;
           text-align: center;
@@ -322,6 +357,16 @@ export default function StartupSplashAnimation({
           color: rgba(120, 190, 255, 0.95);
           transition: opacity 0.55s ease-out, transform 0.55s ease-out;
         }
+        .splash-mainline-mark {
+          position: fixed;
+          inset: 0;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          z-index: 2;
+          pointer-events: none;
+          transition: opacity 0.35s ease-out, transform 0.5s ease-out;
+        }
         .splash-caption {
           position: fixed;
           left: 0;
@@ -335,7 +380,6 @@ export default function StartupSplashAnimation({
           color: rgba(255,255,255,0.7);
           z-index: 2;
           pointer-events: none;
-          transition: opacity 0.25s ease-out;
         }
         .splash-brand {
           position: fixed;
@@ -344,10 +388,10 @@ export default function StartupSplashAnimation({
           flex-direction: column;
           align-items: center;
           justify-content: center;
-          z-index: 2;
+          z-index: 3;
           pointer-events: none;
           padding: 1.5rem;
-          transition: opacity 0.5s ease-out, transform 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+          transition: opacity 0.45s ease-out, transform 0.55s cubic-bezier(0.22, 1, 0.36, 1);
         }
         .splash-brand__glow {
           position: absolute;
@@ -357,21 +401,30 @@ export default function StartupSplashAnimation({
           background: radial-gradient(circle, rgba(43, 108, 176, 0.45) 0%, transparent 70%);
           filter: blur(24px);
         }
+        .splash-brand__logo-wrap {
+          position: relative;
+          border-radius: 22px;
+          overflow: hidden;
+          box-shadow:
+            0 0 0 1px rgba(255,255,255,0.08),
+            0 0 60px rgba(43, 108, 176, 0.55),
+            0 20px 50px rgba(0,0,0,0.45);
+        }
         .splash-brand__title {
           margin: 1.25rem 0 0;
-          font-size: clamp(1.1rem, 3.5vw, 1.65rem);
+          font-size: clamp(1.85rem, 6vw, 3rem);
           font-weight: 700;
-          letter-spacing: 0.28em;
-          text-indent: 0.28em;
+          letter-spacing: 0.14em;
+          text-indent: 0.14em;
           color: #fff;
-          text-shadow: 0 0 40px rgba(43, 108, 176, 0.75);
+          text-shadow: 0 0 50px rgba(43, 108, 176, 0.8);
         }
-        .splash-brand__presents {
-          margin: 0.75rem 0 0;
-          font-size: 0.9rem;
-          letter-spacing: 0.18em;
-          color: rgba(120, 190, 255, 0.85);
-          animation: splashMottoIn 0.7s ease-out;
+        .splash-brand__motto {
+          margin: 0.85rem 0 0;
+          font-size: 0.95rem;
+          letter-spacing: 0.22em;
+          color: rgba(255,255,255,0.65);
+          animation: splashMottoIn 0.8s ease-out;
         }
         @keyframes splashMottoIn {
           from { opacity: 0; transform: translateY(8px); }
