@@ -153,13 +153,13 @@ export default function StartupSplashAnimation({
 
       const mainlineEl = mainlineBrandRef.current;
       if (mainlineEl) {
-        const measured = buildMainlineBrandDotsFromDom(w, h, mainlineEl, 340);
+        const measured = buildMainlineBrandDotsFromDom(w, h, mainlineEl, 420);
         if (measured.length > 0) mainlineTargetsRef.current = measured;
       }
 
       const pixelEl = pixelMeasureRef.current ?? pixelBrandRef.current;
       if (pixelEl) {
-        const measured = buildPixelPlaceMorphDotsFromDom(w, h, pixelEl, 400);
+        const measured = buildPixelPlaceMorphDotsFromDom(w, h, pixelEl, 500);
         if (measured.length > 0) pixelTargetsRef.current = measured;
       }
     };
@@ -512,8 +512,8 @@ export default function StartupSplashAnimation({
         }
         .splash-brand__glow {
           position: absolute;
-          width: min(220px, 52vw);
-          height: min(220px, 52vw);
+          width: min(320px, 70vw);
+          height: min(320px, 70vw);
           border-radius: 50%;
           background: radial-gradient(circle, rgba(43, 108, 176, 0.45) 0%, transparent 70%);
           filter: blur(24px);

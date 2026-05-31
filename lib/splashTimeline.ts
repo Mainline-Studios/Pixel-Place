@@ -1,3 +1,4 @@
+import { SPLASH_DOT_RENDER_SCALE } from '@/lib/splashBrandLayout';
 import {
   brandOverlayFade,
   buildMainlineBrandDots,
@@ -224,7 +225,7 @@ export function buildBurstGrid(width: number, height: number, centerY?: number):
         tx: ox + col * gapX,
         ty: oy + row * gapY,
         hue: 195 + (i % 7) * 18 + (row / rows) * 40,
-        size: 3 + (i % 3) * 0.45,
+        size: (2.2 + (i % 3) * 0.35) * SPLASH_DOT_RENDER_SCALE,
         delay: (col / cols) * 0.35 + (row / rows) * 0.25,
       });
     }
@@ -319,7 +320,7 @@ export function updateDotsForPhase(
         dots[i].ty = m.ty;
         dots[i].hue = m.hue;
       }
-      dots[i].size = m.size * (0.72 + t * 0.28);
+      dots[i].size = m.size * SPLASH_DOT_RENDER_SCALE * (0.9 + t * 0.15);
       if (t < 0.12) {
         const angle = i * GOLDEN;
         const spawn = 40 + hashOffset(i, 24);
@@ -344,7 +345,7 @@ export function updateDotsForPhase(
       dots[i].tx = home.tx + Math.cos(angle) * r;
       dots[i].ty = home.ty + Math.sin(angle) * r * 0.86;
       dots[i].hue = home.hue + t * 35;
-      dots[i].size = home.size * (1 + t * 0.45);
+      dots[i].size = home.size * SPLASH_DOT_RENDER_SCALE * (1 + t * 0.2);
       if (t < 0.06) {
         dots[i].x = home.tx;
         dots[i].y = home.ty;
@@ -364,7 +365,7 @@ export function updateDotsForPhase(
       dots[i].tx = cx + Math.cos(a) * r;
       dots[i].ty = cy + Math.sin(a) * r;
       dots[i].hue = 205 + i * 14;
-      dots[i].size = 3 + (i % 2) * 0.7;
+      dots[i].size = (2.4 + (i % 2) * 0.5) * SPLASH_DOT_RENDER_SCALE;
     }
     lerpDots(dots, 0.11 + t * 0.04);
     return { pixelReveal: 0, brandOverlay: 0, iconPoints, dotAlpha: 1 };
@@ -381,7 +382,7 @@ export function updateDotsForPhase(
       dots[i].tx = cx + Math.cos(swirl) * r;
       dots[i].ty = cy + Math.sin(swirl) * r * 0.88;
       dots[i].hue = 192 + (i % 14) * 12 + t * 45;
-      dots[i].size = 2 + (i % 5) * 0.35;
+      dots[i].size = (1.8 + (i % 5) * 0.3) * SPLASH_DOT_RENDER_SCALE;
     }
     lerpDots(dots, 0.06 + t * 0.06);
     return { pixelReveal: 0, brandOverlay: 0, iconPoints, dotAlpha: 1 };
@@ -430,7 +431,7 @@ export function updateDotsForPhase(
         dots[i].tx = pt.tx;
         dots[i].ty = pt.ty;
         dots[i].hue = pt.hue;
-        dots[i].size = pt.size * (0.9 + t * 0.15);
+        dots[i].size = pt.size * SPLASH_DOT_RENDER_SCALE * (0.9 + t * 0.12);
       }
       lerpDots(dots, 0.05 + t * 0.11);
     }
@@ -548,7 +549,9 @@ export function drawSplashFrame(
   if (dotAlpha > 0.02) {
     ctx.globalCompositeOperation = 'lighter';
     for (const dot of dots) {
-      const glowR = dot.size * (phase === 'burst' || phase === 'cover' || phase === 'assemble' ? 4.5 : 4);
+      const coreR = Math.max(1.1, dot.size);
+      const glowMul = phase === 'burst' || phase === 'cover' || phase === 'assemble' ? 3.2 : 2.8;
+      const glowR = coreR * glowMul;
       const glow = ctx.createRadialGradient(dot.x, dot.y, 0, dot.x, dot.y, glowR);
       glow.addColorStop(0, `hsla(${dot.hue}, 100%, 78%, ${0.9 * dotAlpha})`);
       glow.addColorStop(0.35, `hsla(${dot.hue}, 95%, 55%, ${0.35 * dotAlpha})`);
@@ -559,7 +562,7 @@ export function drawSplashFrame(
       ctx.fill();
 
       ctx.beginPath();
-      ctx.arc(dot.x, dot.y, dot.size, 0, Math.PI * 2);
+      ctx.arc(dot.x, dot.y, coreR, 0, Math.PI * 2);
       ctx.fillStyle = `hsla(${dot.hue}, 100%, 88%, ${dotAlpha})`;
       ctx.fill();
       if (phase === 'burst' || phase === 'cover') {
