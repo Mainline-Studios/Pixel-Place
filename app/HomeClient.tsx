@@ -12,12 +12,12 @@ import Dashboard from '@/components/Dashboard/Dashboard';
 import SplashScreen from '@/components/SplashScreen';
 import {
   consumeSkipSplashFlag,
-  getDeviceFingerprint,
   markDeviceSplashSeen,
   markReadyAccepted,
   markSplashPlayedThisSession,
   shouldShowStartupSplash,
 } from '@/lib/appSession';
+import { getDeviceFingerprint } from '@/lib/deviceFingerprint';
 import BreakReminder from '@/components/BreakReminder';
 import BanScreen from '@/components/BanScreen';
 import LoginNotice from '@/components/LoginNotice';
