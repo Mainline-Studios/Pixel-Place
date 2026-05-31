@@ -3,13 +3,22 @@
 import React, { Suspense, useState, useEffect, useLayoutEffect } from 'react';
 import InstallPrompt from '@/components/InstallPrompt';
 import { useUser } from '@/contexts/UserContext';
+import { useSound } from '@/contexts/SoundContext';
 import Login from '@/components/Login';
 import VerifyEmailFlow from '@/components/VerifyEmailFlow';
 import SignOutAllFlow from '@/components/SignOutAllFlow';
 import { isFocusedAuthPathname, isSignOutAllPathname, isVerifyPathname } from '@/lib/focusedAuthRoutes';
 import Dashboard from '@/components/Dashboard/Dashboard';
 import SplashScreen from '@/components/SplashScreen';
-import { consumeSkipSplashFlag, markReadyAccepted } from '@/lib/appSession';
+import {
+  consumeSkipSplashFlag,
+  consumeSplashReplayFlag,
+  hasDeviceSeenSplash,
+  markDeviceSplashSeen,
+  markReadyAccepted,
+  SPLASH_SHOW_ON_EVERY_DEVICE_FOR_NOW,
+} from '@/lib/appSession';
+import { getDeviceFingerprint } from '@/lib/deviceFingerprint';
 import BreakReminder from '@/components/BreakReminder';
 import BanScreen from '@/components/BanScreen';
 import LoginNotice from '@/components/LoginNotice';
@@ -270,13 +279,14 @@ function PublicGameProfilePage({ gameId }: { gameId: number }) {
 
 function AppContent() {
   const { user, bannedSession, clearBannedSession, deviceBannedSession, clearDeviceBannedSession, isRestoring } = useUser();
+  const { soundsEnabled } = useSound();
   const [showSplash, setShowSplash] = useState(() => {
     if (typeof window === 'undefined') return false;
     const path = window.location.pathname || '/';
     if (isFocusedAuthPathname(path)) return false;
     return true;
   });
-  const [splashVariant, setSplashVariant] = useState<'full' | 'quick'>('full');
+  const [splashVariant, setSplashVariant] = useState<'first' | 'quick'>('quick');
   const prevUserRef = React.useRef<User | null>(null);
   const [payPortal, setPayPortal] = useState<PayPortalClientState>(() => getPayPortalClientState());
   const [publicUserId, setPublicUserId] = useState<number | null>(null);
@@ -305,10 +315,33 @@ function AppContent() {
     }
   }, [routePath]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (isRestoring) return;
     if (isFocusedAuthPathname(routePath)) return;
-    setSplashVariant(user ? 'quick' : 'full');
+
+    const replay = consumeSplashReplayFlag();
+    const { deviceId } = getDeviceFingerprint();
+    const needsFullSplash =
+      replay || SPLASH_SHOW_ON_EVERY_DEVICE_FOR_NOW || !hasDeviceSeenSplash(deviceId);
+
+    if (user) {
+      if (replay) {
+        setShowSplash(true);
+        setSplashVariant('first');
+        return;
+      }
+      setShowSplash(true);
+      setSplashVariant('quick');
+      return;
+    }
+
+    if (!needsFullSplash) {
+      setShowSplash(false);
+      markReadyAccepted();
+      return;
+    }
+    setShowSplash(true);
+    setSplashVariant('first');
   }, [isRestoring, user, routePath]);
 
   useEffect(() => {
@@ -381,8 +414,12 @@ function AppContent() {
       {showSplash ? (
         <SplashScreen
           variant={splashVariant}
+          audioEnabled={soundsEnabled}
           onComplete={() => {
             markReadyAccepted();
+            if (splashVariant === 'first') {
+              markDeviceSplashSeen(getDeviceFingerprint().deviceId);
+            }
             setShowSplash(false);
           }}
         />

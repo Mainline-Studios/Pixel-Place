@@ -16,6 +16,8 @@ import { STYLE_OPTIONS } from '@/lib/styleTheme';
 import { formatGenderForDisplay } from '@/lib/formatGenderDisplay';
 import SafetyPrivacyPanel from '@/components/SafetyPrivacyPanel';
 import UpdateLogsPanel from '@/components/UpdateLogsPanel';
+import { requestSplashReplay } from '@/lib/appSession';
+import { getDeviceFingerprint } from '@/lib/deviceFingerprint';
 
 interface SettingsTabProps {
   user: User;
@@ -110,6 +112,20 @@ export default function SettingsTab({ user, editMode, onToggleEditMode }: Settin
           </div>
         </div>
       )}
+      <div className="ai-box">
+        <div className="ai-label">Startup animation</div>
+        <div className="ai-output" style={{ marginBottom: '12px' }}>
+          Replay the opening sequence (Mainline Studios presents → dots → logo). Uses this device&apos;s ID so
+          we can skip it later once you&apos;ve seen it.
+        </div>
+        <p style={{ margin: '0 0 12px', fontSize: 13, color: 'var(--text-dim)', wordBreak: 'break-all' }}>
+          Device ID: {getDeviceFingerprint().deviceId}
+        </p>
+        <button type="button" className="btn" onClick={() => requestSplashReplay()}>
+          Replay startup animation
+        </button>
+      </div>
+
       <div className="ai-box">
         <div className="ai-label">Sound Effects</div>
         <div className="ai-output" style={{ marginBottom: '12px' }}>

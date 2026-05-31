@@ -2,14 +2,25 @@
 
 import StartupSplashAnimation from '@/components/StartupSplashAnimation';
 
-export type SplashVariant = 'full' | 'quick';
+export type SplashVariant = 'first' | 'quick';
 
 interface SplashScreenProps {
   onComplete: () => void;
   variant?: SplashVariant;
+  audioEnabled?: boolean;
 }
 
-/** First visit / logged-out: dot-burst canvas → Mainline → Pixel Place. */
-export default function SplashScreen({ onComplete, variant = 'full' }: SplashScreenProps) {
-  return <StartupSplashAnimation onComplete={onComplete} compact={variant === 'quick'} />;
+/** First app open: Mainline presents → dot story → logo → login. */
+export default function SplashScreen({
+  onComplete,
+  variant = 'quick',
+  audioEnabled = true,
+}: SplashScreenProps) {
+  return (
+    <StartupSplashAnimation
+      onComplete={onComplete}
+      firstOpen={variant === 'first'}
+      audioEnabled={audioEnabled}
+    />
+  );
 }

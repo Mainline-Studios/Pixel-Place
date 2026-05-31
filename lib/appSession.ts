@@ -1,13 +1,52 @@
 /** Client session flags — survive tab routes (/games, /coins) that load separate HTML shells. */
 
+import { getDeviceFingerprint } from '@/lib/deviceFingerprint';
+
 export const INACTIVITY_LOGOUT_MS = 60 * 60 * 1000; // 1 hour
+
+/** When true, every device sees the full startup splash (device flag still saved for later). */
+export const SPLASH_SHOW_ON_EVERY_DEVICE_FOR_NOW = true;
 
 const KEYS = {
   splashDone: 'pixelPlaceSplashDone',
   readyAccepted: 'pixelPlaceReadyAccepted',
   lastActivity: 'pixelPlaceLastActivityAt',
   skipSplash: 'pixelPlaceSkipSplash',
+  firstOpenSplash: 'pixelPlaceFirstOpenSplashDone',
+  replaySplash: 'pixelPlaceReplaySplash',
 } as const;
+
+function deviceSplashKey(deviceId: string): string {
+  const safe = String(deviceId).slice(0, 128).replace(/[^a-zA-Z0-9_-]/g, '') || 'unknown';
+  return `pixelPlaceDeviceSplash_${safe}`;
+}
+
+function safeLocalGet(key: string): string | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    return localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+
+function safeLocalSet(key: string, value: string): void {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem(key, value);
+  } catch {
+    /* private mode */
+  }
+}
+
+function safeLocalRemove(key: string): void {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.removeItem(key);
+  } catch {
+    /* ignore */
+  }
+}
 
 function safeGet(key: string): string | null {
   if (typeof window === 'undefined') return null;
@@ -43,6 +82,52 @@ export function isSplashDone(): boolean {
 export function markSplashDone(): void {
   safeSet(KEYS.splashDone, '1');
   safeRemove(KEYS.skipSplash);
+}
+
+/** Device has finished the full startup splash at least once. */
+export function hasDeviceSeenSplash(deviceId: string): boolean {
+  if (SPLASH_SHOW_ON_EVERY_DEVICE_FOR_NOW) return false;
+  return safeLocalGet(deviceSplashKey(deviceId)) === '1';
+}
+
+export function markDeviceSplashSeen(deviceId: string): void {
+  safeLocalSet(deviceSplashKey(deviceId), '1');
+  safeLocalSet(KEYS.firstOpenSplash, '1');
+}
+
+export function clearDeviceSplashSeen(deviceId: string): void {
+  safeLocalRemove(deviceSplashKey(deviceId));
+  safeLocalRemove(KEYS.firstOpenSplash);
+}
+
+/** @deprecated Use hasDeviceSeenSplash(deviceId) */
+export function hasSeenFirstOpenSplash(): boolean {
+  const { deviceId } = getDeviceFingerprint();
+  return hasDeviceSeenSplash(deviceId);
+}
+
+/** @deprecated Use markDeviceSplashSeen(deviceId) */
+export function markFirstOpenSplashSeen(): void {
+  const { deviceId } = getDeviceFingerprint();
+  markDeviceSplashSeen(deviceId);
+}
+
+/** Settings → replay startup: clears device flag and reloads home with splash. */
+export function requestSplashReplay(): void {
+  const { deviceId } = getDeviceFingerprint();
+  clearDeviceSplashSeen(deviceId);
+  safeSet(KEYS.replaySplash, '1');
+  if (typeof window !== 'undefined') {
+    window.location.href = '/';
+  }
+}
+
+export function consumeSplashReplayFlag(): boolean {
+  if (safeGet(KEYS.replaySplash) === '1') {
+    safeRemove(KEYS.replaySplash);
+    return true;
+  }
+  return false;
 }
 
 /** One-shot skip for error recovery links — does not block splash on the next visit. */
@@ -87,4 +172,9 @@ export function isInactiveBeyondLimit(limitMs = INACTIVITY_LOGOUT_MS): boolean {
 export function armAppSessionForRouteChange(): void {
   markReadyAccepted();
   touchActivity();
+}
+
+export function shouldShowFullDeviceSplash(deviceId: string): boolean {
+  if (consumeSplashReplayFlag()) return true;
+  return !hasDeviceSeenSplash(deviceId);
 }
