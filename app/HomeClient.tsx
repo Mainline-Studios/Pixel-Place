@@ -7,6 +7,7 @@ import { useSound } from '@/contexts/SoundContext';
 import Login from '@/components/Login';
 import VerifyEmailFlow from '@/components/VerifyEmailFlow';
 import SignOutAllFlow from '@/components/SignOutAllFlow';
+import ModeSelection, { PixelPlaceMode } from '@/components/ModeSelection';
 import { isFocusedAuthPathname, isSignOutAllPathname, isVerifyPathname } from '@/lib/focusedAuthRoutes';
 import Dashboard from '@/components/Dashboard/Dashboard';
 import SplashScreen from '@/components/SplashScreen';
@@ -285,6 +286,8 @@ function AppContent() {
   const [publicUserId, setPublicUserId] = useState<number | null>(null);
   const [publicGameId, setPublicGameId] = useState<number | null>(null);
   const [routePath, setRoutePath] = useState('');
+  const [selectedMode, setSelectedMode] = useState<PixelPlaceMode | null>(null);
+  const [modeSelectionReady, setModeSelectionReady] = useState(false);
 
   useEffect(() => {
     setPayPortal(getPayPortalClientState());
@@ -297,6 +300,21 @@ function AppContent() {
       setPublicGameId(gameMatch ? Number(gameMatch[1]) : null);
     }
   }, []);
+
+  useEffect(() => {
+    if (!user?.username) {
+      setSelectedMode(null);
+      setModeSelectionReady(true);
+      return;
+    }
+    if (typeof window === 'undefined') {
+      setModeSelectionReady(true);
+      return;
+    }
+    const storedMode = window.localStorage.getItem(`pixelplace_modeSelection:${user.username}`) as PixelPlaceMode | null;
+    setSelectedMode(storedMode);
+    setModeSelectionReady(true);
+  }, [user?.username]);
 
   useLayoutEffect(() => {
     if (isRestoring) return;
@@ -375,6 +393,9 @@ function AppContent() {
   if (payPortal.kind === 'invalid') {
     return <PayPortalInvalid path={payPortal.path} />;
   }
+  if (user && modeSelectionReady && !selectedMode) {
+    return <ModeSelection username={user.username} onSelect={(mode) => setSelectedMode(mode)} />;
+  }
   if (publicUserId && Number.isFinite(publicUserId) && publicUserId > 0) {
     return <PublicUserProfilePage userId={publicUserId} />;
   }
@@ -419,7 +440,7 @@ function AppContent() {
         </>
       ) : (
         <>
-          <Dashboard user={user} />
+          <Dashboard user={user} selectedMode={selectedMode} />
           <InstallPrompt />
           <BreakReminder />
         </>
