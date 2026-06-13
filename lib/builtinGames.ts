@@ -94,7 +94,26 @@ export const BUILTIN_GAMES: PublishedGame[] = [
     playable: true,
     gameCode: 'builtin_coasterControl',
     thumbnail: '/images/games/coaster-control.svg',
+    {
+  title: 'Helios Video Lab',
+  desc: 'Generate short video clips from a prompt and extend them with "Continue video" edits using the Helios model.',
+  owner: 'System',
+  ts: Date.now(),
+  playable: true,
+  gameCode: 'builtin_helios',
+  thumbnail: '/images/games/helios.svg',
+},
   },
   // Note: InternationalSportsHQ and MusicalMayhem are not React components
   // They can be added later if converted to React components
-];
+
+  {
+    title: 'Helios Video Lab',
+    desc: 'Generate short video clips from a prompt and extend them with "Continue video" edits using the Helios model.',
+    owner: 'System',
+    ts: Date.now(),
+    playable: true,
+    gameCode: 'builtin_helios',
+    thumbnail: '/images/games/helios.svg',
+  },
+\n];\n
