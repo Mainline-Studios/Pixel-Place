@@ -23,18 +23,18 @@ function ensureAdminApp(): boolean {
     const projectId = process.env.FIREBASE_PROJECT_ID || process.env.GCLOUD_PROJECT || 'pixel-place-823b1';
     const databaseURL = process.env.FIREBASE_DATABASE_URL || toDatabaseUrl(projectId);
     if (process.env.FIREBASE_SERVICE_ACCOUNT) {
-      try {
-        const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
+          try {
+            const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
         initializeApp({ credential: cert(serviceAccount), projectId, databaseURL });
         return true;
       } catch {
-        console.warn('Failed to parse FIREBASE_SERVICE_ACCOUNT, trying without credentials');
-      }
-    }
+            console.warn('Failed to parse FIREBASE_SERVICE_ACCOUNT, trying without credentials');
+          }
+        }
     initializeApp({ projectId, databaseURL });
     return true;
-  } catch (error: any) {
-    console.warn('Firebase Admin initialization error (continuing without it):', error?.message || error);
+      } catch (error: any) {
+        console.warn('Firebase Admin initialization error (continuing without it):', error?.message || error);
     return false;
   }
 }
@@ -45,10 +45,10 @@ function getFirestoreDbInstance(): Firestore | null {
     if (!ensureAdminApp()) return null;
     firestoreDb = getFirestore();
     return firestoreDb;
-  } catch (error: any) {
-    console.warn('Error getting Firestore instance:', error?.message || error);
-    return null;
-  }
+    } catch (error: any) {
+      console.warn('Error getting Firestore instance:', error?.message || error);
+      return null;
+    }
 }
 
 function getRealtimeDbInstance(): Database | null {

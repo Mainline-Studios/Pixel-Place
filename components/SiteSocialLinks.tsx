@@ -99,7 +99,7 @@ function AiMusicOutboundDialog({
           Mainline beats
         </div>
         <p style={{ margin: '0 0 12px', fontSize: 14, lineHeight: 1.55, color: 'var(--text-dim, #a8adc4)' }}>
-          You&apos;ll open Mainline Studios&apos; official Sonauto group — beats for Mainline projects and
+          You&apos;ll open Mainline Studios&apos; official Treblo group — beats for Mainline projects and
           studio work, not only Pixel Place. Tracks are{' '}
           <span style={{ color: 'var(--text-main)' }}>AI-generated</span>.
         </p>
@@ -138,7 +138,7 @@ type Props = {
 
 /**
  * Official YouTube, GitHub, and Mainline Studios Discord links (opens in new tab).
- * Official Mainline Studios Sonauto beats open after a brief AI disclosure.
+ * Official Mainline Studios Treblo beats open after a brief AI disclosure.
  * @see https://www.youtube.com/@PixelPlaceOfficial
  * @see https://github.com/Mainline-Studios/Pixel-Place
  */
@@ -370,9 +370,9 @@ export default function SiteSocialLinks({ compact, variant, className }: Props) 
               borderColor: 'rgba(132, 145, 255, 0.35)',
               color: 'var(--accent, #9dd9ff)',
             }}
-            title="Official Mainline Studios beats on Sonauto"
+            title="Official Mainline Studios beats on Treblo"
           >
-            Mainline beats (AI) → Sonauto
+            Mainline beats (AI) → Treblo
           </button>
         </div>
       </>
@@ -383,44 +383,44 @@ export default function SiteSocialLinks({ compact, variant, className }: Props) 
   return (
     <>
       <AiMusicOutboundDialog open={musicGate !== null} href={musicGate?.href ?? ''} onClose={closeMusicGate} />
-      <span
+    <span
         className={['site-social-links-inline', className].filter(Boolean).join(' ')}
-        style={{
-          display: 'inline-flex',
-          flexWrap: 'wrap',
-          alignItems: 'center',
-          justifyContent: 'center',
-          gap,
-          rowGap: 8,
-        }}
+      style={{
+        display: 'inline-flex',
+        flexWrap: 'wrap',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap,
+        rowGap: 8,
+      }}
+    >
+      <a
+        href={PIXEL_PLACE_YOUTUBE}
+        target="_blank"
+        rel="noopener noreferrer"
+        style={linkStyle}
+        title="Official Pixel Place on YouTube"
       >
-        <a
-          href={PIXEL_PLACE_YOUTUBE}
-          target="_blank"
-          rel="noopener noreferrer"
-          style={linkStyle}
-          title="Official Pixel Place on YouTube"
-        >
-          YouTube
-        </a>
-        <span style={{ opacity: 0.45, userSelect: 'none' }} aria-hidden>
-          •
-        </span>
-        <a
-          href={PIXEL_PLACE_GITHUB}
-          target="_blank"
-          rel="noopener noreferrer"
-          style={linkStyle}
-          title="Pixel Place on GitHub"
-        >
-          GitHub
-        </a>
+        YouTube
+      </a>
+      <span style={{ opacity: 0.45, userSelect: 'none' }} aria-hidden>
+        •
+      </span>
+      <a
+        href={PIXEL_PLACE_GITHUB}
+        target="_blank"
+        rel="noopener noreferrer"
+        style={linkStyle}
+        title="Pixel Place on GitHub"
+      >
+        GitHub
+      </a>
         <span style={{ opacity: 0.45, userSelect: 'none' }} aria-hidden>
           •
         </span>
         <button
           type="button"
-          title="Official Mainline Studios beats on Sonauto"
+          title="Official Mainline Studios beats on Treblo"
           onClick={() => openMusicGate(MAINLINE_STUDIOS_OFFICIAL_MUSIC_BEAT)}
           style={{
             ...linkStyle,
@@ -433,7 +433,7 @@ export default function SiteSocialLinks({ compact, variant, className }: Props) 
         >
           Mainline beats
         </button>
-      </span>
+    </span>
     </>
   );
 }

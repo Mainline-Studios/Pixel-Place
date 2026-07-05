@@ -122,7 +122,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
           } catch {
             /* status fetch is best-effort */
           }
-
+          
           // Special coins for 6767kid - massive amount
           if (found.username === '6767kid') {
             // 2e268 × 2e203 = 4e471 coins (4 followed by 471 zeros)
@@ -276,7 +276,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
             setGettingReady(true);
           }
         } else {
-          setUser(restoredUser);
+        setUser(restoredUser);
           if (isReadyAccepted()) {
             firstSyncDone.current = true;
             setWarmupComplete(true);
@@ -676,9 +676,9 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     try {
       const isBanned = await isUserBanned(username);
       if (isBanned) {
-        return { success: false, message: 'This username is banned and cannot be used.' };
-      }
-    } catch {
+            return { success: false, message: 'This username is banned and cannot be used.' };
+          }
+        } catch {
       return { success: false, message: 'Could not verify ban status. Try again when online.' };
     }
     if (users.find(x => x.username === username)) {

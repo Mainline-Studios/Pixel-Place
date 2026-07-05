@@ -332,8 +332,8 @@ export default function GamesTab({ user, editMode }: GamesTabProps) {
     return (
       <GameErrorBoundary onBack={() => setSelectedUserGame(null)} gameName={selectedUserGame.title}>
         <div className="game-cursor-zone" style={{ width: '100%', minHeight: '100%' }}>
-          <UserMadeGamePlayer game={selectedUserGame} user={user} onClose={() => setSelectedUserGame(null)} />
-        </div>
+        <UserMadeGamePlayer game={selectedUserGame} user={user} onClose={() => setSelectedUserGame(null)} />
+      </div>
       </GameErrorBoundary>
     );
   }
