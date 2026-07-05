@@ -68,7 +68,7 @@ export const BUILTIN_GAMES: PublishedGame[] = [
   },
   {
     title: 'Floor Is Lava',
-    desc: 'Jump from platform to platform - don\'t touch the lava!',
+    desc: "Jump from platform to platform - don't touch the lava!",
     owner: 'System',
     ts: Date.now() - 86400000 * 0.5,
     playable: true,
@@ -106,5 +106,17 @@ export const BUILTIN_GAMES: PublishedGame[] = [
   },
   // Note: InternationalSportsHQ and MusicalMayhem are not React components
   // They can be added later if converted to React components
+add/helios
+  {
+    title: 'Helios Video Lab',
+    desc: 'Generate short video clips from a prompt and extend them with \"Continue video\" edits using the Helios model.',
+    owner: 'System',
+    ts: Date.now(),
+    playable: true,
+    gameCode: 'builtin_helios',
+    thumbnail: '/images/games/helios.svg',
+  },
+];
+=======
 
-  
+main
