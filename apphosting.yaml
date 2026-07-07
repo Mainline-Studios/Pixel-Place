@@ -1,0 +1,2 @@
+scripts:
+  runCommand: node scripts/apphosting-static-server.js
