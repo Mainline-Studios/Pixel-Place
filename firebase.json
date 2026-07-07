@@ -1,4 +1,22 @@
 {
+  "apphosting": [
+    {
+      "backendId": "pixelplace",
+      "rootDir": ".",
+      "ignore": [
+        "node_modules",
+        ".git",
+        "firebase-debug.log",
+        "firebase-debug.*.log",
+        "dist-electron",
+        "More Games",
+        "docs",
+        "*.ps1",
+        "*.bat"
+      ],
+      "alwaysDeployFromSource": true
+    }
+  ],
   "hosting": [
     {
       "target": "main",
