@@ -1,10 +1,12 @@
 const path = require('path');
 
+const isDev = process.env.NODE_ENV !== 'production';
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   // Pin tracing to this app (avoids picking ~/package-lock.json as workspace root).
   outputFileTracingRoot: path.join(__dirname),
-  output: 'export',
+  output: isDev ? undefined : 'export',
   images: {
     unoptimized: true
   },

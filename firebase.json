@@ -91,6 +91,18 @@
           "headers": [{"key": "Cache-Control", "value": "public, max-age=120"}]
         }
       ]
+    },
+    {
+      "target": "mainline",
+      "public": "mainline-site",
+      "ignore": ["firebase.json", "**/.*", "**/node_modules/**", "**/README.md"],
+      "rewrites": [{"source": "**", "destination": "/index.html"}],
+      "headers": [
+        {
+          "source": "**",
+          "headers": [{"key": "Cache-Control", "value": "public, max-age=300"}]
+        }
+      ]
     }
   ],
   "storage": {

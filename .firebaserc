@@ -5,11 +5,23 @@
   "targets": {
     "pixel-place-823b1": {
       "hosting": {
-        "main": ["pixel-place-823b1"],
-        "pay": ["pixelplace-pay"],
-        "deploy": ["pixelplace-deploy"],
-        "status": ["pixelplace-status"]
+        "main": [
+          "pixel-place-823b1"
+        ],
+        "pay": [
+          "pixelplace-pay"
+        ],
+        "deploy": [
+          "pixelplace-deploy"
+        ],
+        "status": [
+          "pixelplace-status"
+        ],
+        "mainline": [
+          "pixelplace-mainline"
+        ]
       }
     }
-  }
+  },
+  "etags": {}
 }

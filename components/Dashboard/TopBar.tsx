@@ -12,11 +12,13 @@ import LocalizeText from '@/components/LocalizeText';
 import { isSupportedLocale } from '@/lib/locale';
 import { clearSessionFlags } from '@/lib/appSession';
 import { useState, useEffect, useRef, type CSSProperties } from 'react';
+import { PixelPlaceMode } from '@/components/ModeSelection';
 
 interface TopBarProps {
   currentTab: TabType;
   onTabChange: (tab: TabType) => void;
   user: User;
+  selectedMode?: PixelPlaceMode | null;
 }
 
 const coinChipStyle: CSSProperties = {
@@ -34,6 +36,21 @@ const coinChipStyle: CSSProperties = {
   fontFamily: 'inherit',
 };
 
+const MODE_LABELS: Record<PixelPlaceMode, { title: string; accent: string }> = {
+  kids: {
+    title: 'Pixel Place Kids',
+    accent: '#7dd3fc',
+  },
+  now: {
+    title: 'Pixel Place Now',
+    accent: '#fbbf24',
+  },
+  unlimited: {
+    title: 'Pixel Place Unlimited',
+    accent: '#a78bfa',
+  },
+};
+
 const TABS: { key: TabType; label: string; shortcut?: string; adminOnly?: boolean }[] = [
   { key: 'games', label: 'Games', shortcut: 'G' },
   { key: 'studio', label: 'Game Studio', shortcut: 'C' },
@@ -44,7 +61,7 @@ const TABS: { key: TabType; label: string; shortcut?: string; adminOnly?: boolea
   { key: 'settings', label: 'Settings', shortcut: 'O' },
 ];
 
-export default function TopBar({ currentTab, onTabChange, user }: TopBarProps) {
+export default function TopBar({ currentTab, onTabChange, user, selectedMode }: TopBarProps) {
   const { setUser } = useUser();
   const { style } = useStyle();
   const compactNav = style === 'minimalist';
@@ -231,6 +248,17 @@ export default function TopBar({ currentTab, onTabChange, user }: TopBarProps) {
             {!compactNav && <span style={{ fontSize: '16px' }}>🪙</span>}
             <span>{compactNav ? `Coins ${(user.coins ?? 0).toLocaleString()}` : (user.coins ?? 0).toLocaleString()}</span>
           </button>
+          {selectedMode ? (
+            <div
+              className="topbar-mode-pill"
+              style={{
+                borderColor: MODE_LABELS[selectedMode].accent,
+                color: MODE_LABELS[selectedMode].accent,
+              }}
+            >
+              {MODE_LABELS[selectedMode].title}
+            </div>
+          ) : null}
           <div ref={menuRef} style={{ position: 'relative' }}>
             <button
               type="button"

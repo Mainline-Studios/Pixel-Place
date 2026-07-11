@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- Pixel Place sitemap — 11 URLs — 2026-07-05 -->
+<!-- Pixel Place sitemap — 11 URLs — 2026-07-11 -->
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
         xmlns:image="http://www.google.com/schemas/sitemap-image/1.1"
         xmlns:xhtml="http://www.w3.org/1999/xhtml">
   <url>
     <loc>https://pixelplaceofficial.com/</loc>
-    <lastmod>2026-07-05</lastmod>
+    <lastmod>2026-07-11</lastmod>
     <changefreq>daily</changefreq>
     <priority>1.0</priority>
     <image:image xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">
@@ -15,7 +15,7 @@
   </url>
   <url>
     <loc>https://pixelplaceofficial.com/about</loc>
-    <lastmod>2026-07-05</lastmod>
+    <lastmod>2026-07-11</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.96</priority>
     <image:image xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">
@@ -25,7 +25,7 @@
   </url>
   <url>
     <loc>https://pixelplaceofficial.com/games</loc>
-    <lastmod>2026-07-05</lastmod>
+    <lastmod>2026-07-11</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.95</priority>
     <image:image xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">
@@ -35,7 +35,7 @@
   </url>
   <url>
     <loc>https://pixelplaceofficial.com/studio</loc>
-    <lastmod>2026-07-05</lastmod>
+    <lastmod>2026-07-11</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.90</priority>
     <image:image xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">
@@ -45,7 +45,7 @@
   </url>
   <url>
     <loc>https://pixelplaceofficial.com/avatarshop</loc>
-    <lastmod>2026-07-05</lastmod>
+    <lastmod>2026-07-11</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.88</priority>
     <image:image xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">
@@ -55,7 +55,7 @@
   </url>
   <url>
     <loc>https://pixelplaceofficial.com/coins</loc>
-    <lastmod>2026-07-05</lastmod>
+    <lastmod>2026-07-11</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.85</priority>
     <image:image xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">
@@ -65,7 +65,7 @@
   </url>
   <url>
     <loc>https://pixelplaceofficial.com/friends</loc>
-    <lastmod>2026-07-05</lastmod>
+    <lastmod>2026-07-11</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.84</priority>
     <image:image xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">
@@ -75,7 +75,7 @@
   </url>
   <url>
     <loc>https://pixelplaceofficial.com/report</loc>
-    <lastmod>2026-07-05</lastmod>
+    <lastmod>2026-07-11</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.80</priority>
     <image:image xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">
@@ -85,7 +85,7 @@
   </url>
   <url>
     <loc>https://pixelplaceofficial.com/settings</loc>
-    <lastmod>2026-07-05</lastmod>
+    <lastmod>2026-07-11</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.82</priority>
     <image:image xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">
@@ -95,7 +95,7 @@
   </url>
   <url>
     <loc>https://pixelplaceofficial.com/donation</loc>
-    <lastmod>2026-07-05</lastmod>
+    <lastmod>2026-07-11</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.75</priority>
     <image:image xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">
@@ -105,7 +105,7 @@
   </url>
   <url>
     <loc>https://pixelplaceofficial.com/historimac</loc>
-    <lastmod>2026-07-05</lastmod>
+    <lastmod>2026-07-11</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.86</priority>
     <image:image xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">

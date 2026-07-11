@@ -4,7 +4,8 @@ Version history for **Pixel Place** deploys. Newest release is listed first.
 
 | Version | Nickname | Log |
 |--------|----------|-----|
-| **3.01** | Safehouse Patch | [3.01 Safehouse Patch LATEST](./3.01%20Safehouse%20Patch%20LATEST.md) |
+| **3.02** | Pixel Place Modes | [3.02 Pixel Place Modes LATEST](./3.02%20Pixel%20Place%20Modes%20LATEST.md) |
+| **3.01** | Safehouse Patch | [3.01 Safehouse Patch](./3.01%20Safehouse%20Patch.md) |
 | 3.0 | Safehouse | [3.0 Safehouse](./3.0%20Safehouse.md) |
 | 2.0 | Pyxbridge (mobile / touch) | [2.0 Pyxbridge](./2.0%20Pyxbridge.md) |
 | 1.0 | Fresh Start | [1.0 Fresh Start](./1.0%20Fresh%20Start.md) |

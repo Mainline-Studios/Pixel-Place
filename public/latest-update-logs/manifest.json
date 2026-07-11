@@ -1,15 +1,23 @@
 {
-  "bundledAt": "2026-07-05T01:41:22.962Z",
+  "bundledAt": "2026-07-11T13:21:24.994Z",
   "folder": "Latest Update Logs",
   "compiler": "pixel-place-markdown/1",
   "logs": [
     {
-      "slug": "3-01-safehouse-patch-latest",
-      "filename": "3.01 Safehouse Patch LATEST.md",
+      "slug": "3-02-pixel-place-modes-latest",
+      "filename": "3.02 Pixel Place Modes LATEST.md",
+      "title": "3.02 Pixel Place Modes",
+      "version": "3.02",
+      "isLatest": true,
+      "staticUrl": "/latest-update-logs/3.02%20Pixel%20Place%20Modes%20LATEST.md"
+    },
+    {
+      "slug": "3-01-safehouse-patch",
+      "filename": "3.01 Safehouse Patch.md",
       "title": "3.01 Safehouse Patch",
       "version": "3.01",
-      "isLatest": true,
-      "staticUrl": "/latest-update-logs/3.01%20Safehouse%20Patch%20LATEST.md"
+      "isLatest": false,
+      "staticUrl": "/latest-update-logs/3.01%20Safehouse%20Patch.md"
     },
     {
       "slug": "3-0-safehouse",

@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { TabType, User } from '@/types';
 import { useSound } from '@/contexts/SoundContext';
+import { PixelPlaceMode } from '@/components/ModeSelection';
 import { armAppSessionForRouteChange } from '@/lib/appSession';
 import { pathToTab, tabToPath } from '@/lib/routing';
 import TopBar from './TopBar';
@@ -31,9 +32,31 @@ import VerifyAccountPrompt from '../VerifyAccountPrompt';
 
 interface DashboardProps {
   user: User;
+  selectedMode?: PixelPlaceMode | null;
 }
 
-export default function Dashboard({ user }: DashboardProps) {
+const MODE_BRAND: Record<PixelPlaceMode, { title: string; subtitle: string; accent: string; description: string }> = {
+  kids: {
+    title: 'Pixel Place Kids',
+    subtitle: 'Bright, playful adventure',
+    accent: '#7dd3fc',
+    description: 'Friendly, 3D-inspired play with soft edges and easy fun.',
+  },
+  now: {
+    title: 'Pixel Place Now',
+    subtitle: 'Minimalist and fun',
+    accent: '#fbbf24',
+    description: 'Fast, modern gameplay with a crisp and playful energy.',
+  },
+  unlimited: {
+    title: 'Pixel Place Unlimited',
+    subtitle: 'Bold, grown-up pixel energy',
+    accent: '#a78bfa',
+    description: 'Deeper, more expressive challenges for older players.',
+  },
+};
+
+export default function Dashboard({ user, selectedMode }: DashboardProps) {
   const { playTabSwitch } = useSound();
   const { secretTheme } = useSecretTheme();
   const { style } = useStyle();
@@ -182,6 +205,7 @@ export default function Dashboard({ user }: DashboardProps) {
         currentTab={currentTab}
         onTabChange={handleTabChange}
         user={user}
+        selectedMode={selectedMode}
       />
       {isHighContrast ? <HighContrastLandmarks currentTab={currentTab} /> : null}
       {isMaximalist ? <MaximalistChrome currentTab={currentTab} user={user} /> : null}
@@ -189,6 +213,18 @@ export default function Dashboard({ user }: DashboardProps) {
         <div className={`body-inner${isMinimalist ? ' body-inner--solo-main' : ''}`}>
           {!isMinimalist ? <Sidebar user={user} onNavigate={handleTabChange} /> : null}
           <section className="main-card" id="main-content">
+            {selectedMode ? (
+              <div className="dashboard-mode-banner dashboard-mode-banner--active">
+                <div className="dashboard-mode-pill" style={{ borderColor: MODE_BRAND[selectedMode].accent, background: `rgba(255,255,255,0.04)` }}>
+                  <span className="dashboard-mode-pill-title">{MODE_BRAND[selectedMode].title}</span>
+                  <span className="dashboard-mode-pill-label">{MODE_BRAND[selectedMode].subtitle}</span>
+                </div>
+                <div className="dashboard-mode-text">
+                  <p>{MODE_BRAND[selectedMode].description}</p>
+                  <small>Keep this mode selected while you explore games and profiles.</small>
+                </div>
+              </div>
+            ) : null}
             {secretTheme === 'ixelace' ? (
               <div
                 className="ixel-ace-brand"

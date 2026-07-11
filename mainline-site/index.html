@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="description"
+      content="Mainline Studios — home of Pixel Place and Pyx AI. Interim site until our permanent domain."
+    />
+    <title>MAINLINE.</title>
+    <link rel="icon" href="mark.svg" type="image/svg+xml" />
+    <style>
+      :root {
+        --bg-0: #07090e;
+        --bg-1: #0e1420;
+        --dot: #5eb0f7;
+        --text: #ffffff;
+        --muted: rgba(255, 255, 255, 0.55);
+        --line: rgba(255, 255, 255, 0.1);
+        --card: rgba(255, 255, 255, 0.035);
+        --card-hover: rgba(43, 108, 176, 0.16);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        margin: 0;
+        min-height: 100%;
+      }
+
+      body {
+        min-height: 100vh;
+        color: var(--text);
+        font-family:
+          'SF Pro Display',
+          'SF Pro Text',
+          -apple-system,
+          BlinkMacSystemFont,
+          'Segoe UI',
+          Helvetica,
+          Arial,
+          sans-serif;
+        background:
+          radial-gradient(ellipse 90% 70% at 50% 18%, rgba(43, 108, 176, 0.28) 0%, transparent 55%),
+          radial-gradient(ellipse 60% 50% at 80% 90%, rgba(94, 176, 247, 0.08) 0%, transparent 50%),
+          linear-gradient(165deg, var(--bg-1) 0%, var(--bg-0) 55%, #050608 100%);
+        display: grid;
+        place-items: center;
+        padding: 2rem 1rem 3rem;
+      }
+
+      .atmosphere {
+        position: fixed;
+        inset: 0;
+        pointer-events: none;
+        background-image:
+          linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+        background-size: 64px 64px;
+        mask-image: radial-gradient(ellipse 70% 55% at 50% 30%, black 20%, transparent 75%);
+        opacity: 0.4;
+      }
+
+      .stage {
+        position: relative;
+        z-index: 1;
+        width: min(94vw, 860px);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+        animation: rise 0.9s cubic-bezier(0.22, 1, 0.36, 1) both;
+      }
+
+      @keyframes rise {
+        from {
+          opacity: 0;
+          transform: translateY(18px) scale(0.985);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0) scale(1);
+        }
+      }
+
+      .mark {
+        width: clamp(84px, 14vw, 112px);
+        height: clamp(84px, 14vw, 112px);
+        margin-bottom: clamp(1.1rem, 2.8vw, 1.6rem);
+        filter: drop-shadow(0 0 36px rgba(43, 108, 176, 0.55));
+      }
+
+      .wordmark {
+        margin: 0;
+        font-size: clamp(2.4rem, 9vw, 4.6rem);
+        font-weight: 700;
+        letter-spacing: 0.14em;
+        text-indent: 0.14em;
+        line-height: 1;
+        color: var(--text);
+        text-shadow: 0 0 48px rgba(43, 108, 176, 0.35);
+      }
+
+      .wordmark .dot {
+        color: var(--dot);
+        text-shadow: 0 0 28px rgba(94, 176, 247, 0.75);
+      }
+
+      .products {
+        margin-top: clamp(2.2rem, 5vw, 3.2rem);
+        width: 100%;
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 1rem;
+        text-align: left;
+      }
+
+      @media (max-width: 680px) {
+        .products {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      .product {
+        display: flex;
+        flex-direction: column;
+        gap: 0.95rem;
+        padding: 1.25rem 1.2rem 1.3rem;
+        border-radius: 18px;
+        border: 1px solid var(--line);
+        background: var(--card);
+        text-decoration: none;
+        color: inherit;
+        transition:
+          background 0.2s ease,
+          border-color 0.2s ease,
+          transform 0.2s ease;
+      }
+
+      .product:hover {
+        background: var(--card-hover);
+        border-color: rgba(94, 176, 247, 0.4);
+        transform: translateY(-2px);
+      }
+
+      .product__logo {
+        width: 72px;
+        height: 72px;
+        border-radius: 16px;
+        object-fit: cover;
+        background: #fff;
+        box-shadow:
+          0 0 0 1px rgba(255, 255, 255, 0.08),
+          0 12px 28px rgba(0, 0, 0, 0.35);
+      }
+
+      .product__logo--pp {
+        background: #0a0c12;
+        object-fit: contain;
+        padding: 6px;
+      }
+
+      .product__name {
+        margin: 0;
+        font-size: 1.2rem;
+        font-weight: 700;
+        letter-spacing: 0.02em;
+      }
+
+      .product__blurb {
+        margin: 0;
+        font-size: 0.95rem;
+        line-height: 1.5;
+        color: var(--muted);
+        flex: 1;
+      }
+
+      .product__cta {
+        margin-top: 0.25rem;
+        font-size: 0.82rem;
+        font-weight: 600;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: var(--dot);
+      }
+
+      .note {
+        margin-top: 2.2rem;
+        max-width: 28rem;
+        font-size: 0.78rem;
+        line-height: 1.55;
+        color: rgba(255, 255, 255, 0.35);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="atmosphere" aria-hidden="true"></div>
+    <main class="stage">
+      <svg class="mark" viewBox="0 0 100 100" role="img" aria-label="Mainline Studios mark">
+        <rect
+          x="10"
+          y="10"
+          width="80"
+          height="80"
+          rx="10"
+          fill="none"
+          stroke="#5eb0f7"
+          stroke-width="3"
+        />
+        <rect x="25" y="25" width="50" height="50" rx="5" fill="#2b6cb0" />
+      </svg>
+      <h1 class="wordmark">MAINLINE<span class="dot">.</span></h1>
+
+      <section class="products" aria-label="Mainline Studios products">
+        <a class="product" href="https://pixelplaceofficial.com">
+          <img
+            class="product__logo product__logo--pp"
+            src="assets/pixel-place-logo.png"
+            width="72"
+            height="72"
+            alt="Pixel Place logo"
+          />
+          <h2 class="product__name">Pixel Place</h2>
+          <p class="product__blurb">
+            Free browser games, 3D avatars, and Game Studio — play, create, and share online. No
+            download required.
+          </p>
+          <span class="product__cta">Open Pixel Place →</span>
+        </a>
+
+        <a class="product" href="https://pyx-ai.web.app/">
+          <img
+            class="product__logo"
+            src="assets/pyx-app-icon.png"
+            width="72"
+            height="72"
+            alt="Pyx AI Famicom logo"
+          />
+          <h2 class="product__name">Pyx AI</h2>
+          <p class="product__blurb">
+            Productivity for everybody — research, write, code, pixel art, and voice in one connected
+            Studio. Hop between apps without losing your thread.
+          </p>
+          <span class="product__cta">Open Pyx Studio →</span>
+        </a>
+      </section>
+
+      <p class="note">
+        Interim home at mainlinestudios.pixelplaceofficial.com until Mainline Studios has a permanent
+        domain.
+      </p>
+    </main>
+  </body>
+</html>

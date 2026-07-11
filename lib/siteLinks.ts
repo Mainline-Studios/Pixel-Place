@@ -3,8 +3,10 @@ export const PIXEL_PLACE_YOUTUBE = 'https://www.youtube.com/@PixelPlaceOfficial'
 export const PIXEL_PLACE_GITHUB = 'https://github.com/Mainline-Studios/Pixel-Place';
 
 /** Official Pixel Place blog on Blogger. */
-export const PIXEL_PLACE_BLOG =
-  'https://www.blogger.com/blog/posts/7830132861557753760?hl=en';
+export const PIXEL_PLACE_BLOG = 'https://thepixelplace.blogspot.com/';
+
+/** Interim Mainline Studios site (until a permanent domain). */
+export const MAINLINE_STUDIOS_WEBSITE = 'https://mainlinestudios.pixelplaceofficial.com';
 
 /** Official Mainline Studios beats on Treblo (formerly Sonauto; AI-generated — brief in-app disclosure). */
 export const MAINLINE_STUDIOS_OFFICIAL_MUSIC_BEAT =
@@ -37,6 +39,11 @@ export const PIXEL_PLACE_OFFICIAL_LINKS: readonly OfficialFooterLink[] = [
     href: PIXEL_PLACE_BLOG,
     linkText: 'Pixel Place blog',
     title: `Official Pixel Place blog — ${PIXEL_PLACE_BLOG}`,
+  },
+  {
+    href: MAINLINE_STUDIOS_WEBSITE,
+    linkText: 'Mainline Studios',
+    title: `Mainline Studios — ${MAINLINE_STUDIOS_WEBSITE}`,
   },
   {
     href: MAINLINE_STUDIOS_DISCORD,
