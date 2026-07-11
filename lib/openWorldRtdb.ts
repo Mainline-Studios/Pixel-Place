@@ -69,6 +69,7 @@ export type OpenWorldChatMessage = {
   username: string;
   text: string;
   createdAt: number;
+  role?: string;
 };
 
 export type PrivateInviteRecord = {
@@ -427,6 +428,7 @@ export async function sendOpenWorldChat(
   text: string,
   room: string = OPEN_WORLD_PUBLIC_ROOM,
   channel: OpenWorldChatChannel = 'server',
+  role?: string,
 ): Promise<void> {
   const db = getDb();
   if (!db) return;
@@ -438,6 +440,7 @@ export async function sendOpenWorldChat(
     createdAt: Date.now(),
     room: safeRoom(room),
     channel,
+    role: role || 'user',
   });
 }
 
@@ -547,7 +550,10 @@ export function subscribeOpenWorldChat(
   const chatQuery = query(ref(db, chatPathForChannel(room, channel)), limitToLast(channel === 'everywhere' ? 60 : 40));
   const chatUnsub = onValue(chatQuery, (snap) => {
     const msgs: OpenWorldChatMessage[] = [];
-    const val = snap.val() as Record<string, { username?: string; text?: string; createdAt?: number }> | null;
+    const val = snap.val() as Record<
+      string,
+      { username?: string; text?: string; createdAt?: number; role?: string }
+    > | null;
     if (val && typeof val === 'object') {
       for (const [id, data] of Object.entries(val)) {
         if (!data) continue;
@@ -556,6 +562,7 @@ export function subscribeOpenWorldChat(
           username: data.username || 'Player',
           text: data.text || '',
           createdAt: typeof data.createdAt === 'number' ? data.createdAt : 0,
+          role: typeof data.role === 'string' ? data.role : undefined,
         });
       }
     }

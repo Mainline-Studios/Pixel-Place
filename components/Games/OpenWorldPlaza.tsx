@@ -83,6 +83,11 @@ function lerpAngle(a: number, b: number, t: number) {
 
 const BUBBLE_MS = 5500;
 
+function fitLabelSprite(sprite: { scale: { set: (x: number, y: number, z: number) => void } }, canvas: HTMLCanvasElement, worldW: number) {
+  const aspect = canvas.width / Math.max(1, canvas.height);
+  sprite.scale.set(worldW, worldW / aspect, 1);
+}
+
 function paintNameplate(
   canvas: HTMLCanvasElement,
   ctx: CanvasRenderingContext2D,
@@ -92,15 +97,15 @@ function paintNameplate(
   const showBubble =
     Boolean(chatText) && typeof opts.chatAt === 'number' && opts.chatAt > 0 && opts.now - opts.chatAt < BUBBLE_MS;
   const verified = isVerifiedAdmin(opts.role);
-  canvas.width = 512;
-  canvas.height = showBubble ? 168 : 72;
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
 
+  // Chat bubble replaces the name tag while visible
   if (showBubble) {
-    const padX = 28;
-    const padY = 16;
+    canvas.width = 512;
+    canvas.height = 128;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.font = '600 28px system-ui, -apple-system, sans-serif';
+    const padX = 24;
     const maxW = canvas.width - padX * 2;
-    ctx.font = 'bold 26px system-ui, sans-serif';
     const lines: string[] = [];
     let line = '';
     for (const word of chatText.split(/\s+/)) {
@@ -114,15 +119,16 @@ function paintNameplate(
     }
     if (line) lines.push(line);
     const use = lines.slice(0, 2);
-    const bubbleH = 28 + use.length * 30;
-    const bubbleY = 12;
-    ctx.fillStyle = 'rgba(255,255,255,0.94)';
-    ctx.strokeStyle = 'rgba(15,23,42,0.35)';
-    ctx.lineWidth = 3;
-    const bw = Math.min(maxW, Math.max(...use.map((l) => ctx.measureText(l).width)) + padX * 2);
+    const lineH = 32;
+    const bubbleH = 22 + use.length * lineH;
+    const bw = Math.min(maxW, Math.max(...use.map((l) => ctx.measureText(l).width), 40) + padX * 2);
     const bx = (canvas.width - bw) / 2;
+    const bubbleY = 10;
+    const r = 16;
+    ctx.fillStyle = 'rgba(255,255,255,0.96)';
+    ctx.strokeStyle = 'rgba(15,23,42,0.28)';
+    ctx.lineWidth = 2;
     ctx.beginPath();
-    const r = 14;
     ctx.moveTo(bx + r, bubbleY);
     ctx.arcTo(bx + bw, bubbleY, bx + bw, bubbleY + bubbleH, r);
     ctx.arcTo(bx + bw, bubbleY + bubbleH, bx, bubbleY + bubbleH, r);
@@ -131,44 +137,68 @@ function paintNameplate(
     ctx.closePath();
     ctx.fill();
     ctx.stroke();
-    // tail
     ctx.beginPath();
-    ctx.moveTo(canvas.width / 2 - 10, bubbleY + bubbleH - 1);
-    ctx.lineTo(canvas.width / 2, bubbleY + bubbleH + 12);
-    ctx.lineTo(canvas.width / 2 + 10, bubbleY + bubbleH - 1);
+    ctx.moveTo(canvas.width / 2 - 9, bubbleY + bubbleH - 1);
+    ctx.lineTo(canvas.width / 2, bubbleY + bubbleH + 14);
+    ctx.lineTo(canvas.width / 2 + 9, bubbleY + bubbleH - 1);
     ctx.fill();
     ctx.fillStyle = '#0f172a';
     ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
     use.forEach((l, i) => {
-      ctx.fillText(l, canvas.width / 2, bubbleY + padY + 22 + i * 30);
+      ctx.fillText(l, canvas.width / 2, bubbleY + 14 + lineH / 2 + i * lineH);
     });
+    return true;
   }
 
-  const barY = canvas.height - 56;
-  ctx.fillStyle = 'rgba(0,0,0,0.5)';
-  ctx.fillRect(40, barY, canvas.width - 80, 44);
-  ctx.fillStyle = '#fff';
-  ctx.font = 'bold 28px system-ui, sans-serif';
-  ctx.textAlign = 'center';
-  const name = opts.username.slice(0, 16);
+  // Name tag only — size canvas to text so it isn't stretched/smooshed in 3D
+  const name = opts.username.slice(0, 18);
+  ctx.font = '700 36px system-ui, -apple-system, sans-serif';
   const nameW = ctx.measureText(name).width;
+  const checkRoom = verified ? 34 : 0;
+  const padX = 22;
+  const barW = Math.ceil(nameW + checkRoom + padX * 2);
+  const barH = 52;
+  canvas.width = Math.max(160, barW + 16);
+  canvas.height = 64;
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.font = '700 36px system-ui, -apple-system, sans-serif';
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'middle';
+
+  const bx = (canvas.width - barW) / 2;
+  const by = (canvas.height - barH) / 2;
+  const rr = 14;
+  ctx.fillStyle = 'rgba(0,0,0,0.55)';
+  ctx.beginPath();
+  ctx.moveTo(bx + rr, by);
+  ctx.arcTo(bx + barW, by, bx + barW, by + barH, rr);
+  ctx.arcTo(bx + barW, by + barH, bx, by + barH, rr);
+  ctx.arcTo(bx, by + barH, bx, by, rr);
+  ctx.arcTo(bx, by, bx + barW, by, rr);
+  ctx.closePath();
+  ctx.fill();
+
+  let textX = bx + padX;
   if (verified) {
-    const cx = canvas.width / 2 - nameW / 2 - 18;
+    const cx = textX + 12;
+    const cy = canvas.height / 2;
     ctx.beginPath();
-    ctx.arc(cx, barY + 22, 11, 0, Math.PI * 2);
+    ctx.arc(cx, cy, 11, 0, Math.PI * 2);
     ctx.fillStyle = '#3b82f6';
     ctx.fill();
     ctx.strokeStyle = '#fff';
-    ctx.lineWidth = 2;
+    ctx.lineWidth = 2.5;
     ctx.beginPath();
-    ctx.moveTo(cx - 5, barY + 22);
-    ctx.lineTo(cx - 1, barY + 26);
-    ctx.lineTo(cx + 6, barY + 16);
+    ctx.moveTo(cx - 5, cy);
+    ctx.lineTo(cx - 1, cy + 4);
+    ctx.lineTo(cx + 6, cy - 5);
     ctx.stroke();
-    ctx.fillStyle = '#fff';
+    textX += checkRoom;
   }
-  ctx.fillText(name, canvas.width / 2, barY + 32);
-  return showBubble;
+  ctx.fillStyle = '#fff';
+  ctx.fillText(name, textX, canvas.height / 2 + 1);
+  return false;
 }
 
 function mulberry32(seed: number) {
@@ -628,7 +658,7 @@ export default function OpenWorldPlaza({
         const sprite = new THREE.Sprite(
           new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false }),
         );
-        sprite.scale.set(3.4, 0.85, 1);
+        fitLabelSprite(sprite, canvas, 2.9);
         sprite.position.y = 3.35;
         return { canvas, ctx, tex, sprite, labelKey: `${username}|${role || ''}|` };
       };
@@ -644,8 +674,8 @@ export default function OpenWorldPlaza({
         holder.labelKey = key;
         const bubbled = paintNameplate(holder.labelCanvas, holder.labelCtx, opts);
         holder.labelTex.needsUpdate = true;
-        holder.labelSprite.scale.set(3.6, bubbled ? 2.2 : 0.85, 1);
-        holder.labelSprite.position.y = bubbled ? 4.15 : 3.35;
+        fitLabelSprite(holder.labelSprite, holder.labelCanvas, bubbled ? 3.6 : 2.9);
+        holder.labelSprite.position.y = bubbled ? 4.0 : 3.35;
       };
 
       const localLabel = makeLabel(user.username, user.role);
@@ -969,7 +999,7 @@ export default function OpenWorldPlaza({
     const filtered = await filterForDisplay(raw);
     localChatRef.current = { text: filtered, at: Date.now() };
     forcePublishRef.current = true;
-    await sendOpenWorldChat(user.username, filtered, room, chatChannel);
+    await sendOpenWorldChat(user.username, filtered, room, chatChannel, user.role);
   };
 
   if (phase === 'lobby') {
@@ -1367,24 +1397,54 @@ export default function OpenWorldPlaza({
               {isVerifiedAdmin(user.role) ? ' Admins: /help' : ''}
             </div>
           )}
-          {chatMessages.map((m) => (
-            <div key={m.id}>
-              <span
-                style={{
-                  color:
-                    m.username === 'System'
-                      ? '#fbbf24'
-                      : chatChannel === 'everywhere'
-                        ? '#38bdf8'
-                        : '#7dd3fc',
-                  fontWeight: 600,
-                }}
-              >
-                {m.username}
-              </span>
-              <span style={{ opacity: 0.9 }}>: {m.text}</span>
-            </div>
-          ))}
+          {chatMessages.map((m) => {
+            const adminMsg =
+              m.username !== 'System' &&
+              (isVerifiedAdmin(m.role) ||
+                isVerifiedAdmin(
+                  roster.find((r) => r.username.toLowerCase() === m.username.toLowerCase())?.role,
+                ) ||
+                (m.username.toLowerCase() === user.username.toLowerCase() && isVerifiedAdmin(user.role)));
+            return (
+              <div key={m.id} style={{ display: 'flex', alignItems: 'baseline', gap: 4, flexWrap: 'wrap' }}>
+                {adminMsg ? (
+                  <span
+                    title="Verified admin"
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      width: 14,
+                      height: 14,
+                      borderRadius: '50%',
+                      background: '#3b82f6',
+                      color: '#fff',
+                      fontSize: 9,
+                      fontWeight: 800,
+                      flexShrink: 0,
+                      lineHeight: 1,
+                    }}
+                  >
+                    ✓
+                  </span>
+                ) : null}
+                <span
+                  style={{
+                    color:
+                      m.username === 'System'
+                        ? '#fbbf24'
+                        : chatChannel === 'everywhere'
+                          ? '#38bdf8'
+                          : '#7dd3fc',
+                    fontWeight: 600,
+                  }}
+                >
+                  {m.username}
+                </span>
+                <span style={{ opacity: 0.9 }}>: {m.text}</span>
+              </div>
+            );
+          })}
           {commandLines.map((line) => (
             <div key={line.id} style={{ color: '#fde68a', opacity: 0.95 }}>
               {line.text}
