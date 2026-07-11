@@ -69,24 +69,10 @@ export default function Dashboard({ user, selectedMode }: DashboardProps) {
   const showAmbientParticles = !particlesOff && !isMinimalist && !isHighContrast;
   const [currentTab, setCurrentTab] = useState<TabType>('games');
   const [editMode, setEditMode] = useState(false);
-  const [showFounderCelebration, setShowFounderCelebration] = useState<boolean>(!!user?.showFounderCelebration);
+  const [showFounderCelebration, setShowFounderCelebration] = useState(false);
   const [showVerifyPrompt, setShowVerifyPrompt] = useState(false);
 
-  useEffect(() => {
-    if (!user || user.emailVerified === true) {
-      setShowVerifyPrompt(false);
-      return;
-    }
-    if (typeof window !== 'undefined') {
-      const flagged = sessionStorage.getItem('pixelplace_show_verify_prompt') === '1';
-      if (flagged) sessionStorage.removeItem('pixelplace_show_verify_prompt');
-      setShowVerifyPrompt(true);
-    }
-  }, [user?.username, user?.emailVerified]);
-
-  useEffect(() => {
-    if (user?.showFounderCelebration) setShowFounderCelebration(true);
-  }, [user?.showFounderCelebration]);
+  // Founder celebration + email verification prompts temporarily disabled.
 
   // Sync tab with URL (path) on load and popstate
   useEffect(() => {
@@ -296,7 +282,7 @@ export default function Dashboard({ user, selectedMode }: DashboardProps) {
         )}
       </footer>
       <ScrollToTop />
-      {showFounderCelebration && (
+      {false && showFounderCelebration && (
         <div
           role="dialog"
           aria-modal="true"
@@ -342,7 +328,8 @@ export default function Dashboard({ user, selectedMode }: DashboardProps) {
           </div>
         </div>
       )}
-      <VerifyAccountPrompt open={showVerifyPrompt} onClose={() => setShowVerifyPrompt(false)} />
+      {/* Account verification temporarily disabled */}
+      {false && <VerifyAccountPrompt open={showVerifyPrompt} onClose={() => setShowVerifyPrompt(false)} />}
     </div>
   );
 }

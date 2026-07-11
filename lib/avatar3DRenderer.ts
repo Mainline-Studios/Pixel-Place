@@ -289,32 +289,46 @@ export function createAvatarMesh(
   torso.castShadow = true;
   characterGroup.add(torso);
 
-  // Arms (scaled by body type - muscles get bigger!)
+  // Arms — pivot at shoulder so idle/walk poses hinge correctly (same as Avatar3DViewer turntable)
   const armSize = { w: 0.5, h: 1.8, d: 0.5 };
-  const leftArmGeometry = createHighPolyGeometry('arm', armSize.w * finalArmScale.x, armSize.h * finalArmScale.y, armSize.d * finalArmScale.z);
-  const leftArm = new THREE.Mesh(leftArmGeometry, armMaterial);
-  leftArm.position.set(-1.15 * finalArmScale.x, 0.9, 0);
-  leftArm.castShadow = true;
+  const armH = armSize.h * finalArmScale.y;
+  const leftArmGeometry = createHighPolyGeometry('arm', armSize.w * finalArmScale.x, armH, armSize.d * finalArmScale.z);
+  const leftArmMesh = new THREE.Mesh(leftArmGeometry, armMaterial);
+  leftArmMesh.position.set(0, -armH / 2, 0);
+  leftArmMesh.castShadow = true;
+  const leftArm = new THREE.Group();
+  leftArm.position.set(-1.15 * finalArmScale.x, 1.55, 0);
+  leftArm.add(leftArmMesh);
   characterGroup.add(leftArm);
 
-  const rightArmGeometry = createHighPolyGeometry('arm', armSize.w * finalArmScale.x, armSize.h * finalArmScale.y, armSize.d * finalArmScale.z);
-  const rightArm = new THREE.Mesh(rightArmGeometry, armMaterial);
-  rightArm.position.set(1.15 * finalArmScale.x, 0.9, 0);
-  rightArm.castShadow = true;
+  const rightArmGeometry = createHighPolyGeometry('arm', armSize.w * finalArmScale.x, armH, armSize.d * finalArmScale.z);
+  const rightArmMesh = new THREE.Mesh(rightArmGeometry, armMaterial);
+  rightArmMesh.position.set(0, -armH / 2, 0);
+  rightArmMesh.castShadow = true;
+  const rightArm = new THREE.Group();
+  rightArm.position.set(1.15 * finalArmScale.x, 1.55, 0);
+  rightArm.add(rightArmMesh);
   characterGroup.add(rightArm);
 
-  // Legs (scaled by body type)
+  // Legs — pivot at hip
   const legSize = { w: 0.6, h: 1.6, d: 0.6 };
-  const leftLegGeometry = createHighPolyGeometry('leg', legSize.w * finalLegScale.x, legSize.h * finalLegScale.y, legSize.d * finalLegScale.z);
-  const leftLeg = new THREE.Mesh(leftLegGeometry, legMaterial);
-  leftLeg.position.set(-0.4 * finalLegScale.x, -1.0, 0);
-  leftLeg.castShadow = true;
+  const legH = legSize.h * finalLegScale.y;
+  const leftLegGeometry = createHighPolyGeometry('leg', legSize.w * finalLegScale.x, legH, legSize.d * finalLegScale.z);
+  const leftLegMesh = new THREE.Mesh(leftLegGeometry, legMaterial);
+  leftLegMesh.position.set(0, -legH / 2, 0);
+  leftLegMesh.castShadow = true;
+  const leftLeg = new THREE.Group();
+  leftLeg.position.set(-0.4 * finalLegScale.x, -0.2, 0);
+  leftLeg.add(leftLegMesh);
   characterGroup.add(leftLeg);
 
-  const rightLegGeometry = createHighPolyGeometry('leg', legSize.w * finalLegScale.x, legSize.h * finalLegScale.y, legSize.d * finalLegScale.z);
-  const rightLeg = new THREE.Mesh(rightLegGeometry, legMaterial);
-  rightLeg.position.set(0.4 * finalLegScale.x, -1.0, 0);
-  rightLeg.castShadow = true;
+  const rightLegGeometry = createHighPolyGeometry('leg', legSize.w * finalLegScale.x, legH, legSize.d * finalLegScale.z);
+  const rightLegMesh = new THREE.Mesh(rightLegGeometry, legMaterial);
+  rightLegMesh.position.set(0, -legH / 2, 0);
+  rightLegMesh.castShadow = true;
+  const rightLeg = new THREE.Group();
+  rightLeg.position.set(0.4 * finalLegScale.x, -0.2, 0);
+  rightLeg.add(rightLegMesh);
   characterGroup.add(rightLeg);
 
   // Add accessories (full rendering like Avatar3DViewer)

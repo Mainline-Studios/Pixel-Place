@@ -26,6 +26,7 @@ import HistoriMac from '../Games/HistoriMac';
 import AnimationTest from '../Games/AnimationTest';
 import WorldGenerator from '../Games/WorldGenerator';
 import ObstacleCourse from '../Games/ObstacleCourse';
+import OpenWorldPlaza from '../Games/OpenWorldPlaza';
 import { useMobileBeta } from '@/contexts/MobileBetaContext';
 import SquishBubbles from '../Games/SquishBubbles';
 import SquishSlime from '../Games/SquishSlime';
@@ -76,6 +77,16 @@ const games: GameInfo[] = [
     icon: '🧱',
     category: 'Action',
     component: ObstacleCourse,
+  },
+  {
+    id: 'openWorldPlaza',
+    name: 'Open World Plaza',
+    description:
+      'Explore a shared plaza with your avatar — trees, buildings, walk with W, live chat, and friends moving in real time.',
+    icon: '🌳',
+    category: 'Multiplayer',
+    is3D: true,
+    component: OpenWorldPlaza,
   },
   {
     id: 'historiMac',
@@ -240,6 +251,7 @@ export default function GamesTab({ user, editMode }: GamesTabProps) {
   const { isMobileBeta } = useMobileBeta();
   const { updateUser } = useUser();
   const [selectedGame, setSelectedGame] = useState<string | null>(null);
+  const [playWithFriend, setPlayWithFriend] = useState<string | null>(null);
   /** Deep link: `#historimac=versionId` redirects to `/historimac/:id` (invite); else HistoriMac boot */
   const [historiMacBootVersionId, setHistoriMacBootVersionId] = useState<string | null>(null);
   const [selectedUserGame, setSelectedUserGame] = useState<UserMadeGame | null>(null);
@@ -353,10 +365,11 @@ export default function GamesTab({ user, editMode }: GamesTabProps) {
     const handleClose = () => {
       setSelectedGame(null);
       setSelectedUserGame(null);
+      setPlayWithFriend(null);
     };
     
     // Components that support onClose prop
-    const supportsOnClose = ['gymPump', 'hypnosia', 'voidArcade', 'ecoHero', 'historiMac', 'animationTest', 'worldGenerator', 'obstacleCourse', 'squishBubbles', 'squishSlime', 'coasterControl'].includes(selectedGame);
+    const supportsOnClose = ['gymPump', 'hypnosia', 'voidArcade', 'ecoHero', 'historiMac', 'animationTest', 'worldGenerator', 'obstacleCourse', 'openWorldPlaza', 'squishBubbles', 'squishSlime', 'coasterControl'].includes(selectedGame);
     
     // Prepare props based on game type - pass user to games that need it
     const baseProps = selectedGame === 'gymPump'
@@ -379,6 +392,8 @@ export default function GamesTab({ user, editMode }: GamesTabProps) {
       ? { user, onClose: handleClose }
       : selectedGame === 'obstacleCourse'
       ? { user, onClose: handleClose }
+      : selectedGame === 'openWorldPlaza'
+      ? { user, onClose: handleClose, playWithFriend: playWithFriend || undefined }
       : selectedGame === 'squishBubbles' || selectedGame === 'squishSlime'
       ? { onClose: handleClose }
       : selectedGame === 'coasterControl'
@@ -426,7 +441,15 @@ export default function GamesTab({ user, editMode }: GamesTabProps) {
         🎮 <LocalizeText text="Play Games" as="span" />
       </h2>
 
-      <FriendsStrip user={user} />
+      <FriendsStrip
+        user={user}
+        selectedFriend={playWithFriend}
+        onSelectFriend={setPlayWithFriend}
+        onPlayWithFriend={(friendUsername) => {
+          setPlayWithFriend(friendUsername);
+          setSelectedGame('openWorldPlaza');
+        }}
+      />
 
       {isMobileBeta && (
         <div

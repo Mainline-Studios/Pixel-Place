@@ -484,9 +484,6 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     if (typeof window !== 'undefined') {
       sessionStorage.setItem('pixelPlaceLoggedInUser', u.username);
       sessionStorage.removeItem('pixelPlaceOffline');
-      if (u.emailVerified !== true) {
-        sessionStorage.setItem('pixelplace_show_verify_prompt', '1');
-      }
     }
   };
 
@@ -593,9 +590,6 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       try {
         sessionStorage.setItem('pixelPlaceLoggedInUser', googleUser.username);
         sessionStorage.removeItem('pixelPlaceOffline');
-        if (googleUser.emailVerified !== true) {
-          sessionStorage.setItem('pixelplace_show_verify_prompt', '1');
-        }
       } catch (error) {
         console.error('Error saving user session:', error);
       }

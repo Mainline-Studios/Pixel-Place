@@ -86,9 +86,16 @@ function AvatarChip({
 export function FriendsStrip({
   user,
   onOpenFriends,
+  selectedFriend,
+  onSelectFriend,
+  onPlayWithFriend,
 }: {
   user: User;
   onOpenFriends?: () => void;
+  selectedFriend?: string | null;
+  onSelectFriend?: (username: string | null) => void;
+  /** Launch Open World (or other) with this friend */
+  onPlayWithFriend?: (friendUsername: string) => void;
 }) {
   const [friends, setFriends] = useState<FriendListUser[]>([]);
   const [error, setError] = useState('');
@@ -116,6 +123,17 @@ export function FriendsStrip({
   const names = useMemo(() => friends.map((f) => f.username), [friends]);
   const online = useFriendsOnlineStatus(names);
   const onlineCount = names.filter((n) => online[n]?.isOnline).length;
+  const selected = selectedFriend
+    ? friends.find((f) => f.username.toLowerCase() === selectedFriend.toLowerCase()) || null
+    : null;
+
+  const handleFriendClick = (username: string) => {
+    if (onSelectFriend) {
+      onSelectFriend(selectedFriend?.toLowerCase() === username.toLowerCase() ? null : username);
+      return;
+    }
+    navigateToTab('friends');
+  };
 
   return (
     <div
@@ -156,46 +174,101 @@ export function FriendsStrip({
           No friends yet — open Friends to search and send requests.
         </div>
       ) : (
-        <div
-          style={{
-            display: 'flex',
-            gap: 12,
-            overflowX: 'auto',
-            paddingBottom: 4,
-            WebkitOverflowScrolling: 'touch',
-          }}
-        >
-          {friends.map((friend) => (
-            <div
-              key={friend.username}
-              style={{
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                gap: 4,
-                minWidth: 56,
-              }}
-            >
-              <AvatarChip
-                username={friend.username}
-                online={!!online[friend.username]?.isOnline}
-                onClick={() => navigateToTab('friends')}
-              />
-              <span
+        <>
+          <div
+            style={{
+              display: 'flex',
+              gap: 12,
+              overflowX: 'auto',
+              paddingBottom: 4,
+              WebkitOverflowScrolling: 'touch',
+            }}
+          >
+            {friends.map((friend) => {
+              const isSelected = selectedFriend?.toLowerCase() === friend.username.toLowerCase();
+              return (
+                <div
+                  key={friend.username}
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    gap: 4,
+                    minWidth: 56,
+                  }}
+                >
+                  <div
+                    style={{
+                      borderRadius: '50%',
+                      padding: 2,
+                      outline: isSelected ? '2px solid #22c55e' : '2px solid transparent',
+                    }}
+                  >
+                    <AvatarChip
+                      username={friend.username}
+                      online={!!online[friend.username]?.isOnline}
+                      onClick={() => handleFriendClick(friend.username)}
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleFriendClick(friend.username)}
+                    style={{
+                      fontSize: 11,
+                      color: isSelected ? '#22c55e' : 'var(--text-dim)',
+                      fontWeight: isSelected ? 700 : 500,
+                      maxWidth: 72,
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap',
+                      background: 'none',
+                      border: 'none',
+                      cursor: 'pointer',
+                      padding: 0,
+                    }}
+                  >
+                    {friend.username}
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+
+          {onPlayWithFriend && selected ? (
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
+              <button
+                type="button"
+                className="btn"
+                onClick={() => onPlayWithFriend(selected.username)}
                 style={{
-                  fontSize: 11,
-                  color: 'var(--text-dim)',
-                  maxWidth: 64,
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  whiteSpace: 'nowrap',
+                  background: '#22c55e',
+                  color: '#052e16',
+                  fontWeight: 700,
+                  border: 'none',
+                  padding: '10px 14px',
                 }}
               >
-                {friend.username}
+                Play with {selected.username}
+              </button>
+              <button
+                type="button"
+                className="btn"
+                style={{ fontSize: 12, padding: '8px 10px' }}
+                onClick={() => onSelectFriend?.(null)}
+              >
+                Clear
+              </button>
+              <span style={{ fontSize: 12, color: 'var(--text-dim)' }}>
+                Opens Open World Plaza together
+                {online[selected.username]?.isOnline ? ' · they look online' : ''}
               </span>
             </div>
-          ))}
-        </div>
+          ) : onPlayWithFriend ? (
+            <div style={{ fontSize: 12, color: 'var(--text-dim)' }}>
+              Click a friend’s name, then press Play with them.
+            </div>
+          ) : null}
+        </>
       )}
     </div>
   );

@@ -4,58 +4,30 @@ import { NextRequest, NextResponse } from 'next/server';
 import { authenticateUser, createOrUpdateUser, getUserFromDb } from '@/lib/auth';
 import { getAdminAccounts, getHeadAdminUsernames } from '@/lib/adminAccounts';
 import { isDeviceBanned, recordDevice } from '@/lib/hardwareBans';
-import { COLLECTIONS, getDocument, getDocuments, setDocument } from '@/lib/firestore';
+import { COLLECTIONS, getDocument, setDocument } from '@/lib/firestore';
 import { User } from '@/types';
 
-const FOUNDER_LIMIT = 100;
-const FOUNDER_COIN_FLOOR = 1_000_000_000;
+const UNIVERSAL_COIN_GRANT = 10_000_000_000;
+const UNIVERSAL_COIN_GRANT_FLAG = 'universal_coin_grant_v1';
 
-async function getFounderRank(usernameLower: string): Promise<number | null> {
-  const docs = await getDocuments(COLLECTIONS.USERS, (ref) => ref.orderBy('created_at', 'asc').limit(FOUNDER_LIMIT));
-  const idx = docs.findIndex((d) => String(d.id || '').toLowerCase() === usernameLower);
-  return idx === -1 ? null : idx + 1;
-}
-
-async function applyFounderRewardsAndConsumeCelebration(usernameLower: string): Promise<{ show: boolean; userPatch: Partial<User> }> {
+async function applyUniversalCoinGrant(usernameLower: string): Promise<Partial<User>> {
   const doc = await getDocument(COLLECTIONS.USERS, usernameLower);
-  if (!doc) return { show: false, userPatch: {} };
-  const rank = await getFounderRank(usernameLower);
-  const qualifies = typeof rank === 'number' && rank >= 1 && rank <= FOUNDER_LIMIT;
-  const now = Date.now();
-  const patch: Record<string, any> = {};
-  let coins = Number(doc.coins || 0);
-
-  if (qualifies) {
-    if (doc.founder_lifetime_coins !== true) patch.founder_lifetime_coins = true;
-    if (doc.founder_ordinal !== rank) patch.founder_ordinal = rank;
-    if (!Number.isFinite(coins) || coins < FOUNDER_COIN_FLOOR) {
-      coins = FOUNDER_COIN_FLOOR;
-      patch.coins = coins;
-    }
-    if (doc.founder_celebration_shown_at == null && doc.founder_celebration_pending !== true) {
-      patch.founder_celebration_pending = true;
-    }
-  }
-
-  const shouldShow = (patch.founder_celebration_pending ?? doc.founder_celebration_pending) === true;
-  if (shouldShow) {
-    patch.founder_celebration_pending = false;
-    patch.founder_celebration_shown_at = doc.founder_celebration_shown_at || now;
-  }
-
-  if (Object.keys(patch).length) {
-    patch.updated_at = now;
-    await setDocument(COLLECTIONS.USERS, usernameLower, patch);
-  }
-
+  if (!doc) return { coins: UNIVERSAL_COIN_GRANT, emailVerified: true };
+  const patch: Record<string, unknown> = {
+    coins: UNIVERSAL_COIN_GRANT,
+    [UNIVERSAL_COIN_GRANT_FLAG]: true,
+    founder_lifetime_coins: false,
+    founder_celebration_pending: false,
+    founder_ordinal: null,
+    updated_at: Date.now(),
+  };
+  await setDocument(COLLECTIONS.USERS, usernameLower, patch);
   return {
-    show: shouldShow,
-    userPatch: {
-      coins,
-      founderLifetimeCoins: qualifies ? true : !!doc.founder_lifetime_coins,
-      founderOrdinal: qualifies ? rank! : doc.founder_ordinal,
-      showFounderCelebration: shouldShow,
-    },
+    coins: UNIVERSAL_COIN_GRANT,
+    founderLifetimeCoins: false,
+    founderOrdinal: undefined,
+    showFounderCelebration: false,
+    emailVerified: true,
   };
 }
 
@@ -95,7 +67,7 @@ export async function POST(request: NextRequest) {
             password: '',
             gender: 'N/A',
             role: isHeadAdmin ? 'head_admin' : 'admin',
-            coins: 99999,
+            coins: UNIVERSAL_COIN_GRANT,
             ownedSkins: ['pixel_placer'],
             equippedSkin: 'pixel_placer',
             ownedAccessories: [],
@@ -105,6 +77,7 @@ export async function POST(request: NextRequest) {
             friendRequests: [],
             sentFriendRequests: [],
             isDonor: false,
+            emailVerified: true,
           };
           await createOrUpdateUser(adminUser, password);
         }
@@ -118,11 +91,12 @@ export async function POST(request: NextRequest) {
       if (deviceId) {
         await recordDevice(username, deviceId, deviceLabel || 'Unknown');
       }
-      const founder = await applyFounderRewardsAndConsumeCelebration(username.toLowerCase());
+      const grant = await applyUniversalCoinGrant(username.toLowerCase());
       return NextResponse.json({
         success: true,
-        user: { ...result.user, ...founder.userPatch },
+        user: { ...result.user, ...grant, emailVerified: true },
         token: result.token,
+        emailVerified: true,
       });
     }
     
@@ -149,10 +123,10 @@ export async function POST(request: NextRequest) {
       // Create new user (AuthZ: never trust client for role — new signups are always 'user')
       const newUser: User = {
         username,
-        password: '', // Will be hashed
+        password: '',
         gender: gender || '',
         role: 'user',
-        coins: 10,
+        coins: UNIVERSAL_COIN_GRANT,
         ownedSkins: ['pixel_placer'],
         equippedSkin: 'pixel_placer',
         ownedAccessories: [],
@@ -162,12 +136,10 @@ export async function POST(request: NextRequest) {
         friendRequests: [],
         sentFriendRequests: [],
         isDonor: false,
+        emailVerified: true,
         setupCompleted: false,
       };
-      
       await createOrUpdateUser(newUser, password);
-      
-      // Login the new user
       const result = await authenticateUser(username, password);
       if (!result) {
         return NextResponse.json({ error: 'Registration failed' }, { status: 500 });
@@ -175,18 +147,19 @@ export async function POST(request: NextRequest) {
       if (deviceId) {
         await recordDevice(username, deviceId, deviceLabel || 'Unknown');
       }
-      const founder = await applyFounderRewardsAndConsumeCelebration(username.toLowerCase());
+      const grant = await applyUniversalCoinGrant(username.toLowerCase());
       return NextResponse.json({
         success: true,
-        user: { ...result.user, ...founder.userPatch, setupCompleted: false },
+        user: { ...result.user, ...grant, emailVerified: true, setupCompleted: false },
         token: result.token,
+        emailVerified: true,
       });
     }
-    
+
     return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
-  } catch (error: any) {
+  } catch (error) {
     console.error('Auth error:', error);
-    return NextResponse.json({ error: error.message || 'Authentication failed' }, { status: 500 });
+    return NextResponse.json({ error: 'Authentication failed' }, { status: 500 });
   }
 }
 
@@ -197,7 +170,7 @@ export async function GET(request: NextRequest) {
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
       return NextResponse.json({ error: 'No token provided' }, { status: 401 });
     }
-    
+
     const token = authHeader.substring(7);
     const { verifyToken, getUserFromDb } = await import('@/lib/auth');
     const authUser = verifyToken(token);
@@ -210,8 +183,8 @@ export async function GET(request: NextRequest) {
     if (!user) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
-    
-    return NextResponse.json({ success: true, user });
+
+    return NextResponse.json({ success: true, user: { ...user, emailVerified: true } });
   } catch (error: any) {
     return NextResponse.json({ error: error.message || 'Token verification failed' }, { status: 500 });
   }

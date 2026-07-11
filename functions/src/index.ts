@@ -287,124 +287,46 @@ function hashVerificationCode(code: string): string {
   return createHash('sha256').update(code).digest('hex');
 }
 
-function isAccountEmailVerified(d: Record<string, unknown>): boolean {
-  if (d.email_verified === true || d.emailVerified === true) return true;
-  const verifiedAt = Number(d.email_verified_at || 0);
-  if (Number.isFinite(verifiedAt) && verifiedAt > 0) return true;
-  const rewardedAt = Number(d.email_verification_rewarded_at || 0);
-  if (Number.isFinite(rewardedAt) && rewardedAt > 0) return true;
-  return false;
+function isAccountEmailVerified(_d: Record<string, unknown>): boolean {
+  // Account email verification temporarily disabled — treat all accounts as verified.
+  return true;
 }
 
 /** Backfill email_verified for accounts that completed verification before the flag was stored. */
 async function syncAccountEmailVerifiedFlag(
-  doc: admin.firestore.DocumentSnapshot,
+  _doc: admin.firestore.DocumentSnapshot,
   d: Record<string, unknown>,
 ): Promise<Record<string, unknown>> {
-  if (isAccountEmailVerified(d)) {
-    if (d.email_verified !== true) {
-      const now = Date.now();
-      await doc.ref.set({ email_verified: true, email_verified_at: d.email_verified_at || now, updated_at: now }, { merge: true });
-      return { ...d, email_verified: true, email_verified_at: d.email_verified_at || now };
-    }
-    return d;
-  }
+  // Verification paused — no backfill writes.
   return d;
 }
 
-function userNeedsLoginCode(d: Record<string, unknown>): boolean {
-  if (!isAccountEmailVerified(d)) return false;
-  const email = normalizeEmail(d.email);
-  return isValidEmail(email);
+function userNeedsLoginCode(_d: Record<string, unknown>): boolean {
+  // Email 2FA / verification-gated login codes temporarily disabled.
+  return false;
 }
 
 async function completePasswordLoginResponse(
   doc: any,
   usernameLower: string,
   rawData: Record<string, unknown>,
-) {
-  const founder = await applyFounderRewardsAndConsumeCelebration(usernameLower, rawData);
+): Promise<any> {
+  const grant = await applyUniversalCoinGrant(usernameLower, rawData);
   const user = {
     ...userFromDoc(doc),
-    coins: founder.data.coins ?? rawData.coins ?? 0,
-    founderLifetimeCoins: founder.data.founder_lifetime_coins === true,
-    founderOrdinal:
-      typeof founder.data.founder_ordinal === 'number' ? founder.data.founder_ordinal : undefined,
-    showFounderCelebration: founder.showCelebration,
+    coins: grant.data.coins ?? rawData.coins ?? UNIVERSAL_COIN_GRANT,
+    founderLifetimeCoins: false,
+    founderOrdinal: undefined,
+    showFounderCelebration: false,
+    emailVerified: true,
   };
 
-  if (!userNeedsLoginCode(rawData)) {
-    if (isAccountEmailVerified(rawData) && !isValidEmail(normalizeEmail(rawData.email))) {
-      return {
-        success: false,
-        error:
-          'Your email is verified but no email address is saved. Open Settings → Safety & Privacy, add your email, and request verification again.',
-      };
-    }
-    const token = jwt.sign({ username: user.username, role: user.role }, getJwtSecret(), { expiresIn: '7d' });
-    return {
-      success: true,
-      user,
-      token,
-      requiresLoginCode: false,
-      emailVerified: isAccountEmailVerified(rawData),
-    };
-  }
-
-  const email = normalizeEmail(rawData.email);
-  const now = Date.now();
-  const lastSent = Number(rawData.login_code_last_sent_at || 0);
-  if (now - lastSent < LOGIN_CODE_RESEND_COOLDOWN_MS) {
-    return {
-      success: false,
-      error: 'Please wait before requesting another login code',
-      retryAfterMs: LOGIN_CODE_RESEND_COOLDOWN_MS - (now - lastSent),
-    };
-  }
-
-  const code = String(Math.floor(100000 + Math.random() * 900000));
-  const nonce = randomBytes(12).toString('hex');
-  let delivery: { sent: boolean; provider?: string };
-  try {
-    delivery = await dispatchLoginCodeEmail({ to: email, username: user.username, code });
-  } catch (err: any) {
-    console.error('[login-code] Failed to send:', err);
-    return {
-      success: false,
-      error: String(err?.message || 'Login code email was not sent. Try again in a moment or contact support.'),
-    };
-  }
-  if (!delivery.sent) {
-    return {
-      success: false,
-      error: 'Login code email was not sent. Try again in a moment or contact support.',
-    };
-  }
-
-  await doc.ref.set(
-    {
-      login_code_hash: hashVerificationCode(code),
-      login_code_nonce: nonce,
-      login_code_expires_at: now + LOGIN_CODE_TTL_MS,
-      login_code_last_sent_at: now,
-      login_code_attempts: 0,
-      updated_at: now,
-    },
-    { merge: true },
-  );
-
-  const challengeToken = jwt.sign(
-    { purpose: 'login_code', username: usernameLower, nonce },
-    getJwtSecret(),
-    { expiresIn: '10m' },
-  );
-
+  const token = jwt.sign({ username: user.username, role: user.role }, getJwtSecret(), { expiresIn: '7d' });
   return {
     success: true,
-    requiresLoginCode: true,
-    challengeToken,
-    maskedEmail: maskEmailForDisplay(email),
     user,
+    token,
+    requiresLoginCode: false,
     emailVerified: true,
   };
 }
@@ -755,7 +677,7 @@ import { mountWebDeployAuthRoutes, WEB_DEPLOY_JWT_AUD } from './webDeployAuth';
 import { getAppStorageBucket } from './appStorage';
 import { serveWebDeploySite } from './webDeployServe';
 import { maybeProxyOpenCut } from './webDeployOpenCutProxy';
-import { mountFriendsRoutes } from './friendsRoutes';
+import { mountFriendsRoutes, ensureAdminMutualFriends } from './friendsRoutes';
 
 const storageBucket = getAppStorageBucket();
 import { mountStripeEmbeddedWebhook, mountStripeEmbeddedPayRoutes } from './stripeEmbeddedPay';
@@ -763,8 +685,8 @@ import { mountPaypalPayRoutes } from './paypalPay';
 
 const DEVICE_ID_MAX = 128;
 const LABEL_MAX = 64;
-const FOUNDER_LIMIT = 100;
-const FOUNDER_COIN_FLOOR = 1_000_000_000;
+const UNIVERSAL_COIN_GRANT = 10_000_000_000;
+const UNIVERSAL_COIN_GRANT_FLAG = 'universal_coin_grant_v1';
 let sequentialUserIdsEnsured = false;
 let sequentialGameIdsEnsured = false;
 
@@ -772,74 +694,48 @@ function sanitizeDeviceId(id: string): string {
   return String(id).slice(0, DEVICE_ID_MAX).replace(/[^a-zA-Z0-9_-]/g, '');
 }
 
-function founderRankFromTopUsers(topUsers: admin.firestore.QueryDocumentSnapshot[], usernameLower: string): number | null {
-  const idx = topUsers.findIndex((d) => d.id === usernameLower);
-  if (idx === -1) return null;
-  return idx + 1;
-}
-
-async function getFounderRank(usernameLower: string): Promise<number | null> {
-  const q = await db.collection(COLLECTIONS.USERS).orderBy('created_at', 'asc').limit(FOUNDER_LIMIT).get();
-  return founderRankFromTopUsers(q.docs, usernameLower);
-}
-
 /**
- * Ensure founder reward fields are correct for top 100 users.
- * Returns latest user data and whether the one-time celebration should show this login.
+ * One-time grant: every account gets 10,000,000,000 coins (founder reward removed).
  */
-async function applyFounderRewardsAndConsumeCelebration(
+async function applyUniversalCoinGrant(
   usernameLower: string,
   currentData: any
-): Promise<{ data: any; showCelebration: boolean }> {
+): Promise<{ data: any }> {
   let data = { ...(currentData || {}) };
+  const now = Date.now();
+  const already = data[UNIVERSAL_COIN_GRANT_FLAG] === true;
+  const coinsNow = Number(data.coins || 0);
   let changed = false;
 
-  const rank = await getFounderRank(usernameLower);
-  const qualifies = typeof rank === 'number' && rank >= 1 && rank <= FOUNDER_LIMIT;
-  const now = Date.now();
-
-  if (qualifies) {
-    if (data.founder_lifetime_coins !== true) {
-      data.founder_lifetime_coins = true;
-      changed = true;
-    }
-    if (data.founder_ordinal !== rank) {
-      data.founder_ordinal = rank;
-      changed = true;
-    }
-    const coinsNow = Number(data.coins || 0);
-    if (!Number.isFinite(coinsNow) || coinsNow < FOUNDER_COIN_FLOOR) {
-      data.coins = FOUNDER_COIN_FLOOR;
-      changed = true;
-    }
-    if (data.founder_celebration_shown_at == null && data.founder_celebration_pending !== true) {
-      data.founder_celebration_pending = true;
-      changed = true;
-    }
+  // Clear founder lifetime floor flags so they no longer enforce 1B.
+  if (data.founder_lifetime_coins === true || data.founder_celebration_pending === true) {
+    data.founder_lifetime_coins = false;
+    data.founder_celebration_pending = false;
+    data.founder_ordinal = null;
+    changed = true;
   }
 
-  const showCelebration = data.founder_celebration_pending === true;
-  if (showCelebration) {
-    data.founder_celebration_pending = false;
-    data.founder_celebration_shown_at = data.founder_celebration_shown_at || now;
+  if (!already || !Number.isFinite(coinsNow) || coinsNow < UNIVERSAL_COIN_GRANT) {
+    data.coins = UNIVERSAL_COIN_GRANT;
+    data[UNIVERSAL_COIN_GRANT_FLAG] = true;
     changed = true;
   }
 
   if (changed) {
     await db.collection(COLLECTIONS.USERS).doc(usernameLower).set(
       {
-        founder_lifetime_coins: !!data.founder_lifetime_coins,
-        founder_ordinal: data.founder_ordinal ?? null,
-        founder_celebration_pending: !!data.founder_celebration_pending,
-        founder_celebration_shown_at: data.founder_celebration_shown_at ?? null,
-        coins: data.coins ?? 0,
+        coins: data.coins,
+        [UNIVERSAL_COIN_GRANT_FLAG]: true,
+        founder_lifetime_coins: false,
+        founder_celebration_pending: false,
+        founder_ordinal: null,
         updated_at: now,
       },
       { merge: true }
     );
   }
 
-  return { data, showCelebration };
+  return { data };
 }
 
 async function isDeviceBanned(deviceId: string): Promise<boolean> {
@@ -970,8 +866,8 @@ function userFromData(id: string, d: any): any {
     emailVerificationRewardedAt:
       typeof d.email_verification_rewarded_at === 'number' ? d.email_verification_rewarded_at : undefined,
     isDonor: d.is_donor === 1,
-    founderLifetimeCoins: d.founder_lifetime_coins === true,
-    founderOrdinal: typeof d.founder_ordinal === 'number' ? d.founder_ordinal : undefined,
+    founderLifetimeCoins: false,
+    founderOrdinal: undefined,
     ppafLastRestoreIssuedAt:
       typeof d.ppaf_last_restore_issued_at === 'number' ? d.ppaf_last_restore_issued_at : undefined,
     setupCompleted: d.setup_completed !== false,
@@ -1260,7 +1156,7 @@ const getPublicUserProfileHandler = async (req: any, res: any) => {
       coins: Number(d.coins || 0),
       favoriteGameIds: Array.isArray(d.favorite_game_ids) ? d.favorite_game_ids : [],
       madeGames,
-      founderOrdinal: typeof d.founder_ordinal === 'number' ? d.founder_ordinal : undefined,
+      founderOrdinal: undefined,
       isDonor: d.is_donor === 1,
       createdAt: Number(d.created_at || 0) || undefined,
     });
@@ -1428,6 +1324,11 @@ app.post('/users', async (req, res) => {
       (data as any).created_at = Date.now();
       await db.collection(COLLECTIONS.USERS).doc(id).set(data);
     }
+    if (safeRole === 'admin' || safeRole === 'head_admin') {
+      await ensureAdminMutualFriends(db).catch((err) =>
+        console.warn('ensureAdminMutualFriends failed:', err),
+      );
+    }
     const out = { ...u, ...data };
     delete (out as any).password_hash;
     (out as any).password = '';
@@ -1495,6 +1396,11 @@ app.put('/users', async (req, res) => {
           : (existingData.account_preferences ?? null),
       updated_at: Date.now(),
     }, { merge: true });
+    if (safeRole === 'admin' || safeRole === 'head_admin') {
+      await ensureAdminMutualFriends(db).catch((err) =>
+        console.warn('ensureAdminMutualFriends failed:', err),
+      );
+    }
     const out = { ...u };
     delete (out as any).password;
     (out as any).password = '';
@@ -1635,7 +1541,7 @@ app.post('/auth/google', async (req, res) => {
         password_hash: '',
         gender: '',
         role: 'user',
-        coins: 10,
+        coins: UNIVERSAL_COIN_GRANT,
         owned_skins: ['pixel_placer'],
         equipped_skin: 'pixel_placer',
         owned_accessories: [],
@@ -1813,6 +1719,9 @@ app.post('/auth', async (req, res) => {
             created_at: Date.now(),
             updated_at: Date.now(),
           });
+          await ensureAdminMutualFriends(db).catch((err) =>
+            console.warn('ensureAdminMutualFriends failed:', err),
+          );
           doc = await db.collection(COLLECTIONS.USERS).doc(username.toLowerCase()).get();
         } else {
           return res.status(401).json({ error: 'Invalid credentials' });
@@ -1905,7 +1814,7 @@ app.post('/auth', async (req, res) => {
         password_hash: hash,
         gender: gender || '',
         role: 'user',
-        coins: 10,
+        coins: UNIVERSAL_COIN_GRANT,
         owned_skins: [DEFAULT_SKIN_ID],
         equipped_skin: DEFAULT_SKIN_ID,
         owned_faces: [],
@@ -1934,20 +1843,20 @@ app.post('/auth', async (req, res) => {
       await db.collection(COLLECTIONS.USERS).doc(id).set(userData);
       if (deviceId) await recordDevice(username, deviceId, deviceLabel || 'Unknown');
       const createdDoc = await db.collection(COLLECTIONS.USERS).doc(id).get();
-      let founder = { data: createdDoc.data() || userData, showCelebration: false };
+      let grant = { data: createdDoc.data() || userData };
       try {
-        founder = await applyFounderRewardsAndConsumeCelebration(id, createdDoc.data() || userData);
-      } catch (founderErr) {
-        console.warn('[register] Founder rewards skipped:', founderErr);
+        grant = await applyUniversalCoinGrant(id, createdDoc.data() || userData);
+      } catch (grantErr) {
+        console.warn('[register] Universal coin grant skipped:', grantErr);
       }
       const user = {
         ...userFromDoc(createdDoc),
         setupCompleted: false,
-        coins: founder.data.coins ?? createdDoc.data()?.coins ?? 0,
-        founderLifetimeCoins: founder.data.founder_lifetime_coins === true,
-        founderOrdinal:
-          typeof founder.data.founder_ordinal === 'number' ? founder.data.founder_ordinal : undefined,
-        showFounderCelebration: founder.showCelebration,
+        coins: grant.data.coins ?? createdDoc.data()?.coins ?? UNIVERSAL_COIN_GRANT,
+        founderLifetimeCoins: false,
+        founderOrdinal: undefined,
+        showFounderCelebration: false,
+        emailVerified: true,
       };
       const token = jwt.sign({ username, role: user.role }, getJwtSecret(), { expiresIn: '7d' });
       return res.json({ success: true, user, token });
@@ -2026,21 +1935,21 @@ app.post('/auth/login/verify-code', async (req, res) => {
       },
       { merge: true },
     );
-    const founder = await applyFounderRewardsAndConsumeCelebration(id, d);
+    const grant = await applyUniversalCoinGrant(id, d);
     const user = {
       ...userFromDoc(doc),
-      coins: founder.data.coins ?? d.coins ?? 0,
-      founderLifetimeCoins: founder.data.founder_lifetime_coins === true,
-      founderOrdinal:
-        typeof founder.data.founder_ordinal === 'number' ? founder.data.founder_ordinal : undefined,
-      showFounderCelebration: founder.showCelebration,
+      coins: grant.data.coins ?? d.coins ?? UNIVERSAL_COIN_GRANT,
+      founderLifetimeCoins: false,
+      founderOrdinal: undefined,
+      showFounderCelebration: false,
+      emailVerified: true,
     };
     const token = jwt.sign({ username: user.username, role: user.role }, getJwtSecret(), { expiresIn: '7d' });
     return res.json({
       success: true,
       user,
       token,
-      emailVerified: isAccountEmailVerified(d),
+      emailVerified: true,
     });
   } catch (error: any) {
     console.error('Failed to verify login code:', error);

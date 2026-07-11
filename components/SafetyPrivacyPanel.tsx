@@ -350,65 +350,14 @@ export default function SafetyPrivacyPanel({ user }: SafetyPrivacyPanelProps) {
             marginTop: 14,
             padding: '12px 14px',
             borderRadius: 10,
-            border: '1px solid rgba(34, 197, 94, 0.35)',
-            background: 'rgba(34, 197, 94, 0.06)',
+            border: '1px solid rgba(148, 163, 184, 0.35)',
+            background: 'rgba(148, 163, 184, 0.06)',
           }}
         >
-          <div style={{ fontWeight: 700, marginBottom: 8 }}>Email verification (+20 Pixel Coins)</div>
-          <div style={{ fontSize: 12, color: 'var(--text-dim)', marginBottom: 10 }}>
-            Enter your email, then use <strong>Send verification</strong> or <strong>Verify email</strong> to receive a
-            code and magic link. Paste the code here to finish (+20 Pixel Coins once).
+          <div style={{ fontWeight: 700, marginBottom: 8 }}>Email verification</div>
+          <div style={{ fontSize: 12, color: 'var(--text-dim)' }}>
+            Account email verification is temporarily turned off. You can play without verifying for now.
           </div>
-          <div style={{ display: 'grid', gap: 8 }}>
-            <input
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="Email address"
-              type="email"
-              className="input"
-            />
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-              <button
-                type="button"
-                className="btn"
-                onClick={() => void handleRequestVerification()}
-                disabled={emailBusy}
-              >
-                {emailBusy ? 'Sending...' : 'Send verification'}
-              </button>
-              <button type="button" className="btn" onClick={() => void loadEmailStatus()} disabled={emailStatusBusy}>
-                {emailStatusBusy ? 'Refreshing...' : 'Refresh status'}
-              </button>
-            </div>
-            <input
-              value={emailCode}
-              onChange={(e) => setEmailCode(e.target.value)}
-              placeholder="One-time code"
-              type="text"
-              className="input"
-            />
-            <input
-              value={emailToken}
-              onChange={(e) => setEmailToken(e.target.value)}
-              placeholder="Magic link token (optional)"
-              type="text"
-              className="input"
-            />
-            <button type="button" className="btn" onClick={() => void handleVerifyEmail()} disabled={emailBusy}>
-              {emailBusy
-                ? 'Working...'
-                : emailCode.trim() || emailToken.trim()
-                  ? 'Confirm code'
-                  : 'Verify email (send code)'}
-            </button>
-          </div>
-          <div style={{ marginTop: 10, fontSize: 12, color: emailStatus?.emailVerified ? '#86efac' : 'var(--text-dim)' }}>
-            {emailStatus?.emailVerified
-              ? `Verified${emailStatus.email ? `: ${emailStatus.email}` : ''}`
-              : `Not verified${emailStatus?.email ? `: ${emailStatus.email}` : ''}`}
-          </div>
-          {emailMessage ? <div style={{ marginTop: 8, fontSize: 12, color: '#86efac' }}>{emailMessage}</div> : null}
-          {emailError ? <div style={{ marginTop: 8, fontSize: 12, color: '#fca5a5' }}>{emailError}</div> : null}
         </div>
 
         <PpafBackupModal

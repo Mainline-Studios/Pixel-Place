@@ -11,6 +11,69 @@ function isAdmin(auth: AuthUser) {
   return auth.role === 'admin' || auth.role === 'head_admin';
 }
 
+function isAdminRole(role: unknown) {
+  const r = String(role || '').toLowerCase();
+  return r === 'admin' || r === 'head_admin';
+}
+
+function displayUsername(id: string, data: Record<string, any> | undefined) {
+  return (data?.username && String(data.username).trim()) || id;
+}
+
+/**
+ * Every admin / head_admin is mutual friends with every other admin.
+ * Persists into each user's `friends` array so DMs and Games strip stay in sync.
+ */
+export async function ensureAdminMutualFriends(usersDb: any): Promise<void> {
+  let docs: Array<{ id: string; data: () => any }> = [];
+  try {
+    const snap = await usersDb.collection('users').where('role', 'in', ['admin', 'head_admin']).get();
+    docs = snap.docs || [];
+  } catch {
+    // Fallback: scan all users if `in` query is unavailable
+    const snap = await usersDb.collection('users').get();
+    docs = (snap.docs || []).filter((d: any) => isAdminRole(d.data()?.role));
+  }
+
+  const admins = docs
+    .map((d) => {
+      const data = d.data() || {};
+      return {
+        id: String(d.id).toLowerCase(),
+        username: displayUsername(d.id, data),
+        friends: Array.isArray(data.friends) ? data.friends.map((f: unknown) => String(f)) : [],
+      };
+    })
+    .filter((a) => a.id);
+
+  if (admins.length < 2) return;
+
+  await Promise.all(
+    admins.map(async (adminUser) => {
+      const friendSet = new Map<string, string>();
+      for (const f of adminUser.friends) {
+        friendSet.set(f.toLowerCase(), f);
+      }
+      let changed = false;
+      for (const other of admins) {
+        if (other.id === adminUser.id) continue;
+        if (!friendSet.has(other.id)) {
+          friendSet.set(other.id, other.username);
+          changed = true;
+        }
+      }
+      if (!changed) return;
+      await usersDb.collection('users').doc(adminUser.id).set(
+        {
+          friends: Array.from(friendSet.values()),
+          updated_at: Date.now(),
+        },
+        { merge: true },
+      );
+    }),
+  );
+}
+
 function publicUser(id: string, d: Record<string, any> | undefined) {
   if (!d) return null;
   return {
@@ -72,7 +135,15 @@ export function mountFriendsRoutes(
 
       const userDoc = await usersDb.collection('users').doc(username.toLowerCase()).get();
       if (!userDoc.exists) return res.status(404).json({ error: 'User not found' });
-      const userData = userDoc.data() || {};
+      let userData = userDoc.data() || {};
+
+      // Admins are always mutual friends with every other admin
+      if (isAdminRole(userData.role)) {
+        await ensureAdminMutualFriends(usersDb);
+        const refreshed = await usersDb.collection('users').doc(username.toLowerCase()).get();
+        userData = refreshed.exists ? refreshed.data() || userData : userData;
+      }
+
       const friendNames: string[] = Array.isArray(userData.friends) ? userData.friends : [];
 
       const friendUsers = [];
@@ -266,6 +337,11 @@ export function mountFriendsRoutes(
       }
 
       if (action === 'remove') {
+        if (isAdminRole(fromData.role) && isAdminRole(toData.role)) {
+          return res.status(400).json({
+            error: 'Admins are automatically friends with each other and cannot be unfriended',
+          });
+        }
         await fromRef.set(
           {
             friends: fromFriends.filter((f) => String(f).toLowerCase() !== toLower),
@@ -355,11 +431,16 @@ export function mountFriendsRoutes(
       const text = String(message).trim();
       if (!text) return res.status(400).json({ error: 'Message cannot be empty' });
 
-      // Must be friends to DM
+      // Must be friends to DM (admins are always friends with each other)
       const fromDoc = await usersDb.collection('users').doc(String(fromUsername).toLowerCase()).get();
+      const toDoc = await usersDb.collection('users').doc(String(toUsername).toLowerCase()).get();
+      if (isAdminRole(fromDoc.data()?.role) && isAdminRole(toDoc.data()?.role)) {
+        await ensureAdminMutualFriends(usersDb);
+      }
       const friends: string[] = Array.isArray(fromDoc.data()?.friends) ? fromDoc.data().friends : [];
       const isFriend = friends.some((f) => String(f).toLowerCase() === String(toUsername).toLowerCase());
-      if (!isFriend && !isAdmin(auth)) {
+      const bothAdmins = isAdminRole(fromDoc.data()?.role) && isAdminRole(toDoc.data()?.role);
+      if (!isFriend && !bothAdmins && !isAdmin(auth)) {
         return res.status(403).json({ error: 'You can only message friends' });
       }
 

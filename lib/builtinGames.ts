@@ -113,6 +113,15 @@ export const BUILTIN_GAMES: PublishedGame[] = [
     gameCode: 'builtin_worldGenerator',
     thumbnail: undefined,
   },
+  {
+    title: 'Open World Plaza',
+    desc: 'Explore with your avatar, walk with friends in real time, and live chat in a shared online plaza.',
+    owner: 'System',
+    ts: Date.now(),
+    playable: true,
+    gameCode: 'builtin_openWorldPlaza',
+    thumbnail: undefined,
+  },
   // Note: InternationalSportsHQ and MusicalMayhem are not React components
   // They can be added later if converted to React components
 ];
