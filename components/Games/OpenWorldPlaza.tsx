@@ -9,6 +9,7 @@ import {
   createPrivateInvite,
   GLOBAL_MAX_PLAYERS,
   invitePublicUrl,
+  isKickedFromOpenWorldRoom,
   joinBestGlobalRoom,
   leaveOpenWorld,
   openWorldRoomForFriends,
@@ -16,12 +17,14 @@ import {
   sendOpenWorldChat,
   startPrivateServer,
   subscribeOpenWorldChat,
+  subscribeOpenWorldKick,
   subscribeOpenWorldPlayers,
   type OpenWorldChatChannel,
   type OpenWorldChatMessage,
   type OpenWorldPlayerState,
   type PrivateInviteRecord,
 } from '@/lib/openWorldRtdb';
+import { runOpenWorldAdminCommand } from '@/lib/openWorldAdminCommands';
 import {
   buildPlazaBuildings,
   collideWalls,
@@ -58,7 +61,115 @@ type RemoteAvatar = {
   };
   anim: 'idle' | 'walk';
   username: string;
+  labelCanvas: HTMLCanvasElement;
+  labelCtx: CanvasRenderingContext2D;
+  labelTex: any;
+  labelSprite: any;
+  labelKey: string;
 };
+
+type RosterEntry = { username: string; role?: string };
+
+function isVerifiedAdmin(role?: string) {
+  return role === 'admin' || role === 'head_admin';
+}
+
+function lerpAngle(a: number, b: number, t: number) {
+  let d = b - a;
+  while (d > Math.PI) d -= Math.PI * 2;
+  while (d < -Math.PI) d += Math.PI * 2;
+  return a + d * t;
+}
+
+const BUBBLE_MS = 5500;
+
+function paintNameplate(
+  canvas: HTMLCanvasElement,
+  ctx: CanvasRenderingContext2D,
+  opts: { username: string; role?: string; chatText?: string; chatAt?: number; now: number },
+) {
+  const chatText = (opts.chatText || '').trim().slice(0, 48);
+  const showBubble =
+    Boolean(chatText) && typeof opts.chatAt === 'number' && opts.chatAt > 0 && opts.now - opts.chatAt < BUBBLE_MS;
+  const verified = isVerifiedAdmin(opts.role);
+  canvas.width = 512;
+  canvas.height = showBubble ? 168 : 72;
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  if (showBubble) {
+    const padX = 28;
+    const padY = 16;
+    const maxW = canvas.width - padX * 2;
+    ctx.font = 'bold 26px system-ui, sans-serif';
+    const lines: string[] = [];
+    let line = '';
+    for (const word of chatText.split(/\s+/)) {
+      const next = line ? `${line} ${word}` : word;
+      if (ctx.measureText(next).width > maxW && line) {
+        lines.push(line);
+        line = word;
+      } else {
+        line = next;
+      }
+    }
+    if (line) lines.push(line);
+    const use = lines.slice(0, 2);
+    const bubbleH = 28 + use.length * 30;
+    const bubbleY = 12;
+    ctx.fillStyle = 'rgba(255,255,255,0.94)';
+    ctx.strokeStyle = 'rgba(15,23,42,0.35)';
+    ctx.lineWidth = 3;
+    const bw = Math.min(maxW, Math.max(...use.map((l) => ctx.measureText(l).width)) + padX * 2);
+    const bx = (canvas.width - bw) / 2;
+    ctx.beginPath();
+    const r = 14;
+    ctx.moveTo(bx + r, bubbleY);
+    ctx.arcTo(bx + bw, bubbleY, bx + bw, bubbleY + bubbleH, r);
+    ctx.arcTo(bx + bw, bubbleY + bubbleH, bx, bubbleY + bubbleH, r);
+    ctx.arcTo(bx, bubbleY + bubbleH, bx, bubbleY, r);
+    ctx.arcTo(bx, bubbleY, bx + bw, bubbleY, r);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+    // tail
+    ctx.beginPath();
+    ctx.moveTo(canvas.width / 2 - 10, bubbleY + bubbleH - 1);
+    ctx.lineTo(canvas.width / 2, bubbleY + bubbleH + 12);
+    ctx.lineTo(canvas.width / 2 + 10, bubbleY + bubbleH - 1);
+    ctx.fill();
+    ctx.fillStyle = '#0f172a';
+    ctx.textAlign = 'center';
+    use.forEach((l, i) => {
+      ctx.fillText(l, canvas.width / 2, bubbleY + padY + 22 + i * 30);
+    });
+  }
+
+  const barY = canvas.height - 56;
+  ctx.fillStyle = 'rgba(0,0,0,0.5)';
+  ctx.fillRect(40, barY, canvas.width - 80, 44);
+  ctx.fillStyle = '#fff';
+  ctx.font = 'bold 28px system-ui, sans-serif';
+  ctx.textAlign = 'center';
+  const name = opts.username.slice(0, 16);
+  const nameW = ctx.measureText(name).width;
+  if (verified) {
+    const cx = canvas.width / 2 - nameW / 2 - 18;
+    ctx.beginPath();
+    ctx.arc(cx, barY + 22, 11, 0, Math.PI * 2);
+    ctx.fillStyle = '#3b82f6';
+    ctx.fill();
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(cx - 5, barY + 22);
+    ctx.lineTo(cx - 1, barY + 26);
+    ctx.lineTo(cx + 6, barY + 16);
+    ctx.stroke();
+    ctx.fillStyle = '#fff';
+  }
+  ctx.fillText(name, canvas.width / 2, barY + 32);
+  return showBubble;
+}
 
 function mulberry32(seed: number) {
   let t = seed >>> 0;
@@ -195,21 +306,38 @@ export default function OpenWorldPlaza({
   const [copied, setCopied] = useState(false);
   const [onlineCount, setOnlineCount] = useState(1);
   const [chatMessages, setChatMessages] = useState<OpenWorldChatMessage[]>([]);
+  const [commandLines, setCommandLines] = useState<{ id: string; text: string }[]>([]);
   const [chatInput, setChatInput] = useState('');
   const [chatChannel, setChatChannel] = useState<OpenWorldChatChannel>('server');
   const [status, setStatus] = useState(
     playWithFriend ? `Joining ${playWithFriend}…` : initialRoomId ? 'Joining private server…' : 'Connecting…',
   );
   const [locationLabel, setLocationLabel] = useState('Town Plaza');
+  const [showRoster, setShowRoster] = useState(false);
+  const [roster, setRoster] = useState<RosterEntry[]>([]);
   const remotePlayersRef = useRef<OpenWorldPlayerState[]>([]);
   const chatInputFocused = useRef(false);
+  const localChatRef = useRef<{ text: string; at: number }>({ text: '', at: 0 });
+  const forcePublishRef = useRef(false);
   const roomRef = useRef(room);
   roomRef.current = room;
 
-  const enterRoom = (nextRoom: string, label: string) => {
+  const enterRoom = async (nextRoom: string, label: string) => {
+    const kick = await isKickedFromOpenWorldRoom(nextRoom, user.username);
+    if (kick.kicked) {
+      setLobbyError(
+        `You were kicked from this server${kick.by ? ` by ${kick.by}` : ''}${
+          kick.reason ? `: ${kick.reason}` : ''
+        }. Try again later.`,
+      );
+      setPhase('lobby');
+      setRoom('');
+      return;
+    }
     setRoom(nextRoom);
     setStatus(label);
     setPhase('playing');
+    setCommandLines([]);
   };
 
   const handlePlayGlobal = async () => {
@@ -217,7 +345,7 @@ export default function OpenWorldPlaza({
     setLobbyError('');
     try {
       const roomId = await joinBestGlobalRoom();
-      enterRoom(roomId, `Global server · max ${GLOBAL_MAX_PLAYERS}`);
+      await enterRoom(roomId, `Global server · max ${GLOBAL_MAX_PLAYERS}`);
     } catch (e) {
       setLobbyError(e instanceof Error ? e.message : 'Could not join global server');
     } finally {
@@ -244,7 +372,7 @@ export default function OpenWorldPlaza({
     setLobbyError('');
     try {
       await startPrivateServer(privateDraft.code, user.username);
-      enterRoom(privateDraft.roomId, `Private · ${privateDraft.code}`);
+      await enterRoom(privateDraft.roomId, `Private · ${privateDraft.code}`);
     } catch (e) {
       setLobbyError(e instanceof Error ? e.message : 'Could not start private server');
     } finally {
@@ -264,12 +392,24 @@ export default function OpenWorldPlaza({
   };
 
   useEffect(() => {
+    if (phase !== 'playing') {
+      setShowRoster(false);
+      return;
+    }
+    setRoster([{ username: user.username, role: user.role }]);
+  }, [phase, user.username, user.role]);
+
+  useEffect(() => {
     if (phase !== 'playing' || !room) return;
     const unsub = subscribeOpenWorldPlayers(
       user.username,
       (players) => {
         remotePlayersRef.current = players;
         setOnlineCount(players.length + 1);
+        setRoster([
+          { username: user.username, role: user.role },
+          ...players.map((p) => ({ username: p.username, role: p.role })),
+        ]);
         if (playWithFriend) {
           const friendHere = players.some(
             (p) => p.username.toLowerCase() === playWithFriend.toLowerCase(),
@@ -300,9 +440,43 @@ export default function OpenWorldPlaza({
 
   useEffect(() => {
     if (phase !== 'playing' || !room) return;
+    let cancelled = false;
+    void (async () => {
+      const kick = await isKickedFromOpenWorldRoom(room, user.username);
+      if (cancelled || !kick.kicked) return;
+      void leaveOpenWorld(user.username, room);
+      setRoom('');
+      setPhase('lobby');
+      setLobbyError(
+        `You were kicked from this server${kick.by ? ` by ${kick.by}` : ''}${
+          kick.reason ? `: ${kick.reason}` : ''
+        }. Try again later.`,
+      );
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [phase, room, user.username]);
+
+  useEffect(() => {
+    if (phase !== 'playing' || !room) return;
     const unsub = subscribeOpenWorldChat(setChatMessages, room, chatChannel);
     return unsub;
   }, [room, phase, chatChannel]);
+
+  useEffect(() => {
+    if (phase !== 'playing' || !room) return;
+    const unsub = subscribeOpenWorldKick(room, user.username, (info) => {
+      void leaveOpenWorld(user.username, room);
+      setRoom('');
+      setPhase('lobby');
+      setShowRoster(false);
+      setLobbyError(
+        `You were kicked${info.by ? ` by ${info.by}` : ''}${info.reason ? `: ${info.reason}` : ''}.`,
+      );
+    });
+    return unsub;
+  }, [phase, room, user.username]);
 
   useEffect(() => {
     return () => {
@@ -328,8 +502,8 @@ export default function OpenWorldPlaza({
       scene.fog = new THREE.Fog(0xa8cce8, 40, 140);
 
       const camera = new THREE.PerspectiveCamera(58, 1, 0.1, 250);
-      const renderer = new THREE.WebGLRenderer({ antialias: true });
-      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+      const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
       renderer.setSize(mountRef.current.clientWidth, mountRef.current.clientHeight);
       renderer.shadowMap.enabled = true;
       mountRef.current.innerHTML = '';
@@ -445,6 +619,45 @@ export default function OpenWorldPlaza({
       characterGroup.position.set(4, footLift, 8);
       characterGroup.rotation.y = Math.PI;
 
+      const makeLabel = (username: string, role?: string) => {
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d')!;
+        paintNameplate(canvas, ctx, { username, role, now: Date.now() });
+        const tex = new THREE.CanvasTexture(canvas);
+        tex.minFilter = THREE.LinearFilter;
+        const sprite = new THREE.Sprite(
+          new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false }),
+        );
+        sprite.scale.set(3.4, 0.85, 1);
+        sprite.position.y = 3.35;
+        return { canvas, ctx, tex, sprite, labelKey: `${username}|${role || ''}|` };
+      };
+
+      const refreshLabel = (
+        holder: { labelCanvas: HTMLCanvasElement; labelCtx: CanvasRenderingContext2D; labelTex: any; labelSprite: any; labelKey: string },
+        opts: { username: string; role?: string; chatText?: string; chatAt?: number; now: number },
+      ) => {
+        const key = `${opts.username}|${opts.role || ''}|${opts.chatText || ''}|${opts.chatAt || 0}|${
+          opts.chatAt && opts.now - opts.chatAt < BUBBLE_MS ? 'b' : 'n'
+        }`;
+        if (key === holder.labelKey) return;
+        holder.labelKey = key;
+        const bubbled = paintNameplate(holder.labelCanvas, holder.labelCtx, opts);
+        holder.labelTex.needsUpdate = true;
+        holder.labelSprite.scale.set(3.6, bubbled ? 2.2 : 0.85, 1);
+        holder.labelSprite.position.y = bubbled ? 4.15 : 3.35;
+      };
+
+      const localLabel = makeLabel(user.username, user.role);
+      characterGroup.add(localLabel.sprite);
+      const localLabelHolder = {
+        labelCanvas: localLabel.canvas,
+        labelCtx: localLabel.ctx,
+        labelTex: localLabel.tex,
+        labelSprite: localLabel.sprite,
+        labelKey: localLabel.labelKey,
+      };
+
       const remoteMap = new Map<string, RemoteAvatar>();
 
       const ensureRemote = (p: OpenWorldPlayerState) => {
@@ -452,29 +665,20 @@ export default function OpenWorldPlaza({
         if (!remote) {
           const built = buildSimpleAvatar(THREE, p.colors);
           scene.add(built.characterGroup);
-          // Name label (canvas sprite)
-          const canvas = document.createElement('canvas');
-          canvas.width = 256;
-          canvas.height = 64;
-          const ctx = canvas.getContext('2d')!;
-          ctx.fillStyle = 'rgba(0,0,0,0.45)';
-          ctx.fillRect(0, 8, 256, 48);
-          ctx.fillStyle = '#fff';
-          ctx.font = 'bold 28px sans-serif';
-          ctx.textAlign = 'center';
-          ctx.fillText(p.username.slice(0, 16), 128, 42);
-          const tex = new THREE.CanvasTexture(canvas);
-          const sprite = new THREE.Sprite(
-            new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false }),
-          );
-          sprite.scale.set(3.2, 0.8, 1);
-          sprite.position.y = 3.2;
-          built.characterGroup.add(sprite);
+          const label = makeLabel(p.username, p.role);
+          built.characterGroup.add(label.sprite);
+          built.characterGroup.position.set(p.x, typeof p.y === 'number' ? p.y : footLift, p.z);
+          built.characterGroup.rotation.y = p.rotY;
           remote = {
             group: built.characterGroup,
             limbs: built.bodyParts,
             anim: p.anim,
             username: p.username,
+            labelCanvas: label.canvas,
+            labelCtx: label.ctx,
+            labelTex: label.tex,
+            labelSprite: label.sprite,
+            labelKey: label.labelKey,
           };
           remoteMap.set(p.username, remote);
         }
@@ -489,10 +693,17 @@ export default function OpenWorldPlaza({
       let lastMx = 0;
       let lastMy = 0;
       let lastPublish = 0;
+      let publishBusy = false;
+      let lastSent = { x: 9999, z: 9999, rotY: 0, anim: 'idle' as 'idle' | 'walk', chatAt: -1 };
       let verticalVel = 0;
 
       const onKeyDown = (ev: KeyboardEvent) => {
         if (chatInputFocused.current) return;
+        if (ev.key === 'Tab') {
+          ev.preventDefault();
+          setShowRoster((v) => !v);
+          return;
+        }
         const k = ev.key.toLowerCase();
         if (['w', 'a', 's', 'd', ' ', 'i', 'o'].includes(k)) ev.preventDefault();
         if (k === 'i') {
@@ -609,14 +820,16 @@ export default function OpenWorldPlaza({
         characterGroup.position.y = baseY + bob;
 
         // Sync remotes
+        const nowMs = Date.now();
         const seen = new Set<string>();
+        const follow = Math.min(1, dt * 10);
         for (const p of remotePlayersRef.current) {
           seen.add(p.username);
           const remote = ensureRemote(p);
           remote.anim = p.anim;
-          remote.group.position.x += (p.x - remote.group.position.x) * Math.min(1, dt * 8);
-          remote.group.position.z += (p.z - remote.group.position.z) * Math.min(1, dt * 8);
-          remote.group.rotation.y = p.rotY;
+          remote.group.position.x += (p.x - remote.group.position.x) * follow;
+          remote.group.position.z += (p.z - remote.group.position.z) * follow;
+          remote.group.rotation.y = lerpAngle(remote.group.rotation.y, p.rotY, follow);
           applyAvatarPose(p.anim, t, {
             leftArm: remote.limbs.leftArm,
             rightArm: remote.limbs.rightArm,
@@ -626,7 +839,15 @@ export default function OpenWorldPlaza({
             character: { position: { y: 0, x: 0, z: 0 }, rotation: { x: 0, y: 0, z: 0 } },
           });
           const rBob = p.anim === 'walk' ? Math.abs(Math.sin(t * 4)) * 0.08 : 0;
-          remote.group.position.y = (typeof p.y === 'number' ? p.y : footLift) + rBob;
+          const targetY = (typeof p.y === 'number' ? p.y : footLift) + rBob;
+          remote.group.position.y += (targetY - remote.group.position.y) * follow;
+          refreshLabel(remote, {
+              username: p.username,
+              role: p.role,
+              chatText: p.chatText,
+              chatAt: p.chatAt,
+              now: nowMs,
+            });
         }
         for (const [name, remote] of remoteMap) {
           if (!seen.has(name)) {
@@ -634,6 +855,15 @@ export default function OpenWorldPlaza({
             remoteMap.delete(name);
           }
         }
+
+        const localChat = localChatRef.current;
+        refreshLabel(localLabelHolder, {
+          username: user.username,
+          role: user.role,
+          chatText: localChat.text,
+          chatAt: localChat.at,
+          now: nowMs,
+        });
 
         // Camera follow
         const px = characterGroup.position.x;
@@ -647,8 +877,27 @@ export default function OpenWorldPlaza({
         camera.lookAt(px, baseY + 1.6, pz);
 
         const now = performance.now();
-        if (now - lastPublish > 100) {
+        const moved =
+          Math.hypot(characterGroup.position.x - lastSent.x, characterGroup.position.z - lastSent.z) > 0.06;
+        const turned = Math.abs(characterGroup.rotation.y - lastSent.rotY) > 0.05;
+        const animChanged = poseAnim !== lastSent.anim;
+        const chatChanged = localChat.at !== lastSent.chatAt;
+        const heartbeat = now - lastPublish > 2000;
+        if (
+          !publishBusy &&
+          (forcePublishRef.current || now - lastPublish > 160) &&
+          (forcePublishRef.current || moved || turned || animChanged || chatChanged || heartbeat)
+        ) {
+          forcePublishRef.current = false;
           lastPublish = now;
+          lastSent = {
+            x: characterGroup.position.x,
+            z: characterGroup.position.z,
+            rotY: characterGroup.rotation.y,
+            anim: poseAnim,
+            chatAt: localChat.at,
+          };
+          publishBusy = true;
           publishOpenWorldPlayer({
             username: user.username,
             x: characterGroup.position.x,
@@ -657,8 +906,15 @@ export default function OpenWorldPlaza({
             rotY: characterGroup.rotation.y,
             anim: poseAnim,
             colors: localColors,
+            role: user.role,
+            chatText: localChat.text,
+            chatAt: localChat.at,
             room: roomRef.current,
-          }).catch(() => {});
+          })
+            .catch(() => {})
+            .finally(() => {
+              publishBusy = false;
+            });
         }
 
         renderer.render(scene, camera);
@@ -691,7 +947,28 @@ export default function OpenWorldPlaza({
     const raw = chatInput.trim();
     if (!raw || !room) return;
     setChatInput('');
+
+    if (raw.startsWith('/')) {
+      const result = await runOpenWorldAdminCommand({
+        raw,
+        role: user.role,
+        actorUsername: user.username,
+        room,
+        channel: chatChannel,
+      });
+      if (result.handled) {
+        const stamp = Date.now();
+        setCommandLines((prev) => [
+          ...prev.slice(-40),
+          ...result.lines.map((text, i) => ({ id: `cmd-${stamp}-${i}`, text })),
+        ]);
+        return;
+      }
+    }
+
     const filtered = await filterForDisplay(raw);
+    localChatRef.current = { text: filtered, at: Date.now() };
+    forcePublishRef.current = true;
     await sendOpenWorldChat(user.username, filtered, room, chatChannel);
   };
 
@@ -910,7 +1187,7 @@ export default function OpenWorldPlaza({
           <div style={{ opacity: 0.9 }}>{status}</div>
           <div style={{ marginTop: 4, fontWeight: 600, color: '#bbf7d0' }}>{locationLabel}</div>
           <div style={{ opacity: 0.7, marginTop: 4, fontSize: 12 }}>
-            WASD move · walk into open doorways · Space jump · drag look · I/O zoom
+            WASD move · doors · Space jump · drag look · I/O zoom · Tab players
           </div>
           {inviteCode || privateDraft ? (
             <div style={{ opacity: 0.65, marginTop: 4, fontSize: 11, wordBreak: 'break-all' }}>
@@ -938,6 +1215,80 @@ export default function OpenWorldPlaza({
           </button>
         )}
       </div>
+
+      {showRoster && (
+        <div
+          style={{
+            position: 'absolute',
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            width: 'min(320px, calc(100% - 32px))',
+            maxHeight: '60%',
+            overflowY: 'auto',
+            background: 'rgba(8,14,12,0.92)',
+            border: '1px solid rgba(255,255,255,0.12)',
+            borderRadius: 12,
+            padding: '14px 16px',
+            color: '#e8f5e9',
+            zIndex: 5,
+          }}
+        >
+          <div style={{ fontWeight: 800, fontSize: 15, marginBottom: 10 }}>
+            Players here · {roster.length || onlineCount}
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            {(roster.length
+              ? roster
+              : [{ username: user.username, role: user.role }]
+            ).map((p) => (
+              <div
+                key={p.username}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  fontSize: 14,
+                  padding: '6px 8px',
+                  borderRadius: 8,
+                  background:
+                    p.username.toLowerCase() === user.username.toLowerCase()
+                      ? 'rgba(34,197,94,0.15)'
+                      : 'rgba(255,255,255,0.04)',
+                }}
+              >
+                {isVerifiedAdmin(p.role) ? (
+                  <span
+                    title="Verified admin"
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      width: 18,
+                      height: 18,
+                      borderRadius: '50%',
+                      background: '#3b82f6',
+                      color: '#fff',
+                      fontSize: 11,
+                      fontWeight: 800,
+                      flexShrink: 0,
+                    }}
+                  >
+                    ✓
+                  </span>
+                ) : (
+                  <span style={{ width: 18, flexShrink: 0 }} />
+                )}
+                <span style={{ fontWeight: 600 }}>{p.username}</span>
+                {p.username.toLowerCase() === user.username.toLowerCase() && (
+                  <span style={{ opacity: 0.55, fontSize: 12 }}>(you)</span>
+                )}
+              </div>
+            ))}
+          </div>
+          <div style={{ marginTop: 10, fontSize: 11, opacity: 0.55 }}>Press Tab to close</div>
+        </div>
+      )}
 
       <div
         style={{
@@ -1006,21 +1357,37 @@ export default function OpenWorldPlaza({
             minHeight: 80,
           }}
         >
-          {chatMessages.length === 0 && (
+          {chatMessages.length === 0 && commandLines.length === 0 && (
             <div style={{ opacity: 0.55 }}>
               {chatChannel === 'everywhere'
                 ? 'Talk to everyone in Open World across all servers.'
                 : playWithFriend || room.startsWith('priv_')
                   ? 'Only people on this private server see this.'
                   : 'Only people on this global server see this.'}
+              {isVerifiedAdmin(user.role) ? ' Admins: /help' : ''}
             </div>
           )}
           {chatMessages.map((m) => (
             <div key={m.id}>
-              <span style={{ color: chatChannel === 'everywhere' ? '#38bdf8' : '#7dd3fc', fontWeight: 600 }}>
+              <span
+                style={{
+                  color:
+                    m.username === 'System'
+                      ? '#fbbf24'
+                      : chatChannel === 'everywhere'
+                        ? '#38bdf8'
+                        : '#7dd3fc',
+                  fontWeight: 600,
+                }}
+              >
                 {m.username}
               </span>
               <span style={{ opacity: 0.9 }}>: {m.text}</span>
+            </div>
+          ))}
+          {commandLines.map((line) => (
+            <div key={line.id} style={{ color: '#fde68a', opacity: 0.95 }}>
+              {line.text}
             </div>
           ))}
         </div>
@@ -1040,7 +1407,15 @@ export default function OpenWorldPlaza({
                 handleSend();
               }
             }}
-            placeholder={chatChannel === 'everywhere' ? 'Message everyone…' : 'Message this server…'}
+            placeholder={
+              isVerifiedAdmin(user.role)
+                ? chatChannel === 'everywhere'
+                  ? 'Message or /help…'
+                  : 'Message or /ban /kick /clearchat…'
+                : chatChannel === 'everywhere'
+                  ? 'Message everyone…'
+                  : 'Message this server…'
+            }
             maxLength={200}
             style={{
               flex: 1,

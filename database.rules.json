@@ -12,18 +12,39 @@
           }
         },
         "chat": {
+          ".write": "!newData.exists()",
           "$msgId": {
-            ".write": "!data.exists() && newData.hasChildren(['username', 'text', 'createdAt']) && newData.child('username').isString() && newData.child('text').isString() && newData.child('text').val().length > 0 && newData.child('text').val().length <= 200 && newData.child('createdAt').isNumber()",
-            ".validate": "newData.hasChildren(['username', 'text', 'createdAt'])"
+            ".write": "!newData.exists() || (!data.exists() && newData.hasChildren(['username', 'text', 'createdAt']) && newData.child('username').isString() && newData.child('text').isString() && newData.child('text').val().length > 0 && newData.child('text').val().length <= 200 && newData.child('createdAt').isNumber())",
+            ".validate": "!newData.exists() || newData.hasChildren(['username', 'text', 'createdAt'])"
+          }
+        },
+        "mod": {
+          "chatClearAt": {
+            ".write": true,
+            ".validate": "newData.isNumber()"
+          }
+        },
+        "kicks": {
+          "$playerId": {
+            ".write": true,
+            ".validate": "!newData.exists() || (newData.hasChildren(['username', 'by', 'at', 'until']) && newData.child('username').isString() && newData.child('by').isString() && newData.child('at').isNumber() && newData.child('until').isNumber())"
           }
         }
       }
     },
     "open_world_chat_everywhere": {
       ".read": true,
+      ".write": "!newData.exists()",
       "$msgId": {
-        ".write": "!data.exists() && newData.hasChildren(['username', 'text', 'createdAt']) && newData.child('username').isString() && newData.child('text').isString() && newData.child('text').val().length > 0 && newData.child('text').val().length <= 200 && newData.child('createdAt').isNumber()",
-        ".validate": "newData.hasChildren(['username', 'text', 'createdAt'])"
+        ".write": "!newData.exists() || (!data.exists() && newData.hasChildren(['username', 'text', 'createdAt']) && newData.child('username').isString() && newData.child('text').isString() && newData.child('text').val().length > 0 && newData.child('text').val().length <= 200 && newData.child('createdAt').isNumber())",
+        ".validate": "!newData.exists() || newData.hasChildren(['username', 'text', 'createdAt'])"
+      }
+    },
+    "open_world_chat_everywhere_meta": {
+      ".read": true,
+      "clearAt": {
+        ".write": true,
+        ".validate": "newData.isNumber()"
       }
     },
     "open_world_servers": {

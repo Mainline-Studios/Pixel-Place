@@ -3,11 +3,17 @@
 import { useEffect, useState, type CSSProperties } from 'react';
 import Link from 'next/link';
 import { useUser } from '@/contexts/UserContext';
+import Login from '@/components/Login';
 import OpenWorldPlaza from '@/components/Games/OpenWorldPlaza';
+import { markReadyAccepted } from '@/lib/appSession';
 import {
   getPrivateInvite,
+  inviteLoginRedirectUrl,
+  invitePublicUrl,
   isInviteCodeFormat,
+  isInviteLoginRedirectPath,
   parseInviteCodeFromPath,
+  rememberPendingOpenWorldInvite,
 } from '@/lib/openWorldRtdb';
 
 type Gate =
@@ -18,19 +24,25 @@ type Gate =
 
 /**
  * Client invite gate for /open-world/invite/ppowg-…
- * Invalid / expired codes show the 404-style error card.
+ * Logged-out visitors auto-go to …/redirect?login=true and sign in there,
+ * then return to the clean invite URL (without getting stuck on main Pixel Place).
  */
 export default function OpenWorldInviteClient() {
-  const { user, isRestoring } = useUser();
+  const { user, isRestoring, setUserAcceptedReady } = useUser();
   const [gate, setGate] = useState<Gate>({ kind: 'loading' });
 
   useEffect(() => {
     let active = true;
-    const code = parseInviteCodeFromPath(window.location.pathname);
+    const pathname = window.location.pathname;
+    const search = window.location.search;
+    const code = parseInviteCodeFromPath(pathname);
     if (!code || !isInviteCodeFormat(code)) {
       setGate({ kind: 'expired' });
       return;
     }
+
+    rememberPendingOpenWorldInvite(code);
+    const onLoginRedirect = isInviteLoginRedirectPath(pathname, search);
 
     (async () => {
       const invite = await getPrivateInvite(code);
@@ -39,19 +51,41 @@ export default function OpenWorldInviteClient() {
         setGate({ kind: 'expired' });
         return;
       }
-      if (!user && !isRestoring) {
-        setGate({ kind: 'login', code: invite.code, roomId: invite.roomId });
+
+        if (user) {
+        try {
+          setUserAcceptedReady(true);
+          markReadyAccepted();
+        } catch {
+          // ignore
+        }
+        // After login on /redirect?login=true, drop the login suffix
+        if (onLoginRedirect) {
+          window.location.replace(invitePublicUrl(invite.code));
+          return;
+        }
+        setGate({ kind: 'ready', code: invite.code, roomId: invite.roomId });
         return;
       }
-      if (user) {
-        setGate({ kind: 'ready', code: invite.code, roomId: invite.roomId });
+
+      if (isRestoring) {
+        setGate({ kind: 'loading' });
+        return;
       }
+
+      // Not logged in: same invite link + /redirect?login=true
+      if (!onLoginRedirect) {
+        window.location.replace(inviteLoginRedirectUrl(invite.code));
+        return;
+      }
+
+      setGate({ kind: 'login', code: invite.code, roomId: invite.roomId });
     })();
 
     return () => {
       active = false;
     };
-  }, [user, isRestoring]);
+  }, [user, isRestoring, setUserAcceptedReady]);
 
   if (gate.kind === 'loading' || isRestoring) {
     return (
@@ -87,14 +121,25 @@ export default function OpenWorldInviteClient() {
 
   if (gate.kind === 'login') {
     return (
-      <div style={shellStyle}>
-        <h1 style={{ fontSize: 24, fontWeight: 800, marginBottom: 8 }}>Private Open World</h1>
-        <p style={{ color: '#8b90a8', marginBottom: 24, textAlign: 'center', maxWidth: 400 }}>
-          Sign in to join this private server invite.
-        </p>
-        <Link href={`/?next=${encodeURIComponent(`/open-world/invite/${gate.code}`)}`} style={ctaStyle}>
-          Sign in
-        </Link>
+      <div style={{ minHeight: '100vh', background: '#0f1117' }}>
+        <div
+          style={{
+            maxWidth: 520,
+            margin: '0 auto',
+            padding: '20px 16px 8px',
+            color: '#e8e8ef',
+            textAlign: 'center',
+          }}
+        >
+          <div style={{ fontSize: 13, opacity: 0.75, marginBottom: 6 }}>Private Open World invite</div>
+          <div style={{ fontSize: 12, opacity: 0.55, wordBreak: 'break-all', marginBottom: 12 }}>
+            {inviteLoginRedirectUrl(gate.code)}
+          </div>
+          <div style={{ fontSize: 14, opacity: 0.9, marginBottom: 8 }}>
+            Sign in to join this server. You&apos;ll return to the invite automatically.
+          </div>
+        </div>
+        <Login />
       </div>
     );
   }

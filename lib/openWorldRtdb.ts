@@ -56,6 +56,11 @@ export type OpenWorldPlayerState = {
     arm: string;
     legs: string;
   };
+  /** Synced so others can show a verified check for admins */
+  role?: string;
+  /** Latest chat line for head bubble (clears after a few seconds client-side) */
+  chatText?: string;
+  chatAt?: number;
   updatedAt: number;
 };
 
@@ -99,11 +104,26 @@ function chatPath(room: string) {
 }
 
 const EVERYWHERE_CHAT_PATH = 'open_world_chat_everywhere';
+const EVERYWHERE_CLEAR_PATH = 'open_world_chat_everywhere_meta/clearAt';
 
 export type OpenWorldChatChannel = 'server' | 'everywhere';
 
 function chatPathForChannel(room: string, channel: OpenWorldChatChannel) {
   return channel === 'everywhere' ? EVERYWHERE_CHAT_PATH : chatPath(room);
+}
+
+function chatClearPath(room: string, channel: OpenWorldChatChannel) {
+  return channel === 'everywhere'
+    ? EVERYWHERE_CLEAR_PATH
+    : `open_world/${safeRoom(room)}/mod/chatClearAt`;
+}
+
+function kicksPath(room: string) {
+  return `open_world/${safeRoom(room)}/kicks`;
+}
+
+export function isOpenWorldAdmin(role?: string) {
+  return role === 'admin' || role === 'head_admin';
 }
 
 function globalMetaPath(slot: number) {
@@ -131,6 +151,53 @@ export function parseInviteCodeFromPath(pathname: string): string | null {
 
 export function invitePublicUrl(code: string): string {
   return `${SITE_ORIGIN}/open-world/invite/${normalizeInviteCode(code)}`;
+}
+
+/** Logged-out invite URL: same invite path + /redirect?login=true */
+export function inviteLoginRedirectUrl(code: string): string {
+  return `${invitePublicUrl(code)}/redirect?login=true`;
+}
+
+export function isInviteLoginRedirectPath(pathname: string, search = ''): boolean {
+  const normalized = String(pathname || '').replace(/\/$/, '') || '/';
+  const pathOk = /\/open-world\/invite\/ppowg-[a-zA-Z0-9_-]+\/redirect$/i.test(normalized);
+  if (!pathOk) return false;
+  const q = search.startsWith('?') ? search.slice(1) : search;
+  // Accept login=true (and tolerate the ?=login=true typo form)
+  return /(?:^|[?&])=?login=true(?:&|$)/i.test(q) || new URLSearchParams(q).get('login') === 'true';
+}
+
+const PENDING_INVITE_KEY = 'pixelplace_open_world_invite_pending';
+
+export function rememberPendingOpenWorldInvite(code: string): void {
+  if (typeof window === 'undefined') return;
+  try {
+    sessionStorage.setItem(PENDING_INVITE_KEY, normalizeInviteCode(code));
+  } catch {
+    // ignore
+  }
+}
+
+export function consumePendingOpenWorldInvite(): string | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const code = sessionStorage.getItem(PENDING_INVITE_KEY);
+    if (!code) return null;
+    sessionStorage.removeItem(PENDING_INVITE_KEY);
+    return isInviteCodeFormat(code) ? normalizeInviteCode(code) : null;
+  } catch {
+    return null;
+  }
+}
+
+export function peekPendingOpenWorldInvite(): string | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const code = sessionStorage.getItem(PENDING_INVITE_KEY);
+    return code && isInviteCodeFormat(code) ? normalizeInviteCode(code) : null;
+  } catch {
+    return null;
+  }
 }
 
 function randomSecret(len = 12): string {
@@ -247,13 +314,17 @@ export async function startPrivateServer(code: string, hostUsername: string): Pr
 }
 
 const disconnectRegistered = new Set<string>();
+let lastGlobalMetaRefresh = 0;
 
 async function refreshGlobalMetaForRoom(db: Database, room: string) {
   const m = /^global_(\d+)$/.exec(room);
   if (!m) return;
+  const now = Date.now();
+  if (now - lastGlobalMetaRefresh < 2500) return;
+  lastGlobalMetaRefresh = now;
   const slot = Number(m[1]);
   const live = await countActivePlayersInRoom(db, room);
-  await set(ref(db, globalMetaPath(slot)), { playerCount: live, updatedAt: Date.now() });
+  await set(ref(db, globalMetaPath(slot)), { playerCount: live, updatedAt: now });
 }
 
 /** Publish local player transform as RTDB JSON (throttled by caller). */
@@ -268,12 +339,15 @@ export async function publishOpenWorldPlayer(
   const playerRef = ref(db, path);
   const payload: OpenWorldPlayerState = {
     username: state.username,
-    x: state.x,
-    y: state.y,
-    z: state.z,
-    rotY: state.rotY,
+    x: Math.round(state.x * 100) / 100,
+    y: Math.round(state.y * 100) / 100,
+    z: Math.round(state.z * 100) / 100,
+    rotY: Math.round(state.rotY * 1000) / 1000,
     anim: state.anim,
     colors: state.colors,
+    role: state.role || 'user',
+    chatText: (state.chatText || '').slice(0, 80),
+    chatAt: typeof state.chatAt === 'number' ? state.chatAt : 0,
     updatedAt: Date.now(),
   };
   await set(playerRef, payload);
@@ -336,6 +410,9 @@ export function subscribeOpenWorldPlayers(
             arm: data.colors?.arm || '#3a3f56',
             legs: data.colors?.legs || '#3a3f56',
           },
+          role: typeof data.role === 'string' ? data.role : 'user',
+          chatText: typeof data.chatText === 'string' ? data.chatText : '',
+          chatAt: typeof data.chatAt === 'number' ? data.chatAt : 0,
           updatedAt,
         });
       }
@@ -364,6 +441,88 @@ export async function sendOpenWorldChat(
   });
 }
 
+/** Admin: wipe current chat channel (clients hide messages older than clearAt). */
+export async function clearOpenWorldChat(
+  room: string,
+  channel: OpenWorldChatChannel = 'server',
+): Promise<void> {
+  const db = getDb();
+  if (!db) return;
+  const now = Date.now();
+  await set(ref(db, chatClearPath(room, channel)), now);
+  // Best-effort delete of stored messages (rules allow remove)
+  try {
+    await remove(ref(db, chatPathForChannel(room, channel)));
+  } catch {
+    // clearAt still hides history for everyone
+  }
+}
+
+const KICK_TTL_MS = 10 * 60 * 1000;
+
+/** Admin: remove player from room and block rejoin briefly. */
+export async function kickOpenWorldPlayer(
+  room: string,
+  targetUsername: string,
+  byUsername: string,
+  reason = '',
+): Promise<void> {
+  const db = getDb();
+  if (!db) return;
+  const key = playerKey(targetUsername);
+  const until = Date.now() + KICK_TTL_MS;
+  await set(ref(db, `${kicksPath(room)}/${key}`), {
+    username: targetUsername.trim(),
+    by: byUsername,
+    reason: reason.slice(0, 120),
+    at: Date.now(),
+    until,
+  });
+  try {
+    await remove(ref(db, `${playersPath(room)}/${key}`));
+  } catch {
+    // kick record still forces leave
+  }
+  void refreshGlobalMetaForRoom(db, room);
+}
+
+export async function isKickedFromOpenWorldRoom(
+  room: string,
+  username: string,
+): Promise<{ kicked: boolean; by?: string; reason?: string }> {
+  const db = getDb();
+  if (!db) return { kicked: false };
+  const snap = await get(ref(db, `${kicksPath(room)}/${playerKey(username)}`));
+  const data = snap.val() as { until?: number; by?: string; reason?: string } | null;
+  if (!data || typeof data.until !== 'number') return { kicked: false };
+  if (Date.now() > data.until) {
+    try {
+      await remove(ref(db, `${kicksPath(room)}/${playerKey(username)}`));
+    } catch {
+      /* ignore */
+    }
+    return { kicked: false };
+  }
+  return { kicked: true, by: data.by, reason: data.reason };
+}
+
+/** Watch for being kicked from the current room. */
+export function subscribeOpenWorldKick(
+  room: string,
+  username: string,
+  onKick: (info: { by?: string; reason?: string }) => void,
+): () => void {
+  const db = getDb();
+  if (!db) return () => {};
+  const kickRef = ref(db, `${kicksPath(room)}/${playerKey(username)}`);
+  return onValue(kickRef, (snap) => {
+    const data = snap.val() as { until?: number; by?: string; reason?: string } | null;
+    if (!data || typeof data.until !== 'number') return;
+    if (Date.now() > data.until) return;
+    onKick({ by: data.by, reason: data.reason });
+  });
+}
+
 /** Live chat feed for Server Only or Everywhere. */
 export function subscribeOpenWorldChat(
   onMessages: (msgs: OpenWorldChatMessage[]) => void,
@@ -373,8 +532,20 @@ export function subscribeOpenWorldChat(
   const db = getDb();
   if (!db) return () => {};
 
+  let clearAt = 0;
+  let rawMsgs: OpenWorldChatMessage[] = [];
+
+  const emit = () => {
+    onMessages(rawMsgs.filter((m) => m.createdAt > clearAt));
+  };
+
+  const clearUnsub = onValue(ref(db, chatClearPath(room, channel)), (snap) => {
+    clearAt = typeof snap.val() === 'number' ? snap.val() : 0;
+    emit();
+  });
+
   const chatQuery = query(ref(db, chatPathForChannel(room, channel)), limitToLast(channel === 'everywhere' ? 60 : 40));
-  return onValue(chatQuery, (snap) => {
+  const chatUnsub = onValue(chatQuery, (snap) => {
     const msgs: OpenWorldChatMessage[] = [];
     const val = snap.val() as Record<string, { username?: string; text?: string; createdAt?: number }> | null;
     if (val && typeof val === 'object') {
@@ -389,6 +560,12 @@ export function subscribeOpenWorldChat(
       }
     }
     msgs.sort((a, b) => a.createdAt - b.createdAt);
-    onMessages(msgs);
+    rawMsgs = msgs;
+    emit();
   });
+
+  return () => {
+    clearUnsub();
+    chatUnsub();
+  };
 }

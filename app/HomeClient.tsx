@@ -32,6 +32,7 @@ import LocalizeText from '@/components/LocalizeText';
 import { getPayPortalClientState, getPayPortalOrigin, isPayPortalHostname, type PayPortalClientState } from '@/lib/payPortal';
 import Avatar3DViewer from '@/components/Avatar3DViewer';
 import { getSkins } from '@/lib/storage';
+import { consumePendingOpenWorldInvite, invitePublicUrl } from '@/lib/openWorldRtdb';
 
 type PublicUserProfile = {
   userId: number;
@@ -300,6 +301,16 @@ function AppContent() {
       setPublicGameId(gameMatch ? Number(gameMatch[1]) : null);
     }
   }, []);
+
+  useEffect(() => {
+    if (!user?.username || isRestoring) return;
+    const path = typeof window !== 'undefined' ? window.location.pathname || '' : '';
+    // Only pull people off the main app login/home back to their invite
+    if (path.startsWith('/open-world/invite')) return;
+    const pending = consumePendingOpenWorldInvite();
+    if (!pending) return;
+    window.location.replace(invitePublicUrl(pending));
+  }, [user?.username, isRestoring]);
 
   useEffect(() => {
     if (!user?.username) {
