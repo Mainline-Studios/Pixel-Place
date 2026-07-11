@@ -9,7 +9,7 @@ import { getSkins, getAccessories } from '@/lib/storage';
 export interface AvatarRenderOptions {
   scale?: number;
   position?: { x: number; y: number; z: number };
-  animation?: 'idle' | 'walk' | 'jump' | 'wave';
+  animation?: 'idle' | 'walk' | 'jump' | 'wave' | 'cheer' | 'dance' | 'flex' | 'point' | 'think' | 'salute' | 'shrug' | 'clap' | 'bow' | 'sit' | 'kick' | 'run' | 'armsOut' | 'celebrate' | 'none';
   bodyType?: 'weak' | 'normal' | 'athletic' | 'strong' | 'jacked';
 }
 

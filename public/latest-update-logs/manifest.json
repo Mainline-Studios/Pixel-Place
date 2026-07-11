@@ -1,15 +1,23 @@
 {
-  "bundledAt": "2026-07-11T13:21:24.994Z",
+  "bundledAt": "2026-07-11T19:33:30.323Z",
   "folder": "Latest Update Logs",
   "compiler": "pixel-place-markdown/1",
   "logs": [
     {
-      "slug": "3-02-pixel-place-modes-latest",
-      "filename": "3.02 Pixel Place Modes LATEST.md",
+      "slug": "3-03-world-generator-latest",
+      "filename": "3.03 World Generator LATEST.md",
+      "title": "3.03 World Generator",
+      "version": "3.03",
+      "isLatest": true,
+      "staticUrl": "/latest-update-logs/3.03%20World%20Generator%20LATEST.md"
+    },
+    {
+      "slug": "3-02-pixel-place-modes",
+      "filename": "3.02 Pixel Place Modes.md",
       "title": "3.02 Pixel Place Modes",
       "version": "3.02",
-      "isLatest": true,
-      "staticUrl": "/latest-update-logs/3.02%20Pixel%20Place%20Modes%20LATEST.md"
+      "isLatest": false,
+      "staticUrl": "/latest-update-logs/3.02%20Pixel%20Place%20Modes.md"
     },
     {
       "slug": "3-01-safehouse-patch",

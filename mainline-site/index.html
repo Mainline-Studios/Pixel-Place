@@ -5,700 +5,20 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta
       name="description"
-      content="Mainline Studios — providing premium experiences for free. Home of Pixel Place and Pyx AI."
+      content="Mainline Studios — providing premium experiences for free. Home of Pixel Place, Pyx AI, and Mainline Intelligence."
     />
-    <meta name="theme-color" content="#07090e" />
+    <meta name="theme-color" content="#0a2744" />
     <title>MAINLINE.</title>
     <link rel="icon" href="mark.svg" type="image/svg+xml" />
-    <style>
-      :root {
-        --bg-0: #05070b;
-        --bg-1: #0b1220;
-        --bg-2: #101a2c;
-        --dot: #5eb0f7;
-        --dot-deep: #2b6cb0;
-        --text: #f4f7fb;
-        --muted: rgba(244, 247, 251, 0.58);
-        --soft: rgba(244, 247, 251, 0.38);
-        --line: rgba(255, 255, 255, 0.1);
-        --line-strong: rgba(94, 176, 247, 0.35);
-        --card: rgba(255, 255, 255, 0.03);
-        --card-hover: rgba(43, 108, 176, 0.14);
-        --glow-x: 0;
-        --glow-y: 0;
-        --glow-strength: 0.35;
-      }
-
-      * {
-        box-sizing: border-box;
-      }
-
-      html {
-        scroll-behavior: smooth;
-      }
-
-      html,
-      body {
-        margin: 0;
-        min-height: 100%;
-      }
-
-      body {
-        color: var(--text);
-        font-family:
-          'SF Pro Display',
-          'SF Pro Text',
-          -apple-system,
-          BlinkMacSystemFont,
-          'Segoe UI',
-          Helvetica,
-          Arial,
-          sans-serif;
-        background:
-          radial-gradient(
-            ellipse 80% 55% at 50% -5%,
-            rgba(43, 108, 176, 0.32) 0%,
-            transparent 58%
-          ),
-          radial-gradient(
-            ellipse 50% 40% at 95% 70%,
-            rgba(94, 176, 247, 0.07) 0%,
-            transparent 55%
-          ),
-          radial-gradient(ellipse 40% 35% at 5% 85%, rgba(43, 108, 176, 0.1) 0%, transparent 50%),
-          linear-gradient(168deg, var(--bg-1) 0%, var(--bg-0) 48%, #030508 100%);
-        overflow-x: hidden;
-      }
-
-      a {
-        color: inherit;
-      }
-
-      .atmosphere {
-        position: fixed;
-        inset: 0;
-        pointer-events: none;
-        z-index: 0;
-        background-image:
-          linear-gradient(rgba(255, 255, 255, 0.028) 1px, transparent 1px),
-          linear-gradient(90deg, rgba(255, 255, 255, 0.028) 1px, transparent 1px);
-        background-size: 72px 72px;
-        mask-image: radial-gradient(ellipse 75% 60% at 50% 20%, black 15%, transparent 78%);
-        opacity: 0.45;
-      }
-
-      .glow-orb {
-        position: fixed;
-        width: 42vw;
-        height: 42vw;
-        max-width: 520px;
-        max-height: 520px;
-        border-radius: 50%;
-        pointer-events: none;
-        z-index: 0;
-        background: radial-gradient(circle, rgba(94, 176, 247, 0.14) 0%, transparent 70%);
-        filter: blur(8px);
-        transform: translate3d(-50%, -50%, 0);
-        left: 50%;
-        top: 18%;
-        opacity: 0.55;
-        transition: opacity 0.4s ease;
-      }
-
-      .shell {
-        position: relative;
-        z-index: 1;
-        width: min(100%, 1040px);
-        margin: 0 auto;
-        padding: 0 1.25rem 0;
-      }
-
-      /* ——— Top nav ——— */
-      .nav {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 1rem;
-        padding: 1.15rem 0 0.5rem;
-        animation: rise 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
-      }
-
-      .nav__brand {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.55rem;
-        text-decoration: none;
-        font-size: 0.78rem;
-        font-weight: 700;
-        letter-spacing: 0.16em;
-      }
-
-      .nav__brand-mark {
-        width: 18px;
-        height: 18px;
-      }
-
-      .nav__links {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 0.35rem 1.1rem;
-        list-style: none;
-        margin: 0;
-        padding: 0;
-        font-size: 0.82rem;
-        color: var(--muted);
-      }
-
-      .nav__links a {
-        text-decoration: none;
-        transition: color 0.2s ease;
-      }
-
-      .nav__links a:hover {
-        color: var(--text);
-      }
-
-      /* ——— Hero ——— */
-      .hero {
-        min-height: min(88vh, 820px);
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        text-align: center;
-        padding: 3.5rem 0 4rem;
-        animation: rise 0.95s cubic-bezier(0.22, 1, 0.36, 1) 0.05s both;
-      }
-
-      .brand-lockup {
-        position: relative;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        isolation: isolate;
-      }
-
-      .mark-wrap {
-        position: relative;
-        width: clamp(96px, 16vw, 128px);
-        height: clamp(96px, 16vw, 128px);
-        margin-bottom: clamp(1.15rem, 2.8vw, 1.7rem);
-      }
-
-      .mark-glow {
-        position: absolute;
-        inset: -28%;
-        border-radius: 28%;
-        background: radial-gradient(
-          circle at calc(50% + var(--glow-x) * 28%) calc(50% + var(--glow-y) * 28%),
-          rgba(94, 176, 247, calc(0.55 * var(--glow-strength))) 0%,
-          rgba(43, 108, 176, calc(0.28 * var(--glow-strength))) 38%,
-          transparent 68%
-        );
-        filter: blur(18px);
-        z-index: 0;
-        pointer-events: none;
-        transition: background 0.08s linear;
-      }
-
-      .mark {
-        position: relative;
-        z-index: 1;
-        width: 100%;
-        height: 100%;
-        filter: drop-shadow(
-            calc(var(--glow-x) * 14px) calc(var(--glow-y) * 14px)
-              calc(18px + var(--glow-strength) * 22px) rgba(94, 176, 247, calc(0.35 + var(--glow-strength) * 0.45))
-          )
-          drop-shadow(
-            calc(var(--glow-x) * 28px) calc(var(--glow-y) * 28px)
-              calc(36px + var(--glow-strength) * 30px) rgba(43, 108, 176, calc(0.25 + var(--glow-strength) * 0.4))
-          );
-        transition: filter 0.08s linear;
-      }
-
-      .wordmark {
-        position: relative;
-        margin: 0;
-        font-size: clamp(2.6rem, 10vw, 5.1rem);
-        font-weight: 700;
-        letter-spacing: 0.14em;
-        text-indent: 0.14em;
-        line-height: 1;
-        color: var(--text);
-        text-shadow:
-          calc(var(--glow-x) * 10px) calc(var(--glow-y) * 10px) 42px
-            rgba(43, 108, 176, calc(0.28 + var(--glow-strength) * 0.35)),
-          0 0 1px rgba(255, 255, 255, 0.2);
-        transition: text-shadow 0.08s linear;
-      }
-
-      .wordmark .dot {
-        color: var(--dot);
-        text-shadow:
-          calc(var(--glow-x) * 8px) calc(var(--glow-y) * 8px) 24px
-            rgba(94, 176, 247, calc(0.55 + var(--glow-strength) * 0.4)),
-          0 0 18px rgba(94, 176, 247, 0.55);
-      }
-
-      .goal {
-        margin: 1.35rem 0 0;
-        max-width: 28rem;
-        font-size: clamp(1.05rem, 2.6vw, 1.28rem);
-        font-weight: 500;
-        letter-spacing: 0.01em;
-        line-height: 1.45;
-        color: rgba(244, 247, 251, 0.82);
-      }
-
-      .goal em {
-        font-style: normal;
-        color: var(--dot);
-      }
-
-      .hero__cta {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 0.75rem;
-        justify-content: center;
-        margin-top: 2rem;
-      }
-
-      .btn {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        gap: 0.4rem;
-        padding: 0.78rem 1.25rem;
-        border-radius: 999px;
-        font-size: 0.88rem;
-        font-weight: 600;
-        letter-spacing: 0.02em;
-        text-decoration: none;
-        transition:
-          background 0.2s ease,
-          border-color 0.2s ease,
-          transform 0.2s ease,
-          color 0.2s ease;
-      }
-
-      .btn:hover {
-        transform: translateY(-1px);
-      }
-
-      .btn--primary {
-        background: linear-gradient(135deg, #3a86c8 0%, var(--dot-deep) 100%);
-        color: #fff;
-        border: 1px solid rgba(94, 176, 247, 0.45);
-        box-shadow: 0 10px 28px rgba(43, 108, 176, 0.35);
-      }
-
-      .btn--primary:hover {
-        background: linear-gradient(135deg, #5eb0f7 0%, #3a86c8 100%);
-      }
-
-      .btn--ghost {
-        background: rgba(255, 255, 255, 0.04);
-        border: 1px solid var(--line);
-        color: var(--text);
-      }
-
-      .btn--ghost:hover {
-        border-color: var(--line-strong);
-        background: rgba(94, 176, 247, 0.08);
-      }
-
-      /* ——— Sections ——— */
-      section {
-        padding: 3.25rem 0;
-      }
-
-      .section-label {
-        margin: 0 0 0.55rem;
-        font-size: 0.72rem;
-        font-weight: 700;
-        letter-spacing: 0.18em;
-        text-transform: uppercase;
-        color: var(--dot);
-      }
-
-      .section-title {
-        margin: 0;
-        font-size: clamp(1.55rem, 3.5vw, 2.15rem);
-        font-weight: 700;
-        letter-spacing: -0.01em;
-        line-height: 1.2;
-      }
-
-      .section-lead {
-        margin: 0.75rem 0 0;
-        max-width: 36rem;
-        font-size: 1.02rem;
-        line-height: 1.6;
-        color: var(--muted);
-      }
-
-      .section-head {
-        margin-bottom: 1.75rem;
-      }
-
-      /* ——— Products ——— */
-      .products {
-        display: grid;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 1rem;
-      }
-
-      @media (max-width: 720px) {
-        .products {
-          grid-template-columns: 1fr;
-        }
-
-        .nav__links {
-          display: none;
-        }
-      }
-
-      .product {
-        display: flex;
-        flex-direction: column;
-        gap: 0.9rem;
-        padding: 1.4rem 1.3rem 1.35rem;
-        border-radius: 20px;
-        border: 1px solid var(--line);
-        background:
-          linear-gradient(165deg, rgba(255, 255, 255, 0.045) 0%, transparent 42%),
-          var(--card);
-        text-decoration: none;
-        color: inherit;
-        transition:
-          background 0.25s ease,
-          border-color 0.25s ease,
-          transform 0.25s ease,
-          box-shadow 0.25s ease;
-        animation: rise 0.8s cubic-bezier(0.22, 1, 0.36, 1) both;
-      }
-
-      .product:nth-child(2) {
-        animation-delay: 0.08s;
-      }
-
-      .product:hover {
-        background:
-          linear-gradient(165deg, rgba(94, 176, 247, 0.08) 0%, transparent 50%),
-          var(--card-hover);
-        border-color: var(--line-strong);
-        transform: translateY(-3px);
-        box-shadow: 0 18px 40px rgba(0, 0, 0, 0.28);
-      }
-
-      .product__top {
-        display: flex;
-        align-items: center;
-        gap: 0.9rem;
-      }
-
-      .product__logo {
-        width: 64px;
-        height: 64px;
-        border-radius: 15px;
-        object-fit: cover;
-        background: #fff;
-        box-shadow:
-          0 0 0 1px rgba(255, 255, 255, 0.08),
-          0 12px 28px rgba(0, 0, 0, 0.35);
-        flex-shrink: 0;
-      }
-
-      .product__logo--pp {
-        background: #0a0c12;
-        object-fit: contain;
-        padding: 6px;
-      }
-
-      .product__name {
-        margin: 0;
-        font-size: 1.25rem;
-        font-weight: 700;
-        letter-spacing: 0.01em;
-      }
-
-      .product__tag {
-        margin: 0.2rem 0 0;
-        font-size: 0.78rem;
-        letter-spacing: 0.04em;
-        text-transform: uppercase;
-        color: var(--soft);
-      }
-
-      .product__blurb {
-        margin: 0;
-        font-size: 0.95rem;
-        line-height: 1.55;
-        color: var(--muted);
-        flex: 1;
-      }
-
-      .product__cta {
-        margin-top: 0.15rem;
-        font-size: 0.8rem;
-        font-weight: 650;
-        letter-spacing: 0.07em;
-        text-transform: uppercase;
-        color: var(--dot);
-      }
-
-      /* ——— Mission ——— */
-      .mission {
-        border-top: 1px solid var(--line);
-        border-bottom: 1px solid var(--line);
-      }
-
-      .mission__grid {
-        display: grid;
-        grid-template-columns: 1.15fr 0.85fr;
-        gap: 2rem 2.5rem;
-        align-items: start;
-      }
-
-      @media (max-width: 800px) {
-        .mission__grid {
-          grid-template-columns: 1fr;
-        }
-      }
-
-      .mission__copy p {
-        margin: 0 0 1rem;
-        font-size: 1.05rem;
-        line-height: 1.65;
-        color: var(--muted);
-      }
-
-      .mission__copy p:last-child {
-        margin-bottom: 0;
-      }
-
-      .mission__copy strong {
-        color: var(--text);
-        font-weight: 600;
-      }
-
-      .pillars {
-        display: grid;
-        gap: 0.75rem;
-      }
-
-      .pillar {
-        padding: 1rem 1.05rem;
-        border-radius: 14px;
-        border: 1px solid var(--line);
-        background: rgba(255, 255, 255, 0.025);
-      }
-
-      .pillar h3 {
-        margin: 0 0 0.35rem;
-        font-size: 0.92rem;
-        font-weight: 700;
-      }
-
-      .pillar p {
-        margin: 0;
-        font-size: 0.88rem;
-        line-height: 1.5;
-        color: var(--muted);
-      }
-
-      /* ——— Approach ——— */
-      .approach-list {
-        list-style: none;
-        margin: 0;
-        padding: 0;
-        display: grid;
-        grid-template-columns: repeat(3, minmax(0, 1fr));
-        gap: 1rem;
-      }
-
-      @media (max-width: 800px) {
-        .approach-list {
-          grid-template-columns: 1fr;
-        }
-      }
-
-      .approach-list li {
-        padding: 1.25rem 1.15rem 1.3rem;
-        border-radius: 16px;
-        border: 1px solid var(--line);
-        background: linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent);
-      }
-
-      .approach-list .num {
-        display: block;
-        margin-bottom: 0.65rem;
-        font-size: 0.72rem;
-        font-weight: 700;
-        letter-spacing: 0.14em;
-        color: var(--dot);
-      }
-
-      .approach-list h3 {
-        margin: 0 0 0.45rem;
-        font-size: 1.05rem;
-      }
-
-      .approach-list p {
-        margin: 0;
-        font-size: 0.9rem;
-        line-height: 1.55;
-        color: var(--muted);
-      }
-
-      /* ——— Community strip ——— */
-      .community {
-        margin: 1rem 0 2rem;
-        padding: 1.6rem 1.5rem;
-        border-radius: 20px;
-        border: 1px solid var(--line-strong);
-        background:
-          radial-gradient(ellipse 80% 120% at 0% 50%, rgba(94, 176, 247, 0.12), transparent 55%),
-          rgba(255, 255, 255, 0.03);
-        display: flex;
-        flex-wrap: wrap;
-        align-items: center;
-        justify-content: space-between;
-        gap: 1.25rem;
-      }
-
-      .community h2 {
-        margin: 0 0 0.35rem;
-        font-size: 1.2rem;
-      }
-
-      .community p {
-        margin: 0;
-        max-width: 28rem;
-        font-size: 0.92rem;
-        line-height: 1.5;
-        color: var(--muted);
-      }
-
-      /* ——— Footer ——— */
-      .footer {
-        margin-top: 1rem;
-        padding: 2.5rem 0 2.75rem;
-        border-top: 1px solid var(--line);
-      }
-
-      .footer__grid {
-        display: grid;
-        grid-template-columns: 1.4fr repeat(3, minmax(0, 1fr));
-        gap: 2rem 1.5rem;
-      }
-
-      @media (max-width: 800px) {
-        .footer__grid {
-          grid-template-columns: 1fr 1fr;
-        }
-      }
-
-      @media (max-width: 520px) {
-        .footer__grid {
-          grid-template-columns: 1fr;
-        }
-      }
-
-      .footer__brand {
-        display: flex;
-        flex-direction: column;
-        gap: 0.65rem;
-      }
-
-      .footer__wordmark {
-        margin: 0;
-        font-size: 1.15rem;
-        font-weight: 700;
-        letter-spacing: 0.14em;
-      }
-
-      .footer__wordmark .dot {
-        color: var(--dot);
-      }
-
-      .footer__tag {
-        margin: 0;
-        max-width: 18rem;
-        font-size: 0.88rem;
-        line-height: 1.5;
-        color: var(--muted);
-      }
-
-      .footer__col h3 {
-        margin: 0 0 0.75rem;
-        font-size: 0.72rem;
-        font-weight: 700;
-        letter-spacing: 0.14em;
-        text-transform: uppercase;
-        color: var(--soft);
-      }
-
-      .footer__col ul {
-        list-style: none;
-        margin: 0;
-        padding: 0;
-        display: grid;
-        gap: 0.45rem;
-      }
-
-      .footer__col a {
-        text-decoration: none;
-        font-size: 0.9rem;
-        color: var(--muted);
-        transition: color 0.2s ease;
-      }
-
-      .footer__col a:hover {
-        color: var(--text);
-      }
-
-      .footer__bottom {
-        margin-top: 2.25rem;
-        padding-top: 1.25rem;
-        border-top: 1px solid rgba(255, 255, 255, 0.06);
-        display: flex;
-        flex-wrap: wrap;
-        gap: 0.5rem 1.25rem;
-        justify-content: space-between;
-        font-size: 0.78rem;
-        color: var(--soft);
-      }
-
-      @keyframes rise {
-        from {
-          opacity: 0;
-          transform: translateY(16px) scale(0.988);
-        }
-        to {
-          opacity: 1;
-          transform: translateY(0) scale(1);
-        }
-      }
-
-      @media (prefers-reduced-motion: reduce) {
-        *,
-        *::before,
-        *::after {
-          animation: none !important;
-          transition: none !important;
-        }
-      }
-    </style>
+    <link rel="stylesheet" href="css/site.css" />
   </head>
   <body>
     <div class="atmosphere" aria-hidden="true"></div>
     <div class="glow-orb" id="glowOrb" aria-hidden="true"></div>
 
     <div class="shell">
-      <nav class="nav" aria-label="Primary">
-        <a class="nav__brand" href="#top">
+      <nav class="nav glass" aria-label="Primary">
+        <a class="nav__brand" href="/">
           <svg class="nav__brand-mark" viewBox="0 0 100 100" aria-hidden="true">
             <rect
               x="10"
@@ -707,17 +27,17 @@
               height="80"
               rx="10"
               fill="none"
-              stroke="#5eb0f7"
+              stroke="#7ec8ff"
               stroke-width="8"
             />
             <rect x="25" y="25" width="50" height="50" rx="5" fill="#2b6cb0" />
           </svg>
-          MAINLINE<span style="color: var(--dot)">.</span>
+          MAINLINE<span style="color: var(--accent)">.</span>
         </a>
         <ul class="nav__links">
           <li><a href="#products">Products</a></li>
+          <li><a href="/ai-innovations">AI Innovations</a></li>
           <li><a href="#mission">Mission</a></li>
-          <li><a href="#approach">Approach</a></li>
           <li><a href="https://discord.gg/VV6nKAz5sR">Discord</a></li>
         </ul>
       </nav>
@@ -727,6 +47,17 @@
           <div class="mark-wrap">
             <div class="mark-glow" aria-hidden="true"></div>
             <svg class="mark" viewBox="0 0 100 100" role="img" aria-label="Mainline Studios mark">
+              <defs>
+                <linearGradient id="markFill" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stop-color="#5eb0f7" />
+                  <stop offset="55%" stop-color="#2b6cb0" />
+                  <stop offset="100%" stop-color="#1a4f86" />
+                </linearGradient>
+                <linearGradient id="markStroke" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stop-color="#dff2ff" />
+                  <stop offset="100%" stop-color="#5eb0f7" />
+                </linearGradient>
+              </defs>
               <rect
                 x="10"
                 y="10"
@@ -734,20 +65,26 @@
                 height="80"
                 rx="10"
                 fill="none"
-                stroke="#5eb0f7"
+                stroke="url(#markStroke)"
                 stroke-width="3"
               />
-              <rect x="25" y="25" width="50" height="50" rx="5" fill="#2b6cb0" />
+              <rect x="25" y="25" width="50" height="50" rx="5" fill="url(#markFill)" />
+              <rect
+                x="28"
+                y="28"
+                width="44"
+                height="14"
+                rx="4"
+                fill="rgba(255,255,255,0.16)"
+              />
             </svg>
           </div>
           <h1 class="wordmark">MAINLINE<span class="dot">.</span></h1>
         </div>
-        <p class="goal">
-          Providing <em>premium experiences</em> for free.
-        </p>
+        <p class="goal">Providing <em>premium experiences</em> for free.</p>
         <div class="hero__cta">
           <a class="btn btn--primary" href="#products">Explore products</a>
-          <a class="btn btn--ghost" href="https://discord.gg/VV6nKAz5sR">Join Discord</a>
+          <a class="btn btn--ghost" href="/ai-innovations">AI Innovations</a>
         </div>
       </header>
 
@@ -756,18 +93,18 @@
           <p class="section-label">Products</p>
           <h2 class="section-title" id="products-title">Built to feel premium. Kept free.</h2>
           <p class="section-lead">
-            Two experiences from Mainline Studios — polished enough to charge for, open enough that
-            anyone can walk in.
+            Two live experiences from Mainline Studios — polished enough to charge for, open enough
+            that anyone can walk in.
           </p>
         </div>
         <div class="products">
-          <a class="product" href="https://pixelplaceofficial.com">
+          <a class="product glass" href="https://pixelplaceofficial.com">
             <div class="product__top">
               <img
                 class="product__logo product__logo--pp"
                 src="assets/pixel-place-logo.png"
-                width="64"
-                height="64"
+                width="66"
+                height="66"
                 alt=""
               />
               <div>
@@ -782,13 +119,13 @@
             <span class="product__cta">Open Pixel Place →</span>
           </a>
 
-          <a class="product" href="https://pyx-ai.web.app/">
+          <a class="product glass" href="https://pyx-ai.web.app/">
             <div class="product__top">
               <img
                 class="product__logo"
                 src="assets/pyx-app-icon.png"
-                width="64"
-                height="64"
+                width="66"
+                height="66"
                 alt=""
               />
               <div>
@@ -805,39 +142,52 @@
         </div>
       </section>
 
+      <section aria-labelledby="ai-teaser-title">
+        <div class="mi-banner glass">
+          <span class="mi-badge">Mainline Intelligence · MI</span>
+          <div class="section-head" style="margin-bottom: 0.75rem">
+            <p class="section-label">Coming soon</p>
+            <h2 class="section-title" id="ai-teaser-title">The next wave of Mainline AI</h2>
+            <p class="section-lead">
+              Under Mainline Intelligence (MI), we are building Artificial Realtime Instant
+              Intelligence and Conversational Intelligence — our industrial-grade evolution of Pyx.
+            </p>
+          </div>
+          <a class="btn btn--primary" href="/ai-innovations">See AI Innovations</a>
+        </div>
+      </section>
+
       <section class="mission" id="mission" aria-labelledby="mission-title">
         <div class="mission__grid">
-          <div>
+          <div class="mission__copy glass">
             <div class="section-head">
               <p class="section-label">Mission</p>
               <h2 class="section-title" id="mission-title">Premium should not mean paywalled.</h2>
             </div>
-            <div class="mission__copy">
-              <p>
-                Mainline Studios builds software that feels intentional — clear motion, careful
-                craft, and experiences you would expect from a paid product —
-                <strong>without putting that quality behind a checkout wall.</strong>
-              </p>
-              <p>
-                We believe free can still mean ambitious. Games you want to stay in. Tools that
-                respect your focus. Interfaces that treat attention as something worth designing for.
-              </p>
-              <p>
-                That is the through-line across Pixel Place, Pyx AI, and everything we ship next:
-                <strong>providing premium experiences for free.</strong>
-              </p>
-            </div>
+            <p>
+              Mainline Studios builds software that feels intentional — clear motion, careful craft,
+              and experiences you would expect from a paid product —
+              <strong>without putting that quality behind a checkout wall.</strong>
+            </p>
+            <p>
+              We believe free can still mean ambitious. Games you want to stay in. Tools that respect
+              your focus. Interfaces that treat attention as something worth designing for.
+            </p>
+            <p>
+              That is the through-line across Pixel Place, Pyx AI, and everything we ship next:
+              <strong>providing premium experiences for free.</strong>
+            </p>
           </div>
           <div class="pillars" aria-label="What we care about">
-            <article class="pillar">
+            <article class="pillar glass">
               <h3>Craft over clutter</h3>
               <p>Fewer surfaces, stronger hierarchy, and motion that earns its place.</p>
             </article>
-            <article class="pillar">
+            <article class="pillar glass">
               <h3>Open by default</h3>
               <p>Start in the browser. No install tax just to try the good version.</p>
             </article>
-            <article class="pillar">
+            <article class="pillar glass">
               <h3>Made for people</h3>
               <p>Play, create, and get work done — without feeling like a second-class user.</p>
             </article>
@@ -854,7 +204,7 @@
           </p>
         </div>
         <ol class="approach-list">
-          <li>
+          <li class="glass">
             <span class="num">01</span>
             <h3>Design the feeling first</h3>
             <p>
@@ -862,15 +212,15 @@
               that says this was made with care.
             </p>
           </li>
-          <li>
+          <li class="glass">
             <span class="num">02</span>
             <h3>Ship real products</h3>
             <p>
-              Pixel Place and Pyx AI are live destinations, not demos. You can play, create, and
-              work in them today.
+              Pixel Place and Pyx AI are live destinations, not demos. You can play, create, and work
+              in them today.
             </p>
           </li>
-          <li>
+          <li class="glass">
             <span class="num">03</span>
             <h3>Stay with the community</h3>
             <p>
@@ -881,7 +231,7 @@
         </ol>
       </section>
 
-      <aside class="community" aria-labelledby="community-title">
+      <aside class="community glass" aria-labelledby="community-title">
         <div>
           <h2 id="community-title">Come hang with Mainline</h2>
           <p>
@@ -889,7 +239,7 @@
             Treblo.
           </p>
         </div>
-        <div class="hero__cta" style="margin-top: 0">
+        <div class="hero__cta">
           <a class="btn btn--primary" href="https://discord.gg/VV6nKAz5sR">Discord</a>
           <a
             class="btn btn--ghost"
@@ -900,112 +250,48 @@
       </aside>
 
       <footer class="footer">
-        <div class="footer__grid">
-          <div class="footer__brand">
-            <p class="footer__wordmark">MAINLINE<span class="dot">.</span></p>
-            <p class="footer__tag">Providing premium experiences for free.</p>
+        <div class="footer__panel glass">
+          <div class="footer__grid">
+            <div class="footer__brand">
+              <p class="footer__wordmark">MAINLINE<span class="dot">.</span></p>
+              <p class="footer__tag">Providing premium experiences for free.</p>
+            </div>
+            <div class="footer__col">
+              <h3>Products</h3>
+              <ul>
+                <li><a href="https://pixelplaceofficial.com">Pixel Place</a></li>
+                <li><a href="https://pyx-ai.web.app/">Pyx AI</a></li>
+                <li><a href="/ai-innovations">AI Innovations</a></li>
+                <li><a href="https://thepixelplace.blogspot.com/">Pixel Place blog</a></li>
+              </ul>
+            </div>
+            <div class="footer__col">
+              <h3>Studio</h3>
+              <ul>
+                <li><a href="#mission">Mission</a></li>
+                <li><a href="#approach">Approach</a></li>
+                <li><a href="https://github.com/Mainline-Studios/Pixel-Place">GitHub</a></li>
+              </ul>
+            </div>
+            <div class="footer__col">
+              <h3>Connect</h3>
+              <ul>
+                <li><a href="https://discord.gg/VV6nKAz5sR">Discord</a></li>
+                <li><a href="https://www.youtube.com/@PixelPlaceOfficial">YouTube</a></li>
+                <li>
+                  <a href="https://treblo.com/group/944d8ce3-d28a-4a30-92d8-b567cb5bc8ac">Treblo</a>
+                </li>
+              </ul>
+            </div>
           </div>
-          <div class="footer__col">
-            <h3>Products</h3>
-            <ul>
-              <li><a href="https://pixelplaceofficial.com">Pixel Place</a></li>
-              <li><a href="https://pyx-ai.web.app/">Pyx AI</a></li>
-              <li><a href="https://thepixelplace.blogspot.com/">Pixel Place blog</a></li>
-            </ul>
+          <div class="footer__bottom">
+            <span>© <span id="year"></span> Mainline Studios</span>
+            <span>mainlinestudios.pixelplaceofficial.com</span>
           </div>
-          <div class="footer__col">
-            <h3>Studio</h3>
-            <ul>
-              <li><a href="#mission">Mission</a></li>
-              <li><a href="#approach">Approach</a></li>
-              <li><a href="https://github.com/Mainline-Studios/Pixel-Place">GitHub</a></li>
-            </ul>
-          </div>
-          <div class="footer__col">
-            <h3>Connect</h3>
-            <ul>
-              <li><a href="https://discord.gg/VV6nKAz5sR">Discord</a></li>
-              <li><a href="https://www.youtube.com/@PixelPlaceOfficial">YouTube</a></li>
-              <li>
-                <a href="https://treblo.com/group/944d8ce3-d28a-4a30-92d8-b567cb5bc8ac">Treblo</a>
-              </li>
-            </ul>
-          </div>
-        </div>
-        <div class="footer__bottom">
-          <span>© <span id="year"></span> Mainline Studios</span>
-          <span>mainlinestudios.pixelplaceofficial.com</span>
         </div>
       </footer>
     </div>
 
-    <script>
-      (function () {
-        var year = document.getElementById('year');
-        if (year) year.textContent = String(new Date().getFullYear());
-
-        var root = document.documentElement;
-        var lockup = document.getElementById('brandLockup');
-        var orb = document.getElementById('glowOrb');
-        if (!lockup) return;
-
-        var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-        var rect = null;
-        var targetX = 0;
-        var targetY = 0;
-        var curX = 0;
-        var curY = 0;
-        var strength = 0.35;
-        var targetStrength = 0.35;
-        var raf = 0;
-
-        function measure() {
-          rect = lockup.getBoundingClientRect();
-        }
-
-        function onMove(e) {
-          if (reduce) return;
-          if (!rect) measure();
-          var cx = rect.left + rect.width / 2;
-          var cy = rect.top + rect.height / 2;
-          var dx = (e.clientX - cx) / Math.max(rect.width * 0.85, 1);
-          var dy = (e.clientY - cy) / Math.max(rect.height * 0.85, 1);
-          var dist = Math.min(1, Math.hypot(dx, dy));
-          targetX = Math.max(-1, Math.min(1, dx));
-          targetY = Math.max(-1, Math.min(1, dy));
-          targetStrength = 0.28 + dist * 0.72;
-
-          if (orb) {
-            orb.style.left = e.clientX + 'px';
-            orb.style.top = e.clientY + 'px';
-            orb.style.opacity = String(0.35 + dist * 0.35);
-          }
-        }
-
-        function onLeave() {
-          targetX = 0;
-          targetY = 0;
-          targetStrength = 0.32;
-          if (orb) orb.style.opacity = '0.4';
-        }
-
-        function tick() {
-          curX += (targetX - curX) * 0.14;
-          curY += (targetY - curY) * 0.14;
-          strength += (targetStrength - strength) * 0.12;
-          root.style.setProperty('--glow-x', curX.toFixed(4));
-          root.style.setProperty('--glow-y', curY.toFixed(4));
-          root.style.setProperty('--glow-strength', strength.toFixed(4));
-          raf = requestAnimationFrame(tick);
-        }
-
-        measure();
-        window.addEventListener('resize', measure);
-        window.addEventListener('scroll', measure, { passive: true });
-        window.addEventListener('pointermove', onMove, { passive: true });
-        document.addEventListener('pointerleave', onLeave);
-        if (!reduce) raf = requestAnimationFrame(tick);
-      })();
-    </script>
+    <script src="js/site.js"></script>
   </body>
 </html>

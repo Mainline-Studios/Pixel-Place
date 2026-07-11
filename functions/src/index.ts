@@ -755,6 +755,7 @@ import { mountWebDeployAuthRoutes, WEB_DEPLOY_JWT_AUD } from './webDeployAuth';
 import { getAppStorageBucket } from './appStorage';
 import { serveWebDeploySite } from './webDeployServe';
 import { maybeProxyOpenCut } from './webDeployOpenCutProxy';
+import { mountFriendsRoutes } from './friendsRoutes';
 
 const storageBucket = getAppStorageBucket();
 import { mountStripeEmbeddedWebhook, mountStripeEmbeddedPayRoutes } from './stripeEmbeddedPay';
@@ -1125,7 +1126,8 @@ app.use((req, res, next) => {
 
 mountStripeEmbeddedWebhook(app, firestoreDb, COLLECTIONS.USERS, COLLECTIONS.STRIPE_PAYMENT_CREDITS);
 
-app.use(express.json());
+app.use(express.json({ limit: '8mb' }));
+app.use(express.urlencoded({ extended: true, limit: '8mb' }));
 
 mountStripeEmbeddedPayRoutes(app, firestoreDb);
 mountPaypalPayRoutes(
@@ -3122,6 +3124,22 @@ app.post('/api/generate-game', (req, res) => handleGenerateGame(req, res));
 app.post('/chat', (req, res) => handleChat(req, res));
 app.post('/api/chat', (req, res) => handleChat(req, res));
 
+// LingBot World cloud generator (LINGBOT_WORLD_API_URL or FAL_KEY / Wan 2.2)
+import {
+  handleWorldGeneratorCreate,
+  handleWorldGeneratorGet,
+  handleWorldGeneratorStatus,
+} from './world-generator';
+['/world-generator/status', '/api/world-generator/status'].forEach((path) =>
+  app.get(path, (req, res) => void handleWorldGeneratorStatus(req, res)),
+);
+['/world-generator', '/api/world-generator'].forEach((path) =>
+  app.post(path, (req, res) => void handleWorldGeneratorCreate(req, res)),
+);
+['/world-generator/jobs/:id', '/api/world-generator/jobs/:id'].forEach((path) =>
+  app.get(path, (req, res) => void handleWorldGeneratorGet(req, res)),
+);
+
 // HistoriMac Computer Use (BYOK — OpenAI Responses `computer` or Anthropic `computer_20250124`)
 import { handleHistoriMacCopilotTurn } from './historimac-copilot-turn';
 app.post('/historimac-copilot-turn', (req, res) => void handleHistoriMacCopilotTurn(req, res));
@@ -3156,6 +3174,9 @@ app.put('/api/status-page', putStatusPageHandler);
 // Anti 67 account lock (footer easter egg)
 mountAnti67AccountRoutes(app, { db, usersCollection: COLLECTIONS.USERS, requireAuth });
 
+// Friends + DMs (production API — Next.js route stubs are unused under static export)
+mountFriendsRoutes(app, { usersDb: db, firestore: firestoreDb, requireAuth });
+
 // Update logs — GitHub "Latest Update Logs" folder → markdown compiler API
 mountUpdateLogsRoutes(app);
 
@@ -3179,6 +3200,10 @@ app.use((req: any, res) => {
 });
 
 export const api = functions
-  .runWith({ secrets: ['PAYPAL_CLIENT_SECRET'] })
+  .runWith({
+    secrets: ['PAYPAL_CLIENT_SECRET'],
+    timeoutSeconds: 120,
+    memory: '1GB',
+  })
   .region('us-central1')
   .https.onRequest(app);

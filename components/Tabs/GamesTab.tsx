@@ -24,12 +24,14 @@ import EcoHero from '../Games/EcoHero';
 import CoasterControl from '../Games/CoasterControl';
 import HistoriMac from '../Games/HistoriMac';
 import AnimationTest from '../Games/AnimationTest';
+import WorldGenerator from '../Games/WorldGenerator';
 import ObstacleCourse from '../Games/ObstacleCourse';
 import { useMobileBeta } from '@/contexts/MobileBetaContext';
 import SquishBubbles from '../Games/SquishBubbles';
 import SquishSlime from '../Games/SquishSlime';
 import LocalizeText, { FilteredThenLocalize } from '@/components/LocalizeText';
 import { useUser } from '@/contexts/UserContext';
+import { FriendsStrip } from '@/components/FriendsStrip';
 
 interface GamesTabProps {
   user: User;
@@ -57,6 +59,15 @@ const games: GameInfo[] = [
     icon: '🎞️',
     category: 'Tools',
     component: AnimationTest,
+  },
+  {
+    id: 'worldGenerator',
+    name: 'World Generator',
+    description:
+      'Describe a world, preview a live sketch, then render a cloud flythrough powered by LingBot World — no local model download.',
+    icon: '🌍',
+    category: 'Tools',
+    component: WorldGenerator,
   },
   {
     id: 'obstacleCourse',
@@ -345,7 +356,7 @@ export default function GamesTab({ user, editMode }: GamesTabProps) {
     };
     
     // Components that support onClose prop
-    const supportsOnClose = ['gymPump', 'hypnosia', 'voidArcade', 'ecoHero', 'historiMac', 'animationTest', 'obstacleCourse', 'squishBubbles', 'squishSlime', 'coasterControl'].includes(selectedGame);
+    const supportsOnClose = ['gymPump', 'hypnosia', 'voidArcade', 'ecoHero', 'historiMac', 'animationTest', 'worldGenerator', 'obstacleCourse', 'squishBubbles', 'squishSlime', 'coasterControl'].includes(selectedGame);
     
     // Prepare props based on game type - pass user to games that need it
     const baseProps = selectedGame === 'gymPump'
@@ -363,6 +374,8 @@ export default function GamesTab({ user, editMode }: GamesTabProps) {
           onBootVersionConsumed: () => setHistoriMacBootVersionId(null),
         }
       : selectedGame === 'animationTest'
+      ? { user, onClose: handleClose }
+      : selectedGame === 'worldGenerator'
       ? { user, onClose: handleClose }
       : selectedGame === 'obstacleCourse'
       ? { user, onClose: handleClose }
@@ -412,6 +425,8 @@ export default function GamesTab({ user, editMode }: GamesTabProps) {
       <h2 className="section-title">
         🎮 <LocalizeText text="Play Games" as="span" />
       </h2>
+
+      <FriendsStrip user={user} />
 
       {isMobileBeta && (
         <div

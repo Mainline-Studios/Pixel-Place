@@ -104,6 +104,15 @@ export const BUILTIN_GAMES: PublishedGame[] = [
     gameCode: 'builtin_helios',
     thumbnail: '/images/games/helios.svg',
   },
+  {
+    title: 'World Generator',
+    desc: 'Describe a world, preview a live sketch, then render a cloud flythrough powered by LingBot World.',
+    owner: 'System',
+    ts: Date.now(),
+    playable: true,
+    gameCode: 'builtin_worldGenerator',
+    thumbnail: undefined,
+  },
   // Note: InternationalSportsHQ and MusicalMayhem are not React components
   // They can be added later if converted to React components
 ];

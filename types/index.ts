@@ -68,6 +68,17 @@ export type UserAccountPreferences = {
   particlesEnabled?: boolean;
   /** Site-wide listen lock (footer 6-7 easter egg) */
   anti67?: Anti67AccountState;
+  /** Per-user body color overrides for Customize */
+  avatarColors?: {
+    head?: string;
+    torso?: string;
+    arm?: string;
+    legs?: string;
+  };
+  /** Showcase pose (wave, cheer, dance, …) */
+  avatarPose?: string;
+  /** Spin on a turntable in showcase / friends strip */
+  avatarTurntable?: boolean;
 };
 
 export interface FriendRequest {
@@ -135,10 +146,12 @@ export interface Skin {
   id: string;
   name: string;
   price: number; // Price in Pixel Coins
-  safetyPointsPrice?: number; // Price in Safety Points (for special skins)
-  dualPrice?: { coins: number; safetyPoints: number }; // Cost both coins AND safety points
-  isSpecial?: boolean; // Special skin that costs Safety Points
-  isFace?: boolean; // Is this a face (for faces section)  img: string;
+  safetyPointsPrice?: number; // Legacy — shop no longer spends Safety Points
+  dualPrice?: { coins: number; safetyPoints: number }; // Legacy
+  isSpecial?: boolean; // Legacy flag; priced in coins in the rebuilt shop
+  isFace?: boolean;
+  img?: string;
+  rarity?: 'common' | 'rare' | 'legendary';
   colors: {
     head: string;
     torso: string;

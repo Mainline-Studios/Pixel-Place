@@ -64,19 +64,28 @@ export function mergeAnti67IntoPreferences(
   return { ...(prefs || {}), anti67 };
 }
 
-/** RTDB snapshots often omit account_preferences; never drop an active Anti 67 lock on merge. */
+/** RTDB snapshots often omit account_preferences; keep an active lock only when the next snapshot omits anti67 entirely. Explicit unlocks (locked: false) always win. */
 export function mergeAccountPreferencesPreservingAnti67(
   prev: UserAccountPreferences | undefined,
   next: UserAccountPreferences | undefined,
 ): UserAccountPreferences | undefined {
   const merged: UserAccountPreferences = { ...(prev || {}), ...(next || {}) };
   const prevAnti = getAnti67FromPreferences(prev);
+  const nextHasAnti67 =
+    !!next && Object.prototype.hasOwnProperty.call(next, 'anti67') && next.anti67 != null;
   const nextAnti = getAnti67FromPreferences(next);
-  if (prevAnti.locked && !nextAnti.locked) {
+
+  if (nextHasAnti67 && next?.anti67) {
+    merged.anti67 = next.anti67;
+  } else if (prevAnti.locked && !nextHasAnti67) {
     merged.anti67 = prev?.anti67;
   } else if (nextAnti.locked && next?.anti67) {
     merged.anti67 = next.anti67;
+  } else if (nextHasAnti67 === false && next && Object.prototype.hasOwnProperty.call(next, 'anti67')) {
+    // Explicit null/cleared anti67 from server
+    delete merged.anti67;
   }
+
   if (!Object.keys(merged).length) return undefined;
   return merged;
 }

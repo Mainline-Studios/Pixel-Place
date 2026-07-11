@@ -172,7 +172,7 @@ export default function Dashboard({ user, selectedMode }: DashboardProps) {
       case 'studio':
         return <CreateTab user={user} editMode={editMode} />;
       case 'avatarShop':
-        return <AvatarShopTab user={user} editMode={editMode} />;
+        return <AvatarShopTab user={user} editMode={editMode} selectedMode={selectedMode} />;
       case 'coins':
         return <CoinsTab user={user} editMode={editMode} />;
       case 'friends':

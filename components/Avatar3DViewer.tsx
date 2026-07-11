@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { Skin } from '@/types';
+import { applyAvatarPose } from '@/lib/applyAvatarPose';
 
 interface Avatar3DViewerProps {
   skin: Skin;
@@ -9,6 +10,9 @@ interface Avatar3DViewerProps {
   height?: number;
   interactive?: boolean; // Enable mouse interaction
   animation?: string; // Animation to play
+  /** Slow Y-axis spin (showcase / friends strip) */
+  autoRotate?: boolean;
+  turntableSpeed?: number;
   equippedFace?: Skin; // Optional equipped face to apply to head
   onReady?: () => void;
   onError?: (error?: Error) => void;
@@ -20,6 +24,8 @@ export default function Avatar3DViewer({
   height = 200,
   interactive = true,
   animation = 'idle',
+  autoRotate = false,
+  turntableSpeed = 0.7,
   equippedFace,
   onReady,
   onError
@@ -411,50 +417,65 @@ export default function Avatar3DViewer({
         torso.position.set(0, 0.9, 0);
         characterGroup.add(torso);
 
-        // Left Arm - high-poly for special skins
+        // Left Arm — pivot at shoulder so poses hinge correctly
         const armSize = { w: 0.5, h: 1.8, d: 0.5 };
+        const armH = armSize.h * bodyScale.y;
         const leftArmGeometry = createHighPolyGeometry(
           'arm',
           armSize.w * bodyScale.x, 
-          armSize.h * bodyScale.y, 
+          armH, 
           armSize.d * bodyScale.z
         );
-        const leftArm = new THREE.Mesh(leftArmGeometry, armMaterial);
-        leftArm.position.set(-1.15 * bodyScale.x, 0.9, 0);
+        const leftArmMesh = new THREE.Mesh(leftArmGeometry, armMaterial);
+        leftArmMesh.position.set(0, -armH / 2, 0);
+        const leftArm = new THREE.Group();
+        // Shoulder sits near top of torso
+        leftArm.position.set(-1.15 * bodyScale.x, 1.55, 0);
+        leftArm.add(leftArmMesh);
         characterGroup.add(leftArm);
 
-        // Right Arm - high-poly for special skins
+        // Right Arm — pivot at shoulder
         const rightArmGeometry = createHighPolyGeometry(
           'arm',
           armSize.w * bodyScale.x, 
-          armSize.h * bodyScale.y, 
+          armH, 
           armSize.d * bodyScale.z
         );
-        const rightArm = new THREE.Mesh(rightArmGeometry, armMaterial);
-        rightArm.position.set(1.15 * bodyScale.x, 0.9, 0);
+        const rightArmMesh = new THREE.Mesh(rightArmGeometry, armMaterial);
+        rightArmMesh.position.set(0, -armH / 2, 0);
+        const rightArm = new THREE.Group();
+        rightArm.position.set(1.15 * bodyScale.x, 1.55, 0);
+        rightArm.add(rightArmMesh);
         characterGroup.add(rightArm);
 
-        // Left Leg - high-poly for special skins
+        // Left Leg — pivot at hip
         const legSize = { w: 0.6, h: 1.6, d: 0.6 };
+        const legH = legSize.h * bodyScale.y;
         const leftLegGeometry = createHighPolyGeometry(
           'leg',
           legSize.w * bodyScale.x, 
-          legSize.h * bodyScale.y, 
+          legH, 
           legSize.d * bodyScale.z
         );
-        const leftLeg = new THREE.Mesh(leftLegGeometry, legMaterial);
-        leftLeg.position.set(-0.4 * bodyScale.x, -1.0, 0);
+        const leftLegMesh = new THREE.Mesh(leftLegGeometry, legMaterial);
+        leftLegMesh.position.set(0, -legH / 2, 0);
+        const leftLeg = new THREE.Group();
+        leftLeg.position.set(-0.4 * bodyScale.x, -0.2, 0);
+        leftLeg.add(leftLegMesh);
         characterGroup.add(leftLeg);
 
-        // Right Leg - high-poly for special skins
+        // Right Leg — pivot at hip
         const rightLegGeometry = createHighPolyGeometry(
           'leg',
           legSize.w * bodyScale.x, 
-          legSize.h * bodyScale.y, 
+          legH, 
           legSize.d * bodyScale.z
         );
-        const rightLeg = new THREE.Mesh(rightLegGeometry, legMaterial);
-        rightLeg.position.set(0.4 * bodyScale.x, -1.0, 0);
+        const rightLegMesh = new THREE.Mesh(rightLegGeometry, legMaterial);
+        rightLegMesh.position.set(0, -legH / 2, 0);
+        const rightLeg = new THREE.Group();
+        rightLeg.position.set(0.4 * bodyScale.x, -0.2, 0);
+        rightLeg.add(rightLegMesh);
         characterGroup.add(rightLeg);
 
         // Store references for animation
@@ -1550,8 +1571,13 @@ export default function Avatar3DViewer({
             }
           });
 
-          // Apply rotation based on mouse position
-          if (interactive && isHovered) {
+          // Apply rotation based on mouse position or turntable spin
+          if (autoRotate) {
+            characterGroup.rotation.y += turntableSpeed * 0.016;
+            characterGroup.rotation.x = 0;
+            rotationRef.current.y = characterGroup.rotation.y;
+            rotationRef.current.x = 0;
+          } else if (interactive && isHovered) {
             const targetRotationY = mousePositionRef.current.x * Math.PI;
             const targetRotationX = mousePositionRef.current.y * 0.3;
 
@@ -1587,66 +1613,15 @@ export default function Avatar3DViewer({
             }
           });
 
-          // Apply animations
-          if (animation === 'idle') {
-            // Gentle idle animation
-            head.position.y = 2.1 + Math.sin(animationTime * 2) * 0.02;
-            leftArm.rotation.x = Math.sin(animationTime * 1.5) * 0.1;
-            rightArm.rotation.x = -Math.sin(animationTime * 1.5) * 0.1;
-            // Reset other parts
-            leftLeg.rotation.x = 0;
-            rightLeg.rotation.x = 0;
-            rightArm.rotation.z = 0;
-            characterGroup.position.y = 0;
-          } else if (animation === 'walk') {
-            // Walking animation
-            leftLeg.rotation.x = Math.sin(animationTime * 4) * 0.3;
-            rightLeg.rotation.x = -Math.sin(animationTime * 4) * 0.3;
-            leftArm.rotation.x = -Math.sin(animationTime * 4) * 0.3;
-            rightArm.rotation.x = Math.sin(animationTime * 4) * 0.3;
-            characterGroup.position.y = Math.abs(Math.sin(animationTime * 4)) * 0.1;
-            // Reset head
-            head.position.y = 2.1;
-            rightArm.rotation.z = 0;
-          } else if (animation === 'jump') {
-            // Looping jump animation for animation testing
-            const jumpPhase = Math.abs(Math.sin(animationTime * 3));
-            characterGroup.position.y = jumpPhase * 0.55;
-            leftLeg.rotation.x = -0.25;
-            rightLeg.rotation.x = -0.25;
-            leftArm.rotation.x = -0.35;
-            rightArm.rotation.x = -0.35;
-            head.position.y = 2.1;
-            rightArm.rotation.z = 0;
-          } else if (animation === 'wave') {
-            // Waving animation
-            rightArm.rotation.x = -Math.PI / 2 + Math.sin(animationTime * 3) * 0.5;
-            rightArm.rotation.z = Math.sin(animationTime * 3) * 0.3;
-            // Reset other parts
-            head.position.y = 2.1;
-            leftArm.rotation.x = 0;
-            leftLeg.rotation.x = 0;
-            rightLeg.rotation.x = 0;
-            characterGroup.position.y = 0;
-          } else if (animation === 'none' || animation === 'no-animation' || animation === 'noAnimation') {
-            // Explicit no-animation pose
-            head.position.y = 2.1;
-            leftArm.rotation.x = 0;
-            rightArm.rotation.x = 0;
-            rightArm.rotation.z = 0;
-            leftLeg.rotation.x = 0;
-            rightLeg.rotation.x = 0;
-            characterGroup.position.y = 0;
-          } else {
-            // Default: reset all
-            head.position.y = 2.1;
-            leftArm.rotation.x = 0;
-            rightArm.rotation.x = 0;
-            rightArm.rotation.z = 0;
-            leftLeg.rotation.x = 0;
-            rightLeg.rotation.x = 0;
-            characterGroup.position.y = 0;
-          }
+          // Apply animations / poses (shared with unit tests)
+          applyAvatarPose(animation, animationTime, {
+            leftArm,
+            rightArm,
+            leftLeg,
+            rightLeg,
+            head,
+            character: characterGroup,
+          });
 
           renderer.render(scene, camera);
           signalReady();
@@ -1681,7 +1656,7 @@ export default function Avatar3DViewer({
         }
       }
     };
-  }, [skin, width, height, interactive, animation, isHovered]);
+  }, [skin, width, height, interactive, animation, isHovered, autoRotate, turntableSpeed, equippedFace]);
 
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
     if (!interactive || !mountRef.current) return;

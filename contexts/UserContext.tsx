@@ -103,13 +103,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
             return null;
           }
 
-          const sessionAnti67 = readAnti67Session();
-          if (sessionAnti67?.locked) {
-            found.accountPreferences = mergeAnti67IntoPreferences(
-              found.accountPreferences,
-              sessionAnti67,
-            );
-          }
+          // Prefer server Anti 67 status; only fall back to session if the request fails
           try {
             const status = await fetchAnti67Status();
             if (status.ok && status.anti67) {
@@ -118,9 +112,23 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
                 status.anti67,
               );
               syncAnti67Session(status.anti67);
+            } else {
+              const sessionAnti67 = readAnti67Session();
+              if (sessionAnti67?.locked) {
+                found.accountPreferences = mergeAnti67IntoPreferences(
+                  found.accountPreferences,
+                  sessionAnti67,
+                );
+              }
             }
           } catch {
-            /* status fetch is best-effort */
+            const sessionAnti67 = readAnti67Session();
+            if (sessionAnti67?.locked) {
+              found.accountPreferences = mergeAnti67IntoPreferences(
+                found.accountPreferences,
+                sessionAnti67,
+              );
+            }
           }
           
           // Special coins for 6767kid - massive amount
@@ -394,16 +402,10 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       if (firestoreUser) {
         setUser((prev) => {
           if (!prev) {
-            const sessionAnti67 = readAnti67Session();
-            if (sessionAnti67?.locked) {
-              return {
-                ...firestoreUser,
-                accountPreferences: mergeAnti67IntoPreferences(
-                  firestoreUser.accountPreferences,
-                  sessionAnti67,
-                ),
-              };
-            }
+            const serverAnti = getAnti67FromPreferences(firestoreUser.accountPreferences);
+            if (serverAnti.locked) return firestoreUser;
+            // Server says unlocked (or unset) — do not revive a stale session lock
+            syncAnti67Session(serverAnti);
             return firestoreUser;
           }
           const eqAcc = firestoreUser.equippedAccessories;

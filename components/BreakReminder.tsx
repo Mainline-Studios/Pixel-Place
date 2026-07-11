@@ -118,10 +118,9 @@ export default function BreakReminder({ onTakeBreak, onDismiss }: BreakReminderP
           margin: 0,
           lineHeight: 1.5
         }}>
-          {breakInProgress 
-            ? 'Your 30-minute break timer is running. Points are awarded when the timer finishes.'
-            : `You've been playing for over an hour. Take a 30-minute break to earn `}
-          {!breakInProgress && <strong style={{color: '#4a90e2'}}>35 Safety Points</strong>}
+          {breakInProgress
+            ? 'Your 30-minute break timer is running. Stretch, hydrate, and come back fresh.'
+            : "You've been playing for over an hour. Take a 30-minute break — your avatar will thank you."}
         </p>
       </div>
 
@@ -156,17 +155,6 @@ export default function BreakReminder({ onTakeBreak, onDismiss }: BreakReminderP
           <span>Breaks taken today:</span>
           <span style={{ fontWeight: 600, color: '#4a90e2' }}>
             {safetyData?.breaksToday || 0} / 3
-          </span>
-        </div>
-        <div style={{ 
-          fontSize: '14px', 
-          color: '#c9cde0',
-          display: 'flex',
-          justifyContent: 'space-between'
-        }}>
-          <span>Your Safety Points:</span>
-          <span style={{ fontWeight: 600, color: '#4a90e2' }}>
-            {safetyData?.safetyPoints || 0} 🛡️
           </span>
         </div>
       </div>

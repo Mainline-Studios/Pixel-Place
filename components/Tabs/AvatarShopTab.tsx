@@ -1,84 +1,73 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import React from 'react';
 import { User, Skin, Accessory } from '@/types';
 import { useUser } from '@/contexts/UserContext';
 import { useSound } from '@/contexts/SoundContext';
-import { getSkins, saveSkins, getAccessories, saveAccessories } from '@/lib/storage';
-import { apiUrl } from '@/lib/apiBaseUrl';
+import { getSkins, getAccessories } from '@/lib/storage';
 import { escapeHTML } from '@/lib/utils';
 import Avatar3DViewer from '@/components/Avatar3DViewer';
 import Skin2DPreview from '@/components/Skin2DPreview';
 import Accessory3DThumbnail from '@/components/Accessory3DThumbnail';
 import FaceThumb from '@/components/FaceThumb';
+import { PixelPlaceMode } from '@/components/ModeSelection';
+import {
+  MODE_EVENTS,
+  coinPriceForAccessory,
+  coinPriceForSkin,
+  getAllModeEventAccessories,
+  getAllModeEventSkins,
+  getModeEvent,
+  isModeEventItemId,
+} from '@/lib/modeEvents';
+import { AVATAR_POSES, normalizeAvatarPose, type AvatarPoseId } from '@/lib/avatarPoses';
 
 interface AvatarShopTabProps {
   user: User;
   editMode: boolean;
+  selectedMode?: PixelPlaceMode | null;
 }
 
-function RarityBadge({ rarity }: { rarity: string }) {
-  if (rarity === 'legendary') {
-    return (
-      <span
-        style={{
-          fontSize: '10px',
-          fontWeight: 700,
-          borderRadius: '4px',
-          padding: '2px 6px',
-          background: '#3a2a00',
-          border: '1px solid #c9a43a',
-          color: '#ffd76a',
-          textShadow: '0 0 6px rgba(255,215,106,.8)',
-        }}
-      >
-        LEGENDARY
-      </span>
-    );
-  } else if (rarity === 'rare') {
-    return (
-      <span
-        style={{
-          fontSize: '10px',
-          fontWeight: 700,
-          borderRadius: '4px',
-          padding: '2px 6px',
-          background: '#2a2a40',
-          border: '1px solid #5a5a9d',
-          color: '#b7b7ff',
-          textShadow: '0 0 6px rgba(255,255,255,.6)',
-        }}
-      >
-        RARE
-      </span>
-    );
-  }
+function RarityBadge({ rarity }: { rarity?: string }) {
+  const label = (rarity || 'common').toUpperCase();
+  const styles: Record<string, React.CSSProperties> = {
+    LEGENDARY: { background: '#3a2a00', border: '1px solid #c9a43a', color: '#ffd76a' },
+    RARE: { background: '#2a2a40', border: '1px solid #5a5a9d', color: '#b7b7ff' },
+    COMMON: { background: '#1f1f27', border: '1px solid #4c4c57', color: '#9fa4b8' },
+  };
   return (
-    <span
-      style={{
-        fontSize: '10px',
-        fontWeight: 700,
-        borderRadius: '4px',
-        padding: '2px 6px',
-        background: '#1f1f27',
-        border: '1px solid #4c4c57',
-        color: '#9fa4b8',
-        textShadow: '0 0 6px rgba(255,255,255,.3)',
-      }}
-    >
-      COMMON
+    <span style={{ fontSize: 10, fontWeight: 700, borderRadius: 4, padding: '2px 6px', ...styles[label] }}>
+      {label}
     </span>
   );
 }
 
-const MIN_SKIN_PRICE = 10;
+function LimitedBadge() {
+  return (
+    <span
+      style={{
+        fontSize: 10,
+        fontWeight: 700,
+        borderRadius: 4,
+        padding: '2px 6px',
+        background: 'rgba(251, 113, 133, 0.15)',
+        border: '1px solid rgba(251, 113, 133, 0.55)',
+        color: '#fda4af',
+      }}
+    >
+      LIMITED
+    </span>
+  );
+}
+
 const DEFAULT_SKIN_COLORS = {
   head: '#f4c2a1',
   torso: '#4d536f',
   arm: '#3a3f56',
-  legs: '#3a3f56'
+  legs: '#3a3f56',
 };
+
 const SUPPORTED_ACCESSORY_TYPES = new Set([
   'hat',
   'chain',
@@ -88,11 +77,13 @@ const SUPPORTED_ACCESSORY_TYPES = new Set([
   'shoes',
   'backpack',
   'wings',
-  'pet'
+  'pet',
+  'drone',
 ]);
 
 function normalizeSkin(skin: Skin): Skin {
-  const rawAccessories = (skin as any).accessories || (skin as any).skinAccessories;
+  const rawAccessories = (skin as Skin & { skinAccessories?: Accessory[] }).accessories
+    || (skin as Skin & { skinAccessories?: Accessory[] }).skinAccessories;
   const accessories = Array.isArray(rawAccessories)
     ? rawAccessories.filter((accessory) => accessory && SUPPORTED_ACCESSORY_TYPES.has(accessory.type))
     : undefined;
@@ -103,20 +94,38 @@ function normalizeSkin(skin: Skin): Skin {
       head: skin.colors?.head || DEFAULT_SKIN_COLORS.head,
       torso: skin.colors?.torso || DEFAULT_SKIN_COLORS.torso,
       arm: skin.colors?.arm || DEFAULT_SKIN_COLORS.arm,
-      legs: skin.colors?.legs || DEFAULT_SKIN_COLORS.legs
+      legs: skin.colors?.legs || DEFAULT_SKIN_COLORS.legs,
     },
-    accessories: accessories || skin.accessories
+    accessories: accessories || skin.accessories,
   };
 }
 
-function SkinThumb({ skin, previewMode, width = 80, height = 80 }: { skin: Skin; previewMode: '2d' | '3d'; width?: number; height?: number }) {
+function mergeById<T extends { id: string }>(primary: T[], extra: T[]): T[] {
+  const map = new Map<string, T>();
+  for (const item of primary) map.set(item.id, item);
+  for (const item of extra) {
+    if (!map.has(item.id)) map.set(item.id, item);
+  }
+  return Array.from(map.values());
+}
+
+function SkinThumb({
+  skin,
+  previewMode,
+  width = 80,
+  height = 80,
+}: {
+  skin: Skin;
+  previewMode: '2d' | '3d';
+  width?: number;
+  height?: number;
+}) {
   const [isVisible, setIsVisible] = useState(false);
   const [is3DReady, setIs3DReady] = useState(false);
   const [has3DError, setHas3DError] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
-  
+
   useEffect(() => {
-    // Lazy load - only render when visible
     const observer = new IntersectionObserver(
       (entries) => {
         if (entries[0].isIntersecting) {
@@ -126,11 +135,7 @@ function SkinThumb({ skin, previewMode, width = 80, height = 80 }: { skin: Skin;
       },
       { threshold: 0.1 }
     );
-    
-    if (containerRef.current) {
-      observer.observe(containerRef.current);
-    }
-    
+    if (containerRef.current) observer.observe(containerRef.current);
     return () => observer.disconnect();
   }, []);
 
@@ -141,7 +146,6 @@ function SkinThumb({ skin, previewMode, width = 80, height = 80 }: { skin: Skin;
     }
   }, [previewMode, skin?.id]);
 
-  // Validate skin has required properties
   if (!skin) {
     return (
       <div
@@ -151,12 +155,12 @@ function SkinThumb({ skin, previewMode, width = 80, height = 80 }: { skin: Skin;
           width,
           height,
           background: '#333',
-          borderRadius: '8px',
+          borderRadius: 8,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
           color: '#888',
-          fontSize: '10px'
+          fontSize: 10,
         }}
       >
         Invalid
@@ -170,327 +174,409 @@ function SkinThumb({ skin, previewMode, width = 80, height = 80 }: { skin: Skin;
 
   return (
     <div ref={containerRef} className="skin-thumb" style={{ width, height, minWidth: width, minHeight: height }}>
-      {showSpinner && <div style={{ width, height, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>...</div>}
-      {show3D && <Avatar3DViewer skin={skin} width={width} height={height} onReady={() => setIs3DReady(true)} onError={() => setHas3DError(true)} />}
+      {showSpinner && (
+        <div style={{ width, height, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>...</div>
+      )}
+      {show3D && (
+        <Avatar3DViewer
+          skin={skin}
+          width={width}
+          height={height}
+          onReady={() => setIs3DReady(true)}
+          onError={() => setHas3DError(true)}
+        />
+      )}
       {show2D && !showSpinner && <Skin2DPreview skin={skin} />}
     </div>
   );
 }
 
-// Proper React Error Boundary class component
 class ErrorBoundary extends React.Component<
-  { children: React.ReactNode; fallback: React.ReactNode; onError?: () => void },
-  { hasError: boolean; error: Error | null }
+  { children: React.ReactNode; fallback: React.ReactNode },
+  { hasError: boolean }
 > {
-  constructor(props: { children: React.ReactNode; fallback: React.ReactNode; onError?: () => void }) {
+  constructor(props: { children: React.ReactNode; fallback: React.ReactNode }) {
     super(props);
-    this.state = { hasError: false, error: null };
+    this.state = { hasError: false };
   }
 
-  static getDerivedStateFromError(error: Error) {
-    return { hasError: true, error };
-  }
-
-  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
-    // Silently handle errors - don't spam console
-    if (this.props.onError) {
-      this.props.onError();
-    }
+  static getDerivedStateFromError() {
+    return { hasError: true };
   }
 
   render() {
-    if (this.state.hasError) {
-      return <>{this.props.fallback}</>;
-    }
+    if (this.state.hasError) return <>{this.props.fallback}</>;
     return <>{this.props.children}</>;
   }
 }
 
-export default function AvatarShopTab({ user, editMode }: AvatarShopTabProps) {
+type MainTab = 'locker' | 'store' | 'customize';
+type LockerTab = 'skins' | 'faces' | 'accessories';
+type StoreFilter = 'featured' | 'skins' | 'faces' | 'accessories' | 'events';
+
+export default function AvatarShopTab({ user, selectedMode = null }: AvatarShopTabProps) {
   const { updateUser } = useUser();
   const { playPurchase, playEquip } = useSound();
   const [skins, setSkins] = useState<Skin[]>([]);
   const [accessories, setAccessories] = useState<Accessory[]>([]);
-  const [mainTab, setMainTab] = useState<'locker' | 'store'>('locker');
-  const [lockerTab, setLockerTab] = useState<'skins' | 'faces' | 'accessories'>('skins');
+  const [mainTab, setMainTab] = useState<MainTab>('locker');
+  const [lockerTab, setLockerTab] = useState<LockerTab>('skins');
+  const [storeFilter, setStoreFilter] = useState<StoreFilter>('featured');
   const [previewMode, setPreviewMode] = useState<'2d' | '3d'>('2d');
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const [message, setMessage] = useState<string>('');
+
+  const modeEvent = getModeEvent(selectedMode);
 
   useEffect(() => {
-    const loadData = async () => {
+    let cancelled = false;
+    (async () => {
       try {
-        const [skinsData, accessoriesData] = await Promise.all([
-          getSkins(),
-          getAccessories()
-        ]);
-        const normalizedSkins = Array.isArray(skinsData)
-          ? skinsData
-              .filter((skin) => skin && skin.id && skin.name)
-              .map((skin) => normalizeSkin(skin))
+        const [skinsData, accessoriesData] = await Promise.all([getSkins(), getAccessories()]);
+        if (cancelled) return;
+        const normalized = Array.isArray(skinsData)
+          ? skinsData.filter((s) => s?.id && s?.name).map(normalizeSkin)
           : [];
-        setSkins(normalizedSkins);
-        setAccessories(Array.isArray(accessoriesData) ? accessoriesData : []);
-      } catch (error) {
-        console.error('Error loading data:', error);
-        setSkins([]);
-        setAccessories([]);
+        setSkins(mergeById(normalized, getAllModeEventSkins().map(normalizeSkin)));
+        setAccessories(
+          mergeById(Array.isArray(accessoriesData) ? accessoriesData : [], getAllModeEventAccessories())
+        );
+      } catch {
+        if (!cancelled) {
+          setSkins(getAllModeEventSkins().map(normalizeSkin));
+          setAccessories(getAllModeEventAccessories());
+        }
       }
+    })();
+    return () => {
+      cancelled = true;
     };
-    loadData();
   }, [user.role]);
 
-  const ownedSkins = skins.filter((s) => user.ownedSkins?.includes(s.id));
-  const ownedAccessories = accessories.filter((a) => user.ownedAccessories?.includes(a.id));
-  const equippedAccessories = Array.isArray(user.equippedAccessories)
-    ? user.equippedAccessories
-    : Object.values(user.equippedAccessories || {});
-  
-  // Separate faces from regular skins
+  useEffect(() => {
+    if (!message) return;
+    const t = window.setTimeout(() => setMessage(''), 3200);
+    return () => window.clearTimeout(t);
+  }, [message]);
+
+  const equippedAccessoryIds = useMemo(() => {
+    if (Array.isArray(user.equippedAccessories)) return user.equippedAccessories;
+    return Object.values(user.equippedAccessories || {}).filter(Boolean) as string[];
+  }, [user.equippedAccessories]);
+
   const regularSkins = skins.filter((s) => !s.isFace);
   const faces = skins.filter((s) => s.isFace);
   const ownedFaces = faces.filter((f) => user.ownedFaces?.includes(f.id));
+  const ownedBodySkins = regularSkins.filter((s) => user.ownedSkins?.includes(s.id));
+  const ownedAccessories = accessories.filter((a) => user.ownedAccessories?.includes(a.id));
 
-  // Get equipped skin and face
-  const equippedSkin = skins.find((s) => s.id === user.equippedSkin) || skins.find((s) => s.id === 'pixel_placer') || skins[0];
-  const equippedFace = user.equippedFace ? faces.find((f) => f.id === user.equippedFace) : null;
+  const flash = (text: string) => setMessage(text);
 
-  // Ensure equippedSkin has required properties
-  if (equippedSkin) {
-    if (!equippedSkin.colors) {
-      equippedSkin.colors = {
-        head: '#f4c2a1',
-        torso: '#4d536f',
-        arm: '#3a3f56',
-        legs: '#3a3f56'
-      };
-    }
-  }
-
-  const handlePurchase = async (skin: Skin) => {
-    // Check if it's a face - faces go to ownedFaces, not ownedSkins
-    if (skin.isFace) {
-      if (user.ownedFaces?.includes(skin.id)) {
-        return; // Already owned - silent fail
-      }
-
-      // Faces must have pricing (not free)
-      if (!skin.price && !skin.safetyPointsPrice) {
-        return; // No pricing - silent fail
-      }
-
-      const userCoins = user.coins || 0;
-      const userSafetyPoints = user.safetyPoints || 0;
-      const formattedCoins = userCoins.toLocaleString('en-US');
-      const formattedSafetyPoints = userSafetyPoints.toLocaleString('en-US');
-      const formattedCoinPrice = (skin.price || 0).toLocaleString('en-US');
-      const formattedSPPrice = (skin.safetyPointsPrice || 0).toLocaleString('en-US');
-      
-      // Check if user can afford with either currency
-      const canAffordCoins = skin.price > 0 && userCoins >= skin.price;
-      const canAffordSP = skin.safetyPointsPrice && userSafetyPoints >= skin.safetyPointsPrice;
-      
-      if (!canAffordCoins && !canAffordSP) {
-        return; // Not enough currency - silent fail
-      }
-
-      // Ask which currency to use (prefer coins if both available)
-      let useCoins = canAffordCoins;
-      if (canAffordCoins && canAffordSP) {
-        useCoins = confirm(`Buy ${skin.name}?\n\nPay with:\n- ${formattedCoinPrice} Coins (you have ${formattedCoins})\n- OR ${formattedSPPrice} Safety Points (you have ${formattedSafetyPoints})\n\nClick OK to pay with Coins, Cancel to pay with Safety Points`);
-      }
-      
-      if (useCoins && canAffordCoins && skin.price > 0) {
-        if (confirm(`Buy ${skin.name} for ${formattedCoinPrice} Coins?\nYour balance: ${formattedCoins} Coins`)) {
-          try {
-            const newCoins = userCoins - skin.price;
-            const newOwnedFaces = [...(user.ownedFaces || []), skin.id];
-            await updateUser({ coins: newCoins, ownedFaces: newOwnedFaces });
-            playPurchase();
-          } catch (error) {
-            // Silent error handling
-          }
-        }
-      } else if (canAffordSP && skin.safetyPointsPrice) {
-        if (confirm(`Buy ${skin.name} for ${formattedSPPrice} Safety Points?\nYour balance: ${formattedSafetyPoints} Safety Points`)) {
-          try {
-            const newSafetyPoints = userSafetyPoints - skin.safetyPointsPrice;
-            const newOwnedFaces = [...(user.ownedFaces || []), skin.id];
-            await updateUser({ safetyPoints: newSafetyPoints, ownedFaces: newOwnedFaces });
-            
-            // Sync safety points to backend
-            try {
-              await fetch(apiUrl('/api/safety'), {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  username: user.username,
-                  action: 'updateSafetyPoints',
-                  safetyPoints: newSafetyPoints
-                })
-              });
-            } catch (error) {
-              console.warn('Failed to sync safety points:', error);
-            }
-            playPurchase();
-          } catch (error) {
-            // Silent error handling
-          }
-        }
-      }
+  const handleBuySkin = async (skin: Skin) => {
+    if (busyId) return;
+    const isFace = !!skin.isFace;
+    const owned = isFace ? user.ownedFaces?.includes(skin.id) : user.ownedSkins?.includes(skin.id);
+    if (owned) {
+      flash('Already owned.');
       return;
     }
 
-    // Regular skin purchase
-    if (user.ownedSkins?.includes(skin.id)) {
-      return; // Already owned - silent fail
-    }
-
-    // Check if it's a special skin (uses Safety Points)
-    if (skin.isSpecial && skin.safetyPointsPrice) {
-      const userSafetyPoints = user.safetyPoints || 0;
-      const formattedSafetyPoints = userSafetyPoints.toLocaleString('en-US');
-      const formattedPrice = skin.safetyPointsPrice.toLocaleString('en-US');
-      
-      if (userSafetyPoints < skin.safetyPointsPrice) {
-        return; // Not enough Safety Points - silent fail
-      }
-
-      if (confirm(`Buy ${skin.name} for ${formattedPrice} Safety Points?\nYour balance: ${formattedSafetyPoints} Safety Points`)) {
-        try {
-          const newSafetyPoints = userSafetyPoints - skin.safetyPointsPrice;
-          const newOwnedSkins = [...(user.ownedSkins || []), skin.id];
-          
-          // Update both user state and sync to backend
-          await updateUser({ safetyPoints: newSafetyPoints, ownedSkins: newOwnedSkins });
-          
-          // Also update backend safety points
-          try {
-            await fetch(apiUrl('/api/safety'), {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                username: user.username,
-                action: 'updateSafetyPoints',
-                safetyPoints: newSafetyPoints
-              })
-            });
-          } catch (error) {
-            console.warn('Failed to sync safety points:', error);
-          }
-          playPurchase();
-        } catch (error) {
-          // Silent error handling
-        }
-      }
+    const price = coinPriceForSkin(skin);
+    const coins = user.coins || 0;
+    if (price > 0 && coins < price) {
+      flash(`Need ${price.toLocaleString()} coins (you have ${coins.toLocaleString()}).`);
       return;
     }
 
-    // Regular skin purchase with Pixel Coins (no freebies)
-    const userCoins = user.coins || 0;
-    const price = Math.max(skin.price || 0, MIN_SKIN_PRICE);
-    const formattedUserCoins = userCoins.toLocaleString('en-US');
-    const formattedPrice = price.toLocaleString('en-US');
-    
-    if (userCoins < price) {      return; // Not enough coins - silent fail
-    }
+    const label = price === 0 ? `Claim ${skin.name} for free?` : `Buy ${skin.name} for ${price.toLocaleString()} coins?`;
+    if (!window.confirm(label)) return;
 
-    if (confirm(`Buy ${skin.name} for ${formattedPrice} Coins?\nYour balance: ${formattedUserCoins}`)) {
-      try {
-        const newCoins = (user.coins || 0) - price;        const newOwnedSkins = [...(user.ownedSkins || []), skin.id];
-        
-        // Save purchase to backend - updateUser already saves and updates state
-        await updateUser({ coins: newCoins, ownedSkins: newOwnedSkins });
-        playPurchase();
-      } catch (error) {
-        // Silent error handling
+    setBusyId(skin.id);
+    try {
+      if (isFace) {
+        await updateUser({
+          coins: coins - price,
+          ownedFaces: [...(user.ownedFaces || []), skin.id],
+        });
+      } else {
+        await updateUser({
+          coins: coins - price,
+          ownedSkins: [...(user.ownedSkins || []), skin.id],
+        });
       }
+      playPurchase();
+      flash(`Got ${skin.name}!`);
+    } catch {
+      flash('Purchase failed. Try again.');
+    } finally {
+      setBusyId(null);
     }
   };
 
-  const handleEquip = (skinId: string) => {
-    if (!user.ownedSkins?.includes(skinId)) {
-      return; // Silent fail - don't own skin
+  const handleBuyAccessory = async (accessory: Accessory) => {
+    if (busyId) return;
+    if (user.ownedAccessories?.includes(accessory.id)) {
+      flash('Already owned.');
+      return;
     }
-    updateUser({ equippedSkin: skinId });
+    const price = coinPriceForAccessory(accessory);
+    const coins = user.coins || 0;
+    if (price > 0 && coins < price) {
+      flash(`Need ${price.toLocaleString()} coins (you have ${coins.toLocaleString()}).`);
+      return;
+    }
+    const label =
+      price === 0
+        ? `Claim ${accessory.name} for free?`
+        : `Buy ${accessory.name} for ${price.toLocaleString()} coins?`;
+    if (!window.confirm(label)) return;
+
+    setBusyId(accessory.id);
+    try {
+      await updateUser({
+        coins: coins - price,
+        ownedAccessories: [...(user.ownedAccessories || []), accessory.id],
+      });
+      playPurchase();
+      flash(`Got ${accessory.name}!`);
+    } catch {
+      flash('Purchase failed. Try again.');
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const handleEquipSkin = async (skinId: string) => {
+    if (!user.ownedSkins?.includes(skinId)) return;
+    await updateUser({ equippedSkin: skinId });
     playEquip();
   };
 
   const handleEquipFace = async (faceId: string) => {
-    if (!user.ownedFaces?.includes(faceId)) {
-      return; // Silent fail - don't own face
-    }
-    try {
-      await updateUser({ equippedFace: faceId });
-      playEquip();
-      // Also sync to backend
-      await fetch(apiUrl('/api/faces'), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          username: user.username,
-          action: 'equip',
-          faceId
-        })
-      }).catch(() => {}); // Silent fail
-    } catch (error) {
-      // Silent error handling
-    }
-  };
-
-  const handlePurchaseAccessory = async (accessory: Accessory) => {
-    if (user.ownedAccessories?.includes(accessory.id)) return;
-    const price = accessory.price ?? 0;
-    const userCoins = user.coins || 0;
-    if (userCoins < price) return;
-    const msg = price === 0
-      ? `Get ${accessory.name} for free?`
-      : `Buy ${accessory.name} for ${price} Coins? Your balance: ${userCoins.toLocaleString()}`;
-    if (!confirm(msg)) return;
-    try {
-      const newCoins = userCoins - price;
-      const newOwned = [...(user.ownedAccessories || []), accessory.id];
-      await updateUser({ coins: newCoins, ownedAccessories: newOwned });
-      playPurchase();
-    } catch {
-      // Silent error handling
-    }
-  };
-
-  const handleToggleAccessory = async (accessory: Accessory) => {
-    if (!user.ownedAccessories?.includes(accessory.id)) {
-      return; // Silent fail - don't own accessory
-    }
-    const current = new Set(equippedAccessories);
-    if (current.has(accessory.id)) {
-      current.delete(accessory.id);
-    } else {
-      current.add(accessory.id);
-    }
-    await updateUser({ equippedAccessories: Array.from(current) });
+    if (!user.ownedFaces?.includes(faceId)) return;
+    await updateUser({ equippedFace: faceId });
     playEquip();
   };
 
-  // Render Locker Room tab (owned items)
-  const renderLockerRoom = () => {
-    const ownedBodySkins = regularSkins.filter((s) => user.ownedSkins?.includes(s.id));
+  const handleToggleAccessory = async (accessory: Accessory) => {
+    if (!user.ownedAccessories?.includes(accessory.id)) return;
+    const next = new Set(equippedAccessoryIds);
+    if (next.has(accessory.id)) next.delete(accessory.id);
+    else next.add(accessory.id);
+    await updateUser({ equippedAccessories: Array.from(next) });
+    playEquip();
+  };
+
+  const availableSkins = regularSkins.filter((s) => !user.ownedSkins?.includes(s.id));
+  const availableFaces = faces.filter((f) => !user.ownedFaces?.includes(f.id));
+  const availableAccessories = accessories.filter((a) => !user.ownedAccessories?.includes(a.id));
+
+  const eventSkinIds = new Set(getAllModeEventSkins().map((s) => s.id));
+  const eventAccessoryIds = new Set(getAllModeEventAccessories().map((a) => a.id));
+
+  const starterSkins = availableSkins.filter((s) => !eventSkinIds.has(s.id) && coinPriceForSkin(s) === 10);
+  const shopSkins = availableSkins.filter((s) => !eventSkinIds.has(s.id) && coinPriceForSkin(s) !== 10);
+  const shopAccessories = availableAccessories.filter((a) => !eventAccessoryIds.has(a.id));
+
+  const tabBtn = (active: boolean): React.CSSProperties => ({
+    padding: '10px 18px',
+    background: active ? 'linear-gradient(135deg, #4a90e2 0%, #357abd 100%)' : 'rgba(255,255,255,0.05)',
+    border: `1px solid ${active ? '#4a90e2' : 'rgba(255,255,255,0.12)'}`,
+    borderRadius: 8,
+    color: '#fff',
+    fontWeight: active ? 700 : 500,
+    cursor: 'pointer',
+  });
+
+  const chipBtn = (active: boolean): React.CSSProperties => ({
+    padding: '7px 12px',
+    background: active ? 'rgba(74,144,226,0.22)' : 'rgba(255,255,255,0.04)',
+    border: `1px solid ${active ? '#4a90e2' : 'rgba(255,255,255,0.1)'}`,
+    borderRadius: 6,
+    color: '#fff',
+    fontWeight: active ? 700 : 400,
+    cursor: 'pointer',
+    fontSize: 13,
+  });
+
+  const renderBuySkinCard = (skin: Skin, accent?: string) => {
+    const price = coinPriceForSkin(skin);
+    const affordable = price === 0 || (user.coins || 0) >= price;
+    const limited = isModeEventItemId(skin.id);
+    return (
+      <div
+        key={skin.id}
+        className="skin-card"
+        style={
+          accent
+            ? { border: `1px solid ${accent}66`, boxShadow: `0 0 18px ${accent}22` }
+            : limited
+              ? { border: '1px solid rgba(251,113,133,0.45)' }
+              : undefined
+        }
+      >
+        <ErrorBoundary fallback={<Skin2DPreview skin={skin} />}>
+          {skin.isFace ? (
+            <FaceThumb face={skin} previewMode={previewMode} />
+          ) : (
+            <SkinThumb skin={skin} previewMode={previewMode} />
+          )}
+        </ErrorBoundary>
+        <div className="skin-name" style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+          <span>{escapeHTML(skin.name)}</span>
+          {limited && <LimitedBadge />}
+          <RarityBadge rarity={skin.rarity} />
+        </div>
+        <div className="skin-meta">
+          <span className="price-tag">{price === 0 ? 'Free' : `💠 ${price.toLocaleString()} Coins`}</span>
+        </div>
+        <div className="skin-actions">
+          <button
+            className="btn"
+            disabled={!affordable || busyId === skin.id}
+            onClick={() => handleBuySkin(skin)}
+          >
+            {busyId === skin.id
+              ? 'Buying…'
+              : !affordable
+                ? 'Need more coins'
+                : price === 0
+                  ? 'Claim'
+                  : `Buy · ${price}`}
+          </button>
+        </div>
+      </div>
+    );
+  };
+
+  const renderBuyAccessoryCard = (accessory: Accessory, accent?: string) => {
+    const price = coinPriceForAccessory(accessory);
+    const affordable = price === 0 || (user.coins || 0) >= price;
+    const limited = isModeEventItemId(accessory.id);
+    return (
+      <div
+        key={accessory.id}
+        className="skin-card"
+        style={
+          accent
+            ? { border: `1px solid ${accent}66`, boxShadow: `0 0 18px ${accent}22` }
+            : limited
+              ? { border: '1px solid rgba(251,113,133,0.45)' }
+              : undefined
+        }
+      >
+        <Accessory3DThumbnail accessory={accessory} />
+        <div className="skin-name" style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+          <span>{escapeHTML(accessory.name)}</span>
+          {limited && <LimitedBadge />}
+          <RarityBadge rarity={accessory.rarity} />
+        </div>
+        <div className="skin-meta">
+          <span className="price-tag">{price === 0 ? 'Free' : `💠 ${price.toLocaleString()} Coins`}</span>
+        </div>
+        <div className="skin-actions">
+          <button
+            className="btn"
+            disabled={!affordable || busyId === accessory.id}
+            onClick={() => handleBuyAccessory(accessory)}
+          >
+            {busyId === accessory.id
+              ? 'Buying…'
+              : !affordable
+                ? 'Need more coins'
+                : price === 0
+                  ? 'Claim'
+                  : `Buy · ${price}`}
+          </button>
+        </div>
+      </div>
+    );
+  };
+
+  const renderModeEventShelf = (featuredOnly: boolean) => {
+    const events = featuredOnly && modeEvent ? [modeEvent] : MODE_EVENTS;
+    return (
+      <>
+        {events.map((event) => {
+          const eventSkins = event.skins.filter((s) => !user.ownedSkins?.includes(s.id));
+          const eventAccessories = event.accessories.filter((a) => !user.ownedAccessories?.includes(a.id));
+          const empty = eventSkins.length === 0 && eventAccessories.length === 0;
+          return (
+            <div
+              key={event.id}
+              className="ai-box"
+              style={{
+                marginBottom: 24,
+                border: `1px solid ${event.accent}55`,
+                boxShadow: `0 0 28px ${event.accent}14`,
+              }}
+            >
+              <div
+                className="skins-section-title"
+                style={{ color: event.accent, display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}
+              >
+                {event.title}
+                <LimitedBadge />
+                <span style={{ fontSize: 12, fontWeight: 500, color: '#9fa4b8' }}>Always available</span>
+              </div>
+              <p className="smalltext" style={{ marginBottom: 10 }}>
+                {event.tagline}
+              </p>
+              <div
+                style={{
+                  marginBottom: 14,
+                  padding: '10px 12px',
+                  borderRadius: 10,
+                  background: 'rgba(255,255,255,0.03)',
+                  border: '1px solid rgba(255,255,255,0.08)',
+                }}
+              >
+                <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 4 }}>Challenge · {event.challenge.title}</div>
+                <div className="smalltext" style={{ margin: 0 }}>
+                  {event.challenge.description}
+                </div>
+              </div>
+              {empty ? (
+                <p className="smalltext" style={{ color: '#8b90a8' }}>
+                  You already own every item from this event.
+                </p>
+              ) : (
+                <div className="skins-grid">
+                  {eventSkins.map((s) => renderBuySkinCard(s, event.accent))}
+                  {eventAccessories.map((a) => renderBuyAccessoryCard(a, event.accent))}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </>
+    );
+  };
+
+  const renderLocker = () => {
     if (lockerTab === 'skins') {
       return (
-        <div className="ai-box" style={{ marginBottom: '24px' }}>
-          <div className="skins-section-title">Your Skins</div>
+        <div className="ai-box" style={{ marginBottom: 24 }}>
+          <div className="skins-section-title">Your skins</div>
           {ownedBodySkins.length === 0 ? (
-            <p className="smalltext" style={{ color: '#8b90a8' }}>No skins yet. Visit the Grocery Store to buy some!</p>
+            <p className="smalltext" style={{ color: '#8b90a8' }}>
+              Empty locker — buy something in the Store.
+            </p>
           ) : (
             <div className="skins-grid">
               {ownedBodySkins.map((s) => (
                 <div key={s.id} className="skin-card">
                   <SkinThumb skin={s} previewMode={previewMode} />
-                  <div className="skin-name">{escapeHTML(s.name)}</div>
+                  <div className="skin-name">
+                    {escapeHTML(s.name)} {isModeEventItemId(s.id) && <LimitedBadge />}
+                  </div>
                   <div className="skin-actions">
                     <button
                       className="btn"
-                      onClick={() => handleEquip(s.id)}
-                      style={user.equippedSkin === s.id ? { background: '#22c55e', color: '#fff' } : {}}
+                      onClick={() => handleEquipSkin(s.id)}
+                      style={user.equippedSkin === s.id ? { background: '#22c55e', color: '#fff' } : undefined}
                     >
-                      {user.equippedSkin === s.id ? '✓ Equipped' : 'Equip'}
+                      {user.equippedSkin === s.id ? 'Equipped' : 'Equip'}
                     </button>
                   </div>
                 </div>
@@ -500,12 +586,15 @@ export default function AvatarShopTab({ user, editMode }: AvatarShopTabProps) {
         </div>
       );
     }
+
     if (lockerTab === 'faces') {
       return (
-        <div className="ai-box" style={{ marginBottom: '24px' }}>
-          <div className="skins-section-title">Your Faces</div>
+        <div className="ai-box" style={{ marginBottom: 24 }}>
+          <div className="skins-section-title">Your faces</div>
           {ownedFaces.length === 0 ? (
-            <p className="smalltext" style={{ color: '#8b90a8' }}>No faces yet. Visit the Grocery Store to buy some!</p>
+            <p className="smalltext" style={{ color: '#8b90a8' }}>
+              No faces yet.
+            </p>
           ) : (
             <div className="skins-grid">
               {ownedFaces.map((f) => (
@@ -516,9 +605,9 @@ export default function AvatarShopTab({ user, editMode }: AvatarShopTabProps) {
                     <button
                       className="btn"
                       onClick={() => handleEquipFace(f.id)}
-                      style={user.equippedFace === f.id ? { background: '#22c55e', color: '#fff' } : {}}
+                      style={user.equippedFace === f.id ? { background: '#22c55e', color: '#fff' } : undefined}
                     >
-                      {user.equippedFace === f.id ? '✓ Equipped' : 'Equip'}
+                      {user.equippedFace === f.id ? 'Equipped' : 'Equip'}
                     </button>
                   </div>
                 </div>
@@ -528,27 +617,31 @@ export default function AvatarShopTab({ user, editMode }: AvatarShopTabProps) {
         </div>
       );
     }
-    // accessories
+
     return (
-      <div className="ai-box" style={{ marginBottom: '24px' }}>
-        <div className="skins-section-title">Your Accessories</div>
+      <div className="ai-box" style={{ marginBottom: 24 }}>
+        <div className="skins-section-title">Your accessories</div>
         {ownedAccessories.length === 0 ? (
-          <p className="smalltext" style={{ color: '#8b90a8' }}>No accessories yet. Visit the Grocery Store to buy some!</p>
+          <p className="smalltext" style={{ color: '#8b90a8' }}>
+            No accessories yet.
+          </p>
         ) : (
           <div className="skins-grid">
             {ownedAccessories.map((a) => {
-              const isEquipped = equippedAccessories.includes(a.id);
+              const equipped = equippedAccessoryIds.includes(a.id);
               return (
                 <div key={a.id} className="skin-card">
                   <Accessory3DThumbnail accessory={a} />
-                  <div className="skin-name">{escapeHTML(a.name)}</div>
+                  <div className="skin-name">
+                    {escapeHTML(a.name)} {isModeEventItemId(a.id) && <LimitedBadge />}
+                  </div>
                   <div className="skin-actions">
                     <button
                       className="btn"
                       onClick={() => handleToggleAccessory(a)}
-                      style={isEquipped ? { background: '#22c55e', color: '#fff' } : {}}
+                      style={equipped ? { background: '#22c55e', color: '#fff' } : undefined}
                     >
-                      {isEquipped ? '✓ Equipped' : 'Equip'}
+                      {equipped ? 'Equipped' : 'Equip'}
                     </button>
                   </div>
                 </div>
@@ -560,383 +653,474 @@ export default function AvatarShopTab({ user, editMode }: AvatarShopTabProps) {
     );
   };
 
-  // Render Grocery Store tab
-  const renderGroceryStore = () => {
-    // Filter out owned items
-    const availableSkins = regularSkins.filter(s => !user.ownedSkins?.includes(s.id));
-    const availableFaces = faces.filter(f => !user.ownedFaces?.includes(f.id));
-    const premiumSkins = availableSkins.filter(s => s.isSpecial && s.safetyPointsPrice && s.use3d !== false);
-    const starterSkins = availableSkins.filter(s => !s.isSpecial && s.price === 10);
-    const regularAvailableSkins = availableSkins.filter(s => !s.isSpecial && s.price !== 10);
-    const availableAccessories = accessories.filter(a => !user.ownedAccessories?.includes(a.id));
-
-    return (
-      <div>
-        {/* Starter Skins - 10 Pixel-Coins - Perfect for new players! */}
-        {starterSkins.length > 0 && (
-          <div className="ai-box" style={{ marginBottom: '24px', border: '2px solid rgba(56, 189, 248, 0.4)', boxShadow: '0 0 24px rgba(56, 189, 248, 0.12)' }}>
-            <div className="skins-section-title" style={{ color: '#38bdf8' }}>🌟 Starter Skins — 10 Pixel-Coins Each</div>
-            <div className="smalltext" style={{ marginBottom: '12px' }}>
-              Start with 10 Pixel-Coins! Personalize your avatar right away. All skins use 3D models.
+  const renderStore = () => (
+    <div>
+      {storeFilter === 'featured' && (
+        <>
+          {modeEvent ? (
+            renderModeEventShelf(true)
+          ) : (
+            <div className="ai-box" style={{ marginBottom: 24 }}>
+              <div className="skins-section-title">Mode events</div>
+              <p className="smalltext">
+                Pick a Pixel Place mode to spotlight your event shelf — or browse all events below.
+              </p>
             </div>
+          )}
+          {!modeEvent && renderModeEventShelf(false)}
+          {starterSkins.length > 0 && (
+            <div className="ai-box" style={{ marginBottom: 24, border: '1px solid rgba(56,189,248,0.35)' }}>
+              <div className="skins-section-title" style={{ color: '#38bdf8' }}>
+                Starter skins · 10 coins
+              </div>
+              <div className="skins-grid">{starterSkins.map((s) => renderBuySkinCard(s))}</div>
+            </div>
+          )}
+        </>
+      )}
+
+      {storeFilter === 'events' && renderModeEventShelf(false)}
+
+      {storeFilter === 'skins' && (
+        <div className="ai-box" style={{ marginBottom: 24 }}>
+          <div className="skins-section-title">Skins</div>
+          <p className="smalltext" style={{ marginBottom: 10 }}>
+            Pixel Coins only. Former Safety Points exclusives now use coin prices.
+          </p>
+          {shopSkins.length === 0 && starterSkins.length === 0 ? (
+            <p className="smalltext" style={{ color: '#8b90a8' }}>
+              You own every skin in the catalog.
+            </p>
+          ) : (
             <div className="skins-grid">
-              {starterSkins.map((s) => {
-                const affordable = (user.coins || 0) >= 10;
-                return (
-                  <div key={s.id} className="skin-card" style={{ border: '2px solid rgba(56, 189, 248, 0.3)' }}>
-                    <SkinThumb skin={s} previewMode="3d" width={100} height={100} />
-                    <div className="skin-name">{escapeHTML(s.name)}</div>
-                    <div className="skin-meta">
-                      <span className="price-tag" style={{ color: '#38bdf8' }}>💠 10 Pixel-Coins</span>
-                    </div>
-                    <div className="skin-actions">
-                      <button
-                        className="btn"
-                        disabled={!affordable}
-                        onClick={() => handlePurchase(s)}
-                        style={
-                          affordable
-                            ? { background: 'linear-gradient(135deg, #38bdf8, #0284c7)', color: '#0f172a', fontWeight: 700 }
-                            : {}
-                        }
-                      >
-                        {affordable ? 'Buy for 10 💠' : 'Need 10 Coins'}
-                      </button>
-                    </div>
-                  </div>
-                );
-              })}
+              {[...starterSkins, ...shopSkins].map((s) => renderBuySkinCard(s))}
             </div>
-          </div>
-        )}
-
-        {/* Safety Points Skins Section */}
-        {premiumSkins.length > 0 && (
-          <div className="ai-box" style={{ marginBottom: '24px' }}>
-            <div className="skins-section-title">✨ Safety Points Exclusives (500+ Polygons)</div>
-            <div className="smalltext" style={{ marginBottom: '8px' }}>
-              High-polygon skins with glows and accessories! Purchase with Safety Points.
-            </div>
-            <div className="skins-grid">
-              {premiumSkins.map((s) => {
-                const affordable = (user.safetyPoints || 0) >= (s.safetyPointsPrice || 0);
-                return (
-                  <div key={s.id} className="skin-card" style={{
-                    border: '2px solid rgba(255, 215, 0, 0.5)',
-                    boxShadow: '0 0 20px rgba(255, 215, 0, 0.3)'
-                  }}>
-                    <SkinThumb skin={s} previewMode={previewMode} />
-                    <div className="skin-name" style={{ color: '#ffd700', fontWeight: 600 }}>{escapeHTML(s.name)}</div>
-                    <div className="skin-meta">
-                      <span className="price-tag" style={{ color: '#ffd700', fontWeight: 600 }}>
-                        🛡️ {s.safetyPointsPrice} Safety Points
-                      </span>
-                    </div>
-                    <div className="skin-actions">
-                      <button
-                        className="btn"
-                        disabled={!affordable}
-                        onClick={() => handlePurchase(s)}
-                        style={{
-                          background: affordable ? 'linear-gradient(135deg, #ffd700 0%, #ffaa00 100%)' : '#444',
-                          border: '1px solid #ffd700',
-                          color: affordable ? '#000' : '#888',
-                          fontWeight: 700
-                        }}
-                      >
-                        {affordable ? `Buy (🛡️ ${s.safetyPointsPrice})` : 'Need More SP'}
-                      </button>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
-
-        {/* Regular Skins Section */}
-        {regularAvailableSkins.length > 0 && (
-          <div className="ai-box" style={{ marginBottom: '24px' }}>
-            <div className="skins-section-title">Regular Skins</div>
-            <div className="smalltext" style={{ marginBottom: '8px' }}>
-              Purchase skins with Pixel Coins
-            </div>
-            <div className="skins-grid">
-              {regularAvailableSkins.map((s) => {
-                const price = Math.max(s.price || 0, MIN_SKIN_PRICE);
-                const affordable = (user.coins || 0) >= price;
-                return (
-                  <div key={s.id} className="skin-card">
-                    <SkinThumb skin={s} previewMode={previewMode} />
-                    <div className="skin-name">{escapeHTML(s.name)}</div>
-                    <div className="skin-meta">
-                      <span className="price-tag">
-                        {`💠 ${price} Coins`}
-                      </span>
-                    </div>
-                    <div className="skin-actions">
-                      <button
-                        className="btn"
-                        disabled={!affordable}
-                        onClick={() => handlePurchase(s)}
-                      >
-                        {affordable ? `Buy for ${price} 💠` : 'Need More Coins'}
-                      </button>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
-
-        {/* Premium Faces Section */}
-        {availableFaces.length > 0 && (
-          <div className="ai-box" style={{ marginBottom: '24px' }}>
-            <div className="skins-section-title">✨ Premium Faces</div>
-            <div className="smalltext" style={{ marginBottom: '8px' }}>
-              High-polygon faces (500+ polygons) with glows! Choose to pay with Coins OR Safety Points.
-            </div>
-            <div className="skins-grid">
-              {availableFaces.map((s) => {
-                const affordable = (s.price > 0 && (user.coins || 0) >= s.price) || (s.safetyPointsPrice && (user.safetyPoints || 0) >= s.safetyPointsPrice);
-                return (
-                  <div key={s.id} className="skin-card" style={{
-                    border: '2px solid rgba(255, 215, 0, 0.5)',
-                    boxShadow: '0 0 20px rgba(255, 215, 0, 0.3)'
-                  }}>
-                    <FaceThumb face={s} previewMode={previewMode} />
-                    <div className="skin-name" style={{ color: '#ffd700', fontWeight: 600 }}>{escapeHTML(s.name)}</div>
-                    <div className="skin-meta">
-                      <span className="price-tag" style={{ color: '#ffd700', fontWeight: 600 }}>
-                        {s.price > 0 && s.safetyPointsPrice 
-                          ? `💠 ${s.price} Coins OR 🛡️ ${s.safetyPointsPrice} SP`
-                          : s.price > 0
-                            ? `💠 ${s.price} Coins`
-                            : s.safetyPointsPrice
-                              ? `🛡️ ${s.safetyPointsPrice} Safety Points`
-                              : 'Free'}
-                      </span>
-                    </div>
-                    <div className="skin-actions">
-                      <button
-                        className="btn"
-                        disabled={!affordable}
-                        onClick={() => handlePurchase(s)}
-                        style={{
-                          background: affordable ? 'linear-gradient(135deg, #ffd700 0%, #ffaa00 100%)' : '#444',
-                          border: '1px solid #ffd700',
-                          color: affordable ? '#000' : '#888',
-                          fontWeight: 700
-                        }}
-                      >
-                        {affordable 
-                          ? (s.price > 0 && s.safetyPointsPrice
-                              ? `Buy (💠 OR 🛡️)`
-                              : s.price > 0
-                                ? `Buy for ${s.price} 💠`
-                                : s.safetyPointsPrice
-                                  ? `Buy (🛡️ ${s.safetyPointsPrice})`
-                                  : 'Get Free') 
-                          : (s.price > 0 && s.safetyPointsPrice
-                              ? 'Need 💠 OR 🛡️'
-                              : s.price > 0
-                                ? 'Need More Coins'
-                                : s.safetyPointsPrice
-                                  ? 'Need More SP'
-                                  : 'Free')}
-                      </button>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
-
-        {/* Accessories Section */}
-        {availableAccessories.length > 0 && (
-          <div className="ai-box" style={{ marginBottom: '24px' }}>
-            <div className="skins-section-title">Accessories</div>
-            <div className="smalltext" style={{ marginBottom: '8px' }}>
-              Purchase accessories with Pixel Coins
-            </div>
-            <div className="skins-grid">
-              {availableAccessories.map((a) => {
-                const affordable = (user.coins || 0) >= a.price;
-                return (
-                  <div key={a.id} className="skin-card">
-                    <Accessory3DThumbnail accessory={a} />
-                    <div className="skin-name">{escapeHTML(a.name)}</div>
-                    <div className="skin-meta">
-                      <span className="price-tag">
-                        {a.price === 0 ? 'Free' : `💠 ${a.price} Coins`}
-                      </span>
-                    </div>
-                    <div className="skin-actions">
-                      <button
-                        className="btn"
-                        disabled={!affordable}
-                        onClick={() => handlePurchaseAccessory(a)}
-                      >
-                        {affordable ? (a.price === 0 ? 'Get Free' : `Buy for ${a.price} 💠`) : 'Need More Coins'}
-                      </button>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
-      </div>
-    );  };
-
-
-  return (
-    <>
-      <h2 className="section-title">Avatar Shop</h2>
-      
-      {/* Main Tab Navigation */}
-      <div style={{
-        display: 'flex',
-        gap: '12px',
-        marginBottom: '24px',
-        borderBottom: '2px solid rgba(255, 255, 255, 0.1)',
-        paddingBottom: '12px'
-      }}>
-        <button
-          onClick={() => setMainTab('locker')}
-          style={{
-            padding: '12px 24px',
-            background: mainTab === 'locker' ? 'linear-gradient(135deg, #4a90e2 0%, #357abd 100%)' : 'rgba(255, 255, 255, 0.05)',
-            border: `2px solid ${mainTab === 'locker' ? '#4a90e2' : 'rgba(255, 255, 255, 0.1)'}`,
-            borderRadius: '8px',
-            color: '#fff',
-            fontWeight: 700,
-            fontSize: '16px',
-            cursor: 'pointer',
-            transition: 'all 0.2s'
-          }}
-        >
-          🎽 Locker Room
-        </button>
-        <button
-          onClick={() => setMainTab('store')}
-          style={{
-            padding: '12px 24px',
-            background: mainTab === 'store' ? 'linear-gradient(135deg, #4a90e2 0%, #357abd 100%)' : 'rgba(255, 255, 255, 0.05)',
-            border: `2px solid ${mainTab === 'store' ? '#4a90e2' : 'rgba(255, 255, 255, 0.1)'}`,
-            borderRadius: '8px',
-            color: '#fff',
-            fontWeight: 700,
-            fontSize: '16px',
-            cursor: 'pointer',
-            transition: 'all 0.2s'
-          }}
-        >
-          🛒 Grocery Store
-        </button>
-      </div>
-
-      <div style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: '12px',
-        marginBottom: '16px',
-        flexWrap: 'wrap'
-      }}>
-        <span style={{ fontSize: '12px', color: '#9fa4b8', fontWeight: 600 }}>
-          Preview
-        </span>
-        <button
-          onClick={() => setPreviewMode('2d')}
-          style={{
-            padding: '6px 12px',
-            background: previewMode === '2d' ? 'rgba(74, 144, 226, 0.2)' : 'rgba(255, 255, 255, 0.05)',
-            border: `1px solid ${previewMode === '2d' ? '#4a90e2' : 'rgba(255, 255, 255, 0.1)'}`,
-            borderRadius: '6px',
-            color: '#fff',
-            fontWeight: previewMode === '2d' ? 700 : 400,
-            cursor: 'pointer',
-            transition: 'all 0.2s'
-          }}
-        >
-          2D
-        </button>
-        <button
-          onClick={() => setPreviewMode('3d')}
-          style={{
-            padding: '6px 12px',
-            background: previewMode === '3d' ? 'rgba(74, 144, 226, 0.2)' : 'rgba(255, 255, 255, 0.05)',
-            border: `1px solid ${previewMode === '3d' ? '#4a90e2' : 'rgba(255, 255, 255, 0.1)'}`,
-            borderRadius: '6px',
-            color: '#fff',
-            fontWeight: previewMode === '3d' ? 700 : 400,
-            cursor: 'pointer',
-            transition: 'all 0.2s'
-          }}
-        >
-          3D
-        </button>
-        <span className="smalltext">3D previews are 500+ polygons and may take a moment to load.</span>
-      </div>
-
-      {/* Locker Room Sub-tabs */}
-      {mainTab === 'locker' && (
-        <div style={{
-          display: 'flex',
-          gap: '8px',
-          marginBottom: '24px'
-        }}>
-          <button
-            onClick={() => setLockerTab('skins')}
-            style={{
-              padding: '8px 16px',
-              background: lockerTab === 'skins' ? 'rgba(74, 144, 226, 0.2)' : 'rgba(255, 255, 255, 0.05)',
-              border: `1px solid ${lockerTab === 'skins' ? '#4a90e2' : 'rgba(255, 255, 255, 0.1)'}`,
-              borderRadius: '6px',
-              color: '#fff',
-              fontWeight: lockerTab === 'skins' ? 700 : 400,
-              cursor: 'pointer',
-              transition: 'all 0.2s'
-            }}
-          >
-            Skins
-          </button>
-          <button
-            onClick={() => setLockerTab('faces')}
-            style={{
-              padding: '8px 16px',
-              background: lockerTab === 'faces' ? 'rgba(74, 144, 226, 0.2)' : 'rgba(255, 255, 255, 0.05)',
-              border: `1px solid ${lockerTab === 'faces' ? '#4a90e2' : 'rgba(255, 255, 255, 0.1)'}`,
-              borderRadius: '6px',
-              color: '#fff',
-              fontWeight: lockerTab === 'faces' ? 700 : 400,
-              cursor: 'pointer',
-              transition: 'all 0.2s'
-            }}
-          >
-            Faces
-          </button>
-          <button
-            onClick={() => setLockerTab('accessories')}
-            style={{
-              padding: '8px 16px',
-              background: lockerTab === 'accessories' ? 'rgba(74, 144, 226, 0.2)' : 'rgba(255, 255, 255, 0.05)',
-              border: `1px solid ${lockerTab === 'accessories' ? '#4a90e2' : 'rgba(255, 255, 255, 0.1)'}`,
-              borderRadius: '6px',
-              color: '#fff',
-              fontWeight: lockerTab === 'accessories' ? 700 : 400,
-              cursor: 'pointer',
-              transition: 'all 0.2s'
-            }}
-          >
-            Accessories
-          </button>
+          )}
         </div>
       )}
 
-      {/* Content */}
-      {mainTab === 'locker' ? renderLockerRoom() : renderGroceryStore()}    </>
+      {storeFilter === 'faces' && (
+        <div className="ai-box" style={{ marginBottom: 24 }}>
+          <div className="skins-section-title">Faces</div>
+          {availableFaces.length === 0 ? (
+            <p className="smalltext" style={{ color: '#8b90a8' }}>
+              No faces left to buy.
+            </p>
+          ) : (
+            <div className="skins-grid">{availableFaces.map((f) => renderBuySkinCard(f))}</div>
+          )}
+        </div>
+      )}
+
+      {storeFilter === 'accessories' && (
+        <div className="ai-box" style={{ marginBottom: 24 }}>
+          <div className="skins-section-title">Accessories</div>
+          {shopAccessories.length === 0 ? (
+            <p className="smalltext" style={{ color: '#8b90a8' }}>
+              No accessories left to buy.
+            </p>
+          ) : (
+            <div className="skins-grid">{shopAccessories.map((a) => renderBuyAccessoryCard(a))}</div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+
+  const customColors = user.accountPreferences?.avatarColors || {};
+  const selectedPose = normalizeAvatarPose(user.accountPreferences?.avatarPose);
+  const turntableOn = user.accountPreferences?.avatarTurntable !== false;
+
+  const previewSkin = useMemo(() => {
+    const base =
+      regularSkins.find((s) => s.id === user.equippedSkin) ||
+      regularSkins.find((s) => s.id === 'pixel_placer') ||
+      regularSkins[0];
+    if (!base) return null;
+    const ownedAcc = accessories.filter((a) => equippedAccessoryIds.includes(a.id));
+    return normalizeSkin({
+      ...base,
+      colors: {
+        head: customColors.head || base.colors?.head || DEFAULT_SKIN_COLORS.head,
+        torso: customColors.torso || base.colors?.torso || DEFAULT_SKIN_COLORS.torso,
+        arm: customColors.arm || base.colors?.arm || DEFAULT_SKIN_COLORS.arm,
+        legs: customColors.legs || base.colors?.legs || DEFAULT_SKIN_COLORS.legs,
+      },
+      accessories: [...(base.accessories || []), ...ownedAcc],
+    });
+  }, [
+    regularSkins,
+    accessories,
+    equippedAccessoryIds,
+    user.equippedSkin,
+    customColors.head,
+    customColors.torso,
+    customColors.arm,
+    customColors.legs,
+  ]);
+
+  const previewFace = user.equippedFace ? faces.find((f) => f.id === user.equippedFace) : undefined;
+
+  const patchPrefs = async (patch: Record<string, unknown>, okMsg: string) => {
+    try {
+      await updateUser({
+        accountPreferences: {
+          ...(user.accountPreferences || {}),
+          ...patch,
+        },
+      });
+      flash(okMsg);
+    } catch {
+      flash('Could not save.');
+    }
+  };
+
+  const saveAvatarColor = async (part: 'head' | 'torso' | 'arm' | 'legs', value: string) => {
+    await patchPrefs(
+      {
+        avatarColors: {
+          ...(user.accountPreferences?.avatarColors || {}),
+          [part]: value,
+        },
+      },
+      'Colors saved.'
+    );
+  };
+
+  const resetAvatarColors = async () => {
+    const nextPrefs = { ...(user.accountPreferences || {}) };
+    delete nextPrefs.avatarColors;
+    try {
+      await updateUser({ accountPreferences: nextPrefs });
+      flash('Colors reset to skin defaults.');
+    } catch {
+      flash('Could not reset colors.');
+    }
+  };
+
+  const savePose = async (pose: AvatarPoseId) => {
+    await patchPrefs({ avatarPose: pose }, `Pose: ${AVATAR_POSES.find((p) => p.id === pose)?.label || pose}`);
+  };
+
+  const toggleTurntable = async () => {
+    await patchPrefs({ avatarTurntable: !turntableOn }, !turntableOn ? 'Turntable on.' : 'Turntable off.');
+  };
+
+  const renderCustomize = () => (
+    <div className="ai-box" style={{ marginBottom: 24 }}>
+      <div className="skins-section-title">Customize</div>
+      <p className="smalltext" style={{ marginBottom: 14 }}>
+        Pick a pose, spin on the turntable, tweak colors, and equip gear. Friends see this showcase at the top of Games.
+      </p>
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'minmax(200px, 260px) 1fr',
+          gap: 20,
+          alignItems: 'start',
+        }}
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
+          <div
+            style={{
+              borderRadius: 12,
+              border: '1px solid rgba(255,255,255,0.1)',
+              background:
+                'radial-gradient(ellipse at center bottom, rgba(56,189,248,0.18) 0%, rgba(0,0,0,0.35) 55%)',
+              padding: '16px 12px 8px',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              width: '100%',
+            }}
+          >
+            {previewSkin ? (
+              <ErrorBoundary fallback={<Skin2DPreview skin={previewSkin} />}>
+                <Avatar3DViewer
+                  skin={previewSkin}
+                  equippedFace={previewFace}
+                  width={220}
+                  height={260}
+                  interactive={!turntableOn}
+                  animation={selectedPose}
+                  autoRotate={turntableOn}
+                  turntableSpeed={0.85}
+                />
+              </ErrorBoundary>
+            ) : (
+              <div style={{ color: '#8b90a8', padding: 40 }}>No skin equipped</div>
+            )}
+            <div
+              aria-hidden
+              style={{
+                width: '72%',
+                height: 10,
+                marginTop: -4,
+                borderRadius: '50%',
+                background: 'radial-gradient(ellipse, rgba(148,163,184,0.55) 0%, rgba(148,163,184,0.05) 70%)',
+                boxShadow: '0 0 16px rgba(56,189,248,0.25)',
+              }}
+            />
+            <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 6 }}>
+              {AVATAR_POSES.find((p) => p.id === selectedPose)?.label || 'Pose'}
+              {turntableOn ? ' · turntable' : ''}
+            </div>
+          </div>
+          <button type="button" className="btn" style={{ fontSize: 12, width: '100%' }} onClick={() => void toggleTurntable()}>
+            {turntableOn ? 'Turntable: On' : 'Turntable: Off'}
+          </button>
+        </div>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <div>
+            <div style={{ fontWeight: 700, marginBottom: 8, fontSize: 13 }}>Poses</div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+              {AVATAR_POSES.map((pose) => {
+                const active = selectedPose === pose.id;
+                return (
+                  <button
+                    key={pose.id}
+                    type="button"
+                    title={pose.blurb}
+                    onClick={() => void savePose(pose.id)}
+                    style={{
+                      padding: '7px 12px',
+                      borderRadius: 8,
+                      border: active ? '1px solid #38bdf8' : '1px solid rgba(255,255,255,0.12)',
+                      background: active ? 'rgba(56,189,248,0.2)' : 'rgba(255,255,255,0.04)',
+                      color: '#e2e8f0',
+                      fontWeight: active ? 700 : 500,
+                      fontSize: 12,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    {pose.label}
+                  </button>
+                );
+              })}
+            </div>
+            <p className="smalltext" style={{ marginTop: 8 }}>
+              {AVATAR_POSES.find((p) => p.id === selectedPose)?.blurb}
+            </p>
+          </div>
+
+          <div>
+            <div style={{ fontWeight: 700, marginBottom: 8, fontSize: 13 }}>Body colors</div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: 10 }}>
+              {(
+                [
+                  ['head', 'Head'],
+                  ['torso', 'Torso'],
+                  ['arm', 'Arms'],
+                  ['legs', 'Legs'],
+                ] as const
+              ).map(([key, label]) => {
+                const value =
+                  customColors[key] ||
+                  previewSkin?.colors?.[key] ||
+                  DEFAULT_SKIN_COLORS[key];
+                return (
+                  <label
+                    key={key}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 8,
+                      fontSize: 13,
+                      padding: '8px 10px',
+                      borderRadius: 8,
+                      border: '1px solid rgba(255,255,255,0.1)',
+                      background: 'rgba(255,255,255,0.03)',
+                    }}
+                  >
+                    <input
+                      type="color"
+                      value={value.startsWith('#') ? value : `#${value}`}
+                      onChange={(e) => void saveAvatarColor(key, e.target.value)}
+                      style={{ width: 36, height: 28, border: 'none', background: 'transparent', cursor: 'pointer' }}
+                    />
+                    {label}
+                  </label>
+                );
+              })}
+            </div>
+            <button type="button" className="btn" style={{ marginTop: 10, fontSize: 12 }} onClick={() => void resetAvatarColors()}>
+              Reset colors
+            </button>
+          </div>
+
+          <div>
+            <div style={{ fontWeight: 700, marginBottom: 8, fontSize: 13 }}>Quick equip · skins</div>
+            <div className="skins-grid">
+              {ownedBodySkins.slice(0, 12).map((s) => (
+                <div key={s.id} className="skin-card">
+                  <SkinThumb skin={s} previewMode={previewMode} width={64} height={64} />
+                  <div className="skin-name" style={{ fontSize: 12 }}>{escapeHTML(s.name)}</div>
+                  <button
+                    type="button"
+                    className="btn"
+                    style={user.equippedSkin === s.id ? { background: '#22c55e', color: '#fff' } : undefined}
+                    onClick={() => void handleEquipSkin(s.id)}
+                  >
+                    {user.equippedSkin === s.id ? 'Equipped' : 'Equip'}
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {ownedFaces.length > 0 ? (
+            <div>
+              <div style={{ fontWeight: 700, marginBottom: 8, fontSize: 13 }}>Faces</div>
+              <div className="skins-grid">
+                {ownedFaces.slice(0, 8).map((f) => (
+                  <div key={f.id} className="skin-card">
+                    <FaceThumb face={f} previewMode={previewMode} />
+                    <div className="skin-name" style={{ fontSize: 12 }}>{escapeHTML(f.name)}</div>
+                    <button
+                      type="button"
+                      className="btn"
+                      style={user.equippedFace === f.id ? { background: '#22c55e', color: '#fff' } : undefined}
+                      onClick={() => void handleEquipFace(f.id)}
+                    >
+                      {user.equippedFace === f.id ? 'Equipped' : 'Equip'}
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : null}
+
+          {ownedAccessories.length > 0 ? (
+            <div>
+              <div style={{ fontWeight: 700, marginBottom: 8, fontSize: 13 }}>Accessories</div>
+              <div className="skins-grid">
+                {ownedAccessories.slice(0, 12).map((a) => {
+                  const equipped = equippedAccessoryIds.includes(a.id);
+                  return (
+                    <div key={a.id} className="skin-card">
+                      <Accessory3DThumbnail accessory={a} />
+                      <div className="skin-name" style={{ fontSize: 12 }}>{escapeHTML(a.name)}</div>
+                      <button
+                        type="button"
+                        className="btn"
+                        style={equipped ? { background: '#22c55e', color: '#fff' } : undefined}
+                        onClick={() => void handleToggleAccessory(a)}
+                      >
+                        {equipped ? 'Equipped' : 'Equip'}
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ) : null}
+        </div>
+      </div>
+    </div>
+  );
+
+  return (
+    <>
+      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', alignItems: 'end' }}>
+        <div>
+          <h2 className="section-title" style={{ marginBottom: 4 }}>
+            Avatar Shop
+          </h2>
+          <p className="smalltext" style={{ margin: 0 }}>
+            Locker Room · Grocery Store · Customize · Pixel Coins only
+            {modeEvent ? (
+              <>
+                {' '}
+                · <span style={{ color: modeEvent.accent }}>{modeEvent.title}</span>
+              </>
+            ) : null}
+          </p>
+        </div>
+        <div
+          style={{
+            padding: '8px 12px',
+            borderRadius: 10,
+            background: 'rgba(56,189,248,0.1)',
+            border: '1px solid rgba(56,189,248,0.35)',
+            fontWeight: 700,
+            color: '#7dd3fc',
+          }}
+        >
+          💠 {(user.coins || 0).toLocaleString()} coins
+        </div>
+      </div>
+
+      {message ? (
+        <div
+          role="status"
+          style={{
+            margin: '12px 0',
+            padding: '10px 12px',
+            borderRadius: 8,
+            background: 'rgba(74,144,226,0.12)',
+            border: '1px solid rgba(74,144,226,0.35)',
+            color: '#c9cde0',
+            fontSize: 14,
+          }}
+        >
+          {message}
+        </div>
+      ) : null}
+
+      <div style={{ display: 'flex', gap: 10, margin: '18px 0 14px', flexWrap: 'wrap' }}>
+        <button type="button" style={tabBtn(mainTab === 'locker')} onClick={() => setMainTab('locker')}>
+          Locker Room
+        </button>
+        <button type="button" style={tabBtn(mainTab === 'store')} onClick={() => setMainTab('store')}>
+          Grocery Store
+        </button>
+        <button type="button" style={tabBtn(mainTab === 'customize')} onClick={() => setMainTab('customize')}>
+          Customize
+        </button>
+      </div>
+
+      {mainTab !== 'customize' ? (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14, flexWrap: 'wrap' }}>
+          <span style={{ fontSize: 12, color: '#9fa4b8', fontWeight: 600 }}>Preview</span>
+          <button type="button" style={chipBtn(previewMode === '2d')} onClick={() => setPreviewMode('2d')}>
+            2D
+          </button>
+          <button type="button" style={chipBtn(previewMode === '3d')} onClick={() => setPreviewMode('3d')}>
+            3D
+          </button>
+        </div>
+      ) : null}
+
+      {mainTab === 'locker' && (
+        <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
+          {(['skins', 'faces', 'accessories'] as LockerTab[]).map((tab) => (
+            <button key={tab} type="button" style={chipBtn(lockerTab === tab)} onClick={() => setLockerTab(tab)}>
+              {tab[0].toUpperCase() + tab.slice(1)}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {mainTab === 'store' && (
+        <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
+          {(
+            [
+              ['featured', 'Featured'],
+              ['events', 'All events'],
+              ['skins', 'Skins'],
+              ['faces', 'Faces'],
+              ['accessories', 'Accessories'],
+            ] as const
+          ).map(([id, label]) => (
+            <button key={id} type="button" style={chipBtn(storeFilter === id)} onClick={() => setStoreFilter(id)}>
+              {label}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {mainTab === 'locker' ? renderLocker() : mainTab === 'store' ? renderStore() : renderCustomize()}
+    </>
   );
 }

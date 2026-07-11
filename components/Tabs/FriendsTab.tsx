@@ -1,871 +1,595 @@
 'use client';
 
-import { useState, useEffect, useRef, useMemo } from 'react';
-import { User, FriendRequest, Message } from '@/types';
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
+import { User, Message } from '@/types';
+import { apiUrl } from '@/lib/apiBaseUrl';
+import { authenticatedFetch, authErrorMessage } from '@/lib/api';
+import { useUser } from '@/contexts/UserContext';
+import { useFriendsOnlineStatus, useOnlineStatus } from '@/lib/onlineStatus';
 import { getUsers } from '@/lib/storage';
-import { apiUrl } from '@/lib/apiBaseUrl';import { useUser } from '@/contexts/UserContext';
-import { useFriendsOnlineStatus, useOnlineStatus, updateCurrentGame, OnlineStatus } from '@/lib/onlineStatus';
 import { navigateToTab } from '@/lib/routing';
+import { AvatarChip, fetchFriendsPayload, FriendsPayload, FriendListUser } from '@/components/FriendsStrip';
 
 interface FriendsTabProps {
   user: User;
   editMode: boolean;
 }
 
-interface FriendData {
-  friends: User[];
-  incomingRequests: FriendRequest[];
-  sentRequests: string[];
+type Panel = 'friends' | 'requests' | 'search';
+
+function formatTime(timestamp: number) {
+  const diff = Date.now() - timestamp;
+  const seconds = Math.floor(diff / 1000);
+  const minutes = Math.floor(seconds / 60);
+  const hours = Math.floor(minutes / 60);
+  const days = Math.floor(hours / 24);
+  if (seconds < 60) return 'Just now';
+  if (minutes < 60) return `${minutes}m ago`;
+  if (hours < 24) return `${hours}h ago`;
+  if (days < 7) return `${days}d ago`;
+  return new Date(timestamp).toLocaleDateString();
 }
 
-export default function FriendsTab({ user, editMode }: FriendsTabProps) {
+export default function FriendsTab({ user }: FriendsTabProps) {
   const { updateUser } = useUser();
-  const [friendsData, setFriendsData] = useState<FriendData>({ friends: [], incomingRequests: [], sentRequests: [] });
+  const [panel, setPanel] = useState<Panel>('friends');
+  const [data, setData] = useState<FriendsPayload>({
+    friends: [],
+    incomingRequests: [],
+    sentRequests: [],
+  });
   const [allUsers, setAllUsers] = useState<User[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedFriend, setSelectedFriend] = useState<User | null>(null);
+  const [selected, setSelected] = useState<FriendListUser | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
-  const [newMessage, setNewMessage] = useState('');
-  const [activeTab, setActiveTab] = useState<'friends' | 'requests' | 'search'>('friends');
-  const [removingUnverified, setRemovingUnverified] = useState(false);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-  const messageInputRef = useRef<HTMLInputElement>(null);
-  const messagesContainerRef = useRef<HTMLDivElement>(null);
+  const [draft, setDraft] = useState('');
+  const [status, setStatus] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState(false);
+  const messagesRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
-  // Track online status for current user
   useOnlineStatus(user.username);
 
-  // Filter users for search (using useMemo to ensure proper hook ordering)
-  const filteredUsers = useMemo(() => {
-    return allUsers.filter(u => {
-      if (!u || !u.username) return false;
-      const query = searchQuery.toLowerCase().trim();
-      const username = u.username.toLowerCase();
-      const isFriend = friendsData.friends.some(f => f && f.username && f.username.toLowerCase() === username);
-      const isPending = friendsData.sentRequests.some(r => r && r.toLowerCase() === username);
-      
-      // If search query is empty, show all users (except self, friends, and pending)
-      if (!query) {
-        return !isFriend && !isPending && username !== user.username.toLowerCase();
-      }
-      
-      // If search query exists, filter by it
-      return username.includes(query) && !isFriend && !isPending && username !== user.username.toLowerCase();
-    });
-  }, [allUsers, searchQuery, friendsData.friends, friendsData.sentRequests, user.username]);
-
-  // Track online status for all friends and search results
-  const friendUsernames = useMemo(() => friendsData.friends.map(f => f.username), [friendsData.friends]);
-  const searchUsernames = useMemo(() => filteredUsers.slice(0, 20).map(u => u.username), [filteredUsers]);
-  const allTrackedUsernames = useMemo(() => [...new Set([...friendUsernames, ...searchUsernames])], [friendUsernames, searchUsernames]);
-  const friendsOnlineStatus = useFriendsOnlineStatus(allTrackedUsernames);
-
-  // Load friends data - non-blocking
-  const loadFriendsData = async () => {
-    try {
-      const response = await fetch(apiUrl(`/api/friends?username=${encodeURIComponent(user.username)}`), {
-        cache: 'no-store',
-        headers: {
-          'Cache-Control': 'no-cache'
-        }
-      });
-      if (response.ok) {
-        const data = await response.json();
-        setFriendsData(data);
-      }
-    } catch (error) {
-      // Silent error - don't block UI
-    }
+  const flash = (msg: string) => {
+    setStatus(msg);
+    window.setTimeout(() => setStatus(''), 3500);
   };
 
-  // Load all users for search - non-blocking
-  const loadAllUsers = async () => {
+  const loadFriends = useCallback(async () => {
+    try {
+      const next = await fetchFriendsPayload(user.username);
+      setData(next);
+      const names = next.friends.map((f) => f.username);
+      const prev = Array.isArray(user.friends) ? user.friends : [];
+      const same =
+        prev.length === names.length &&
+        prev.every((n, i) => String(n).toLowerCase() === String(names[i]).toLowerCase());
+      if (!same) {
+        void updateUser({ friends: names });
+      }
+      setSelected((cur) => {
+        if (!cur) return cur;
+        return next.friends.find((f) => f.username.toLowerCase() === cur.username.toLowerCase()) || null;
+      });
+    } catch (e) {
+      flash(e instanceof Error ? e.message : 'Failed to load friends');
+    } finally {
+      setLoading(false);
+    }
+  }, [user.username, user.friends, updateUser]);
+
+  const loadDirectory = useCallback(async () => {
     try {
       const users = await getUsers();
-      setAllUsers(users.filter(u => u.username.toLowerCase() !== user.username.toLowerCase()));
-    } catch (error) {
-      // Silent error - don't block UI
+      setAllUsers(users.filter((u) => u.username?.toLowerCase() !== user.username.toLowerCase()));
+    } catch {
+      /* directory optional */
     }
-  };
-
-  // Load messages for selected friend
-  const loadMessages = async (friendUsername: string) => {
-    try {
-      const response = await fetch(apiUrl(`/api/messages?username=${encodeURIComponent(user.username)}&with=${encodeURIComponent(friendUsername)}`));
-      if (response.ok) {
-        const msgs = await response.json();
-        setMessages(msgs);
-        // Mark messages as read
-        msgs.forEach((msg: Message) => {
-          if (msg.to.toLowerCase() === user.username.toLowerCase() && !msg.read) {
-            fetch(apiUrl('/api/messages'), {
-              method: 'PUT',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ id: msg.id, read: true })
-            }).catch(() => {});
-          }
-        });
-      }
-    } catch (error) {
-      console.error('Error loading messages:', error);
-    }
-  };
-
-  useEffect(() => {
-    // Load immediately without blocking - start both in parallel
-    loadFriendsData();
-    loadAllUsers();
-    // Refresh every 5 seconds (less frequent to reduce load)
-    const interval = setInterval(() => {
-      loadFriendsData();
-      if (selectedFriend) {
-        loadMessages(selectedFriend.username);
-      }
-    }, 5000);
-    return () => clearInterval(interval);
   }, [user.username]);
 
-  useEffect(() => {
-    if (selectedFriend) {
-      loadMessages(selectedFriend.username);
-    }
-  }, [selectedFriend]);
+  const loadMessages = useCallback(
+    async (friendUsername: string) => {
+      try {
+        const res = await authenticatedFetch(
+          apiUrl(
+            `/api/messages?username=${encodeURIComponent(user.username)}&with=${encodeURIComponent(friendUsername)}`
+          ),
+          { cache: 'no-store' }
+        );
+        const msgs = await res.json().catch(() => []);
+        if (!res.ok) {
+          flash(authErrorMessage(res.status, msgs));
+          return;
+        }
+        setMessages(Array.isArray(msgs) ? msgs : []);
+        for (const msg of Array.isArray(msgs) ? msgs : []) {
+          if (msg.to?.toLowerCase() === user.username.toLowerCase() && !msg.read) {
+            void authenticatedFetch(apiUrl('/api/messages'), {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ id: msg.id, read: true }),
+            });
+          }
+        }
+      } catch {
+        flash('Could not load messages');
+      }
+    },
+    [user.username]
+  );
 
   useEffect(() => {
-    // Scroll to bottom when new messages arrive, but only scroll the container, not the page
-    if (messages.length > 0 && messagesContainerRef.current) {
-      const container = messagesContainerRef.current;
-      const shouldScroll = container.scrollHeight - container.scrollTop - container.clientHeight < 200;
-      if (shouldScroll) {
-        setTimeout(() => {
-          if (messagesContainerRef.current) {
-            messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
-          }
-        }, 50);
-      }
-    }
+    void loadFriends();
+    void loadDirectory();
+    const t = window.setInterval(() => {
+      void loadFriends();
+      if (selected) void loadMessages(selected.username);
+    }, 8000);
+    return () => window.clearInterval(t);
+  }, [loadFriends, loadDirectory, selected, loadMessages]);
+
+  useEffect(() => {
+    if (selected) void loadMessages(selected.username);
+    else setMessages([]);
+  }, [selected, loadMessages]);
+
+  useEffect(() => {
+    const el = messagesRef.current;
+    if (!el) return;
+    el.scrollTop = el.scrollHeight;
   }, [messages]);
 
-  // Send friend request
-  const sendFriendRequest = async (toUsername: string) => {
+  const friendNames = useMemo(() => data.friends.map((f) => f.username), [data.friends]);
+  const online = useFriendsOnlineStatus(friendNames);
+
+  const filteredUsers = useMemo(() => {
+    const q = searchQuery.toLowerCase().trim();
+    const friendSet = new Set(data.friends.map((f) => f.username.toLowerCase()));
+    const pendingSet = new Set(data.sentRequests.map((r) => String(r).toLowerCase()));
+    return allUsers.filter((u) => {
+      if (!u?.username) return false;
+      const name = u.username.toLowerCase();
+      if (friendSet.has(name) || pendingSet.has(name)) return false;
+      if (!q) return true;
+      return name.includes(q);
+    });
+  }, [allUsers, searchQuery, data.friends, data.sentRequests]);
+
+  const postAction = async (body: Record<string, unknown>) => {
+    setBusy(true);
     try {
-      const response = await fetch(apiUrl('/api/friends'), {
+      const res = await authenticatedFetch(apiUrl('/api/friends'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'send',
-          fromUsername: user.username,
-          toUsername
-        })
+        body: JSON.stringify(body),
       });
-      
-      const result = await response.json();
-      
-      if (response.ok) {
-        await loadFriendsData();
-        await loadAllUsers();
-        // Show success message
-        // Don't show alert on success to avoid annoying user
-      } else {
-        // Silent error - no alert
-        console.error('Friend request error:', result.error);
+      const result = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        flash(authErrorMessage(res.status, result));
+        return false;
       }
-    } catch (error: any) {
-      console.error('Error sending friend request:', error);
-      // Silent error - no alert
-    }
-  };
-
-  // Accept friend request
-  const acceptFriendRequest = async (fromUsername: string) => {
-    try {
-      const response = await fetch(apiUrl('/api/friends'), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'accept',
-          fromUsername,
-          toUsername: user.username
-        })
-      });
-      if (response.ok) {
-        await loadFriendsData();
-        await loadAllUsers(); // Refresh user list too
-        // Update user context
-        const updatedFriendsData = await fetch(apiUrl(`/api/friends?username=${encodeURIComponent(user.username)}`), {
-          cache: 'no-store'
-        }).then(r => r.json());
-        updateUser({ friends: updatedFriendsData.friends.map((f: User) => f.username) });
-      }
-    } catch (error) {
-      console.error('Error accepting friend request:', error);
-    }
-  };
-
-  // Decline friend request
-  const declineFriendRequest = async (fromUsername: string) => {
-    try {
-      const response = await fetch(apiUrl('/api/friends'), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'decline',
-          fromUsername,
-          toUsername: user.username
-        })
-      });
-      if (response.ok) {
-        await loadFriendsData();
-      }
-    } catch (error) {
-      console.error('Error declining friend request:', error);
-    }
-  };
-
-  // Remove friend
-  const removeFriend = async (friendUsername: string, requireConfirm: boolean = true) => {
-    if (requireConfirm && !confirm(`Remove ${friendUsername} from your friends?`)) return false;
-    try {
-      const response = await fetch(apiUrl('/api/friends'), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'remove',
-          fromUsername: user.username,
-          toUsername: friendUsername
-        })
-      });
-      if (response.ok) {
-        await loadFriendsData();
-        await loadAllUsers(); // Refresh user list too
-        if (selectedFriend?.username === friendUsername) {
-          setSelectedFriend(null);
-          setMessages([]);
-        }
-        // Update user context
-        const updatedFriendsData = await fetch(apiUrl(`/api/friends?username=${encodeURIComponent(user.username)}`), {
-          cache: 'no-store'
-        }).then(r => r.json());
-        updateUser({ friends: updatedFriendsData.friends.map((f: User) => f.username) });
-        return true;
-      }
-    } catch (error) {
-      console.error('Error removing friend:', error);
-    }
-    return false;
-  };
-
-  const removeUnverifiedFriends = async () => {
-    const unverifiedFriends = friendsData.friends.filter((f) => f.emailVerified !== true);
-    if (unverifiedFriends.length === 0) {
-      alert('No unverified friends found.');
-      return;
-    }
-    if (
-      !confirm(
-        `Remove ${unverifiedFriends.length} unverified friend(s)? This will only remove users who have not verified email.`,
-      )
-    ) {
-      return;
-    }
-    setRemovingUnverified(true);
-    let removed = 0;
-    for (const friend of unverifiedFriends) {
-      const ok = await removeFriend(friend.username, false);
-      if (ok) removed += 1;
-    }
-    setRemovingUnverified(false);
-    alert(`Removed ${removed} unverified friend(s).`);
-  };
-
-  // Send message
-  const sendMessage = async () => {
-    if (!selectedFriend || !newMessage.trim()) return;
-
-    try {
-      const response = await fetch(apiUrl('/api/messages'), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          fromUsername: user.username,
-          toUsername: selectedFriend.username,
-          message: newMessage.trim()
-        })
-      });
-      if (response.ok) {
-        setNewMessage('');
-        await loadMessages(selectedFriend.username);
-        messageInputRef.current?.focus();
-      }
-    } catch (error) {
-      console.error('Error sending message:', error);
-    }
-  };
-
-  // Join friend's game. There is no standalone /play route (it 301-redirects to /),
-  // so we record the session join (best effort) and take the user to the Games tab,
-  // which is where games actually launch in-app.
-  const handleJoinFriend = async (friendUsername: string) => {
-    try {
-      const presenceResponse = await fetch(apiUrl(`/api/presence?username=${encodeURIComponent(friendUsername)}`));
-      if (presenceResponse.ok) {
-        const presence = await presenceResponse.json();
-        if (presence.isOnline && presence.currentSessionId) {
-          await fetch(apiUrl('/api/game-sessions'), {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              action: 'join',
-              sessionId: presence.currentSessionId,
-              username: user.username,
-            }),
-          }).catch(() => {});
-        }
-      }
-    } catch (error) {
-      console.error('Error joining friend:', error);
+      await loadFriends();
+      await loadDirectory();
+      return true;
+    } catch {
+      flash('Network error');
+      return false;
     } finally {
-      // Always land somewhere real instead of the dead /play redirect.
-      navigateToTab('games');
+      setBusy(false);
     }
   };
 
-  // Format timestamp
-  const formatTime = (timestamp: number) => {
-    const date = new Date(timestamp);
-    const now = new Date();
-    const diff = now.getTime() - date.getTime();
-    const seconds = Math.floor(diff / 1000);
-    const minutes = Math.floor(seconds / 60);
-    const hours = Math.floor(minutes / 60);
-    const days = Math.floor(hours / 24);
+  const sendRequest = (toUsername: string) =>
+    postAction({ action: 'send', fromUsername: user.username, toUsername }).then((ok) => {
+      if (ok) flash(`Request sent to ${toUsername}`);
+    });
 
-    if (seconds < 60) return 'Just now';
-    if (minutes < 60) return `${minutes}m ago`;
-    if (hours < 24) return `${hours}h ago`;
-    if (days < 7) return `${days}d ago`;
-    return date.toLocaleDateString();
+  const acceptRequest = (fromUsername: string) =>
+    postAction({ action: 'accept', fromUsername, toUsername: user.username }).then((ok) => {
+      if (ok) flash(`You are now friends with ${fromUsername}`);
+    });
+
+  const declineRequest = (fromUsername: string) =>
+    postAction({ action: 'decline', fromUsername, toUsername: user.username });
+
+  const removeFriend = async (friendUsername: string) => {
+    if (!window.confirm(`Remove ${friendUsername} from your friends?`)) return;
+    const ok = await postAction({
+      action: 'remove',
+      fromUsername: user.username,
+      toUsername: friendUsername,
+    });
+    if (ok && selected?.username === friendUsername) {
+      setSelected(null);
+      setMessages([]);
+    }
   };
+
+  const sendMessage = async () => {
+    if (!selected || !draft.trim() || busy) return;
+    setBusy(true);
+    try {
+      const res = await authenticatedFetch(apiUrl('/api/messages'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          fromUsername: user.username,
+          toUsername: selected.username,
+          message: draft.trim(),
+        }),
+      });
+      const result = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        flash(authErrorMessage(res.status, result));
+        return;
+      }
+      setDraft('');
+      await loadMessages(selected.username);
+      inputRef.current?.focus();
+    } catch {
+      flash('Failed to send message');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const tabStyle = (active: boolean): CSSProperties => ({
+    padding: '8px 14px',
+    background: active ? 'var(--accent-bg)' : 'transparent',
+    border: 'none',
+    borderBottom: active ? '2px solid var(--accent-hover)' : '2px solid transparent',
+    color: 'var(--text-main)',
+    cursor: 'pointer',
+    fontSize: 14,
+    fontWeight: 600,
+    position: 'relative' as const,
+  });
+
   return (
     <>
       <h2 className="section-title">Friends</h2>
-      
-      {/* Tabs */}
-      <div style={{ display: 'flex', gap: '8px', marginBottom: '20px', borderBottom: '1px solid var(--border)' }}>
-        <button
-          onClick={() => setActiveTab('friends')}
+      <p className="smalltext" style={{ marginTop: -8, marginBottom: 12 }}>
+        Add players, accept requests, and chat. Online status updates live.
+      </p>
+
+      {status ? (
+        <div
+          role="status"
           style={{
-            padding: '8px 16px',
-            background: activeTab === 'friends' ? 'var(--accent-bg)' : 'transparent',
-            border: 'none',
-            borderBottom: activeTab === 'friends' ? '2px solid var(--accent-hover)' : '2px solid transparent',
-            color: 'var(--text-main)',
-            cursor: 'pointer',
-            fontSize: '14px',
-            fontWeight: '600'
+            marginBottom: 12,
+            padding: '8px 12px',
+            borderRadius: 8,
+            background: 'rgba(74,144,226,0.12)',
+            border: '1px solid rgba(74,144,226,0.35)',
+            fontSize: 13,
           }}
         >
-          Friends ({friendsData.friends.length})
+          {status}
+        </div>
+      ) : null}
+
+      <div style={{ display: 'flex', gap: 8, marginBottom: 16, borderBottom: '1px solid var(--border)' }}>
+        <button type="button" style={tabStyle(panel === 'friends')} onClick={() => setPanel('friends')}>
+          Friends ({data.friends.length})
         </button>
-        <button
-          onClick={() => setActiveTab('requests')}
-          style={{
-            padding: '8px 16px',
-            background: activeTab === 'requests' ? 'var(--accent-bg)' : 'transparent',
-            border: 'none',
-            borderBottom: activeTab === 'requests' ? '2px solid var(--accent-hover)' : '2px solid transparent',
-            color: 'var(--text-main)',
-            cursor: 'pointer',
-            fontSize: '14px',
-            fontWeight: '600',
-            position: 'relative'
-          }}
-        >
+        <button type="button" style={tabStyle(panel === 'requests')} onClick={() => setPanel('requests')}>
           Requests
-          {friendsData.incomingRequests.length > 0 && (
-            <span style={{
-              position: 'absolute',
-              top: '4px',
-              right: '4px',
-              background: '#ff4d4d',
-              color: '#fff',
-              borderRadius: '50%',
-              width: '18px',
-              height: '18px',
-              fontSize: '10px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontWeight: 'bold'
-            }}>
-              {friendsData.incomingRequests.length}
+          {data.incomingRequests.length > 0 ? (
+            <span
+              style={{
+                marginLeft: 6,
+                background: '#ef4444',
+                color: '#fff',
+                borderRadius: 999,
+                padding: '1px 6px',
+                fontSize: 11,
+              }}
+            >
+              {data.incomingRequests.length}
             </span>
-          )}
+          ) : null}
         </button>
-        <button
-          onClick={() => setActiveTab('search')}
-          style={{
-            padding: '8px 16px',
-            background: activeTab === 'search' ? 'var(--accent-bg)' : 'transparent',
-            border: 'none',
-            borderBottom: activeTab === 'search' ? '2px solid var(--accent-hover)' : '2px solid transparent',
-            color: 'var(--text-main)',
-            cursor: 'pointer',
-            fontSize: '14px',
-            fontWeight: '600'
-          }}
-        >
+        <button type="button" style={tabStyle(panel === 'search')} onClick={() => setPanel('search')}>
           Find Friends
         </button>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: selectedFriend ? '300px 1fr' : '1fr', gap: '20px', minHeight: '500px', alignContent: 'start' }}>
-        {/* Left Panel: Friends List / Requests / Search */}
-        <div style={{
-          background: 'var(--panel-alt)',
-          borderRadius: 'var(--panel-radius)',
-          padding: '16px',
-          border: '1px solid var(--border)',
-          maxHeight: '600px',
-          overflowY: 'auto'
-        }}>
-          {activeTab === 'friends' && (
-            <div>
-              <div style={{ marginBottom: '16px', fontSize: '16px', fontWeight: '600', color: 'var(--text-main)' }}>
-                Your Friends ({friendsData.friends.length})
-              </div>
-              <div style={{ marginBottom: '12px' }}>
-                <button
-                  type="button"
-                  className="btn"
-                  onClick={removeUnverifiedFriends}
-                  disabled={removingUnverified}
-                  style={{ fontSize: 12, padding: '6px 10px' }}
-                >
-                  {removingUnverified ? 'Removing unverified...' : 'Remove Unverified Friends'}
-                </button>
-              </div>
-              {friendsData.friends.length === 0 ? (
-                <div style={{ color: 'var(--text-dim)', textAlign: 'center', padding: '40px 20px' }}>
-                  No friends yet. Search for users to add friends!
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: selected ? 'minmax(260px, 320px) 1fr' : '1fr',
+          gap: 16,
+          alignItems: 'start',
+        }}
+      >
+        <div
+          style={{
+            background: 'var(--panel-alt)',
+            borderRadius: 'var(--panel-radius)',
+            padding: 14,
+            border: '1px solid var(--border)',
+            maxHeight: 620,
+            overflowY: 'auto',
+          }}
+        >
+          {loading ? (
+            <div style={{ color: 'var(--text-dim)', padding: 24, textAlign: 'center' }}>Loading…</div>
+          ) : null}
+
+          {!loading && panel === 'friends' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {data.friends.length === 0 ? (
+                <div style={{ color: 'var(--text-dim)', textAlign: 'center', padding: 32 }}>
+                  No friends yet. Use Find Friends to send a request.
                 </div>
               ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  {friendsData.friends.map((friend) => (
+                data.friends.map((friend) => {
+                  const isOn = !!online[friend.username]?.isOnline;
+                  const active = selected?.username === friend.username;
+                  return (
                     <div
                       key={friend.username}
-                      onClick={(e) => {
-                        e.preventDefault();
-                        setSelectedFriend(friend);
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => setSelected(friend)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') setSelected(friend);
                       }}
                       style={{
-                        padding: '12px',
-                        background: selectedFriend?.username === friend.username ? 'var(--accent-bg)' : 'var(--panel-soft)',
-                        borderRadius: '8px',
-                        cursor: 'pointer',
-                        border: selectedFriend?.username === friend.username ? '1px solid var(--accent-hover)' : '1px solid var(--border)',
+                        padding: 10,
+                        borderRadius: 8,
+                        border: active ? '1px solid var(--accent-hover)' : '1px solid var(--border)',
+                        background: active ? 'var(--accent-bg)' : 'var(--panel-soft)',
                         display: 'flex',
-                        justifyContent: 'space-between',
                         alignItems: 'center',
-                        transition: 'all 0.2s'
-                      }}
-                      onMouseEnter={(e) => {
-                        if (selectedFriend?.username !== friend.username) {
-                          e.currentTarget.style.background = 'var(--panel-soft)';
-                        }
-                      }}
-                      onMouseLeave={(e) => {
-                        if (selectedFriend?.username !== friend.username) {
-                          e.currentTarget.style.background = 'var(--panel-soft)';
-                        }
+                        gap: 10,
+                        cursor: 'pointer',
                       }}
                     >
-                      <div style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <div style={{ position: 'relative' }}>
-                          {/* Online status indicator */}
-                          {friendsOnlineStatus[friend.username]?.isOnline && (
-                            <div style={{
-                              position: 'absolute',
-                              top: '-2px',
-                              right: '-2px',
-                              width: '10px',
-                              height: '10px',
-                              borderRadius: '50%',
-                              background: '#4caf50',
-                              border: '2px solid var(--panel-alt)',
-                              boxShadow: '0 0 4px rgba(76, 175, 80, 0.6)'
-                            }} />
-                          )}
-                          <div style={{
-                            width: '32px',
-                            height: '32px',
-                            borderRadius: '50%',
-                            background: 'var(--accent-bg)',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            fontSize: '14px',
-                            fontWeight: '600',
-                            color: 'var(--text-main)'
-                          }}>
-                            {friend.username.charAt(0).toUpperCase()}
-                          </div>
-                        </div>
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ fontSize: '14px', fontWeight: '600', color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                            {friend.username}
-                          </div>
-                          <div style={{ fontSize: '11px', color: 'var(--text-dim)' }}>
-                            {friendsOnlineStatus[friend.username]?.isOnline ? 'Online' : 'Offline'}
-                          </div>
+                      <AvatarChip username={friend.username} online={isOn} size={36} />
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontWeight: 600, fontSize: 14 }}>{friend.username}</div>
+                        <div style={{ fontSize: 11, color: isOn ? '#22c55e' : 'var(--text-dim)' }}>
+                          {isOn ? 'Online' : 'Offline'}
                         </div>
                       </div>
-                      <div style={{ display: 'flex', gap: '6px' }}>
-                        {friendsOnlineStatus[friend.username]?.isOnline && (
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleJoinFriend(friend.username);
-                            }}
-                            style={{
-                              padding: '4px 8px',
-                              background: 'var(--accent-bg)',
-                              border: '1px solid var(--accent-hover)',
-                              borderRadius: '4px',
-                              color: 'var(--accent-hover)',
-                              cursor: 'pointer',
-                              fontSize: '11px',
-                              fontWeight: '600'
-                            }}
-                            onMouseEnter={(e) => {
-                              e.currentTarget.style.background = 'var(--accent-bg-hover)';
-                            }}
-                            onMouseLeave={(e) => {
-                              e.currentTarget.style.background = 'var(--accent-bg)';
-                            }}
-                          >
-                            Join
-                          </button>
-                        )}
+                      <button
+                        type="button"
+                        className="btn"
+                        style={{ fontSize: 11, padding: '4px 8px' }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          navigateToTab('games');
+                        }}
+                      >
+                        Games
+                      </button>
+                      <button
+                        type="button"
+                        style={{
+                          fontSize: 11,
+                          padding: '4px 8px',
+                          background: 'transparent',
+                          border: '1px solid var(--border)',
+                          borderRadius: 4,
+                          color: 'var(--text-dim)',
+                          cursor: 'pointer',
+                        }}
+                        disabled={busy}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          void removeFriend(friend.username);
+                        }}
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          )}
+
+          {!loading && panel === 'requests' && (
+            <div>
+              <div style={{ fontWeight: 600, marginBottom: 10 }}>Incoming</div>
+              {data.incomingRequests.length === 0 ? (
+                <div style={{ color: 'var(--text-dim)', marginBottom: 18, fontSize: 13 }}>No incoming requests</div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 18 }}>
+                  {data.incomingRequests.map((req) => (
+                    <div
+                      key={`${req.from}-${req.timestamp}`}
+                      style={{
+                        padding: 12,
+                        borderRadius: 8,
+                        border: '1px solid var(--border)',
+                        background: 'var(--panel-soft)',
+                      }}
+                    >
+                      <div style={{ fontWeight: 600, marginBottom: 8 }}>{req.from}</div>
+                      <div style={{ display: 'flex', gap: 8 }}>
                         <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            removeFriend(friend.username);
-                          }}
+                          type="button"
+                          className="btn"
+                          disabled={busy}
+                          style={{ flex: 1 }}
+                          onClick={() => void acceptRequest(req.from)}
+                        >
+                          Accept
+                        </button>
+                        <button
+                          type="button"
+                          disabled={busy}
                           style={{
-                            padding: '4px 8px',
+                            flex: 1,
                             background: 'transparent',
                             border: '1px solid var(--border)',
-                            borderRadius: '4px',
+                            borderRadius: 6,
                             color: 'var(--text-dim)',
                             cursor: 'pointer',
-                            fontSize: '11px'
                           }}
-                          onMouseEnter={(e) => {
-                            e.currentTarget.style.background = '#3a1a1a';
-                            e.currentTarget.style.borderColor = '#5a2a2a';
-                            e.currentTarget.style.color = '#ff4d4d';
-                          }}
-                          onMouseLeave={(e) => {
-                            e.currentTarget.style.background = 'transparent';
-                            e.currentTarget.style.borderColor = 'var(--border)';
-                            e.currentTarget.style.color = 'var(--text-dim)';
-                          }}
+                          onClick={() => void declineRequest(req.from)}
                         >
-                          Remove
+                          Decline
                         </button>
-                      </div>                    </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <div style={{ fontWeight: 600, marginBottom: 10 }}>Sent</div>
+              {data.sentRequests.length === 0 ? (
+                <div style={{ color: 'var(--text-dim)', fontSize: 13 }}>No pending sent requests</div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  {data.sentRequests.map((name) => (
+                    <div
+                      key={name}
+                      style={{
+                        padding: 10,
+                        borderRadius: 8,
+                        border: '1px solid var(--border)',
+                        color: 'var(--text-dim)',
+                        fontSize: 13,
+                      }}
+                    >
+                      {name} · pending
+                    </div>
                   ))}
                 </div>
               )}
             </div>
           )}
 
-          {activeTab === 'requests' && (
+          {!loading && panel === 'search' && (
             <div>
-              <div style={{ marginBottom: '16px', fontSize: '16px', fontWeight: '600', color: 'var(--text-main)' }}>
-                Friend Requests
-              </div>
-              
-              {/* Incoming Requests */}
-              {friendsData.incomingRequests.length > 0 && (
-                <div style={{ marginBottom: '24px' }}>
-                  <div style={{ fontSize: '13px', color: 'var(--text-dim)', marginBottom: '12px' }}>
-                    Incoming ({friendsData.incomingRequests.length})
-                  </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                    {friendsData.incomingRequests.map((request) => (
-                      <div
-                        key={`${request.from}-${request.timestamp}`}
-                        style={{
-                          padding: '12px',
-                          background: 'var(--panel-soft)',
-                          borderRadius: '8px',
-                          border: '1px solid var(--border)'
-                        }}
-                      >
-                        <div style={{ fontSize: '14px', fontWeight: '600', color: 'var(--text-main)', marginBottom: '8px' }}>
-                          {request.from}
-                        </div>
-                        <div style={{ display: 'flex', gap: '8px' }}>
-                          <button
-                            onClick={() => acceptFriendRequest(request.from)}
-                            className="btn"
-                            style={{ flex: 1, fontSize: '12px', padding: '6px 12px', background: '#00a2ff', border: 'none' }}
-                          >
-                            Accept
-                          </button>
-                          <button
-                            onClick={() => declineFriendRequest(request.from)}
-                            style={{
-                              flex: 1,
-                              fontSize: '12px',
-                              padding: '6px 12px',
-                              background: 'transparent',
-                              border: '1px solid var(--border)',
-                              borderRadius: '4px',
-                              color: 'var(--text-dim)',
-                              cursor: 'pointer'
-                            }}
-                          >
-                            Decline
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Sent Requests */}
-              {friendsData.sentRequests.length > 0 && (
-                <div>
-                  <div style={{ fontSize: '13px', color: 'var(--text-dim)', marginBottom: '12px' }}>
-                    Sent ({friendsData.sentRequests.length})
-                  </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                    {friendsData.sentRequests.map((username) => (
-                      <div
-                        key={username}
-                        style={{
-                          padding: '12px',
-                          background: 'var(--panel-soft)',
-                          borderRadius: '8px',
-                          border: '1px solid var(--border)',
-                          color: 'var(--text-dim)'
-                        }}
-                      >
-                        {username} - Pending
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {friendsData.incomingRequests.length === 0 && friendsData.sentRequests.length === 0 && (
-                <div style={{ color: 'var(--text-dim)', textAlign: 'center', padding: '40px 20px' }}>
-                  No friend requests
-                </div>
-              )}
-            </div>
-          )}
-
-          {activeTab === 'search' && (
-            <div>
-              <div style={{ marginBottom: '16px', fontSize: '16px', fontWeight: '600', color: 'var(--text-main)' }}>
-                Find Friends
-              </div>
               <input
-                type="text"
-                placeholder="Search by username..."
+                type="search"
+                placeholder="Search username…"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 style={{
                   width: '100%',
-                  padding: '10px',
+                  padding: 10,
+                  marginBottom: 12,
                   background: 'var(--panel-soft)',
                   border: '1px solid var(--border)',
-                  borderRadius: '8px',
+                  borderRadius: 8,
                   color: 'var(--text-main)',
-                  fontSize: '14px',
-                  marginBottom: '16px'
                 }}
               />
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '400px', overflowY: 'auto' }}>
-                {filteredUsers.slice(0, 20).map((u) => {
-                  const userStatus = friendsOnlineStatus[u.username] || { isOnline: false, username: u.username };
-                  return (
-                    <div
-                      key={u.username}
-                      style={{
-                        padding: '12px',
-                        background: 'var(--panel-soft)',
-                        borderRadius: '8px',
-                        border: '1px solid var(--border)',
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
-                        gap: '12px'
-                      }}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {filteredUsers.slice(0, 30).map((u) => (
+                  <div
+                    key={u.username}
+                    style={{
+                      padding: 10,
+                      borderRadius: 8,
+                      border: '1px solid var(--border)',
+                      background: 'var(--panel-soft)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 10,
+                    }}
+                  >
+                    <AvatarChip username={u.username} size={32} />
+                    <div style={{ flex: 1, fontWeight: 600, fontSize: 14 }}>{u.username}</div>
+                    <button
+                      type="button"
+                      className="btn"
+                      disabled={busy}
+                      style={{ fontSize: 12, padding: '6px 10px' }}
+                      onClick={() => void sendRequest(u.username)}
                     >
-                      <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
-                        <div style={{ position: 'relative' }}>
-                          {/* Online status indicator */}
-                          {userStatus.isOnline && (
-                            <div style={{
-                              position: 'absolute',
-                              top: '-2px',
-                              right: '-2px',
-                              width: '10px',
-                              height: '10px',
-                              borderRadius: '50%',
-                              background: '#4caf50',
-                              border: '2px solid var(--panel-soft)',
-                              boxShadow: '0 0 4px rgba(76, 175, 80, 0.6)'
-                            }} />
-                          )}
-                          <div style={{
-                            width: '32px',
-                            height: '32px',
-                            borderRadius: '50%',
-                            background: 'var(--accent-bg)',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            fontSize: '14px',
-                            fontWeight: '600',
-                            color: 'var(--text-main)'
-                          }}>
-                            {u.username.charAt(0).toUpperCase()}
-                          </div>
-                        </div>
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ fontSize: '14px', fontWeight: '600', color: 'var(--text-main)' }}>
-                            {u.username}
-                          </div>
-                          <div style={{ fontSize: '11px', color: 'var(--text-dim)' }}>
-                            {userStatus.isOnline ? 'Online' : 'Offline'}
-                          </div>
-                        </div>
-                      </div>
-                      <div style={{ display: 'flex', gap: '6px' }}>
-                        <button
-                          onClick={() => sendFriendRequest(u.username)}
-                          className="btn"
-                          style={{ fontSize: '12px', padding: '6px 12px' }}
-                        >
-                          Add Friend
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })}
-                {filteredUsers.length === 0 && searchQuery && (
-                  <div style={{ color: 'var(--text-dim)', textAlign: 'center', padding: '20px' }}>
-                    No users found matching &quot;{searchQuery}&quot;                  </div>
-                )}
-                {filteredUsers.length === 0 && !searchQuery && allUsers.length === 0 && (
-                  <div style={{ color: 'var(--text-dim)', textAlign: 'center', padding: '20px' }}>
-                    No other users found
+                      Add
+                    </button>
                   </div>
-                )}
-                {filteredUsers.length === 0 && !searchQuery && allUsers.length > 0 && (
-                  <div style={{ color: 'var(--text-dim)', textAlign: 'center', padding: '20px' }}>
-                    Type a username to search for friends
+                ))}
+                {filteredUsers.length === 0 ? (
+                  <div style={{ color: 'var(--text-dim)', textAlign: 'center', padding: 20, fontSize: 13 }}>
+                    {searchQuery ? `No matches for “${searchQuery}”` : 'No other players to show yet.'}
                   </div>
-                )}
+                ) : null}
               </div>
             </div>
           )}
         </div>
 
-        {/* Right Panel: Messages */}
-        {selectedFriend && (
-          <div style={{
-            display: 'flex',
-            flexDirection: 'column',
-            background: 'var(--panel-alt)',
-            borderRadius: 'var(--panel-radius)',
-            border: '1px solid var(--border)',
-            height: '600px'
-          }}>
-            {/* Chat Header */}
-            <div style={{
-              padding: '16px',
-              borderBottom: '1px solid var(--border)',
+        {selected ? (
+          <div
+            style={{
               display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center'
-            }}>
-              <div style={{ fontSize: '16px', fontWeight: '600', color: 'var(--text-main)' }}>
-                {selectedFriend.username}
+              flexDirection: 'column',
+              background: 'var(--panel-alt)',
+              borderRadius: 'var(--panel-radius)',
+              border: '1px solid var(--border)',
+              minHeight: 420,
+              height: 620,
+            }}
+          >
+            <div
+              style={{
+                padding: 14,
+                borderBottom: '1px solid var(--border)',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <AvatarChip
+                  username={selected.username}
+                  online={!!online[selected.username]?.isOnline}
+                  size={36}
+                />
+                <div>
+                  <div style={{ fontWeight: 700 }}>{selected.username}</div>
+                  <div style={{ fontSize: 11, color: 'var(--text-dim)' }}>
+                    {online[selected.username]?.isOnline ? 'Online' : 'Offline'}
+                  </div>
+                </div>
               </div>
               <button
-                onClick={() => {
-                  setSelectedFriend(null);
-                  setMessages([]);
-                }}
+                type="button"
                 style={{
-                  padding: '4px 8px',
                   background: 'transparent',
                   border: '1px solid var(--border)',
-                  borderRadius: '4px',
+                  borderRadius: 6,
                   color: 'var(--text-dim)',
+                  padding: '4px 8px',
                   cursor: 'pointer',
-                  fontSize: '12px'
                 }}
+                onClick={() => setSelected(null)}
               >
                 Close
               </button>
             </div>
 
-            {/* Messages */}
-            <div 
-              ref={messagesContainerRef}
-              style={{
-                flex: 1,
-                overflowY: 'auto',
-                padding: '16px',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '12px'
-              }}
-            >
+            <div ref={messagesRef} style={{ flex: 1, overflowY: 'auto', padding: 14, display: 'flex', flexDirection: 'column', gap: 10 }}>
               {messages.length === 0 ? (
-                <div style={{ color: 'var(--text-dim)', textAlign: 'center', padding: '40px 20px' }}>
-                  No messages yet. Start the conversation!
+                <div style={{ color: 'var(--text-dim)', textAlign: 'center', padding: 40 }}>
+                  No messages yet — say hi.
                 </div>
               ) : (
                 messages.map((msg) => {
-                  const isOwn = msg.from.toLowerCase() === user.username.toLowerCase();
+                  const own = msg.from.toLowerCase() === user.username.toLowerCase();
                   return (
-                    <div
-                      key={msg.id}
-                      style={{
-                        display: 'flex',
-                        justifyContent: isOwn ? 'flex-end' : 'flex-start'
-                      }}
-                    >
-                      <div style={{
-                        maxWidth: '70%',
-                        padding: '10px 14px',
-                        background: isOwn ? '#00a2ff' : 'var(--panel-soft)',
-                        borderRadius: '12px',
-                        border: isOwn ? 'none' : '1px solid var(--border)'
-                      }}>
-                        <div style={{
-                          fontSize: '14px',
-                          color: isOwn ? '#ffffff' : 'var(--text-main)',
-                          marginBottom: '4px',
-                          wordBreak: 'break-word'
-                        }}>
-                          {msg.message}
-                        </div>
-                        <div style={{
-                          fontSize: '10px',
-                          color: isOwn ? 'rgba(255,255,255,0.7)' : 'var(--text-dim)',
-                          textAlign: 'right'
-                        }}>
+                    <div key={msg.id} style={{ display: 'flex', justifyContent: own ? 'flex-end' : 'flex-start' }}>
+                      <div
+                        style={{
+                          maxWidth: '75%',
+                          padding: '8px 12px',
+                          borderRadius: 12,
+                          background: own ? '#0284c7' : 'var(--panel-soft)',
+                          border: own ? 'none' : '1px solid var(--border)',
+                          color: own ? '#fff' : 'var(--text-main)',
+                        }}
+                      >
+                        <div style={{ fontSize: 14, wordBreak: 'break-word' }}>{msg.message}</div>
+                        <div style={{ fontSize: 10, opacity: 0.7, textAlign: 'right', marginTop: 4 }}>
                           {formatTime(msg.timestamp)}
                         </div>
                       </div>
@@ -873,57 +597,32 @@ export default function FriendsTab({ user, editMode }: FriendsTabProps) {
                   );
                 })
               )}
-              <div ref={messagesEndRef} />
             </div>
 
-            {/* Message Input */}
-            <div style={{
-              padding: '16px',
-              borderTop: '1px solid var(--border)',
-              display: 'flex',
-              gap: '8px'
-            }}>
+            <div style={{ padding: 12, borderTop: '1px solid var(--border)', display: 'flex', gap: 8 }}>
               <input
-                ref={messageInputRef}
-                type="text"
-                placeholder="Type a message..."
-                value={newMessage}
-                onChange={(e) => setNewMessage(e.target.value)}
-                onKeyPress={(e) => {
-                  if (e.key === 'Enter') {
-                    sendMessage();
-                  }
+                ref={inputRef}
+                value={draft}
+                onChange={(e) => setDraft(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') void sendMessage();
                 }}
+                placeholder="Type a message…"
                 style={{
                   flex: 1,
-                  padding: '10px',
+                  padding: 10,
                   background: 'var(--panel-soft)',
                   border: '1px solid var(--border)',
-                  borderRadius: '8px',
+                  borderRadius: 8,
                   color: 'var(--text-main)',
-                  fontSize: '14px'
                 }}
               />
-              <button
-                onClick={sendMessage}
-                className="btn"
-                style={{
-                  padding: '10px 20px',
-                  background: '#00a2ff',
-                  border: 'none',
-                  borderRadius: '8px',
-                  color: '#ffffff',
-                  cursor: 'pointer',
-                  fontSize: '14px',
-                  fontWeight: '600'
-                }}
-                disabled={!newMessage.trim()}
-              >
+              <button type="button" className="btn" disabled={busy || !draft.trim()} onClick={() => void sendMessage()}>
                 Send
               </button>
             </div>
           </div>
-        )}
+        ) : null}
       </div>
     </>
   );
