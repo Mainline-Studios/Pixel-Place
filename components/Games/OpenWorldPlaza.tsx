@@ -16,6 +16,12 @@ import {
   type OpenWorldChatMessage,
   type OpenWorldPlayerState,
 } from '@/lib/openWorldRtdb';
+import {
+  buildPlazaBuildings,
+  collideWalls,
+  resolveBuildingAt,
+  type PlazaBuilding,
+} from '@/lib/openWorldBuildings';
 
 interface OpenWorldPlazaProps {
   user: User;
@@ -120,32 +126,41 @@ function addTree(THREE: any, scene: any, x: number, z: number, rng: () => number
   scene.add(foliage);
 }
 
-function addBuilding(THREE: any, scene: any, x: number, z: number, w: number, d: number, h: number, color: number) {
-  const body = new THREE.Mesh(
-    new THREE.BoxGeometry(w, h, d),
-    new THREE.MeshStandardMaterial({ color, roughness: 0.85, metalness: 0.05 }),
+function addBench(THREE: any, scene: any, x: number, z: number, yaw: number) {
+  const g = new THREE.Group();
+  g.position.set(x, 0, z);
+  g.rotation.y = yaw;
+  const seat = new THREE.Mesh(
+    new THREE.BoxGeometry(1.8, 0.12, 0.55),
+    new THREE.MeshStandardMaterial({ color: 0x6b4f3a }),
   );
-  body.position.set(x, h / 2, z);
-  body.castShadow = true;
-  body.receiveShadow = true;
-  scene.add(body);
+  seat.position.y = 0.45;
+  g.add(seat);
+  const back = new THREE.Mesh(
+    new THREE.BoxGeometry(1.8, 0.55, 0.1),
+    new THREE.MeshStandardMaterial({ color: 0x5a4030 }),
+  );
+  back.position.set(0, 0.75, -0.22);
+  g.add(back);
+  scene.add(g);
+}
 
-  const roof = new THREE.Mesh(
-    new THREE.ConeGeometry(Math.max(w, d) * 0.72, 1.4, 4),
-    new THREE.MeshStandardMaterial({ color: 0x8b4513, roughness: 0.9 }),
+function addLamp(THREE: any, scene: any, x: number, z: number) {
+  const pole = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.08, 0.1, 3.2, 8),
+    new THREE.MeshStandardMaterial({ color: 0x333333 }),
   );
-  roof.rotation.y = Math.PI / 4;
-  roof.position.set(x, h + 0.7, z);
-  roof.castShadow = true;
-  scene.add(roof);
-
-  // Simple door
-  const door = new THREE.Mesh(
-    new THREE.BoxGeometry(Math.min(1.2, w * 0.35), Math.min(2.2, h * 0.45), 0.12),
-    new THREE.MeshStandardMaterial({ color: 0x3a2a1a }),
+  pole.position.set(x, 1.6, z);
+  scene.add(pole);
+  const bulb = new THREE.Mesh(
+    new THREE.SphereGeometry(0.22, 10, 10),
+    new THREE.MeshStandardMaterial({ color: 0xfff2c4, emissive: 0xffe08a, emissiveIntensity: 0.8 }),
   );
-  door.position.set(x, Math.min(1.1, h * 0.22), z + d / 2 + 0.05);
-  scene.add(door);
+  bulb.position.set(x, 3.3, z);
+  scene.add(bulb);
+  const light = new THREE.PointLight(0xfff0d0, 0.55, 18, 2);
+  light.position.set(x, 3.2, z);
+  scene.add(light);
 }
 
 export default function OpenWorldPlaza({ user, onClose, playWithFriend }: OpenWorldPlazaProps) {
@@ -159,6 +174,7 @@ export default function OpenWorldPlaza({ user, onClose, playWithFriend }: OpenWo
   const [status, setStatus] = useState(
     playWithFriend ? `Joining ${playWithFriend}…` : 'Connecting to plaza…',
   );
+  const [locationLabel, setLocationLabel] = useState('Town Plaza');
   const remotePlayersRef = useRef<OpenWorldPlayerState[]>([]);
   const chatInputFocused = useRef(false);
   const roomRef = useRef(room);
@@ -213,8 +229,8 @@ export default function OpenWorldPlaza({ user, onClose, playWithFriend }: OpenWo
       if (disposed || !mountRef.current) return;
 
       const scene = new THREE.Scene();
-      scene.background = new THREE.Color(0x87b8e8);
-      scene.fog = new THREE.Fog(0xa8c8e8, 35, 120);
+      scene.background = new THREE.Color(0x7eb8e8);
+      scene.fog = new THREE.Fog(0xa8cce8, 40, 140);
 
       const camera = new THREE.PerspectiveCamera(58, 1, 0.1, 250);
       const renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -224,16 +240,16 @@ export default function OpenWorldPlaza({ user, onClose, playWithFriend }: OpenWo
       mountRef.current.innerHTML = '';
       mountRef.current.appendChild(renderer.domElement);
 
-      const hemi = new THREE.HemisphereLight(0xfff2d9, 0x4a6b3a, 0.85);
+      const hemi = new THREE.HemisphereLight(0xfff2d9, 0x4a6b3a, 0.9);
       scene.add(hemi);
-      const sun = new THREE.DirectionalLight(0xfff5e0, 1.15);
+      const sun = new THREE.DirectionalLight(0xfff5e0, 1.2);
       sun.position.set(28, 42, 18);
       sun.castShadow = true;
       sun.shadow.mapSize.set(1024, 1024);
       scene.add(sun);
 
       const ground = new THREE.Mesh(
-        new THREE.PlaneGeometry(200, 200),
+        new THREE.PlaneGeometry(220, 220),
         new THREE.MeshStandardMaterial({ color: 0x4f9a4a, roughness: 0.95 }),
       );
       ground.rotation.x = -Math.PI / 2;
@@ -269,20 +285,25 @@ export default function OpenWorldPlaza({ user, onClose, playWithFriend }: OpenWo
         const tx = Math.cos(angle) * dist;
         const tz = Math.sin(angle) * dist;
         if (Math.hypot(tx, tz) < 16) continue;
+        // keep trees clear of building footprints roughly
+        if (Math.abs(tx) > 14 && Math.abs(tz) > 12 && Math.abs(tx) < 45 && Math.abs(tz) < 42) {
+          if (rng() > 0.45) continue;
+        }
         addTree(THREE, scene, tx, tz, rng);
       }
 
-      const buildings: Array<[number, number, number, number, number, number]> = [
-        [22, 18, 8, 7, 7, 0x6b7c93],
-        [-24, 16, 9, 8, 9, 0x8a6f5a],
-        [26, -20, 10, 8, 11, 0x5c6e7a],
-        [-20, -24, 8, 9, 8, 0x7a6a58],
-        [38, 6, 7, 7, 14, 0x4a5a6a],
-        [-36, -8, 8, 8, 12, 0x6a5a4a],
-        [12, 36, 11, 8, 6, 0x556677],
-        [-14, -38, 9, 9, 7, 0x667788],
-      ];
-      buildings.forEach(([x, z, w, d, h, c]) => addBuilding(THREE, scene, x, z, w, d, h, c));
+      const buildings: PlazaBuilding[] = buildPlazaBuildings(THREE, scene);
+      const allWalls = buildings.flatMap((b) => b.walls);
+
+      addBench(THREE, scene, 6, 10, 0.4);
+      addBench(THREE, scene, -7, 9, -0.5);
+      addBench(THREE, scene, 5, -8, Math.PI);
+      addLamp(THREE, scene, 10, 10);
+      addLamp(THREE, scene, -10, 10);
+      addLamp(THREE, scene, 10, -10);
+      addLamp(THREE, scene, -10, -10);
+      addLamp(THREE, scene, 0, 18);
+      addLamp(THREE, scene, 0, -18);
 
       // Fountain centerpiece
       const fountainBase = new THREE.Mesh(
@@ -458,11 +479,22 @@ export default function OpenWorldPlaza({ user, onClose, playWithFriend }: OpenWo
 
         if (forward !== 0) {
           const speed = keys.has('w') ? 6.2 : 4.4;
-          characterGroup.position.x += Math.sin(characterGroup.rotation.y) * speed * forward * dt;
-          characterGroup.position.z += Math.cos(characterGroup.rotation.y) * speed * forward * dt;
-          characterGroup.position.x = Math.max(-worldBounds, Math.min(worldBounds, characterGroup.position.x));
-          characterGroup.position.z = Math.max(-worldBounds, Math.min(worldBounds, characterGroup.position.z));
+          const tryX = characterGroup.position.x + Math.sin(characterGroup.rotation.y) * speed * forward * dt;
+          const tryZ = characterGroup.position.z + Math.cos(characterGroup.rotation.y) * speed * forward * dt;
+          const hit = collideWalls(allWalls, tryX, tryZ, 0.42);
+          characterGroup.position.x = Math.max(-worldBounds, Math.min(worldBounds, hit.x));
+          characterGroup.position.z = Math.max(-worldBounds, Math.min(worldBounds, hit.z));
         }
+
+        const inside = resolveBuildingAt(buildings, characterGroup.position.x, characterGroup.position.z);
+        const nextLabel = inside
+          ? inside.kind === 'store'
+            ? `🛒 ${inside.name}`
+            : inside.kind === 'food'
+              ? `🍽 ${inside.name}`
+              : `🏠 ${inside.name}`
+          : 'Town Plaza';
+        setLocationLabel((prev) => (prev === nextLabel ? prev : nextLabel));
 
         const grounded = baseY <= footLift + 0.001;
         if (keys.has(' ') && grounded) verticalVel = 6.2;
@@ -609,8 +641,9 @@ export default function OpenWorldPlaza({ user, onClose, playWithFriend }: OpenWo
             {playWithFriend ? `Open World · with ${playWithFriend}` : 'Open World Plaza'}
           </div>
           <div style={{ opacity: 0.9 }}>{status}</div>
+          <div style={{ marginTop: 4, fontWeight: 600, color: '#bbf7d0' }}>{locationLabel}</div>
           <div style={{ opacity: 0.7, marginTop: 4, fontSize: 12 }}>
-            WASD move · W walks · Space jump · drag look · I/O zoom
+            WASD move · walk into open doorways · Space jump · drag look · I/O zoom
           </div>
         </div>
         {onClose && (
