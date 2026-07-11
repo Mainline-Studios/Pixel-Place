@@ -82,7 +82,7 @@ const games: GameInfo[] = [
     id: 'openWorldPlaza',
     name: 'Open World Plaza',
     description:
-      'Explore a shared plaza with your avatar — trees, buildings, walk with W, live chat, and friends moving in real time.',
+      'Explore a shared plaza — Play joins a global server (max 15), Private Play makes a secret invite link.',
     icon: '🌳',
     category: 'Multiplayer',
     is3D: true,
@@ -393,7 +393,11 @@ export default function GamesTab({ user, editMode }: GamesTabProps) {
       : selectedGame === 'obstacleCourse'
       ? { user, onClose: handleClose }
       : selectedGame === 'openWorldPlaza'
-      ? { user, onClose: handleClose, playWithFriend: playWithFriend || undefined }
+      ? {
+          user,
+          onClose: handleClose,
+          playWithFriend: playWithFriend || undefined,
+        }
       : selectedGame === 'squishBubbles' || selectedGame === 'squishSlime'
       ? { onClose: handleClose }
       : selectedGame === 'coasterControl'

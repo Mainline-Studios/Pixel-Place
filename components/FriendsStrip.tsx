@@ -1,12 +1,14 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Skin, User } from '@/types';
+import { Accessory, Skin, User } from '@/types';
 import { apiUrl } from '@/lib/apiBaseUrl';
 import { authenticatedFetch, authErrorMessage } from '@/lib/api';
 import { useFriendsOnlineStatus } from '@/lib/onlineStatus';
 import { navigateToTab } from '@/lib/routing';
-import { getSkins } from '@/lib/storage';
+import { getAccessories, getSkins } from '@/lib/storage';
+import { normalizeAvatarPose } from '@/lib/avatarPoses';
+import Avatar3DViewer from '@/components/Avatar3DViewer';
 
 export type FriendListUser = Pick<User, 'username'> & {
   emailVerified?: boolean;
@@ -14,6 +16,7 @@ export type FriendListUser = Pick<User, 'username'> & {
   equippedSkin?: string;
   equippedFace?: string;
   equippedAccessories?: Record<string, string> | string[];
+  accountPreferences?: User['accountPreferences'];
 };
 
 export type FriendsPayload = {
@@ -38,147 +41,41 @@ export async function fetchFriendsPayload(username: string): Promise<FriendsPayl
   };
 }
 
-const FALLBACK_COLORS = {
-  head: '#f4c2a1',
-  torso: '#4d536f',
-  arm: '#3a3f56',
-  legs: '#3a3f56',
-};
-
-/** Compact 2D avatar preview from equipped skin colors (no WebGL per friend). */
-function SkinAvatarPreview({
-  colors,
-  size,
-}: {
-  colors: { head: string; torso: string; arm: string; legs: string };
-  size: number;
-}) {
-  const s = size / 40;
-  return (
-    <div
-      aria-hidden
-      style={{
-        position: 'relative',
-        width: size,
-        height: size,
-        display: 'flex',
-        alignItems: 'flex-end',
-        justifyContent: 'center',
-        background: 'radial-gradient(circle at 50% 30%, #334155 0%, #0f172a 75%)',
-      }}
-    >
-      <div style={{ position: 'relative', width: 22 * s, height: 34 * s, marginBottom: 3 * s }}>
-        <div
-          style={{
-            position: 'absolute',
-            left: 5 * s,
-            top: 0,
-            width: 12 * s,
-            height: 12 * s,
-            borderRadius: 2 * s,
-            background: colors.head,
-            boxShadow: 'inset 0 -2px 0 rgba(0,0,0,0.12)',
-          }}
-        />
-        <div
-          style={{
-            position: 'absolute',
-            left: 4 * s,
-            top: 11 * s,
-            width: 14 * s,
-            height: 12 * s,
-            borderRadius: 2 * s,
-            background: colors.torso,
-          }}
-        />
-        <div
-          style={{
-            position: 'absolute',
-            left: 0,
-            top: 12 * s,
-            width: 5 * s,
-            height: 11 * s,
-            borderRadius: 1.5 * s,
-            background: colors.arm,
-          }}
-        />
-        <div
-          style={{
-            position: 'absolute',
-            right: 0,
-            top: 12 * s,
-            width: 5 * s,
-            height: 11 * s,
-            borderRadius: 1.5 * s,
-            background: colors.arm,
-          }}
-        />
-        <div
-          style={{
-            position: 'absolute',
-            left: 5 * s,
-            top: 22 * s,
-            width: 5.5 * s,
-            height: 11 * s,
-            borderRadius: 1.5 * s,
-            background: colors.legs,
-          }}
-        />
-        <div
-          style={{
-            position: 'absolute',
-            right: 5 * s,
-            top: 22 * s,
-            width: 5.5 * s,
-            height: 11 * s,
-            borderRadius: 1.5 * s,
-            background: colors.legs,
-          }}
-        />
-      </div>
-    </div>
-  );
-}
-
-/** Compact avatar preview: skin colors, photo, or letter fallback. */
+/** 3D friend chip with their equipped skin + selected showcase pose. */
 function AvatarChip({
   username,
   online,
-  size = 48,
+  size = 72,
   onClick,
   skin,
-  photoURL,
+  face,
+  pose,
 }: {
   username: string;
   online?: boolean;
   size?: number;
   onClick?: () => void;
   skin?: Skin | null;
-  photoURL?: string;
+  face?: Skin | null;
+  pose?: string;
 }) {
-  const [imgFailed, setImgFailed] = useState(false);
-  const colors = {
-    head: skin?.colors?.head || FALLBACK_COLORS.head,
-    torso: skin?.colors?.torso || FALLBACK_COLORS.torso,
-    arm: skin?.colors?.arm || FALLBACK_COLORS.arm,
-    legs: skin?.colors?.legs || FALLBACK_COLORS.legs,
-  };
+  const animation = normalizeAvatarPose(pose);
 
   return (
     <button
       type="button"
       onClick={onClick}
-      title={username}
+      title={`${username} · ${animation}`}
       style={{
         position: 'relative',
         width: size,
         height: size,
-        borderRadius: '50%',
+        borderRadius: 14,
         border: '1px solid var(--border)',
-        background: 'linear-gradient(160deg, #1e293b 0%, #0f172a 100%)',
+        background: 'radial-gradient(circle at 50% 20%, #334155 0%, #0b1220 78%)',
         color: 'var(--text-main)',
         fontWeight: 700,
-        fontSize: Math.max(12, size * 0.35),
+        fontSize: Math.max(12, size * 0.28),
         cursor: onClick ? 'pointer' : 'default',
         flexShrink: 0,
         overflow: 'hidden',
@@ -186,15 +83,28 @@ function AvatarChip({
       }}
     >
       {skin ? (
-        <SkinAvatarPreview colors={colors} size={size} />
-      ) : photoURL && !imgFailed ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={photoURL}
-          alt=""
-          style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-          onError={() => setImgFailed(true)}
-        />
+        <div
+          style={{
+            width: '100%',
+            height: '100%',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            pointerEvents: 'none',
+            transform: 'translateY(6%)',
+          }}
+        >
+          <Avatar3DViewer
+            skin={skin}
+            equippedFace={face || undefined}
+            width={size}
+            height={size}
+            interactive={false}
+            autoRotate
+            turntableSpeed={0.45}
+            animation={animation}
+          />
+        </div>
       ) : (
         <span
           style={{
@@ -203,7 +113,6 @@ function AvatarChip({
             height: '100%',
             alignItems: 'center',
             justifyContent: 'center',
-            background: `linear-gradient(145deg, ${colors.torso}, ${colors.head})`,
           }}
         >
           {username.charAt(0).toUpperCase()}
@@ -212,13 +121,13 @@ function AvatarChip({
       <span
         style={{
           position: 'absolute',
-          right: 0,
-          bottom: 0,
-          width: Math.max(8, size * 0.22),
-          height: Math.max(8, size * 0.22),
+          right: 4,
+          bottom: 4,
+          width: Math.max(9, size * 0.18),
+          height: Math.max(9, size * 0.18),
           borderRadius: '50%',
           background: online ? '#22c55e' : '#64748b',
-          border: '2px solid var(--panel-alt, #1a1d29)',
+          border: '2px solid #0b1220',
           zIndex: 2,
         }}
       />
@@ -238,23 +147,25 @@ export function FriendsStrip({
   onOpenFriends?: () => void;
   selectedFriend?: string | null;
   onSelectFriend?: (username: string | null) => void;
-  /** Launch Open World (or other) with this friend */
   onPlayWithFriend?: (friendUsername: string) => void;
 }) {
   const [friends, setFriends] = useState<FriendListUser[]>([]);
   const [skins, setSkins] = useState<Skin[]>([]);
+  const [accessories, setAccessories] = useState<Accessory[]>([]);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
     try {
       setError('');
-      const [data, skinsData] = await Promise.all([
+      const [data, skinsData, accData] = await Promise.all([
         fetchFriendsPayload(user.username),
         getSkins().catch(() => [] as Skin[]),
+        getAccessories().catch(() => [] as Accessory[]),
       ]);
       setFriends(data.friends);
       setSkins(Array.isArray(skinsData) ? skinsData : []);
+      setAccessories(Array.isArray(accData) ? accData : []);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not load friends');
       setFriends([]);
@@ -276,16 +187,33 @@ export function FriendsStrip({
     ? friends.find((f) => f.username.toLowerCase() === selectedFriend.toLowerCase()) || null
     : null;
 
-  const skinForFriend = useCallback(
-    (friend: FriendListUser): Skin | null => {
-      if (!skins.length) return null;
-      const byId =
+  const previewForFriend = useCallback(
+    (friend: FriendListUser): { skin: Skin | null; face: Skin | null; pose: string } => {
+      const base =
         skins.find((s) => s.id === friend.equippedSkin) ||
         skins.find((s) => s.id === 'pixel_placer') ||
-        skins[0];
-      return byId || null;
+        skins[0] ||
+        null;
+      const face = friend.equippedFace
+        ? skins.find((s) => s.id === friend.equippedFace && s.isFace) || null
+        : null;
+      const equippedIds = Object.values(friend.equippedAccessories || {}).filter(Boolean) as string[];
+      const accList = equippedIds
+        .map((id) => accessories.find((a) => a.id === id))
+        .filter(Boolean) as Accessory[];
+      const skin = base
+        ? {
+            ...base,
+            accessories: [...(base.accessories || []), ...accList],
+          }
+        : null;
+      return {
+        skin,
+        face,
+        pose: normalizeAvatarPose(friend.accountPreferences?.avatarPose),
+      };
     },
-    [skins],
+    [skins, accessories],
   );
 
   const handleFriendClick = (username: string) => {
@@ -341,12 +269,13 @@ export function FriendsStrip({
               display: 'flex',
               gap: 14,
               overflowX: 'auto',
-              paddingBottom: 4,
+              paddingBottom: 6,
               WebkitOverflowScrolling: 'touch',
             }}
           >
             {friends.map((friend) => {
               const isSelected = selectedFriend?.toLowerCase() === friend.username.toLowerCase();
+              const preview = previewForFriend(friend);
               return (
                 <div
                   key={friend.username}
@@ -354,13 +283,13 @@ export function FriendsStrip({
                     display: 'flex',
                     flexDirection: 'column',
                     alignItems: 'center',
-                    gap: 4,
-                    minWidth: 64,
+                    gap: 6,
+                    minWidth: 76,
                   }}
                 >
                   <div
                     style={{
-                      borderRadius: '50%',
+                      borderRadius: 16,
                       padding: 2,
                       outline: isSelected ? '2px solid #22c55e' : '2px solid transparent',
                     }}
@@ -368,9 +297,10 @@ export function FriendsStrip({
                     <AvatarChip
                       username={friend.username}
                       online={!!online[friend.username]?.isOnline}
-                      skin={skinForFriend(friend)}
-                      photoURL={friend.photoURL}
-                      size={52}
+                      skin={preview.skin}
+                      face={preview.face}
+                      pose={preview.pose}
+                      size={76}
                       onClick={() => handleFriendClick(friend.username)}
                     />
                   </div>
@@ -381,7 +311,7 @@ export function FriendsStrip({
                       fontSize: 11,
                       color: isSelected ? '#22c55e' : 'var(--text-dim)',
                       fontWeight: isSelected ? 700 : 500,
-                      maxWidth: 72,
+                      maxWidth: 80,
                       overflow: 'hidden',
                       textOverflow: 'ellipsis',
                       whiteSpace: 'nowrap',
@@ -423,13 +353,13 @@ export function FriendsStrip({
                 Clear
               </button>
               <span style={{ fontSize: 12, color: 'var(--text-dim)' }}>
-                Opens Open World Plaza together
+                Opens a private duo plaza
                 {online[selected.username]?.isOnline ? ' · they look online' : ''}
               </span>
             </div>
           ) : onPlayWithFriend ? (
             <div style={{ fontSize: 12, color: 'var(--text-dim)' }}>
-              Click a friend’s name, then press Play with them.
+              Click a friend, then Play with them — or open Open World for global / private servers.
             </div>
           ) : null}
         </>

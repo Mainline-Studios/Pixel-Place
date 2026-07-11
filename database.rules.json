@@ -18,6 +18,28 @@
           }
         }
       }
+    },
+    "open_world_chat_everywhere": {
+      ".read": true,
+      "$msgId": {
+        ".write": "!data.exists() && newData.hasChildren(['username', 'text', 'createdAt']) && newData.child('username').isString() && newData.child('text').isString() && newData.child('text').val().length > 0 && newData.child('text').val().length <= 200 && newData.child('createdAt').isNumber()",
+        ".validate": "newData.hasChildren(['username', 'text', 'createdAt'])"
+      }
+    },
+    "open_world_servers": {
+      ".read": true,
+      "global": {
+        "$slot": {
+          ".write": true,
+          ".validate": "!newData.exists() || (newData.hasChildren(['playerCount', 'updatedAt']) && newData.child('playerCount').isNumber() && newData.child('updatedAt').isNumber())"
+        }
+      },
+      "private": {
+        "$code": {
+          ".write": true,
+          ".validate": "!newData.exists() || (newData.hasChildren(['code', 'roomId', 'host', 'createdAt', 'expiresAt']) && newData.child('code').isString() && newData.child('roomId').isString() && newData.child('host').isString() && newData.child('createdAt').isNumber() && newData.child('expiresAt').isNumber())"
+        }
+      }
     }
   }
 }

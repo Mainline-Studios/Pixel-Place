@@ -76,6 +76,12 @@ export async function ensureAdminMutualFriends(usersDb: any): Promise<void> {
 
 function publicUser(id: string, d: Record<string, any> | undefined) {
   if (!d) return null;
+  const prefs =
+    d.account_preferences && typeof d.account_preferences === 'object'
+      ? d.account_preferences
+      : d.accountPreferences && typeof d.accountPreferences === 'object'
+        ? d.accountPreferences
+        : {};
   return {
     username: d.username || id,
     password: '',
@@ -91,6 +97,7 @@ function publicUser(id: string, d: Record<string, any> | undefined) {
     friends: Array.isArray(d.friends) ? d.friends : [],
     emailVerified: d.email_verified === true,
     photoURL: d.photo_url || d.photoURL || '',
+    accountPreferences: prefs,
   };
 }
 

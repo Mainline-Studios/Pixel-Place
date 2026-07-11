@@ -6,15 +6,21 @@ import { applyAvatarPose } from '@/lib/applyAvatarPose';
 import { createAvatarMesh, getUserAvatarData } from '@/lib/avatar3DRenderer';
 import { filterForDisplay } from '@/lib/pyx';
 import {
+  createPrivateInvite,
+  GLOBAL_MAX_PLAYERS,
+  invitePublicUrl,
+  joinBestGlobalRoom,
   leaveOpenWorld,
-  OPEN_WORLD_PUBLIC_ROOM,
   openWorldRoomForFriends,
   publishOpenWorldPlayer,
   sendOpenWorldChat,
+  startPrivateServer,
   subscribeOpenWorldChat,
   subscribeOpenWorldPlayers,
+  type OpenWorldChatChannel,
   type OpenWorldChatMessage,
   type OpenWorldPlayerState,
+  type PrivateInviteRecord,
 } from '@/lib/openWorldRtdb';
 import {
   buildPlazaBuildings,
@@ -28,6 +34,10 @@ interface OpenWorldPlazaProps {
   onClose?: () => void;
   /** When set, join a private duo room with this friend */
   playWithFriend?: string;
+  /** Join this room immediately (invite / deep link) */
+  initialRoomId?: string;
+  /** Private invite code when joining via share link */
+  inviteCode?: string;
 }
 
 const DEFAULT_COLORS = {
@@ -163,16 +173,32 @@ function addLamp(THREE: any, scene: any, x: number, z: number) {
   scene.add(light);
 }
 
-export default function OpenWorldPlaza({ user, onClose, playWithFriend }: OpenWorldPlazaProps) {
+export default function OpenWorldPlaza({
+  user,
+  onClose,
+  playWithFriend,
+  initialRoomId,
+  inviteCode,
+}: OpenWorldPlazaProps) {
   const mountRef = useRef<HTMLDivElement>(null);
+  const [phase, setPhase] = useState<'lobby' | 'playing'>(() =>
+    playWithFriend || initialRoomId ? 'playing' : 'lobby',
+  );
+  const [room, setRoom] = useState(() => {
+    if (initialRoomId) return initialRoomId;
+    if (playWithFriend) return openWorldRoomForFriends(user.username, playWithFriend);
+    return '';
+  });
+  const [privateDraft, setPrivateDraft] = useState<(PrivateInviteRecord & { url: string }) | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [lobbyError, setLobbyError] = useState('');
+  const [copied, setCopied] = useState(false);
   const [onlineCount, setOnlineCount] = useState(1);
   const [chatMessages, setChatMessages] = useState<OpenWorldChatMessage[]>([]);
   const [chatInput, setChatInput] = useState('');
-  const room = playWithFriend
-    ? openWorldRoomForFriends(user.username, playWithFriend)
-    : OPEN_WORLD_PUBLIC_ROOM;
+  const [chatChannel, setChatChannel] = useState<OpenWorldChatChannel>('server');
   const [status, setStatus] = useState(
-    playWithFriend ? `Joining ${playWithFriend}…` : 'Connecting to plaza…',
+    playWithFriend ? `Joining ${playWithFriend}…` : initialRoomId ? 'Joining private server…' : 'Connecting…',
   );
   const [locationLabel, setLocationLabel] = useState('Town Plaza');
   const remotePlayersRef = useRef<OpenWorldPlayerState[]>([]);
@@ -180,7 +206,65 @@ export default function OpenWorldPlaza({ user, onClose, playWithFriend }: OpenWo
   const roomRef = useRef(room);
   roomRef.current = room;
 
+  const enterRoom = (nextRoom: string, label: string) => {
+    setRoom(nextRoom);
+    setStatus(label);
+    setPhase('playing');
+  };
+
+  const handlePlayGlobal = async () => {
+    setBusy(true);
+    setLobbyError('');
+    try {
+      const roomId = await joinBestGlobalRoom();
+      enterRoom(roomId, `Global server · max ${GLOBAL_MAX_PLAYERS}`);
+    } catch (e) {
+      setLobbyError(e instanceof Error ? e.message : 'Could not join global server');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handlePrivatePlay = async () => {
+    setBusy(true);
+    setLobbyError('');
+    try {
+      const invite = await createPrivateInvite(user.username);
+      setPrivateDraft(invite);
+    } catch (e) {
+      setLobbyError(e instanceof Error ? e.message : 'Could not create private server');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleStartPrivate = async () => {
+    if (!privateDraft) return;
+    setBusy(true);
+    setLobbyError('');
+    try {
+      await startPrivateServer(privateDraft.code, user.username);
+      enterRoom(privateDraft.roomId, `Private · ${privateDraft.code}`);
+    } catch (e) {
+      setLobbyError(e instanceof Error ? e.message : 'Could not start private server');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleCopyLink = async () => {
+    if (!privateDraft) return;
+    try {
+      await navigator.clipboard.writeText(privateDraft.url);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 2000);
+    } catch {
+      setLobbyError('Copy failed — select the link and copy manually');
+    }
+  };
+
   useEffect(() => {
+    if (phase !== 'playing' || !room) return;
     const unsub = subscribeOpenWorldPlayers(
       user.username,
       (players) => {
@@ -195,28 +279,39 @@ export default function OpenWorldPlaza({ user, onClose, playWithFriend }: OpenWo
               ? `Playing with ${playWithFriend}`
               : `Waiting for ${playWithFriend} — ask them to Play with you from Games`,
           );
+        } else if (inviteCode || room.startsWith('priv_')) {
+          setStatus(
+            players.length
+              ? `Private server · ${players.length + 1} here`
+              : 'Private server · waiting for friends with the link',
+          );
         } else {
-          setStatus(players.length ? `${players.length + 1} online in Plaza` : 'Plaza online — waiting for friends');
+          setStatus(
+            players.length
+              ? `Global · ${players.length + 1}/${GLOBAL_MAX_PLAYERS} in this server`
+              : `Global server · open (max ${GLOBAL_MAX_PLAYERS})`,
+          );
         }
       },
       room,
     );
     return unsub;
-  }, [user.username, room, playWithFriend]);
+  }, [user.username, room, playWithFriend, phase, inviteCode]);
 
   useEffect(() => {
-    const unsub = subscribeOpenWorldChat(setChatMessages, room);
+    if (phase !== 'playing' || !room) return;
+    const unsub = subscribeOpenWorldChat(setChatMessages, room, chatChannel);
     return unsub;
-  }, [room]);
+  }, [room, phase, chatChannel]);
 
   useEffect(() => {
     return () => {
-      leaveOpenWorld(user.username, roomRef.current);
+      if (roomRef.current) leaveOpenWorld(user.username, roomRef.current);
     };
   }, [user.username]);
 
   useEffect(() => {
-    if (!mountRef.current) return;
+    if (phase !== 'playing' || !room || !mountRef.current) return;
     let disposed = false;
     let raf = 0;
     let cleanup = () => {};
@@ -590,15 +685,183 @@ export default function OpenWorldPlaza({ user, onClose, playWithFriend }: OpenWo
       disposed = true;
       cleanup();
     };
-  }, [user]);
+  }, [user, room, phase]);
 
   const handleSend = async () => {
     const raw = chatInput.trim();
-    if (!raw) return;
+    if (!raw || !room) return;
     setChatInput('');
     const filtered = await filterForDisplay(raw);
-    await sendOpenWorldChat(user.username, filtered, room);
+    await sendOpenWorldChat(user.username, filtered, room, chatChannel);
   };
+
+  if (phase === 'lobby') {
+    return (
+      <div
+        style={{
+          width: '100%',
+          minHeight: 420,
+          borderRadius: 12,
+          padding: 24,
+          background: 'linear-gradient(160deg, #14201a 0%, #0c1418 60%, #1a1020 100%)',
+          color: '#e8f5e9',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 18,
+        }}
+      >
+        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'flex-start' }}>
+          <div>
+            <div style={{ fontSize: 22, fontWeight: 800 }}>Open World Plaza</div>
+            <div style={{ opacity: 0.8, marginTop: 6, maxWidth: 520, lineHeight: 1.45 }}>
+              Join a public town (max {GLOBAL_MAX_PLAYERS} per server) or create a private invite link for friends
+              only.
+            </div>
+          </div>
+          {onClose && (
+            <button
+              type="button"
+              onClick={onClose}
+              style={{
+                padding: '8px 14px',
+                background: '#00a2ff',
+                color: '#fff',
+                border: 'none',
+                borderRadius: 8,
+                fontWeight: 600,
+                cursor: 'pointer',
+              }}
+            >
+              ← Back
+            </button>
+          )}
+        </div>
+
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center' }}>
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => void handlePlayGlobal()}
+            style={{
+              padding: '12px 20px',
+              borderRadius: 10,
+              border: 'none',
+              background: '#22c55e',
+              color: '#052e16',
+              fontWeight: 800,
+              fontSize: 15,
+              cursor: busy ? 'wait' : 'pointer',
+            }}
+          >
+            {busy && !privateDraft ? 'Finding server…' : 'Play'}
+          </button>
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => void handlePrivatePlay()}
+            style={{
+              padding: '12px 20px',
+              borderRadius: 10,
+              border: '1px solid rgba(255,255,255,0.2)',
+              background: 'rgba(255,255,255,0.08)',
+              color: '#e8f5e9',
+              fontWeight: 700,
+              fontSize: 15,
+              cursor: busy ? 'wait' : 'pointer',
+            }}
+          >
+            Private Play
+          </button>
+        </div>
+
+        {lobbyError ? <div style={{ color: '#f87171', fontSize: 13 }}>{lobbyError}</div> : null}
+
+        {privateDraft ? (
+          <div
+            style={{
+              marginTop: 4,
+              padding: 16,
+              borderRadius: 12,
+              background: 'rgba(0,0,0,0.35)',
+              border: '1px solid rgba(255,255,255,0.1)',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 12,
+              maxWidth: 640,
+            }}
+          >
+            <div style={{ fontWeight: 700 }}>Private server ready</div>
+            <div style={{ fontSize: 13, opacity: 0.85 }}>
+              Share this secret link. Only people with it can join. Then press Start Server.
+            </div>
+            <code
+              style={{
+                display: 'block',
+                padding: '10px 12px',
+                borderRadius: 8,
+                background: '#0a0f12',
+                fontSize: 12,
+                wordBreak: 'break-all',
+                color: '#7dd3fc',
+              }}
+            >
+              {privateDraft.url}
+            </code>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+              <button
+                type="button"
+                onClick={() => void handleCopyLink()}
+                style={{
+                  padding: '10px 14px',
+                  borderRadius: 8,
+                  border: 'none',
+                  background: '#38bdf8',
+                  color: '#082f49',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                }}
+              >
+                {copied ? 'Copied!' : 'Copy link'}
+              </button>
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => void handleStartPrivate()}
+                style={{
+                  padding: '10px 14px',
+                  borderRadius: 8,
+                  border: 'none',
+                  background: '#22c55e',
+                  color: '#052e16',
+                  fontWeight: 800,
+                  cursor: busy ? 'wait' : 'pointer',
+                }}
+              >
+                Start Server
+              </button>
+              <button
+                type="button"
+                onClick={() => setPrivateDraft(null)}
+                style={{
+                  padding: '10px 14px',
+                  borderRadius: 8,
+                  border: '1px solid rgba(255,255,255,0.15)',
+                  background: 'transparent',
+                  color: '#cbd5e1',
+                  cursor: 'pointer',
+                }}
+              >
+                Cancel
+              </button>
+            </div>
+            <div style={{ fontSize: 12, opacity: 0.65 }}>
+              Format: pixelplaceofficial.com/open-world/invite/{privateDraft.code}
+            </div>
+          </div>
+        ) : null}
+      </div>
+    );
+  }
 
   return (
     <div
@@ -634,17 +897,26 @@ export default function OpenWorldPlaza({ user, onClose, playWithFriend }: OpenWo
             padding: '8px 12px',
             borderRadius: 8,
             fontSize: 13,
-            maxWidth: 320,
+            maxWidth: 340,
           }}
         >
           <div style={{ fontWeight: 700, marginBottom: 2 }}>
-            {playWithFriend ? `Open World · with ${playWithFriend}` : 'Open World Plaza'}
+            {playWithFriend
+              ? `Open World · with ${playWithFriend}`
+              : room.startsWith('priv_')
+                ? 'Open World · Private'
+                : 'Open World · Global'}
           </div>
           <div style={{ opacity: 0.9 }}>{status}</div>
           <div style={{ marginTop: 4, fontWeight: 600, color: '#bbf7d0' }}>{locationLabel}</div>
           <div style={{ opacity: 0.7, marginTop: 4, fontSize: 12 }}>
             WASD move · walk into open doorways · Space jump · drag look · I/O zoom
           </div>
+          {inviteCode || privateDraft ? (
+            <div style={{ opacity: 0.65, marginTop: 4, fontSize: 11, wordBreak: 'break-all' }}>
+              {invitePublicUrl(inviteCode || privateDraft?.code || '')}
+            </div>
+          ) : null}
         </div>
         {onClose && (
           <button
@@ -683,8 +955,44 @@ export default function OpenWorldPlaza({ user, onClose, playWithFriend }: OpenWo
           maxHeight: 220,
         }}
       >
+        <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+          <button
+            type="button"
+            onClick={() => setChatChannel('everywhere')}
+            style={{
+              flex: 1,
+              padding: '6px 8px',
+              borderRadius: 6,
+              border: 'none',
+              fontSize: 11,
+              fontWeight: 700,
+              cursor: 'pointer',
+              background: chatChannel === 'everywhere' ? '#38bdf8' : 'rgba(255,255,255,0.08)',
+              color: chatChannel === 'everywhere' ? '#082f49' : '#cbd5e1',
+            }}
+          >
+            Everywhere
+          </button>
+          <button
+            type="button"
+            onClick={() => setChatChannel('server')}
+            style={{
+              flex: 1,
+              padding: '6px 8px',
+              borderRadius: 6,
+              border: 'none',
+              fontSize: 11,
+              fontWeight: 700,
+              cursor: 'pointer',
+              background: chatChannel === 'server' ? '#22c55e' : 'rgba(255,255,255,0.08)',
+              color: chatChannel === 'server' ? '#052e16' : '#cbd5e1',
+            }}
+          >
+            Server Only
+          </button>
+        </div>
         <div style={{ fontSize: 12, fontWeight: 700, opacity: 0.85 }}>
-          Live chat · {onlineCount} online
+          {chatChannel === 'everywhere' ? 'Everywhere chat' : `Server chat · ${onlineCount} here`}
         </div>
         <div
           style={{
@@ -700,14 +1008,18 @@ export default function OpenWorldPlaza({ user, onClose, playWithFriend }: OpenWo
         >
           {chatMessages.length === 0 && (
             <div style={{ opacity: 0.55 }}>
-              {playWithFriend
-                ? `Chat with ${playWithFriend} here — private session.`
-                : 'Say hi — friends in the plaza will see it live.'}
+              {chatChannel === 'everywhere'
+                ? 'Talk to everyone in Open World across all servers.'
+                : playWithFriend || room.startsWith('priv_')
+                  ? 'Only people on this private server see this.'
+                  : 'Only people on this global server see this.'}
             </div>
           )}
           {chatMessages.map((m) => (
             <div key={m.id}>
-              <span style={{ color: '#7dd3fc', fontWeight: 600 }}>{m.username}</span>
+              <span style={{ color: chatChannel === 'everywhere' ? '#38bdf8' : '#7dd3fc', fontWeight: 600 }}>
+                {m.username}
+              </span>
               <span style={{ opacity: 0.9 }}>: {m.text}</span>
             </div>
           ))}
@@ -728,7 +1040,7 @@ export default function OpenWorldPlaza({ user, onClose, playWithFriend }: OpenWo
                 handleSend();
               }
             }}
-            placeholder="Type a message…"
+            placeholder={chatChannel === 'everywhere' ? 'Message everyone…' : 'Message this server…'}
             maxLength={200}
             style={{
               flex: 1,
@@ -747,8 +1059,8 @@ export default function OpenWorldPlaza({ user, onClose, playWithFriend }: OpenWo
               padding: '8px 12px',
               borderRadius: 6,
               border: 'none',
-              background: '#22c55e',
-              color: '#052e16',
+              background: chatChannel === 'everywhere' ? '#38bdf8' : '#22c55e',
+              color: chatChannel === 'everywhere' ? '#082f49' : '#052e16',
               fontWeight: 700,
               cursor: 'pointer',
             }}
