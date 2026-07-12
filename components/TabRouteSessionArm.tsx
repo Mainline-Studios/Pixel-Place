@@ -3,7 +3,7 @@
 import { useEffect } from 'react';
 import { armAppSessionForRouteChange } from '@/lib/appSession';
 
-const TAB_PREFIXES = ['/games', '/studio', '/avatarshop', '/coins', '/friends', '/settings', '/report', '/donation'];
+const TAB_PREFIXES = ['/games', '/avatarshop', '/coins', '/friends', '/settings', '/report', '/donation'];
 
 /** Full-page tab links skip splash + loading overlay on the next HTML shell. */
 export default function TabRouteSessionArm() {

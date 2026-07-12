@@ -322,6 +322,12 @@ export default function GamePlayer({ game, onClose }: GamePlayerProps) {
             case 'worldGenerator':
               GameComponent = (await import('@/components/Games/WorldGenerator')).default;
               break;
+            case 'openWorldPlaza':
+              GameComponent = (await import('@/components/Games/OpenWorldPlaza')).default;
+              break;
+            case 'petHabitat':
+              GameComponent = (await import('@/components/Games/PetHabitat')).default;
+              break;
             default:
               setError(`Built-in game "${gameId}" not found`);
               return;

@@ -24,16 +24,6 @@ export const APP_TAB_SEO: Record<string, AppTabSeoEntry> = {
     priority: 0.95,
     changefreq: 'daily',
   },
-  studio: {
-    path: '/studio',
-    title: 'Game Studio — Build & Publish Games',
-    description:
-      'Create worlds, test gameplay, and publish your own browser games with Pixel Place Game Studio — no download required.',
-    heading: 'Game Studio',
-    blurb: 'Build scenes, publish to the community, and share playable links with friends.',
-    priority: 0.9,
-    changefreq: 'weekly',
-  },
   avatarShop: {
     path: '/avatarshop',
     title: 'Avatar Shop — Skins & Accessories',

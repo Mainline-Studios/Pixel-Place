@@ -122,6 +122,15 @@ export const BUILTIN_GAMES: PublishedGame[] = [
     gameCode: 'builtin_openWorldPlaza',
     thumbnail: undefined,
   },
+  {
+    title: 'Pet Habitat',
+    desc: 'Adopt an animal in a habitat, feed and gear them up, and visit friends in public or private worlds.',
+    owner: 'System',
+    ts: Date.now(),
+    playable: true,
+    gameCode: 'builtin_petHabitat',
+    thumbnail: undefined,
+  },
   // Note: InternationalSportsHQ and MusicalMayhem are not React components
   // They can be added later if converted to React components
 ];

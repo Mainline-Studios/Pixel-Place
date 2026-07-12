@@ -61,11 +61,7 @@ type RemoteAvatar = {
   };
   anim: 'idle' | 'walk';
   username: string;
-  labelCanvas: HTMLCanvasElement;
-  labelCtx: CanvasRenderingContext2D;
-  labelTex: any;
-  labelSprite: any;
-  labelKey: string;
+  nameSprite: any;
 };
 
 type RosterEntry = { username: string; role?: string };
@@ -82,94 +78,34 @@ function lerpAngle(a: number, b: number, t: number) {
 }
 
 const BUBBLE_MS = 5500;
+const NAME_CANVAS_W = 512;
+const NAME_CANVAS_H = 96;
 
-function fitLabelSprite(sprite: { scale: { set: (x: number, y: number, z: number) => void } }, canvas: HTMLCanvasElement, worldW: number) {
-  const aspect = canvas.width / Math.max(1, canvas.height);
-  sprite.scale.set(worldW, worldW / aspect, 1);
+function fitNameSprite(sprite: { scale: { set: (x: number, y: number, z: number) => void } }) {
+  const aspect = NAME_CANVAS_W / NAME_CANVAS_H;
+  sprite.scale.set(3.2, 3.2 / aspect, 1);
 }
 
-function paintNameplate(
+function paintNameTag(
   canvas: HTMLCanvasElement,
   ctx: CanvasRenderingContext2D,
-  opts: { username: string; role?: string; chatText?: string; chatAt?: number; now: number },
+  opts: { username: string; role?: string },
 ) {
-  const chatText = (opts.chatText || '').trim().slice(0, 48);
-  const showBubble =
-    Boolean(chatText) && typeof opts.chatAt === 'number' && opts.chatAt > 0 && opts.now - opts.chatAt < BUBBLE_MS;
   const verified = isVerifiedAdmin(opts.role);
-
-  // Chat bubble replaces the name tag while visible
-  if (showBubble) {
-    canvas.width = 512;
-    canvas.height = 128;
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.font = '600 28px system-ui, -apple-system, sans-serif';
-    const padX = 24;
-    const maxW = canvas.width - padX * 2;
-    const lines: string[] = [];
-    let line = '';
-    for (const word of chatText.split(/\s+/)) {
-      const next = line ? `${line} ${word}` : word;
-      if (ctx.measureText(next).width > maxW && line) {
-        lines.push(line);
-        line = word;
-      } else {
-        line = next;
-      }
-    }
-    if (line) lines.push(line);
-    const use = lines.slice(0, 2);
-    const lineH = 32;
-    const bubbleH = 22 + use.length * lineH;
-    const bw = Math.min(maxW, Math.max(...use.map((l) => ctx.measureText(l).width), 40) + padX * 2);
-    const bx = (canvas.width - bw) / 2;
-    const bubbleY = 10;
-    const r = 16;
-    ctx.fillStyle = 'rgba(255,255,255,0.96)';
-    ctx.strokeStyle = 'rgba(15,23,42,0.28)';
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.moveTo(bx + r, bubbleY);
-    ctx.arcTo(bx + bw, bubbleY, bx + bw, bubbleY + bubbleH, r);
-    ctx.arcTo(bx + bw, bubbleY + bubbleH, bx, bubbleY + bubbleH, r);
-    ctx.arcTo(bx, bubbleY + bubbleH, bx, bubbleY, r);
-    ctx.arcTo(bx, bubbleY, bx + bw, bubbleY, r);
-    ctx.closePath();
-    ctx.fill();
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.moveTo(canvas.width / 2 - 9, bubbleY + bubbleH - 1);
-    ctx.lineTo(canvas.width / 2, bubbleY + bubbleH + 14);
-    ctx.lineTo(canvas.width / 2 + 9, bubbleY + bubbleH - 1);
-    ctx.fill();
-    ctx.fillStyle = '#0f172a';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    use.forEach((l, i) => {
-      ctx.fillText(l, canvas.width / 2, bubbleY + 14 + lineH / 2 + i * lineH);
-    });
-    return true;
-  }
-
-  // Name tag only — size canvas to text so it isn't stretched/smooshed in 3D
+  canvas.width = NAME_CANVAS_W;
+  canvas.height = NAME_CANVAS_H;
+  ctx.clearRect(0, 0, NAME_CANVAS_W, NAME_CANVAS_H);
   const name = opts.username.slice(0, 18);
-  ctx.font = '700 36px system-ui, -apple-system, sans-serif';
+  ctx.font = '700 34px system-ui, -apple-system, sans-serif';
   const nameW = ctx.measureText(name).width;
   const checkRoom = verified ? 34 : 0;
-  const padX = 22;
+  const padX = 20;
   const barW = Math.ceil(nameW + checkRoom + padX * 2);
-  const barH = 52;
-  canvas.width = Math.max(160, barW + 16);
-  canvas.height = 64;
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-  ctx.font = '700 36px system-ui, -apple-system, sans-serif';
-  ctx.textAlign = 'left';
-  ctx.textBaseline = 'middle';
-
-  const bx = (canvas.width - barW) / 2;
-  const by = (canvas.height - barH) / 2;
+  const barH = 48;
+  const bx = (NAME_CANVAS_W - barW) / 2;
+  const by = (NAME_CANVAS_H - barH) / 2;
   const rr = 14;
-  ctx.fillStyle = 'rgba(0,0,0,0.55)';
+  ctx.fillStyle = 'rgba(0,0,0,0.7)';
   ctx.beginPath();
   ctx.moveTo(bx + rr, by);
   ctx.arcTo(bx + barW, by, bx + barW, by + barH, rr);
@@ -178,11 +114,12 @@ function paintNameplate(
   ctx.arcTo(bx, by, bx + barW, by, rr);
   ctx.closePath();
   ctx.fill();
-
   let textX = bx + padX;
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'middle';
   if (verified) {
     const cx = textX + 12;
-    const cy = canvas.height / 2;
+    const cy = NAME_CANVAS_H / 2;
     ctx.beginPath();
     ctx.arc(cx, cy, 11, 0, Math.PI * 2);
     ctx.fillStyle = '#3b82f6';
@@ -197,8 +134,7 @@ function paintNameplate(
     textX += checkRoom;
   }
   ctx.fillStyle = '#fff';
-  ctx.fillText(name, textX, canvas.height / 2 + 1);
-  return false;
+  ctx.fillText(name, textX, NAME_CANVAS_H / 2 + 1);
 }
 
 function mulberry32(seed: number) {
@@ -322,6 +258,7 @@ export default function OpenWorldPlaza({
   inviteCode,
 }: OpenWorldPlazaProps) {
   const mountRef = useRef<HTMLDivElement>(null);
+  const speechLayerRef = useRef<HTMLDivElement>(null);
   const [phase, setPhase] = useState<'lobby' | 'playing'>(() =>
     playWithFriend || initialRoomId ? 'playing' : 'lobby',
   );
@@ -348,6 +285,7 @@ export default function OpenWorldPlaza({
   const remotePlayersRef = useRef<OpenWorldPlayerState[]>([]);
   const chatInputFocused = useRef(false);
   const localChatRef = useRef<{ text: string; at: number }>({ text: '', at: 0 });
+  const recentBubblesRef = useRef<Map<string, { text: string; at: number }>>(new Map());
   const forcePublishRef = useRef(false);
   const roomRef = useRef(room);
   roomRef.current = room;
@@ -490,7 +428,17 @@ export default function OpenWorldPlaza({
 
   useEffect(() => {
     if (phase !== 'playing' || !room) return;
-    const unsub = subscribeOpenWorldChat(setChatMessages, room, chatChannel);
+    const unsub = subscribeOpenWorldChat((msgs) => {
+      setChatMessages(msgs);
+      const map = recentBubblesRef.current;
+      for (const m of msgs) {
+        if (!m.username || m.username === 'System' || !m.text) continue;
+        const prev = map.get(m.username.toLowerCase());
+        if (!prev || m.createdAt >= prev.at) {
+          map.set(m.username.toLowerCase(), { text: m.text, at: m.createdAt || Date.now() });
+        }
+      }
+    }, room, chatChannel);
     return unsub;
   }, [room, phase, chatChannel]);
 
@@ -649,44 +597,136 @@ export default function OpenWorldPlaza({
       characterGroup.position.set(4, footLift, 8);
       characterGroup.rotation.y = Math.PI;
 
-      const makeLabel = (username: string, role?: string) => {
-        const canvas = document.createElement('canvas');
-        const ctx = canvas.getContext('2d')!;
-        paintNameplate(canvas, ctx, { username, role, now: Date.now() });
-        const tex = new THREE.CanvasTexture(canvas);
-        tex.minFilter = THREE.LinearFilter;
-        const sprite = new THREE.Sprite(
-          new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false }),
+      const projectVec = new THREE.Vector3();
+      const domBubbles = new Map<
+        string,
+        { root: HTMLDivElement; textEl: HTMLSpanElement; lastText: string }
+      >();
+
+      const makeNameSprite = (username: string, role?: string) => {
+        const nameCanvas = document.createElement('canvas');
+        const nameCtx = nameCanvas.getContext('2d')!;
+        paintNameTag(nameCanvas, nameCtx, { username, role });
+        const nameTex = new THREE.CanvasTexture(nameCanvas);
+        nameTex.minFilter = THREE.LinearFilter;
+        nameTex.magFilter = THREE.LinearFilter;
+        nameTex.needsUpdate = true;
+        const nameSprite = new THREE.Sprite(
+          new THREE.SpriteMaterial({
+            map: nameTex,
+            transparent: true,
+            depthTest: false,
+            depthWrite: false,
+            sizeAttenuation: true,
+          }),
         );
-        fitLabelSprite(sprite, canvas, 2.9);
-        sprite.position.y = 3.35;
-        return { canvas, ctx, tex, sprite, labelKey: `${username}|${role || ''}|` };
+        nameSprite.renderOrder = 30;
+        fitNameSprite(nameSprite);
+        scene.add(nameSprite);
+        return nameSprite;
       };
 
-      const refreshLabel = (
-        holder: { labelCanvas: HTMLCanvasElement; labelCtx: CanvasRenderingContext2D; labelTex: any; labelSprite: any; labelKey: string },
-        opts: { username: string; role?: string; chatText?: string; chatAt?: number; now: number },
+      const ensureDomBubble = (id: string) => {
+        let entry = domBubbles.get(id);
+        if (entry) return entry;
+        const layer = speechLayerRef.current;
+        const root = document.createElement('div');
+        root.setAttribute('data-ow-bubble', id);
+        root.style.cssText = [
+          'position:absolute',
+          'left:0',
+          'top:0',
+          'display:none',
+          'transform:translate(-50%,-100%)',
+          'background:#fffef8',
+          'color:#0f172a',
+          'border:2.5px solid #0f172a',
+          'border-radius:14px',
+          'padding:8px 12px',
+          'font:700 14px system-ui,-apple-system,sans-serif',
+          'max-width:240px',
+          'line-height:1.25',
+          'text-align:center',
+          'pointer-events:none',
+          'white-space:pre-wrap',
+          'word-break:break-word',
+          'box-shadow:0 6px 18px rgba(0,0,0,0.35)',
+          'z-index:6',
+        ].join(';');
+        const textEl = document.createElement('span');
+        root.appendChild(textEl);
+        const tail = document.createElement('div');
+        tail.style.cssText = [
+          'position:absolute',
+          'left:50%',
+          'bottom:-9px',
+          'transform:translateX(-50%)',
+          'width:0',
+          'height:0',
+          'border-left:9px solid transparent',
+          'border-right:9px solid transparent',
+          'border-top:9px solid #fffef8',
+          'filter:drop-shadow(0 2px 0 #0f172a)',
+        ].join(';');
+        root.appendChild(tail);
+        if (layer) layer.appendChild(root);
+        entry = { root, textEl, lastText: '' };
+        domBubbles.set(id, entry);
+        return entry;
+      };
+
+      const syncHeadUi = (
+        id: string,
+        nameSprite: any,
+        opts: { chatText?: string; chatAt?: number; now: number },
+        worldX: number,
+        worldY: number,
+        worldZ: number,
+        viewW: number,
+        viewH: number,
       ) => {
-        const key = `${opts.username}|${opts.role || ''}|${opts.chatText || ''}|${opts.chatAt || 0}|${
-          opts.chatAt && opts.now - opts.chatAt < BUBBLE_MS ? 'b' : 'n'
-        }`;
-        if (key === holder.labelKey) return;
-        holder.labelKey = key;
-        const bubbled = paintNameplate(holder.labelCanvas, holder.labelCtx, opts);
-        holder.labelTex.needsUpdate = true;
-        fitLabelSprite(holder.labelSprite, holder.labelCanvas, bubbled ? 3.6 : 2.9);
-        holder.labelSprite.position.y = bubbled ? 4.0 : 3.35;
+        const text = (opts.chatText || '').trim().slice(0, 80);
+        const at = typeof opts.chatAt === 'number' ? opts.chatAt : 0;
+        const show = Boolean(text) && at > 0 && opts.now - at < BUBBLE_MS;
+        const bubble = ensureDomBubble(id);
+
+        if (!show) {
+          bubble.root.style.display = 'none';
+          nameSprite.visible = true;
+          nameSprite.position.set(worldX, worldY + 1.85, worldZ);
+          return;
+        }
+
+        if (bubble.lastText !== text) {
+          bubble.lastText = text;
+          bubble.textEl.textContent = text;
+        }
+
+        projectVec.set(worldX, worldY + 2.15, worldZ);
+        projectVec.project(camera);
+        if (projectVec.z > 1) {
+          bubble.root.style.display = 'none';
+          nameSprite.visible = false;
+          return;
+        }
+        const sx = (projectVec.x * 0.5 + 0.5) * viewW;
+        const sy = (-projectVec.y * 0.5 + 0.5) * viewH;
+        bubble.root.style.display = 'block';
+        bubble.root.style.transform = `translate(${sx}px, ${sy}px) translate(-50%, -110%)`;
+        nameSprite.visible = false;
       };
 
-      const localLabel = makeLabel(user.username, user.role);
-      characterGroup.add(localLabel.sprite);
-      const localLabelHolder = {
-        labelCanvas: localLabel.canvas,
-        labelCtx: localLabel.ctx,
-        labelTex: localLabel.tex,
-        labelSprite: localLabel.sprite,
-        labelKey: localLabel.labelKey,
+      const disposeName = (nameSprite: any) => {
+        scene.remove(nameSprite);
+        try {
+          nameSprite?.material?.map?.dispose?.();
+          nameSprite?.material?.dispose?.();
+        } catch {
+          /* ignore */
+        }
       };
+
+      const localNameSprite = makeNameSprite(user.username, user.role);
 
       const remoteMap = new Map<string, RemoteAvatar>();
 
@@ -695,8 +735,7 @@ export default function OpenWorldPlaza({
         if (!remote) {
           const built = buildSimpleAvatar(THREE, p.colors);
           scene.add(built.characterGroup);
-          const label = makeLabel(p.username, p.role);
-          built.characterGroup.add(label.sprite);
+          const nameSprite = makeNameSprite(p.username, p.role);
           built.characterGroup.position.set(p.x, typeof p.y === 'number' ? p.y : footLift, p.z);
           built.characterGroup.rotation.y = p.rotY;
           remote = {
@@ -704,11 +743,7 @@ export default function OpenWorldPlaza({
             limbs: built.bodyParts,
             anim: p.anim,
             username: p.username,
-            labelCanvas: label.canvas,
-            labelCtx: label.ctx,
-            labelTex: label.tex,
-            labelSprite: label.sprite,
-            labelKey: label.labelKey,
+            nameSprite,
           };
           remoteMap.set(p.username, remote);
         }
@@ -871,31 +906,21 @@ export default function OpenWorldPlaza({
           const rBob = p.anim === 'walk' ? Math.abs(Math.sin(t * 4)) * 0.08 : 0;
           const targetY = (typeof p.y === 'number' ? p.y : footLift) + rBob;
           remote.group.position.y += (targetY - remote.group.position.y) * follow;
-          refreshLabel(remote, {
-              username: p.username,
-              role: p.role,
-              chatText: p.chatText,
-              chatAt: p.chatAt,
-              now: nowMs,
-            });
         }
         for (const [name, remote] of remoteMap) {
           if (!seen.has(name)) {
             scene.remove(remote.group);
+            disposeName(remote.nameSprite);
+            const bubble = domBubbles.get(name.toLowerCase());
+            if (bubble) {
+              bubble.root.remove();
+              domBubbles.delete(name.toLowerCase());
+            }
             remoteMap.delete(name);
           }
         }
 
-        const localChat = localChatRef.current;
-        refreshLabel(localLabelHolder, {
-          username: user.username,
-          role: user.role,
-          chatText: localChat.text,
-          chatAt: localChat.at,
-          now: nowMs,
-        });
-
-        // Camera follow
+        // Camera follow (before speech projection so bubbles track correctly)
         const px = characterGroup.position.x;
         const pz = characterGroup.position.z;
         const face = characterGroup.rotation.y + camYaw;
@@ -905,6 +930,49 @@ export default function OpenWorldPlaza({
           pz - Math.cos(face) * camZoom,
         );
         camera.lookAt(px, baseY + 1.6, pz);
+
+        const viewW = mountRef.current?.clientWidth || 1;
+        const viewH = mountRef.current?.clientHeight || 1;
+
+        for (const p of remotePlayersRef.current) {
+          const remote = remoteMap.get(p.username);
+          if (!remote) continue;
+          const fromChat = recentBubblesRef.current.get(p.username.toLowerCase());
+          const stateAt = typeof p.chatAt === 'number' ? p.chatAt : 0;
+          const chatAt = Math.max(stateAt, fromChat?.at || 0);
+          const chatText =
+            stateAt >= (fromChat?.at || 0) && p.chatText
+              ? p.chatText
+              : fromChat?.text || p.chatText || '';
+          syncHeadUi(
+            p.username.toLowerCase(),
+            remote.nameSprite,
+            { chatText, chatAt, now: nowMs },
+            remote.group.position.x,
+            remote.group.position.y,
+            remote.group.position.z,
+            viewW,
+            viewH,
+          );
+        }
+
+        const localChat = localChatRef.current;
+        const localFromFeed = recentBubblesRef.current.get(user.username.toLowerCase());
+        const localChatAt = Math.max(localChat.at || 0, localFromFeed?.at || 0);
+        const localChatText =
+          (localChat.at || 0) >= (localFromFeed?.at || 0) && localChat.text
+            ? localChat.text
+            : localFromFeed?.text || localChat.text || '';
+        syncHeadUi(
+          user.username.toLowerCase(),
+          localNameSprite,
+          { chatText: localChatText, chatAt: localChatAt, now: nowMs },
+          characterGroup.position.x,
+          characterGroup.position.y,
+          characterGroup.position.z,
+          viewW,
+          viewH,
+        );
 
         const now = performance.now();
         const moved =
@@ -961,6 +1029,11 @@ export default function OpenWorldPlaza({
         renderer.domElement.removeEventListener('pointermove', onPointerMove);
         renderer.domElement.removeEventListener('pointerup', onPointerUp);
         renderer.domElement.removeEventListener('wheel', onWheel);
+        disposeName(localNameSprite);
+        for (const remote of remoteMap.values()) disposeName(remote.nameSprite);
+        for (const bubble of domBubbles.values()) bubble.root.remove();
+        domBubbles.clear();
+        if (speechLayerRef.current) speechLayerRef.current.innerHTML = '';
         renderer.dispose();
         if (mountRef.current) mountRef.current.innerHTML = '';
         leaveOpenWorld(user.username, roomRef.current);
@@ -996,10 +1069,17 @@ export default function OpenWorldPlaza({
       }
     }
 
-    const filtered = await filterForDisplay(raw);
-    localChatRef.current = { text: filtered, at: Date.now() };
+    const at = Date.now();
+    // Show bubble immediately (before async filter) so it never "misses" the head label
+    localChatRef.current = { text: raw.slice(0, 56), at };
+    recentBubblesRef.current.set(user.username.toLowerCase(), { text: raw.slice(0, 56), at });
     forcePublishRef.current = true;
-    await sendOpenWorldChat(user.username, filtered, room, chatChannel, user.role);
+
+    const filtered = await filterForDisplay(raw);
+    const shown = (filtered || raw).slice(0, 56);
+    localChatRef.current = { text: shown, at };
+    recentBubblesRef.current.set(user.username.toLowerCase(), { text: shown, at });
+    await sendOpenWorldChat(user.username, filtered || raw, room, chatChannel, user.role);
   };
 
   if (phase === 'lobby') {
@@ -1183,6 +1263,17 @@ export default function OpenWorldPlaza({
       }}
     >
       <div ref={mountRef} style={{ width: '100%', height: '100%' }} />
+      <div
+        ref={speechLayerRef}
+        aria-hidden
+        style={{
+          position: 'absolute',
+          inset: 0,
+          pointerEvents: 'none',
+          overflow: 'hidden',
+          zIndex: 4,
+        }}
+      />
 
       <div
         style={{

@@ -537,6 +537,12 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
         }
         return { success: false, message: authData.error || 'Invalid credentials.', ban: authData.ban };
       }
+      if (authRes.status === 503 || authRes.status === 502 || authRes.status === 504) {
+        return {
+          success: false,
+          message: 'Sign-in server is temporarily unavailable. Please try again in a minute.',
+        };
+      }
       return { success: false, message: authData?.error || 'Could not sign in. Try again.' };
     } catch (_e) {
       return { success: false, message: 'Could not reach server. Try again when online.' };

@@ -17,15 +17,15 @@
         {"source": "/historimac/", "destination": "/historimac", "type": 301},
         {"source": "/historimac/:version/", "destination": "/historimac/:version", "type": 301},
         {"source": "/safety", "destination": "/report", "type": 301},
-        {"source": "/safety/**", "destination": "/report", "type": 301}
+        {"source": "/safety/**", "destination": "/report", "type": 301},
+        {"source": "/studio", "destination": "/games", "type": 301},
+        {"source": "/studio/**", "destination": "/games", "type": 301}
       ],
       "rewrites": [
         {"source": "/api/**", "function": "api"},
         {"source": "/", "destination": "/index.html"},
         {"source": "/games", "destination": "/games.html"},
         {"source": "/games/**", "destination": "/games.html"},
-        {"source": "/studio", "destination": "/studio.html"},
-        {"source": "/studio/**", "destination": "/studio.html"},
         {"source": "/avatarshop", "destination": "/avatarshop.html"},
         {"source": "/avatarshop/**", "destination": "/avatarshop.html"},
         {"source": "/coins", "destination": "/coins.html"},
@@ -42,6 +42,8 @@
         {"source": "/historimac", "destination": "/historimac.html"},
         {"source": "/open-world/invite", "destination": "/open-world/invite.html"},
         {"source": "/open-world/invite/**", "destination": "/open-world/invite.html"},
+        {"source": "/pet-habitat/invite", "destination": "/pet-habitat/invite.html"},
+        {"source": "/pet-habitat/invite/**", "destination": "/pet-habitat/invite.html"},
         {"source": "/web-deploy", "destination": "/web-deploy.html"},
         {"source": "/web-deploy/**", "destination": "/web-deploy.html"},
         {"source": "/mainlinelogin", "destination": "/mainlinelogin.html"},

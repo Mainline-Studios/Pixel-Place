@@ -61,6 +61,39 @@
           ".validate": "!newData.exists() || (newData.hasChildren(['code', 'roomId', 'host', 'createdAt', 'expiresAt']) && newData.child('code').isString() && newData.child('roomId').isString() && newData.child('host').isString() && newData.child('createdAt').isNumber() && newData.child('expiresAt').isNumber())"
         }
       }
+    },
+    "pet_habitat": {
+      "$room": {
+        ".read": true,
+        "players": {
+          "$playerId": {
+            ".write": true,
+            ".validate": "!newData.exists() || (newData.hasChildren(['username', 'habitat', 'animalId', 'x', 'y', 'z', 'rotY', 'anim', 'updatedAt']) && newData.child('username').isString() && newData.child('habitat').isString() && newData.child('animalId').isString() && newData.child('x').isNumber() && newData.child('y').isNumber() && newData.child('z').isNumber() && newData.child('rotY').isNumber() && newData.child('anim').isString() && newData.child('updatedAt').isNumber())"
+          }
+        }
+      }
+    },
+    "pet_habitat_saves": {
+      "$userId": {
+        ".read": true,
+        ".write": true,
+        ".validate": "!newData.exists() || (newData.hasChildren(['username', 'habitat', 'animalId', 'hunger', 'health', 'lastCareAt', 'createdAt', 'neglectDeadline', 'updatedAt']) && newData.child('username').isString() && newData.child('habitat').isString() && newData.child('animalId').isString() && newData.child('hunger').isNumber() && newData.child('health').isNumber() && newData.child('lastCareAt').isNumber() && newData.child('createdAt').isNumber() && newData.child('neglectDeadline').isNumber() && newData.child('updatedAt').isNumber())"
+      }
+    },
+    "pet_habitat_servers": {
+      ".read": true,
+      "global": {
+        "$slot": {
+          ".write": true,
+          ".validate": "!newData.exists() || (newData.hasChildren(['playerCount', 'updatedAt']) && newData.child('playerCount').isNumber() && newData.child('updatedAt').isNumber())"
+        }
+      },
+      "private": {
+        "$code": {
+          ".write": true,
+          ".validate": "!newData.exists() || (newData.hasChildren(['code', 'roomId', 'host', 'createdAt', 'expiresAt']) && newData.child('code').isString() && newData.child('roomId').isString() && newData.child('host').isString() && newData.child('createdAt').isNumber() && newData.child('expiresAt').isNumber())"
+        }
+      }
     }
   }
 }

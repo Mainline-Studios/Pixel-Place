@@ -5,7 +5,6 @@ import { useReducedMotionEffective } from '@/contexts/AccessibilityContext';
 
 const TAB_LABELS: Partial<Record<TabType, string>> = {
   games: 'Games',
-  studio: 'Game Studio',
   avatarShop: 'Avatar Shop',
   coins: 'Pixel Coins',
   friends: 'Friends',

@@ -53,7 +53,6 @@ const MODE_LABELS: Record<PixelPlaceMode, { title: string; accent: string }> = {
 
 const TABS: { key: TabType; label: string; shortcut?: string; adminOnly?: boolean }[] = [
   { key: 'games', label: 'Games', shortcut: 'G' },
-  { key: 'studio', label: 'Game Studio', shortcut: 'C' },
   { key: 'avatarShop', label: 'Avatar Shop', shortcut: 'V' },
   { key: 'coins', label: 'Pixel Coins', shortcut: 'P' },
   { key: 'friends', label: 'Friends', shortcut: 'F' },

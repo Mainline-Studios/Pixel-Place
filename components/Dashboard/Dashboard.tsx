@@ -21,7 +21,6 @@ import { useSecretTheme } from '@/contexts/SecretThemeContext';
 import { useStyle } from '@/components/StyleProvider';
 import { HighContrastLandmarks, MaximalistChrome } from '@/components/ThemeLayoutChrome';
 import GamesTab from '../Tabs/GamesTab';
-import CreateTab from '../Tabs/CreateTab';
 import AvatarShopTab from '../Tabs/AvatarShopTab';
 import CoinsTab from '../Tabs/CoinsTab';
 import FriendsTab from '../Tabs/FriendsTab';
@@ -80,7 +79,7 @@ export default function Dashboard({ user, selectedMode }: DashboardProps) {
     const sync = () => {
       const tab = pathToTab(window.location.pathname) as TabType;
       if (
-        ['games', 'avatarShop', 'coins', 'friends', 'settings', 'report', 'studio', 'donation'].includes(
+        ['games', 'avatarShop', 'coins', 'friends', 'settings', 'report', 'donation'].includes(
           tab,
         )
       ) {
@@ -117,7 +116,6 @@ export default function Dashboard({ user, selectedMode }: DashboardProps) {
           'friends',
           'settings',
           'report',
-          'studio',
           'donation',
         ].includes(tab)
       ) {
@@ -128,14 +126,13 @@ export default function Dashboard({ user, selectedMode }: DashboardProps) {
     return () => window.removeEventListener('pixelplace-navigate', onNavigate);
   }, [handleTabChange]);
 
-  // Keyboard shortcuts: G=Games, C=Studio, V=Avatar Shop, P=Coins, F=Friends, O=Settings (avoid WASD/B/A)
+  // Keyboard shortcuts: G=Games, V=Avatar Shop, P=Coins, F=Friends, O=Settings (avoid WASD/B/A)
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (e.ctrlKey || e.metaKey || e.altKey || e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
       const key = e.key.toLowerCase();
       const map: Record<string, TabType> = {
         g: 'games',
-        c: 'studio',
         v: 'avatarShop',
         p: 'coins',
         f: 'friends',
@@ -155,8 +152,6 @@ export default function Dashboard({ user, selectedMode }: DashboardProps) {
     switch (currentTab) {
       case 'games':
         return <GamesTab user={user} editMode={editMode} />;
-      case 'studio':
-        return <CreateTab user={user} editMode={editMode} />;
       case 'avatarShop':
         return <AvatarShopTab user={user} editMode={editMode} selectedMode={selectedMode} />;
       case 'coins':

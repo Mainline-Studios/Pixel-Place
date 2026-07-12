@@ -33,6 +33,7 @@ import { getPayPortalClientState, getPayPortalOrigin, isPayPortalHostname, type 
 import Avatar3DViewer from '@/components/Avatar3DViewer';
 import { getSkins } from '@/lib/storage';
 import { consumePendingOpenWorldInvite, invitePublicUrl } from '@/lib/openWorldRtdb';
+import { consumePendingPetInvite, petInvitePublicUrl } from '@/lib/petHabitatRtdb';
 
 type PublicUserProfile = {
   userId: number;
@@ -306,10 +307,16 @@ function AppContent() {
     if (!user?.username || isRestoring) return;
     const path = typeof window !== 'undefined' ? window.location.pathname || '' : '';
     // Only pull people off the main app login/home back to their invite
-    if (path.startsWith('/open-world/invite')) return;
-    const pending = consumePendingOpenWorldInvite();
-    if (!pending) return;
-    window.location.replace(invitePublicUrl(pending));
+    if (path.startsWith('/open-world/invite') || path.startsWith('/pet-habitat/invite')) return;
+    const pendingOpenWorld = consumePendingOpenWorldInvite();
+    if (pendingOpenWorld) {
+      window.location.replace(invitePublicUrl(pendingOpenWorld));
+      return;
+    }
+    const pendingPet = consumePendingPetInvite();
+    if (pendingPet) {
+      window.location.replace(petInvitePublicUrl(pendingPet));
+    }
   }, [user?.username, isRestoring]);
 
   useEffect(() => {

@@ -341,7 +341,7 @@ scene.add(${asset.id});`;
         <h2 className="section-title">🎮 Game Studio</h2>
         <button
           className="btn"
-          onClick={() => navigateToTab('studio')}
+          onClick={() => navigateToTab('games')}
           style={{ padding: '10px 20px', fontSize: '14px' }}
         >
           🎨 Classic Studio

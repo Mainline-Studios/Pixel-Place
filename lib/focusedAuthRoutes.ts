@@ -4,6 +4,11 @@ export function isOpenWorldInvitePathname(pathname: string): boolean {
   return p === '/open-world/invite' || p.startsWith('/open-world/invite/');
 }
 
+export function isPetHabitatInvitePathname(pathname: string): boolean {
+  const p = (pathname || '').replace(/\/$/, '') || '/';
+  return p === '/pet-habitat/invite' || p.startsWith('/pet-habitat/invite/');
+}
+
 export function isFocusedAuthPathname(pathname: string): boolean {
   const p = (pathname || '').replace(/\/$/, '') || '/';
   return (
@@ -11,7 +16,8 @@ export function isFocusedAuthPathname(pathname: string): boolean {
     p.startsWith('/verify/') ||
     p === '/signoutall' ||
     p.startsWith('/signoutall/') ||
-    isOpenWorldInvitePathname(p)
+    isOpenWorldInvitePathname(p) ||
+    isPetHabitatInvitePathname(p)
   );
 }
 

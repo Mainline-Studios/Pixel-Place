@@ -18,7 +18,6 @@ const today = new Date().toISOString().slice(0, 10);
 /** @type {Array<{ path: string; priority: string; changefreq: string; imageTitle: string }>} */
 const APP_TABS = [
   { path: '/games', priority: '0.95', changefreq: 'daily', imageTitle: 'Pixel Place Games' },
-  { path: '/studio', priority: '0.90', changefreq: 'weekly', imageTitle: 'Pixel Place Game Studio' },
   { path: '/avatarshop', priority: '0.88', changefreq: 'weekly', imageTitle: 'Pixel Place Avatar Shop' },
   { path: '/coins', priority: '0.85', changefreq: 'weekly', imageTitle: 'Pixel Coins' },
   { path: '/friends', priority: '0.84', changefreq: 'weekly', imageTitle: 'Pixel Place Friends' },

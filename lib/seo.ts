@@ -49,7 +49,6 @@ export const SEO_APP_TAB_PATHS = [
   '/coins',
   '/friends',
   '/settings',
-  '/studio',
   '/donation',
   '/report',
 ] as const;

@@ -27,6 +27,7 @@ import AnimationTest from '../Games/AnimationTest';
 import WorldGenerator from '../Games/WorldGenerator';
 import ObstacleCourse from '../Games/ObstacleCourse';
 import OpenWorldPlaza from '../Games/OpenWorldPlaza';
+import PetHabitat from '../Games/PetHabitat';
 import { useMobileBeta } from '@/contexts/MobileBetaContext';
 import SquishBubbles from '../Games/SquishBubbles';
 import SquishSlime from '../Games/SquishSlime';
@@ -87,6 +88,16 @@ const games: GameInfo[] = [
     category: 'Multiplayer',
     is3D: true,
     component: OpenWorldPlaza,
+  },
+  {
+    id: 'petHabitat',
+    name: 'Pet Habitat',
+    description:
+      'Pick a habitat and animal, feed them at the food shop, gear up, and visit friends in public or private worlds.',
+    icon: '🐾',
+    category: 'Multiplayer',
+    is3D: true,
+    component: PetHabitat,
   },
   {
     id: 'historiMac',
@@ -369,7 +380,7 @@ export default function GamesTab({ user, editMode }: GamesTabProps) {
     };
     
     // Components that support onClose prop
-    const supportsOnClose = ['gymPump', 'hypnosia', 'voidArcade', 'ecoHero', 'historiMac', 'animationTest', 'worldGenerator', 'obstacleCourse', 'openWorldPlaza', 'squishBubbles', 'squishSlime', 'coasterControl'].includes(selectedGame);
+    const supportsOnClose = ['gymPump', 'hypnosia', 'voidArcade', 'ecoHero', 'historiMac', 'animationTest', 'worldGenerator', 'obstacleCourse', 'openWorldPlaza', 'petHabitat', 'squishBubbles', 'squishSlime', 'coasterControl'].includes(selectedGame);
     
     // Prepare props based on game type - pass user to games that need it
     const baseProps = selectedGame === 'gymPump'
@@ -393,6 +404,12 @@ export default function GamesTab({ user, editMode }: GamesTabProps) {
       : selectedGame === 'obstacleCourse'
       ? { user, onClose: handleClose }
       : selectedGame === 'openWorldPlaza'
+      ? {
+          user,
+          onClose: handleClose,
+          playWithFriend: playWithFriend || undefined,
+        }
+      : selectedGame === 'petHabitat'
       ? {
           user,
           onClose: handleClose,

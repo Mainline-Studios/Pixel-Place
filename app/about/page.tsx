@@ -113,7 +113,6 @@ export default function AboutPage() {
         <h2 id="discover-heading">Explore the app</h2>
         <ul>
           <li><Link href="/games">Games</Link></li>
-          <li><Link href="/studio">Game Studio</Link></li>
           <li><Link href="/avatarshop">Avatar Shop</Link></li>
           <li><Link href="/coins">Pixel Coins</Link></li>
           <li><Link href="/friends">Friends</Link></li>
