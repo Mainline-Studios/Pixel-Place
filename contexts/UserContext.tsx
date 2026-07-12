@@ -540,7 +540,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       if (authRes.status === 503 || authRes.status === 502 || authRes.status === 504) {
         return {
           success: false,
-          message: 'Sign-in server is temporarily unavailable. Please try again in a minute.',
+          message: 'We are experiencing issues with login. We will try to fix it promptly.',
         };
       }
       return { success: false, message: authData?.error || 'Could not sign in. Try again.' };

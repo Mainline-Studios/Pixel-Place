@@ -30,6 +30,8 @@ export default function Login() {
   const [mode, setMode] = useState<'signin' | 'signup'>('signin');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [loginLocked, setLoginLocked] = useState(false);
+  const LOGIN_LOCK_MSG = 'We are experiencing issues with login. We will try to fix it promptly.';
   const [gender, setGender] = useState<string>('');
   const [birthMonth, setBirthMonth] = useState('');
   const [birthDay, setBirthDay] = useState('');
@@ -52,7 +54,16 @@ export default function Login() {
   const monthNames = text.monthNames;
   const signupPasswordStrength = mode === 'signup' ? getPasswordStrength(password) : null;
 
+  const lockLogin = () => {
+    setLoginLocked(true);
+    setMessage(LOGIN_LOCK_MSG);
+  };
+
   const handleSignIn = async () => {
+    if (loginLocked) {
+      setMessage(LOGIN_LOCK_MSG);
+      return;
+    }
     if (!username || !password) {
       setMessage(text.enterUserPass);
       return;
@@ -137,6 +148,10 @@ export default function Login() {
   };
 
   const handleSignUp = async () => {
+    if (loginLocked) {
+      setMessage(LOGIN_LOCK_MSG);
+      return;
+    }
     if (!username || !password) {
       setMessage(text.userPassRequired);
       return;
@@ -283,6 +298,9 @@ export default function Login() {
                 id="user"
                 placeholder={text.usernameEmailPhone}
                 value={username}
+                readOnly={loginLocked}
+                onFocus={lockLogin}
+                onClick={lockLogin}
                 onChange={handleUsernameChange}
                 onKeyPress={(e) => e.key === 'Enter' && handleSignIn()}
               />
@@ -291,6 +309,7 @@ export default function Login() {
                 type="password"
                 placeholder={text.password}
                 value={password}
+                readOnly={loginLocked}
                 onChange={handlePasswordChange}
                 onKeyPress={(e) => e.key === 'Enter' && handleSignIn()}
               />
@@ -379,6 +398,9 @@ export default function Login() {
                 id="user"
                 placeholder={text.username}
                 value={username}
+                readOnly={loginLocked}
+                onFocus={lockLogin}
+                onClick={lockLogin}
                 onChange={handleUsernameChange}
               />
               <div className="input-hint">{text.notYourName}</div>
