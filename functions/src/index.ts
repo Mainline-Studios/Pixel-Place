@@ -1372,7 +1372,14 @@ app.post('/users', async (req, res) => {
       : (existingData?.password_hash ?? '');
     const callerIsAdmin = isAdmin(auth);
     const safeRole = callerIsAdmin ? (u.role || existingData?.role || 'user') : (existingData?.role || 'user');
-    const safeCoins = callerIsAdmin ? (u.coins ?? existingData?.coins ?? 10) : (existingData?.coins ?? u.coins ?? 10);
+    const safeCoins = callerIsAdmin ? (u.coins ?? existingData?.coins ?? 10) : (existingData?.coins ?? 10);
+    const safeOwnedSkins = callerIsAdmin ? (u.ownedSkins || existingData?.owned_skins || [DEFAULT_SKIN_ID]) : (existingData?.owned_skins || [DEFAULT_SKIN_ID]);
+    const safeOwnedFaces = callerIsAdmin ? (u.ownedFaces || existingData?.owned_faces || []) : (existingData?.owned_faces || []);
+    const safeOwnedAccessories = callerIsAdmin ? (u.ownedAccessories || existingData?.owned_accessories || []) : (existingData?.owned_accessories || []);
+    const safeOwnedServers = callerIsAdmin ? (u.ownedServers || existingData?.owned_servers || []) : (existingData?.owned_servers || []);
+    const safeFriends = callerIsAdmin ? (u.friends || existingData?.friends || []) : (existingData?.friends || []);
+    const safeFriendRequests = callerIsAdmin ? (u.friendRequests || existingData?.friend_requests || []) : (existingData?.friend_requests || []);
+    const safeSentFriendRequests = callerIsAdmin ? (u.sentFriendRequests || existingData?.sent_friend_requests || []) : (existingData?.sent_friend_requests || []);
     const data = {
       user_id:
         typeof u.userId === 'number'
@@ -1384,16 +1391,16 @@ app.post('/users', async (req, res) => {
       gender: u.gender || '',
       role: safeRole,
       coins: safeCoins,
-      owned_skins: u.ownedSkins || [DEFAULT_SKIN_ID],
+      owned_skins: safeOwnedSkins,
       equipped_skin: u.equippedSkin || DEFAULT_SKIN_ID,
-      owned_faces: u.ownedFaces || [],
+      owned_faces: safeOwnedFaces,
       equipped_face: u.equippedFace || '',
-      owned_accessories: u.ownedAccessories || [],
+      owned_accessories: safeOwnedAccessories,
       equipped_accessories: u.equippedAccessories || {},
-      owned_servers: u.ownedServers || [],
-      friends: u.friends || [],
-      friend_requests: u.friendRequests || [],
-      sent_friend_requests: u.sentFriendRequests || [],
+      owned_servers: safeOwnedServers,
+      friends: safeFriends,
+      friend_requests: safeFriendRequests,
+      sent_friend_requests: safeSentFriendRequests,
       favorite_game_ids: u.favoriteGameIds || [],
       is_donor: (safeRole === 'admin' || safeRole === 'head_admin') ? 1 : 0,
       ppaf_last_restore_issued_at:
@@ -1454,7 +1461,13 @@ app.put('/users', async (req, res) => {
       : (existingData.password_hash ?? '');
     const callerIsAdmin = isAdmin(auth);
     const safeRole = callerIsAdmin ? (u.role || existingData.role || 'user') : (existingData.role || 'user');
-    const safeCoins = callerIsAdmin ? (u.coins ?? existingData.coins ?? 10) : (existingData.coins ?? u.coins ?? 10);
+    const safeCoins = callerIsAdmin ? (u.coins ?? existingData.coins ?? 10) : (existingData.coins ?? 10);
+    const safeOwnedSkins = callerIsAdmin ? (u.ownedSkins || existingData.owned_skins || []) : (existingData.owned_skins || []);
+    const safeOwnedFaces = callerIsAdmin ? (u.ownedFaces || existingData.owned_faces || []) : (existingData.owned_faces || []);
+    const safeOwnedAccessories = callerIsAdmin ? (u.ownedAccessories || existingData.owned_accessories || []) : (existingData.owned_accessories || []);
+    const safeFriends = callerIsAdmin ? (u.friends || existingData.friends || []) : (existingData.friends || []);
+    const safeFriendRequests = callerIsAdmin ? (u.friendRequests || existingData.friend_requests || []) : (existingData.friend_requests || []);
+    const safeSentFriendRequests = callerIsAdmin ? (u.sentFriendRequests || existingData.sent_friend_requests || []) : (existingData.sent_friend_requests || []);
     await ref.set({
       user_id:
         typeof u.userId === 'number'
@@ -1466,15 +1479,15 @@ app.put('/users', async (req, res) => {
       gender: u.gender,
       role: safeRole,
       coins: safeCoins,
-      owned_skins: u.ownedSkins || [],
+      owned_skins: safeOwnedSkins,
       equipped_skin: u.equippedSkin || '',
-      owned_faces: u.ownedFaces || [],
+      owned_faces: safeOwnedFaces,
       equipped_face: u.equippedFace || '',
-      owned_accessories: u.ownedAccessories || [],
+      owned_accessories: safeOwnedAccessories,
       equipped_accessories: u.equippedAccessories || {},
-      friends: u.friends || [],
-      friend_requests: u.friendRequests || [],
-      sent_friend_requests: u.sentFriendRequests || [],
+      friends: safeFriends,
+      friend_requests: safeFriendRequests,
+      sent_friend_requests: safeSentFriendRequests,
       favorite_game_ids: u.favoriteGameIds || [],
       is_donor: (safeRole === 'admin' || safeRole === 'head_admin') ? 1 : 0,
       ppaf_last_restore_issued_at:
