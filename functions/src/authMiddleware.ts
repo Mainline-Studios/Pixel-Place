@@ -39,7 +39,8 @@ export function getAuthFromRequest(req: Request): AuthUser | null {
   const token = extractAuthTokenFromRequest(req);
   if (!token) return null;
   try {
-    const decoded = jwt.verify(token, getJwtSecret()) as { username?: string; role?: string };
+    const decoded = jwt.verify(token, getJwtSecret()) as { username?: string; role?: string; purpose?: string };
+    if (decoded?.purpose) return null;
     const username = decoded?.username;
     if (!username || typeof username !== 'string') return null;
     return { username: String(username), role: decoded?.role || 'user' };

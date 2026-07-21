@@ -1589,11 +1589,17 @@ app.post('/auth/google', async (req, res) => {
       .limit(1)
       .get();
     if (docSnap.empty && email) {
-      docSnap = await firestoreDb
+      const emailSnap = await firestoreDb
         .collection(COLLECTIONS.USERS)
         .where('email', '==', email)
         .limit(1)
         .get();
+      if (!emailSnap.empty) {
+        const existing = emailSnap.docs[0].data() || {};
+        if (existing.email_verified === true) {
+          docSnap = emailSnap;
+        }
+      }
     }
 
     let userDocId: string;
@@ -2006,10 +2012,19 @@ app.post('/auth/login/verify-code', async (req, res) => {
     if (String(d.login_code_nonce || '') !== String(decoded.nonce)) {
       return res.status(400).json({ error: 'Invalid login code' });
     }
+    const MAX_LOGIN_CODE_ATTEMPTS = 5;
+    const attempts = Number(d.login_code_attempts || 0);
+    if (attempts >= MAX_LOGIN_CODE_ATTEMPTS) {
+      await ref.set(
+        { login_code_hash: null, login_code_nonce: null, login_code_expires_at: null, login_code_attempts: 0, updated_at: now },
+        { merge: true },
+      );
+      return res.status(429).json({ error: 'Too many attempts. Sign in again to get a new code.' });
+    }
     const incomingHash = hashVerificationCode(code);
     if (incomingHash !== String(d.login_code_hash || '')) {
       await ref.set(
-        { login_code_attempts: Number(d.login_code_attempts || 0) + 1, updated_at: now },
+        { login_code_attempts: attempts + 1, updated_at: now },
         { merge: true },
       );
       return res.status(400).json({ error: 'Invalid login code' });
@@ -2024,6 +2039,15 @@ app.post('/auth/login/verify-code', async (req, res) => {
       },
       { merge: true },
     );
+    const accountBanSnap = await db.collection(COLLECTIONS.BANS).doc(id).get();
+    if (accountBanSnap.exists) {
+      const ban = banPayloadFromAccountBanDoc(accountBanSnap.data() as Record<string, unknown>, id);
+      return res.status(401).json({
+        error: ban.banKind === TERMINATED_BAN_KIND ? 'Access permanently revoked.' : 'Account banned',
+        banned: true,
+        ban,
+      });
+    }
     const founder = await applyFounderRewardsAndConsumeCelebration(id, d);
     const user = {
       ...userFromDoc(doc),
@@ -2222,10 +2246,19 @@ app.post('/auth/email/verify', async (req, res) => {
       return res.status(400).json({ error: 'Provide verification code or magic link token' });
     }
 
+    const MAX_EMAIL_VERIFY_ATTEMPTS = 5;
+    const emailVerifyAttempts = Number(d.email_verification_attempts || 0);
+    if (emailVerifyAttempts >= MAX_EMAIL_VERIFY_ATTEMPTS) {
+      await ref.set(
+        { email_verification_code_hash: null, email_verification_nonce: null, email_verification_expires_at: null, email_verification_attempts: 0, updated_at: now },
+        { merge: true },
+      );
+      return res.status(429).json({ error: 'Too many attempts. Request a new verification code.' });
+    }
     if (!ok) {
       await ref.set(
         {
-          email_verification_attempts: Number(d.email_verification_attempts || 0) + 1,
+          email_verification_attempts: emailVerifyAttempts + 1,
           updated_at: now,
         },
         { merge: true },
