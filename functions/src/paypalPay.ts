@@ -153,6 +153,50 @@ export function mountPaypalPayRoutes(
     }
   });
 
+  /**
+   * Credit coins for an already-captured PayPal order. Shared by the normal
+   * capture flow and the retry-after-failure path. Idempotent via the
+   * processed-credits doc keyed on captureId.
+   */
+  async function creditCoinsForOrder(
+    orderRef: admin.firestore.DocumentReference,
+    userId: string,
+    coins: number,
+    cents: number,
+    captureId: string,
+    orderID: string,
+  ): Promise<number> {
+    const userRef = db.collection(usersCollection).doc(userId);
+    const processedRef = db.collection(processedCollection).doc(captureId);
+
+    let newBalance = 0;
+    await db.runTransaction(async (tx) => {
+      const done = await tx.get(processedRef);
+      const us = await tx.get(userRef);
+      if (!us.exists) {
+        throw new Error('User not found');
+      }
+      const cur = typeof us.data()?.coins === 'number' ? us.data()!.coins : 0;
+      if (done.exists) {
+        newBalance = cur;
+        return;
+      }
+      newBalance = cur + coins;
+      tx.update(userRef, { coins: newBalance, paid: true, updated_at: Date.now() });
+      tx.set(processedRef, {
+        captureId,
+        orderId: orderID,
+        userId,
+        coins,
+        cents,
+        creditedAt: Date.now(),
+      });
+    });
+
+    await orderRef.set({ status: 'completed', captureId, updated_at: Date.now() }, { merge: true });
+    return newBalance;
+  }
+
   // capturePayment — verify the approved order on the server, then credit coins + set paid.
   app.post('/pixel-pay/paypal/capture', async (req: Request, res: Response) => {
     try {
@@ -178,11 +222,22 @@ export function mountPaypalPayRoutes(
         coins: number;
         cents: number;
         status: string;
+        captureId?: string;
       };
 
-      // The order must belong to the authenticated buyer.
       if (orderData.userId !== auth.username.toLowerCase()) {
         return res.status(403).json({ error: 'This order belongs to another account.' });
+      }
+
+      // If the order was already captured (or completed), skip the PayPal
+      // capture call and go straight to idempotent coin credit. This handles
+      // the case where a previous capture succeeded but the DB credit failed.
+      if ((orderData.status === 'captured' || orderData.status === 'completed') && orderData.captureId) {
+        const newBalance = await creditCoinsForOrder(
+          orderRef, orderData.userId, orderData.coins, orderData.cents, orderData.captureId, orderID,
+        );
+        console.log(`[paypal] Credited ${orderData.coins} coins to ${orderData.userId} (order ${orderID}, retry)`);
+        return res.json({ success: true, coins: orderData.coins, newBalance, paid: true });
       }
 
       const accessToken = await getPaypalAccessToken();
@@ -218,46 +273,21 @@ export function mountPaypalPayRoutes(
       const paidValue = captureObj?.amount?.value || '';
       const expected = dollarsFromCents(orderData.cents);
 
-      // Re-verify the amount actually captured matches the price we set at create time.
       if (paidValue !== expected) {
         console.error('[paypal] amount mismatch', { paidValue, expected, orderID });
         return res.status(400).json({ error: 'Payment amount did not match the order.' });
       }
 
-      const coins = orderData.coins;
-      const userId = orderData.userId;
-      const userRef = db.collection(usersCollection).doc(userId);
-      const processedRef = db.collection(processedCollection).doc(captureId);
+      // Persist capture details immediately so retries can recover
+      // without re-calling PayPal's capture API.
+      await orderRef.set({ status: 'captured', captureId, updated_at: Date.now() }, { merge: true });
 
-      let newBalance = 0;
-      await db.runTransaction(async (tx) => {
-        const done = await tx.get(processedRef);
-        const us = await tx.get(userRef);
-        if (!us.exists) {
-          throw new Error('User not found');
-        }
-        const cur = typeof us.data()?.coins === 'number' ? us.data()!.coins : 0;
-        if (done.exists) {
-          // Already credited — idempotent no-op.
-          newBalance = cur;
-          return;
-        }
-        newBalance = cur + coins;
-        tx.update(userRef, { coins: newBalance, paid: true, updated_at: Date.now() });
-        tx.set(processedRef, {
-          captureId,
-          orderId: orderID,
-          userId,
-          coins,
-          cents: orderData.cents,
-          creditedAt: Date.now(),
-        });
-      });
+      const newBalance = await creditCoinsForOrder(
+        orderRef, orderData.userId, orderData.coins, orderData.cents, captureId, orderID,
+      );
 
-      await orderRef.set({ status: 'completed', captureId, updated_at: Date.now() }, { merge: true });
-
-      console.log(`[paypal] Credited ${coins} coins to ${userId} (order ${orderID})`);
-      return res.json({ success: true, coins, newBalance, paid: true });
+      console.log(`[paypal] Credited ${orderData.coins} coins to ${orderData.userId} (order ${orderID})`);
+      return res.json({ success: true, coins: orderData.coins, newBalance, paid: true });
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : 'Failed to capture payment';
       console.error('[paypal] capture', e);
