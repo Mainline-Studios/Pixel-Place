@@ -7,7 +7,7 @@ import Stripe from 'stripe';
 import * as admin from 'firebase-admin';
 import { requireAuth, isAdmin } from './authMiddleware';
 
-const HOLIDAY_MONTHS = [2, 3, 7, 10, 12];
+const HOLIDAY_MONTHS = [2, 3, 4, 7, 8, 10, 12];
 
 function pixelPayCentsStandard(coins: number): number | null {
   if (!Number.isInteger(coins) || coins < 100 || coins > 10000) return null;
@@ -80,21 +80,23 @@ async function creditCoinsForPaymentIntent(
   const userId = pi.metadata?.userId;
   const coins = parseInt(pi.metadata?.coins || '0', 10);
   if (!userId || !coins || !Number.isFinite(coins)) {
-    console.error('[stripe] PI missing metadata', pi.id);
-    return;
+    throw new Error(`PI ${pi.id} has missing or invalid metadata (userId=${userId}, coins=${pi.metadata?.coins})`);
   }
 
   const processedRef = db.collection(processedCollection).doc(pi.id);
   const userRef = db.collection(usersCollection).doc(String(userId).toLowerCase());
 
+  let credited = false;
   await db.runTransaction(async (tx) => {
     const done = await tx.get(processedRef);
-    if (done.exists) return;
+    if (done.exists) {
+      credited = true;
+      return;
+    }
 
     const us = await tx.get(userRef);
     if (!us.exists) {
-      console.error('[stripe] User not found for PI', userId);
-      return;
+      throw new Error(`User ${userId} not found when crediting PI ${pi.id}`);
     }
     const cur = typeof us.data()?.coins === 'number' ? us.data()!.coins : 0;
     tx.update(userRef, { coins: cur + coins, updated_at: Date.now() });
@@ -104,8 +106,12 @@ async function creditCoinsForPaymentIntent(
       coins,
       creditedAt: Date.now(),
     });
+    credited = true;
   });
-  console.log(`[stripe] Credited ${coins} coins to ${userId} (PI ${pi.id})`);
+
+  if (credited) {
+    console.log(`[stripe] Credited ${coins} coins to ${userId} (PI ${pi.id})`);
+  }
 }
 
 /** Raw body webhook — register before express.json(). */
@@ -160,6 +166,7 @@ export function mountStripeEmbeddedWebhook(
         await creditCoinsForPaymentIntent(db, usersCollection, processedCollection, event.data.object as Stripe.PaymentIntent);
       } catch (e) {
         console.error('[stripe] webhook credit error', e);
+        return res.status(500).json({ error: 'Failed to credit coins' });
       }
     }
 
