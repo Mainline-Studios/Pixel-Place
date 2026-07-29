@@ -1,0 +1,5 @@
+scripts:
+  # This repo builds as a static export (next.config.js: output='export'),
+  # so App Hosting must not run `next start`.
+  buildCommand: npm run build
+  runCommand: node scripts/serve-static-out.mjs
