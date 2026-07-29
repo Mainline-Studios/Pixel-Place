@@ -159,13 +159,19 @@ export async function verifyPpafFile(
 
   const pem = getClientPpafPublicKeyPem();
 
-  if (pem && (await verifyEd25519Local(doc, pem))) {
-    return {
-      ok: true,
-      payload: validated.payload,
-      issuedAtMs: validated.issuedAtMs,
-      issuedAt: validated.issuedAt,
-    };
+  if (pem) {
+    try {
+      if (await verifyEd25519Local(doc, pem)) {
+        return {
+          ok: true,
+          payload: validated.payload,
+          issuedAtMs: validated.issuedAtMs,
+          issuedAt: validated.issuedAt,
+        };
+      }
+    } catch {
+      // Ed25519 may not be supported in this browser; fall through to server verification.
+    }
   }
 
   try {
