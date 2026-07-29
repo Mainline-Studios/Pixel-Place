@@ -1,0 +1,10 @@
+scripts:
+  # This project intentionally builds a static export (out/).
+  buildCommand: npm run build
+  runCommand: node apphosting-server.js
+
+outputFiles:
+  serverApp:
+    include:
+      - apphosting-server.js
+      - out
