@@ -16,6 +16,9 @@
         "deploy:status": "firebase deploy --only hosting:status",
         "historimac:run-png": "node scripts/historimac-transparent-run-png.mjs"
     },
+    "engines": {
+        "node": ">=20"
+    },
     "dependencies": {
         "@genkit-ai/googleai": "^1.28.0",
         "@google/generative-ai": "^0.24.1",
