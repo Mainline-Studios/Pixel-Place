@@ -2857,7 +2857,9 @@ const deleteBansHandler = async (req: any, res: any) => {
 };
 app.delete('/bans', deleteBansHandler);
 app.delete('/api/bans', deleteBansHandler);
-const getReportsHandler = async (_req: any, res: any) => {
+const getReportsHandler = async (req: any, res: any) => {
+  const auth = requireAdmin(req, res);
+  if (!auth) return;
   try {
     const snap = await db.collection(COLLECTIONS.REPORTS).get();
     const rows = snap.docs.map((d: any) => {
@@ -2924,6 +2926,53 @@ const postReportsHandler = async (req: any, res: any) => {
 };
 app.post('/reports', postReportsHandler);
 app.post('/api/reports', postReportsHandler);
+
+const putReportsHandler = async (req: any, res: any) => {
+  const auth = requireAdmin(req, res);
+  if (!auth) return;
+  const body = req.body || {};
+  const id = typeof body.id === 'string' ? body.id.trim() : '';
+  const status = typeof body.status === 'string' ? body.status.trim() : '';
+  const adminNotes = body.adminNotes;
+  if (!id) return res.status(400).json({ error: 'id required' });
+  const VALID_STATUSES = ['pending', 'resolved', 'dismissed'];
+  if (!VALID_STATUSES.includes(status)) {
+    return res.status(400).json({ error: `status must be one of: ${VALID_STATUSES.join(', ')}` });
+  }
+  try {
+    const ref = db.collection(COLLECTIONS.REPORTS).doc(id);
+    const doc = await ref.get();
+    if (!doc.exists) return res.status(404).json({ error: 'Report not found' });
+    const updateData: Record<string, any> = {
+      status,
+      reviewed_by: auth.username,
+      reviewed_at: Date.now(),
+    };
+    if (adminNotes !== undefined) {
+      updateData.admin_notes = adminNotes;
+    }
+    await ref.update(updateData);
+    const updated = await ref.get();
+    const d = updated.data() || {};
+    res.json({
+      id: updated.id,
+      reportedUsername: d.reported_username,
+      reporterUsername: d.reported_by,
+      reason: d.reason,
+      description: d.description || '',
+      timestamp: d.created_at ?? Date.now(),
+      status: d.status || 'pending',
+      reviewedBy: d.reviewed_by,
+      adminNotes: d.admin_notes,
+    });
+  } catch (e) {
+    console.error('PUT /reports failed:', e);
+    res.status(500).json({ error: 'Failed to update report' });
+  }
+};
+app.put('/reports', putReportsHandler);
+app.put('/api/reports', putReportsHandler);
+
 app.get('/appeals', async (_req, res) => {
   try {
     const snap = await db.collection(COLLECTIONS.APPEALS).orderBy('created_at', 'desc').get();
