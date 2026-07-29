@@ -791,7 +791,7 @@ async function applyFounderRewardsAndConsumeCelebration(
   currentData: any
 ): Promise<{ data: any; showCelebration: boolean }> {
   let data = { ...(currentData || {}) };
-  let changed = false;
+  const patch: Record<string, any> = {};
 
   const rank = await getFounderRank(usernameLower);
   const qualifies = typeof rank === 'number' && rank >= 1 && rank <= FOUNDER_LIMIT;
@@ -800,20 +800,20 @@ async function applyFounderRewardsAndConsumeCelebration(
   if (qualifies) {
     if (data.founder_lifetime_coins !== true) {
       data.founder_lifetime_coins = true;
-      changed = true;
+      patch.founder_lifetime_coins = true;
     }
     if (data.founder_ordinal !== rank) {
       data.founder_ordinal = rank;
-      changed = true;
+      patch.founder_ordinal = rank;
     }
     const coinsNow = Number(data.coins || 0);
     if (!Number.isFinite(coinsNow) || coinsNow < FOUNDER_COIN_FLOOR) {
       data.coins = FOUNDER_COIN_FLOOR;
-      changed = true;
+      patch.coins = FOUNDER_COIN_FLOOR;
     }
     if (data.founder_celebration_shown_at == null && data.founder_celebration_pending !== true) {
       data.founder_celebration_pending = true;
-      changed = true;
+      patch.founder_celebration_pending = true;
     }
   }
 
@@ -821,21 +821,13 @@ async function applyFounderRewardsAndConsumeCelebration(
   if (showCelebration) {
     data.founder_celebration_pending = false;
     data.founder_celebration_shown_at = data.founder_celebration_shown_at || now;
-    changed = true;
+    patch.founder_celebration_pending = false;
+    patch.founder_celebration_shown_at = data.founder_celebration_shown_at;
   }
 
-  if (changed) {
-    await db.collection(COLLECTIONS.USERS).doc(usernameLower).set(
-      {
-        founder_lifetime_coins: !!data.founder_lifetime_coins,
-        founder_ordinal: data.founder_ordinal ?? null,
-        founder_celebration_pending: !!data.founder_celebration_pending,
-        founder_celebration_shown_at: data.founder_celebration_shown_at ?? null,
-        coins: data.coins ?? 0,
-        updated_at: now,
-      },
-      { merge: true }
-    );
+  if (Object.keys(patch).length) {
+    patch.updated_at = now;
+    await db.collection(COLLECTIONS.USERS).doc(usernameLower).set(patch, { merge: true });
   }
 
   return { data, showCelebration };
