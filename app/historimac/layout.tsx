@@ -1,14 +1,25 @@
 import type { ReactNode } from 'react';
 import type { Metadata } from 'next';
 
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://pixelplaceofficial.com';
+const DEFAULT_SITE_URL = 'https://pixelplaceofficial.com';
+
+function resolveMetadataBase(): URL {
+  const raw = process.env.NEXT_PUBLIC_SITE_URL?.trim();
+  if (!raw) return new URL(DEFAULT_SITE_URL);
+  const normalized = /^[a-zA-Z][a-zA-Z\d+\-.]*:\/\//.test(raw) ? raw : `https://${raw}`;
+  try {
+    return new URL(normalized);
+  } catch {
+    return new URL(DEFAULT_SITE_URL);
+  }
+}
 
 /**
  * Absolute URLs for `og:image` / canonical (Messages, iOS link previews read Open Graph).
  * Set `NEXT_PUBLIC_SITE_URL` at build time if the canonical host differs.
  */
 export const metadata: Metadata = {
-  metadataBase: new URL(SITE_URL),
+  metadataBase: resolveMetadataBase(),
 };
 
 /**
