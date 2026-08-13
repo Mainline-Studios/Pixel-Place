@@ -242,35 +242,42 @@ export function guestGameOfTheDayDateKey(now = new Date()): string {
   return `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, '0')}-${String(now.getUTCDate()).padStart(2, '0')}`;
 }
 
-/** UTC Friday — Guest Friday Funday unlocks every game. */
+/** UTC Friday — Guest Friday Funday: pick one game to play that day. */
 export function isGuestFridayFunday(now = new Date()): boolean {
   return now.getUTCDay() === 5;
 }
 
-export function getGuestFundayFavorite(now = new Date()): string | null {
-  if (typeof window === 'undefined' || !isGuestFridayFunday(now)) return null;
+function readFundayFavoriteRecord(): { date?: string; gameId?: string } | null {
+  if (typeof window === 'undefined') return null;
   try {
-    const raw = sessionStorage.getItem(GUEST_FUNDAY_FAVORITE_KEY);
+    const raw = localStorage.getItem(GUEST_FUNDAY_FAVORITE_KEY) || sessionStorage.getItem(GUEST_FUNDAY_FAVORITE_KEY);
     if (!raw) return null;
-    const parsed = JSON.parse(raw) as { date?: string; gameId?: string };
-    if (parsed.date !== guestGameOfTheDayDateKey(now) || typeof parsed.gameId !== 'string' || !parsed.gameId) {
-      return null;
-    }
-    return parsed.gameId;
+    return JSON.parse(raw) as { date?: string; gameId?: string };
   } catch {
     return null;
   }
 }
 
-export function setGuestFundayFavorite(gameId: string, now = new Date()): void {
-  if (typeof window === 'undefined') return;
+export function getGuestFundayFavorite(now = new Date()): string | null {
+  if (!isGuestFridayFunday(now)) return null;
+  const parsed = readFundayFavoriteRecord();
+  if (!parsed || parsed.date !== guestGameOfTheDayDateKey(now) || typeof parsed.gameId !== 'string' || !parsed.gameId) {
+    return null;
+  }
+  return parsed.gameId;
+}
+
+/** Lock this Friday’s Funday pick. Returns false if already locked. */
+export function setGuestFundayFavorite(gameId: string, now = new Date()): boolean {
+  if (typeof window === 'undefined' || !isGuestFridayFunday(now) || !gameId) return false;
+  if (getGuestFundayFavorite(now)) return false;
   try {
-    sessionStorage.setItem(
-      GUEST_FUNDAY_FAVORITE_KEY,
-      JSON.stringify({ date: guestGameOfTheDayDateKey(now), gameId }),
-    );
+    const payload = JSON.stringify({ date: guestGameOfTheDayDateKey(now), gameId });
+    localStorage.setItem(GUEST_FUNDAY_FAVORITE_KEY, payload);
+    sessionStorage.removeItem(GUEST_FUNDAY_FAVORITE_KEY);
+    return true;
   } catch {
-    // ignore
+    return false;
   }
 }
 
@@ -288,7 +295,22 @@ export function isGuestArenaGameId(gameId: string): boolean {
   return (GUEST_ARENA_GAME_IDS as readonly string[]).includes(gameId);
 }
 
-export function isGuestPlayableGameId(gameId: string, now = new Date()): boolean {
-  if (isGuestFridayFunday(now)) return true;
-  return isGuestOffline2DGameId(gameId) || gameId === getGuestGameOfTheDayId(now);
+export function isGuestPlayableGameId(
+  gameId: string,
+  now = new Date(),
+  fundayFavorite: string | null = getGuestFundayFavorite(now),
+): boolean {
+  if (isGuestOffline2DGameId(gameId)) return true;
+  if (isGuestFridayFunday(now)) return !!fundayFavorite && gameId === fundayFavorite;
+  return gameId === getGuestGameOfTheDayId(now);
+}
+
+/** Friday before a pick: show the full catalog so guests can choose. */
+export function isGuestVisibleGameId(
+  gameId: string,
+  now = new Date(),
+  fundayFavorite: string | null = getGuestFundayFavorite(now),
+): boolean {
+  if (isGuestFridayFunday(now) && !fundayFavorite) return true;
+  return isGuestPlayableGameId(gameId, now, fundayFavorite);
 }

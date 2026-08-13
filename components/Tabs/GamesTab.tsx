@@ -41,7 +41,9 @@ import {
   guestGameOfTheDayDateKey,
   isGuestArenaGameId,
   isGuestFridayFunday,
+  isGuestOffline2DGameId,
   isGuestPlayableGameId,
+  isGuestVisibleGameId,
   setGuestFundayFavorite,
 } from '@/lib/guestMode';
 
@@ -374,7 +376,9 @@ export default function GamesTab({ user, editMode }: GamesTabProps) {
     () => (user.isGuest ? isGuestFridayFunday() : false),
     [user.isGuest],
   );
-  const [fundayFavoriteId, setFundayFavoriteId] = useState<string | null>(null);
+  const [fundayFavoriteId, setFundayFavoriteId] = useState<string | null>(() =>
+    typeof window !== 'undefined' ? getGuestFundayFavorite() : null,
+  );
 
   useEffect(() => {
     if (!user.isGuest) {
@@ -387,9 +391,11 @@ export default function GamesTab({ user, editMode }: GamesTabProps) {
   const gamesList = useMemo(() => {
     let list = secretTheme === 'ixelace' ? [...games, ...SECRET_GAMES_IXEL_ACE] : games;
     if (isMobileBeta) list = list.filter((g) => g.id !== 'historiMac');
-    if (user.isGuest) list = list.filter((g) => isGuestPlayableGameId(g.id));
+    if (user.isGuest) {
+      list = list.filter((g) => isGuestVisibleGameId(g.id, new Date(), fundayFavoriteId));
+    }
     return list;
-  }, [secretTheme, isMobileBeta, user.isGuest]);
+  }, [secretTheme, isMobileBeta, user.isGuest, fundayFavoriteId]);
 
   useEffect(() => {
     if (isMobileBeta && selectedGame === 'historiMac') setSelectedGame(null);
@@ -399,11 +405,39 @@ export default function GamesTab({ user, editMode }: GamesTabProps) {
     setFavoriteGameIds(Array.isArray(user.favoriteGameIds) ? user.favoriteGameIds : []);
   }, [user.favoriteGameIds]);
 
+  const lockFundayFavorite = (gameId: string): boolean => {
+    if (!user.isGuest || !guestFridayFunday || fundayFavoriteId) return false;
+    if (!setGuestFundayFavorite(gameId)) return false;
+    setFundayFavoriteId(gameId);
+    return true;
+  };
+
+  const launchGame = (gameId: string) => {
+    if (!user.isGuest) {
+      setSelectedGame(gameId);
+      return;
+    }
+    if (isGuestOffline2DGameId(gameId)) {
+      setSelectedGame(gameId);
+      return;
+    }
+    if (guestFridayFunday) {
+      if (!fundayFavoriteId) {
+        if (!lockFundayFavorite(gameId)) return;
+        setSelectedGame(gameId);
+        return;
+      }
+      if (gameId !== fundayFavoriteId) return;
+      setSelectedGame(gameId);
+      return;
+    }
+    if (!isGuestPlayableGameId(gameId, new Date(), fundayFavoriteId)) return;
+    setSelectedGame(gameId);
+  };
+
   const toggleFavorite = (gameId: string) => {
     if (user.isGuest) {
-      if (!guestFridayFunday) return;
-      setGuestFundayFavorite(gameId);
-      setFundayFavoriteId(gameId);
+      lockFundayFavorite(gameId);
       return;
     }
     setFavoriteGameIds((prev) => {
@@ -496,8 +530,8 @@ export default function GamesTab({ user, editMode }: GamesTabProps) {
 
   useEffect(() => {
     if (!user.isGuest || !selectedGame) return;
-    if (!isGuestPlayableGameId(selectedGame)) setSelectedGame(null);
-  }, [user.isGuest, selectedGame]);
+    if (!isGuestPlayableGameId(selectedGame, new Date(), fundayFavoriteId)) setSelectedGame(null);
+  }, [user.isGuest, selectedGame, fundayFavoriteId]);
 
   if (selectedUserGame) {
     return (
@@ -639,7 +673,11 @@ export default function GamesTab({ user, editMode }: GamesTabProps) {
         <div className="ai-output">
           {user.isGuest ? (
             guestFridayFunday ? (
-              <LocalizeText text="Friday Funday! Every game is unlocked. Pick your favorite to play for Funday." />
+              fundayFavoriteId ? (
+                <LocalizeText text="Friday Funday pick is locked. Play your favorite until next Friday, when you choose again." />
+              ) : (
+                <LocalizeText text="Friday Funday! Pick one favorite — that’s the only extra game you can play today." />
+              )
             ) : (
               <LocalizeText text="Guests can play 2D offline games, plus today’s rotating 3D online Guest Game of the Day." />
             )
@@ -671,15 +709,15 @@ export default function GamesTab({ user, editMode }: GamesTabProps) {
               </div>
               <div className="smalltext" style={{ margin: '4px 0 0' }}>
                 {guestFundayFavorite
-                  ? 'Your Funday pick. Tap a star on any card to change it. Every game is unlocked today.'
-                  : 'Every game is unlocked. Tap the star on a card to choose your favorite for Funday.'}
+                  ? 'Locked for this Funday. Next Friday you pick a new favorite.'
+                  : 'Choose one game. After you pick, that’s the only extra game you can play until next Friday.'}
               </div>
             </div>
             {guestFundayFavorite ? (
               <button
                 type="button"
                 className="btn"
-                onClick={() => setSelectedGame(guestFundayFavorite.id)}
+                onClick={() => launchGame(guestFundayFavorite.id)}
                 style={{
                   padding: '12px 18px',
                   fontWeight: 800,
@@ -712,13 +750,13 @@ export default function GamesTab({ user, editMode }: GamesTabProps) {
             <div style={{ flex: 1, minWidth: 180 }}>
               <div style={{ fontWeight: 800, fontSize: 18 }}>{guestGameOfTheDay.name}</div>
               <div className="smalltext" style={{ margin: '4px 0 0' }}>
-                Today’s rotating 3D online game. Comes back on another day. Friday Funday unlocks every game.
+                Today’s rotating 3D online game. Comes back on another day. Fridays you pick one Funday favorite.
               </div>
             </div>
             <button
               type="button"
               className="btn"
-              onClick={() => setSelectedGame(guestGameOfTheDay.id)}
+              onClick={() => launchGame(guestGameOfTheDay.id)}
               style={{
                 padding: '12px 18px',
                 fontWeight: 800,
@@ -743,7 +781,7 @@ export default function GamesTab({ user, editMode }: GamesTabProps) {
                 key={`favorite-${game.id}`}
                 type="button"
                 className="btn"
-                onClick={() => setSelectedGame(game.id)}
+                onClick={() => launchGame(game.id)}
                 style={{ display: 'flex', alignItems: 'center', gap: 10, justifyContent: 'flex-start', textAlign: 'left' }}
               >
                 <span style={{ fontSize: 18 }} aria-hidden>{game.icon}</span>
@@ -820,11 +858,12 @@ export default function GamesTab({ user, editMode }: GamesTabProps) {
                 {game.icon}
               </span>
             </div>
-            {!user.isGuest || guestFridayFunday ? (
+            {!user.isGuest || (guestFridayFunday && (!fundayFavoriteId || game.id === fundayFavoriteId)) ? (
             <button
               type="button"
               className="btn"
               onClick={() => toggleFavorite(game.id)}
+              disabled={Boolean(user.isGuest && fundayFavoriteId)}
               style={{
                 position: 'absolute',
                 top: 10,
@@ -842,11 +881,13 @@ export default function GamesTab({ user, editMode }: GamesTabProps) {
                 border: (user.isGuest ? fundayFavoriteId === game.id : favoriteGameIds.includes(game.id))
                   ? '1px solid rgba(250, 204, 21, 0.7)'
                   : '1px solid rgba(255,255,255,0.3)',
+                opacity: user.isGuest && fundayFavoriteId ? 0.9 : 1,
+                cursor: user.isGuest && fundayFavoriteId ? 'default' : 'pointer',
               }}
               title={
                 user.isGuest
                   ? fundayFavoriteId === game.id
-                    ? 'Funday favorite'
+                    ? 'Funday favorite (locked until next Friday)'
                     : 'Pick as Funday favorite'
                   : favoriteGameIds.includes(game.id)
                     ? 'Remove favorite'
@@ -855,7 +896,7 @@ export default function GamesTab({ user, editMode }: GamesTabProps) {
               aria-label={
                 user.isGuest
                   ? fundayFavoriteId === game.id
-                    ? 'Funday favorite'
+                    ? 'Funday favorite (locked until next Friday)'
                     : 'Pick as Funday favorite'
                   : favoriteGameIds.includes(game.id)
                     ? 'Remove favorite'
@@ -878,7 +919,7 @@ export default function GamesTab({ user, editMode }: GamesTabProps) {
                 <div style={{ fontSize: 11, fontWeight: 800, color: '#fbbf24', marginTop: 4 }}>
                   Funday favorite
                 </div>
-              ) : user.isGuest && game.id === guestGameOfTheDayId ? (
+              ) : user.isGuest && !guestFridayFunday && game.id === guestGameOfTheDayId ? (
                 <div style={{ fontSize: 11, fontWeight: 800, color: '#7dd3fc', marginTop: 4 }}>
                   Guest Game of the Day
                 </div>
@@ -904,7 +945,7 @@ export default function GamesTab({ user, editMode }: GamesTabProps) {
             <button
               type="button"
               className="btn"
-              onClick={() => setSelectedGame(game.id)}
+              onClick={() => launchGame(game.id)}
               style={{
                 width: '100%',
                 padding: '14px 20px',
@@ -915,13 +956,26 @@ export default function GamesTab({ user, editMode }: GamesTabProps) {
                 alignItems: 'center',
                 justifyContent: 'center',
                 gap: '10px',
-                background: 'linear-gradient(180deg, #00b4ff 0%, #0090d6 100%)',
+                background:
+                  user.isGuest && guestFridayFunday && !fundayFavoriteId && !isGuestOffline2DGameId(game.id)
+                    ? 'linear-gradient(180deg, #fbbf24 0%, #d97706 100%)'
+                    : 'linear-gradient(180deg, #00b4ff 0%, #0090d6 100%)',
                 border: '1px solid rgba(255,255,255,0.25)',
                 boxShadow: '0 4px 16px rgba(0, 162, 255, 0.45)',
+                color:
+                  user.isGuest && guestFridayFunday && !fundayFavoriteId && !isGuestOffline2DGameId(game.id)
+                    ? '#111827'
+                    : undefined,
               }}
             >
               <span style={{ fontSize: '18px' }} aria-hidden>▶</span>
-              <LocalizeText text="Play" />
+              <LocalizeText
+                text={
+                  user.isGuest && guestFridayFunday && !fundayFavoriteId && !isGuestOffline2DGameId(game.id)
+                    ? 'Pick & Play'
+                    : 'Play'
+                }
+              />
             </button>
           </div>
         ))}
