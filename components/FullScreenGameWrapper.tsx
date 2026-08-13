@@ -4,6 +4,7 @@ import { useState, useEffect, ReactNode } from 'react';
 import { useUser } from '@/contexts/UserContext';
 import { filterForDisplay } from '@/lib/pyx';
 import { FilteredUsername } from '@/components/FilteredText';
+import { displayUsername, filterGuestChat, GUEST_CHAT_REJECT_MSG, isGuestUser } from '@/lib/guestMode';
 
 interface FullScreenGameWrapperProps {
   children: ReactNode;
@@ -48,6 +49,24 @@ export default function FullScreenGameWrapper({
   const handleSendMessage = async () => {
     if (!chatInput.trim() || !user) return;
     const raw = chatInput.trim();
+    if (isGuestUser(user)) {
+      const guest = filterGuestChat(raw);
+      if (!guest.ok) {
+        setChatMessages(prev => [...prev, {
+          username: displayUsername(user),
+          message: GUEST_CHAT_REJECT_MSG,
+          timestamp: Date.now()
+        }]);
+        return;
+      }
+      setChatInput('');
+      setChatMessages(prev => [...prev, {
+        username: displayUsername(user),
+        message: guest.text,
+        timestamp: Date.now()
+      }]);
+      return;
+    }
     setChatInput('');
     const filtered = await filterForDisplay(raw);
     setChatMessages(prev => [...prev, {

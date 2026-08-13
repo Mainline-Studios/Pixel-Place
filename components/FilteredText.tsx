@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { filterForDisplay, getPyxAvailable, subscribePyxAvailability, censorLetters } from '@/lib/pyx';
+import { displayUsername, isGuestUsername } from '@/lib/guestMode';
 
 interface FilteredTextProps {
   text: string;
@@ -50,6 +51,9 @@ export interface FilteredUsernameProps {
 
 /** Renders username with Pyx filter. When Pyx can't connect, censors for everyone except the person (currentUsername). Hourly retry runs until Pyx is back. */
 export function FilteredUsername({ username, currentUsername, className, style }: FilteredUsernameProps) {
+  if (isGuestUsername(username)) {
+    return <span className={className} style={style}>{displayUsername(username)}</span>;
+  }
   const pyxAvailable = usePyxAvailable();
   const isSelf = (currentUsername || '').toLowerCase() === (username || '').toLowerCase();
   if (!pyxAvailable) {

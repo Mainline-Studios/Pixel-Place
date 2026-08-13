@@ -8,6 +8,7 @@ import { useFriendsOnlineStatus } from '@/lib/onlineStatus';
 import { navigateToTab } from '@/lib/routing';
 import { getAccessories, getSkins } from '@/lib/storage';
 import { normalizeAvatarPose } from '@/lib/avatarPoses';
+import { GUEST_SKIN, isGuestUsername } from '@/lib/guestMode';
 import Avatar3DViewer from '@/components/Avatar3DViewer';
 
 export type FriendListUser = Pick<User, 'username'> & {
@@ -189,11 +190,12 @@ export function FriendsStrip({
 
   const previewForFriend = useCallback(
     (friend: FriendListUser): { skin: Skin | null; face: Skin | null; pose: string } => {
-      const base =
-        skins.find((s) => s.id === friend.equippedSkin) ||
-        skins.find((s) => s.id === 'pixel_placer') ||
-        skins[0] ||
-        null;
+      const base = isGuestUsername(friend.username)
+        ? GUEST_SKIN
+        : skins.find((s) => s.id === friend.equippedSkin) ||
+          skins.find((s) => s.id === 'pixel_placer') ||
+          skins[0] ||
+          null;
       const face = friend.equippedFace
         ? skins.find((s) => s.id === friend.equippedFace && s.isFace) || null
         : null;

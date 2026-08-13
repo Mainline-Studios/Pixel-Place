@@ -73,7 +73,7 @@ export default function SettingsTab({ user, editMode, onToggleEditMode }: Settin
   }, []);
 
   const equippedSkin = skins.find((s) => s.id === user.equippedSkin);
-  const equippedSkinName = equippedSkin ? equippedSkin.name : 'None';
+  const equippedSkinName = user.isGuest ? 'Guest' : equippedSkin ? equippedSkin.name : 'None';
 
   return (
     <>
@@ -81,7 +81,11 @@ export default function SettingsTab({ user, editMode, onToggleEditMode }: Settin
       <div className="ai-box">
         <div className="ai-label">Account</div>
         <div className="ai-output">
-          Username: <FilteredUsername username={user.username || ''} currentUsername={user.username || ''} />
+          Username: {user.isGuest ? (
+            'Guest'
+          ) : (
+            <FilteredUsername username={user.username || ''} currentUsername={user.username || ''} />
+          )}
           <br />
           Role: {escapeHTML(user.role)}
           <br />

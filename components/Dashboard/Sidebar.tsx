@@ -6,6 +6,7 @@ import Avatar3DViewer from '@/components/Avatar3DViewer';
 import { FilteredUsername } from '@/components/FilteredText';
 import { formatGenderForDisplay } from '@/lib/formatGenderDisplay';
 import LocalizeText from '@/components/LocalizeText';
+import { GUEST_SKIN } from '@/lib/guestMode';
 import { useStyle } from '@/components/StyleProvider';
 import { useState, useEffect } from 'react';
 
@@ -32,12 +33,18 @@ export default function Sidebar({ user, onNavigate }: SidebarProps) {
     loadData();
   }, []);
 
-  const equippedSkin = skins.find(s => s.id === user.equippedSkin) || skins.find(s => s.id === 'pixel_placer') || skins[0];
+  const equippedSkin = user.isGuest
+    ? GUEST_SKIN
+    : skins.find(s => s.id === user.equippedSkin) || skins.find(s => s.id === 'pixel_placer') || skins[0];
   // Get equipped face if available
-  const equippedFace = user.equippedFace ? skins.find(s => s.id === user.equippedFace && s.isFace) : null;  // equippedAccessories is an object, not an array: { hat: 'id', glasses: 'id', ... }
-  const equippedAccessoriesList = Object.values(user.equippedAccessories || {}).map(id => 
-    accessories.find(a => a.id === id)
-  ).filter(Boolean) as any[];
+  const equippedFace = user.isGuest
+    ? null
+    : user.equippedFace ? skins.find(s => s.id === user.equippedFace && s.isFace) : null;  // equippedAccessories is an object, not an array: { hat: 'id', glasses: 'id', ... }
+  const equippedAccessoriesList = user.isGuest
+    ? []
+    : Object.values(user.equippedAccessories || {}).map(id => 
+        accessories.find(a => a.id === id)
+      ).filter(Boolean) as any[];
 
   // Merge equipped accessories into skin for display
   const skinWithAccessories = equippedSkin ? {

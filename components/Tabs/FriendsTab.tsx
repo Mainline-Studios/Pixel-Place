@@ -49,7 +49,7 @@ export default function FriendsTab({ user }: FriendsTabProps) {
   const messagesRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  useOnlineStatus(user.username);
+  useOnlineStatus(user.isGuest ? null : user.username);
 
   const flash = (msg: string) => {
     setStatus(msg);
@@ -120,6 +120,10 @@ export default function FriendsTab({ user }: FriendsTabProps) {
   );
 
   useEffect(() => {
+    if (user.isGuest) {
+      setLoading(false);
+      return;
+    }
     void loadFriends();
     void loadDirectory();
     const t = window.setInterval(() => {
@@ -127,7 +131,7 @@ export default function FriendsTab({ user }: FriendsTabProps) {
       if (selected) void loadMessages(selected.username);
     }, 8000);
     return () => window.clearInterval(t);
-  }, [loadFriends, loadDirectory, selected, loadMessages]);
+  }, [user.isGuest, loadFriends, loadDirectory, selected, loadMessages]);
 
   useEffect(() => {
     if (selected) void loadMessages(selected.username);
@@ -247,6 +251,12 @@ export default function FriendsTab({ user }: FriendsTabProps) {
   });
 
   return (
+    user.isGuest ? (
+    <>
+      <h2 className="section-title">Friends</h2>
+      <p className="smalltext">Sign in to use Friends. Guests can’t add friends or send messages.</p>
+    </>
+    ) : (
     <>
       <h2 className="section-title">Friends</h2>
       <p className="smalltext" style={{ marginTop: -8, marginBottom: 12 }}>
@@ -625,5 +635,6 @@ export default function FriendsTab({ user }: FriendsTabProps) {
         ) : null}
       </div>
     </>
+    )
   );
 }

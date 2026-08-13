@@ -99,12 +99,13 @@ export default function PetHabitat({
     async (next: PetSaveState) => {
       setPet(next);
       petRef.current = next;
-      await savePetSave(next);
+      if (!user.isGuest) await savePetSave(next);
     },
-    [],
+    [user.isGuest],
   );
 
   useEffect(() => {
+    if (user.isGuest) return;
     let cancelled = false;
     void (async () => {
       const saved = await loadPetSave(user.username);
@@ -125,7 +126,7 @@ export default function PetHabitat({
     return () => {
       cancelled = true;
     };
-  }, [user.username, playWithFriend, initialRoomId]);
+  }, [user.username, user.isGuest, playWithFriend, initialRoomId]);
 
   const enterPlaying = (nextRoom: string, label: string) => {
     setRoom(nextRoom);
@@ -152,6 +153,10 @@ export default function PetHabitat({
   };
 
   const handlePrivatePlay = async () => {
+    if (user.isGuest) {
+      setError('Guests can join public habitats only. Sign in to create a private invite.');
+      return;
+    }
     setBusy(true);
     setError('');
     try {
@@ -676,7 +681,7 @@ export default function PetHabitat({
             </button>
             <button
               type="button"
-              disabled={busy}
+              disabled={busy || !!user.isGuest}
               onClick={() => void handlePrivatePlay()}
               style={{
                 padding: '12px 20px',

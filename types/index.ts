@@ -41,6 +41,8 @@ export interface User {
   favoriteGameIds?: string[]; // Saved built-in game ids for quick access and profile display
   /** false only for brand-new accounts until first-run setup finishes */
   setupCompleted?: boolean;
+  /** Ephemeral Play as Guest session — not persisted, display name is always "Guest" */
+  isGuest?: boolean;
   accountPreferences?: UserAccountPreferences;
 }
 

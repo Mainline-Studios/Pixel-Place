@@ -35,6 +35,14 @@ import {
   markReadyAccepted,
   touchActivity,
 } from '@/lib/appSession';
+import {
+  clearGuestSession,
+  createGuestUser,
+  GUEST_SKIN_ID,
+  isReservedUsername,
+  readGuestSessionUser,
+  writeGuestSession,
+} from '@/lib/guestMode';
 
 export type LoginResult = {
   success: boolean;
@@ -58,6 +66,7 @@ interface UserContextType {
   completeLoginWithCode: (challengeToken: string, code: string) => Promise<LoginResult>;
   loginWithGoogle: (googleUser: User, apiToken?: string) => Promise<void>;
   createAccount: (username: string, password: string, gender: string) => Promise<{ success: boolean; message: string; ban?: any; deviceBanned?: boolean }>;
+  enterGuestMode: () => Promise<{ success: boolean; message: string }>;
   updateUser: (updates: Partial<User>) => void;
   gettingReady: boolean;
   warmupComplete: boolean;
@@ -79,6 +88,10 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
   const getInitialUser = async (): Promise<User | null> => {
     if (typeof window === 'undefined') return null;
     try {
+      if (!hasUsableAuthToken()) {
+        const guest = readGuestSessionUser();
+        if (guest) return guest;
+      }
       let savedUsername = sessionStorage.getItem('pixelPlaceLoggedInUser');
       if (!savedUsername) {
         const t = getAuthToken();
@@ -317,7 +330,15 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       firstSyncDone.current = false;
     }
     if (typeof window !== 'undefined') {
-      if (user) {
+      if (user?.isGuest) {
+        writeGuestSession(user);
+        try {
+          sessionStorage.removeItem('pixelPlaceLoggedInUser');
+        } catch (error) {
+          console.error('Error saving guest session:', error);
+        }
+      } else if (user) {
+        clearGuestSession();
         try {
           sessionStorage.setItem('pixelPlaceLoggedInUser', user.username);
         } catch (error) {
@@ -325,6 +346,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
         }
       } else {
         try {
+          clearGuestSession();
           sessionStorage.removeItem('pixelPlaceLoggedInUser');
           removeAuthToken();
           clearSessionFlags();
@@ -377,6 +399,13 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
   // Real-time Firestore sync: when admin changes role/coins/etc in Firestore, user sees it instantly
   useEffect(() => {
     if (!user?.username) return;
+    if (user.isGuest) {
+      firstSyncDone.current = true;
+      setGettingReady(false);
+      setWarmupComplete(true);
+      setUserAcceptedReady(true);
+      return;
+    }
     let minWaitTimer: ReturnType<typeof setTimeout> | null = null;
 
     const finishReadySplash = () => {
@@ -442,7 +471,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
 
   // Sync safety points from backend (Firebase)
   useEffect(() => {
-    if (!user) return;
+    if (!user || user.isGuest) return;
     let cancelled = false;
 
     const syncSafetyPoints = async () => {
@@ -469,6 +498,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
   }, [user?.username]);
 
   const establishSession = (u: User, token: string) => {
+    clearGuestSession();
     setAuthToken(token);
     if (!u.ownedSkins) u.ownedSkins = ['pixel_placer'];
     if (!u.ownedAccessories) u.ownedAccessories = [];
@@ -591,6 +621,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     if (!googleUser.equippedAccessories) googleUser.equippedAccessories = {};
 
     if (googleUser.setupCompleted !== false) googleUser.setupCompleted = true;
+    clearGuestSession();
     setUser(googleUser);
     if (typeof window !== 'undefined') {
       try {
@@ -608,6 +639,9 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
   const createAccount = async (username: string, password: string, gender: string): Promise<{ success: boolean; message: string }> => {
     if (!username || !password) {
       return { success: false, message: 'Username and password are required.' };
+    }
+    if (isReservedUsername(username)) {
+      return { success: false, message: 'That username is reserved.' };
     }
     if (password.length < 6) {
       return { success: false, message: 'Password must be at least 6 characters.' };
@@ -752,12 +786,48 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     return { success: true, message: 'Account created.' };
   };
 
+  const enterGuestMode = async (): Promise<{ success: boolean; message: string }> => {
+    try {
+      const deviceCheck = await checkDeviceBanStatus();
+      if (deviceCheck.banned && deviceCheck.ban) {
+        setDeviceBannedSession({ username: 'This device', ban: deviceCheck.ban });
+        return { success: false, message: 'This device is banned.' };
+      }
+    } catch {
+      // still allow guest if ban check fails
+    }
+    removeAuthToken();
+    const guest = createGuestUser();
+    writeGuestSession(guest);
+    firstSyncDone.current = true;
+    setWarmupComplete(true);
+    setGettingReady(false);
+    setUserAcceptedReady(true);
+    setUser(guest);
+    touchActivity();
+    return { success: true, message: '' };
+  };
+
   const updateUser = async (updates: Partial<User>) => {
     if (!user) return;
 
     // Update local state immediately for responsive UI
     const updatedUser = { ...user, ...updates };
     setUser(updatedUser);
+
+    if (user.isGuest) {
+      setUser({
+        ...updatedUser,
+        ownedSkins: [GUEST_SKIN_ID],
+        equippedSkin: GUEST_SKIN_ID,
+        ownedFaces: [],
+        equippedFace: '',
+        ownedAccessories: [],
+        equippedAccessories: [],
+        coins: 0,
+      });
+      return;
+    }
 
     // Sync safety points to backend if updated
     if (updates.safetyPoints !== undefined) {
@@ -811,7 +881,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <UserContext.Provider value={{ user, setUser, login, completeLoginWithCode, loginWithGoogle, createAccount, updateUser, gettingReady, warmupComplete, userAcceptedReady, setUserAcceptedReady, bannedSession, clearBannedSession: () => setBannedSession(null), deviceBannedSession, clearDeviceBannedSession: () => setDeviceBannedSession(null), isRestoring }}>
+    <UserContext.Provider value={{ user, setUser, login, completeLoginWithCode, loginWithGoogle, createAccount, enterGuestMode, updateUser, gettingReady, warmupComplete, userAcceptedReady, setUserAcceptedReady, bannedSession, clearBannedSession: () => setBannedSession(null), deviceBannedSession, clearDeviceBannedSession: () => setDeviceBannedSession(null), isRestoring }}>
       {children}
       {user && accountSetupOpen && !onFocusedAuthRoute ? (
         <AccountSetupWizard

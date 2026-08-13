@@ -125,6 +125,11 @@ export default function CoinsTab({ user, editMode }: CoinsTabProps) {
   return (
     <>
       <h2 className="section-title">Pixel Coins</h2>
+      {user.isGuest ? (
+        <p className="smalltext" style={{ marginTop: -8, marginBottom: 12 }}>
+          Guests can’t buy or keep coins. Sign in to save a balance.
+        </p>
+      ) : null}
       <div className="ai-box">
         <div className="ai-label">Your Balance</div>
         <div className="ai-output">{formatNumber(bal)} Pixel Coins</div>

@@ -26,7 +26,7 @@ export default function BreakReminder({ onTakeBreak, onDismiss }: BreakReminderP
   };
 
   useEffect(() => {
-    if (!user) return;
+    if (!user || user.isGuest) return;
 
     const checkBreakStatus = async () => {
       try {

@@ -26,6 +26,13 @@ import {
 } from '@/lib/openWorldRtdb';
 import { runOpenWorldAdminCommand } from '@/lib/openWorldAdminCommands';
 import {
+  displayUsername,
+  filterGuestChat,
+  GUEST_CHAT_QUICK,
+  GUEST_CHAT_REJECT_MSG,
+  isGuestUser,
+} from '@/lib/guestMode';
+import {
   buildPlazaBuildings,
   collideWalls,
   resolveBuildingAt,
@@ -322,6 +329,10 @@ export default function OpenWorldPlaza({
   };
 
   const handlePrivatePlay = async () => {
+    if (isGuestUser(user)) {
+      setLobbyError('Guests can join public servers only. Sign in to create a private invite.');
+      return;
+    }
     setBusy(true);
     setLobbyError('');
     try {
@@ -425,6 +436,10 @@ export default function OpenWorldPlaza({
       cancelled = true;
     };
   }, [phase, room, user.username]);
+
+  useEffect(() => {
+    if (isGuestUser(user) && chatChannel !== 'server') setChatChannel('server');
+  }, [user, chatChannel]);
 
   useEffect(() => {
     if (phase !== 'playing' || !room) return;
@@ -726,7 +741,7 @@ export default function OpenWorldPlaza({
         }
       };
 
-      const localNameSprite = makeNameSprite(user.username, user.role);
+      const localNameSprite = makeNameSprite(displayUsername(user), user.role);
 
       const remoteMap = new Map<string, RemoteAvatar>();
 
@@ -735,7 +750,7 @@ export default function OpenWorldPlaza({
         if (!remote) {
           const built = buildSimpleAvatar(THREE, p.colors);
           scene.add(built.characterGroup);
-          const nameSprite = makeNameSprite(p.username, p.role);
+          const nameSprite = makeNameSprite(displayUsername(p.username), p.role);
           built.characterGroup.position.set(p.x, typeof p.y === 'number' ? p.y : footLift, p.z);
           built.characterGroup.rotation.y = p.rotY;
           remote = {
@@ -1046,9 +1061,28 @@ export default function OpenWorldPlaza({
     };
   }, [user, room, phase]);
 
-  const handleSend = async () => {
-    const raw = chatInput.trim();
+  const handleSend = async (preset?: string) => {
+    const raw = (preset ?? chatInput).trim();
     if (!raw || !room) return;
+
+    if (isGuestUser(user)) {
+      const guest = filterGuestChat(raw);
+      if (!guest.ok) {
+        setCommandLines((prev) => [
+          ...prev.slice(-40),
+          { id: `guest-${Date.now()}`, text: GUEST_CHAT_REJECT_MSG },
+        ]);
+        return;
+      }
+      setChatInput('');
+      const at = Date.now();
+      localChatRef.current = { text: guest.text.slice(0, 56), at };
+      recentBubblesRef.current.set(user.username.toLowerCase(), { text: guest.text.slice(0, 56), at });
+      forcePublishRef.current = true;
+      await sendOpenWorldChat(user.username, guest.text, room, 'server', user.role);
+      return;
+    }
+
     setChatInput('');
 
     if (raw.startsWith('/')) {
@@ -1144,7 +1178,7 @@ export default function OpenWorldPlaza({
           </button>
           <button
             type="button"
-            disabled={busy}
+            disabled={busy || isGuestUser(user)}
             onClick={() => void handlePrivatePlay()}
             style={{
               padding: '12px 20px',
@@ -1400,7 +1434,7 @@ export default function OpenWorldPlaza({
                 ) : (
                   <span style={{ width: 18, flexShrink: 0 }} />
                 )}
-                <span style={{ fontWeight: 600 }}>{p.username}</span>
+                <span style={{ fontWeight: 600 }}>{displayUsername(p.username)}</span>
                 {p.username.toLowerCase() === user.username.toLowerCase() && (
                   <span style={{ opacity: 0.55, fontSize: 12 }}>(you)</span>
                 )}
@@ -1427,6 +1461,12 @@ export default function OpenWorldPlaza({
           maxHeight: 220,
         }}
       >
+        {isGuestUser(user) ? (
+          <div style={{ fontSize: 11, opacity: 0.75, lineHeight: 1.35 }}>
+            Guest chat: simple preset words only. Messages are not kept after you leave.
+          </div>
+        ) : null}
+        {!isGuestUser(user) ? (
         <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
           <button
             type="button"
@@ -1463,6 +1503,7 @@ export default function OpenWorldPlaza({
             Server Only
           </button>
         </div>
+        ) : null}
         <div style={{ fontSize: 12, fontWeight: 700, opacity: 0.85 }}>
           {chatChannel === 'everywhere' ? 'Everywhere chat' : `Server chat · ${onlineCount} here`}
         </div>
@@ -1530,7 +1571,7 @@ export default function OpenWorldPlaza({
                     fontWeight: 600,
                   }}
                 >
-                  {m.username}
+                  {displayUsername(m.username)}
                 </span>
                 <span style={{ opacity: 0.9 }}>: {m.text}</span>
               </div>
@@ -1542,6 +1583,28 @@ export default function OpenWorldPlaza({
             </div>
           ))}
         </div>
+        {isGuestUser(user) ? (
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+            {GUEST_CHAT_QUICK.map((word) => (
+              <button
+                key={word}
+                type="button"
+                onClick={() => void handleSend(word)}
+                style={{
+                  padding: '4px 8px',
+                  borderRadius: 999,
+                  border: '1px solid rgba(255,255,255,0.16)',
+                  background: 'rgba(255,255,255,0.08)',
+                  color: '#e2e8f0',
+                  fontSize: 11,
+                  cursor: 'pointer',
+                }}
+              >
+                {word}
+              </button>
+            ))}
+          </div>
+        ) : null}
         <div style={{ display: 'flex', gap: 6 }}>
           <input
             value={chatInput}
@@ -1559,7 +1622,9 @@ export default function OpenWorldPlaza({
               }
             }}
             placeholder={
-              isVerifiedAdmin(user.role)
+              isGuestUser(user)
+                ? 'Guest words only: hi, yes, thanks…'
+                : isVerifiedAdmin(user.role)
                 ? chatChannel === 'everywhere'
                   ? 'Message or /help…'
                   : 'Message or /ban /kick /clearchat…'

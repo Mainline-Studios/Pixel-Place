@@ -1799,6 +1799,9 @@ app.post('/auth', async (req, res) => {
         });
       }
       const id = username.toLowerCase();
+      if (id === 'guest' || id === 'system' || id.startsWith('guest_')) {
+        return res.status(400).json({ error: 'That username is reserved.' });
+      }
       const normalizedEmail = normalizeEmail(email);
       if (normalizedEmail && !isValidEmail(normalizedEmail)) {
         return res.status(400).json({ error: 'Invalid email format' });
@@ -3110,7 +3113,8 @@ app.use((req: any, res) => {
 
 export const api = functions
   .runWith({
-    secrets: ['PAYPAL_CLIENT_SECRET'],
+    // PAYPAL_CLIENT_SECRET temporarily unbound — Secret Manager requires an open billing account.
+    // Re-add secrets: ['PAYPAL_CLIENT_SECRET'] after billing is reopened.
     timeoutSeconds: 120,
     memory: '1GB',
   })

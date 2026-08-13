@@ -104,6 +104,10 @@ export async function POST(request: NextRequest) {
       if (!username || !password) {
         return NextResponse.json({ error: 'Username and password required' }, { status: 400 });
       }
+      const reservedId = String(username).trim().toLowerCase();
+      if (reservedId === 'guest' || reservedId === 'system' || reservedId.startsWith('guest_')) {
+        return NextResponse.json({ error: 'That username is reserved.' }, { status: 400 });
+      }
       if (String(password).length < 6) {
         return NextResponse.json({ error: 'Password must be at least 6 characters' }, { status: 400 });
       }

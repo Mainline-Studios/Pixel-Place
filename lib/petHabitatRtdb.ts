@@ -20,6 +20,7 @@ import {
   type Database,
 } from 'firebase/database';
 import { getOrInitFirebaseApp } from './firebaseConfig';
+import { isGuestUsername } from './guestMode';
 import { SITE_ORIGIN } from './seo';
 import type { HabitatId } from './petHabitatData';
 import { NEGLECT_MS } from './petHabitatData';
@@ -267,6 +268,7 @@ export async function loadPetSave(username: string): Promise<PetSaveState | null
 export async function savePetSave(state: Omit<PetSaveState, 'updatedAt'>): Promise<void> {
   const db = getDb();
   if (!db) return;
+  if (isGuestUsername(state.username)) return;
   const payload: PetSaveState = { ...state, updatedAt: Date.now() };
   await set(ref(db, savePath(state.username)), payload);
 }
@@ -335,6 +337,13 @@ export async function leavePetHabitat(username: string, room: string): Promise<v
     void refreshGlobalMeta(db, room);
   } catch {
     /* ignore */
+  }
+  if (isGuestUsername(username)) {
+    try {
+      await remove(ref(db, savePath(username)));
+    } catch {
+      /* ignore */
+    }
   }
 }
 

@@ -45,7 +45,7 @@ export default function Login() {
   const [banInfo, setBanInfo] = useState<{ ban: any; deviceBanned?: boolean } | null>(null);
   const [showTerms, setShowTerms] = useState(false);
   const [showPrivacy, setShowPrivacy] = useState(false);
-  const { login, completeLoginWithCode, createAccount } = useUser();
+  const { login, completeLoginWithCode, createAccount, enterGuestMode } = useUser();
   const [loginChallenge, setLoginChallenge] = useState<{ challengeToken: string; maskedEmail: string } | null>(null);
   const [loginCode, setLoginCode] = useState('');
   const [loginCodeBusy, setLoginCodeBusy] = useState(false);
@@ -351,6 +351,27 @@ export default function Login() {
               >
                 {text.create}
               </button>
+              <button
+                className="btn auth-btn"
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  void enterGuestMode();
+                }}
+                style={{
+                  marginTop: '12px',
+                  background: 'transparent',
+                  color: 'var(--text)',
+                  border: '1px solid var(--border)',
+                  width: '100%',
+                }}
+              >
+                Play as Guest
+              </button>
+              <div className="input-hint" style={{ marginTop: 8, textAlign: 'center' }}>
+                Guests are just called Guest. Chat uses simple words only. Nothing is saved.
+              </div>
               <StatusPageLink variant="login" />
             </>
           ) : (

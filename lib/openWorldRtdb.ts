@@ -24,6 +24,7 @@ import {
   type Database,
 } from 'firebase/database';
 import { getOrInitFirebaseApp } from './firebaseConfig';
+import { isGuestUsername } from './guestMode';
 import { SITE_ORIGIN } from './seo';
 
 export const OPEN_WORLD_PUBLIC_ROOM = 'plaza';
@@ -363,6 +364,24 @@ export async function publishOpenWorldPlayer(
   void refreshGlobalMetaForRoom(db, room);
 }
 
+async function removeOpenWorldChatByUsername(username: string, room: string): Promise<void> {
+  const db = getDb();
+  if (!db) return;
+  try {
+    const snap = await get(ref(db, chatPath(room)));
+    const val = snap.val() as Record<string, { username?: string }> | null;
+    if (!val || typeof val !== 'object') return;
+    const lower = username.toLowerCase();
+    const updates: Record<string, null> = {};
+    for (const [id, data] of Object.entries(val)) {
+      if (String(data?.username || '').toLowerCase() === lower) updates[id] = null;
+    }
+    if (Object.keys(updates).length) await update(ref(db, chatPath(room)), updates);
+  } catch {
+    // ignore
+  }
+}
+
 /** Remove presence when leaving. */
 export async function leaveOpenWorld(username: string, room: string = OPEN_WORLD_PUBLIC_ROOM): Promise<void> {
   const db = getDb();
@@ -374,6 +393,9 @@ export async function leaveOpenWorld(username: string, room: string = OPEN_WORLD
     void refreshGlobalMetaForRoom(db, room);
   } catch {
     // ignore
+  }
+  if (isGuestUsername(username)) {
+    void removeOpenWorldChatByUsername(username, room);
   }
 }
 

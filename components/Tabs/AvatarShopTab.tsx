@@ -22,6 +22,7 @@ import {
   isModeEventItemId,
 } from '@/lib/modeEvents';
 import { AVATAR_POSES, normalizeAvatarPose, type AvatarPoseId } from '@/lib/avatarPoses';
+import { GUEST_SKIN } from '@/lib/guestMode';
 
 interface AvatarShopTabProps {
   user: User;
@@ -273,6 +274,7 @@ export default function AvatarShopTab({ user, selectedMode = null }: AvatarShopT
   const flash = (text: string) => setMessage(text);
 
   const handleBuySkin = async (skin: Skin) => {
+    if (user.isGuest) return;
     if (busyId) return;
     const isFace = !!skin.isFace;
     const owned = isFace ? user.ownedFaces?.includes(skin.id) : user.ownedSkins?.includes(skin.id);
@@ -314,6 +316,7 @@ export default function AvatarShopTab({ user, selectedMode = null }: AvatarShopT
   };
 
   const handleBuyAccessory = async (accessory: Accessory) => {
+    if (user.isGuest) return;
     if (busyId) return;
     if (user.ownedAccessories?.includes(accessory.id)) {
       flash('Already owned.');
@@ -347,18 +350,21 @@ export default function AvatarShopTab({ user, selectedMode = null }: AvatarShopT
   };
 
   const handleEquipSkin = async (skinId: string) => {
+    if (user.isGuest) return;
     if (!user.ownedSkins?.includes(skinId)) return;
     await updateUser({ equippedSkin: skinId });
     playEquip();
   };
 
   const handleEquipFace = async (faceId: string) => {
+    if (user.isGuest) return;
     if (!user.ownedFaces?.includes(faceId)) return;
     await updateUser({ equippedFace: faceId });
     playEquip();
   };
 
   const handleToggleAccessory = async (accessory: Accessory) => {
+    if (user.isGuest) return;
     if (!user.ownedAccessories?.includes(accessory.id)) return;
     const next = new Set(equippedAccessoryIds);
     if (next.has(accessory.id)) next.delete(accessory.id);
@@ -1019,6 +1025,36 @@ export default function AvatarShopTab({ user, selectedMode = null }: AvatarShopT
       </div>
     </div>
   );
+
+  if (user.isGuest) {
+    return (
+      <>
+        <h2 className="section-title" style={{ marginBottom: 4 }}>
+          Avatar Shop
+        </h2>
+        <p className="smalltext" style={{ margin: '0 0 16px' }}>
+          Guests all use the gray Guest skin. Sign in to change skins, faces, or accessories.
+        </p>
+        <div className="ai-box" style={{ maxWidth: 360 }}>
+          <div className="skins-section-title">Guest</div>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, padding: '8px 0 4px' }}>
+            <Avatar3DViewer
+              skin={GUEST_SKIN}
+              width={220}
+              height={260}
+              interactive={false}
+              animation="idle"
+              autoRotate
+            />
+            <div style={{ fontWeight: 700 }}>Guest</div>
+            <div className="smalltext" style={{ margin: 0, textAlign: 'center' }}>
+              Locked · mostly gray · same for every guest
+            </div>
+          </div>
+        </div>
+      </>
+    );
+  }
 
   return (
     <>

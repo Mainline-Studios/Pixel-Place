@@ -5,6 +5,7 @@
 
 import { Skin, User } from '@/types';
 import { getSkins, getAccessories } from '@/lib/storage';
+import { GUEST_SKIN, isGuestUser } from '@/lib/guestMode';
 
 export interface AvatarRenderOptions {
   scale?: number;
@@ -22,6 +23,9 @@ export async function getUserAvatarData(user: User): Promise<{
   accessories: any[];
 }> {
   try {
+    if (isGuestUser(user)) {
+      return { skin: GUEST_SKIN, face: null, accessories: [] };
+    }
     const [skins, accessories] = await Promise.all([
       getSkins(),
       getAccessories()

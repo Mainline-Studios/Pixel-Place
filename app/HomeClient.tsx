@@ -325,6 +325,11 @@ function AppContent() {
       setModeSelectionReady(true);
       return;
     }
+    if (user.isGuest) {
+      setSelectedMode('now');
+      setModeSelectionReady(true);
+      return;
+    }
     if (typeof window === 'undefined') {
       setModeSelectionReady(true);
       return;
@@ -365,7 +370,7 @@ function AppContent() {
 
   useEffect(() => {
     if (user && !prevUserRef.current) {
-      if (typeof window !== 'undefined') {
+      if (typeof window !== 'undefined' && !user.isGuest) {
         const tracker = getPlaytimeTracker();
         tracker.startTracking(user.username);
       }

@@ -64,7 +64,7 @@ export function MaximalistChrome({ currentTab, user }: { currentTab: TabType; us
         <span className="theme-max-chip">{label}</span>
         <span className="theme-max-chip">🪙 {Number(user.coins ?? 0).toLocaleString('en-US')}</span>
         <span className="theme-max-chip">⊹ STUDIO READY ⊹</span>
-        <span className="theme-max-chip">HELLO {String(user.username || 'PLAYER').slice(0, 18)}</span>
+        <span className="theme-max-chip">HELLO {String(user.isGuest ? 'Guest' : user.username || 'PLAYER').slice(0, 18)}</span>
       </div>
     </>
   );

@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { getSkins } from '@/lib/storage';
 import { Skin, User } from '@/types';
+import { GUEST_SKIN } from '@/lib/guestMode';
 
 interface ObstacleCourseProps {
   user: User;
@@ -67,7 +68,9 @@ export default function ObstacleCourse({ user, onClose }: ObstacleCourseProps) {
   }, []);
 
   const skinColors = useMemo(() => {
-    const equipped = skins.find((s) => s.id === user.equippedSkin) || skins.find((s) => s.id === 'pixel_placer');
+    const equipped = user.isGuest
+      ? GUEST_SKIN
+      : skins.find((s) => s.id === user.equippedSkin) || skins.find((s) => s.id === 'pixel_placer');
     const c = equipped?.colors || DEFAULT_COLORS;
     return {
       head: c.head || DEFAULT_COLORS.head,
@@ -75,7 +78,7 @@ export default function ObstacleCourse({ user, onClose }: ObstacleCourseProps) {
       arm: c.arm || DEFAULT_COLORS.arm,
       legs: c.legs || DEFAULT_COLORS.legs,
     };
-  }, [skins, user.equippedSkin]);
+  }, [skins, user.equippedSkin, user.isGuest]);
 
   useEffect(() => {
     if (!mountRef.current) return;

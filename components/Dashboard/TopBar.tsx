@@ -11,6 +11,7 @@ import { useStyle } from '@/components/StyleProvider';
 import LocalizeText from '@/components/LocalizeText';
 import { isSupportedLocale } from '@/lib/locale';
 import { clearSessionFlags } from '@/lib/appSession';
+import { GUEST_SKIN } from '@/lib/guestMode';
 import { useState, useEffect, useRef, type CSSProperties } from 'react';
 import { PixelPlaceMode } from '@/components/ModeSelection';
 
@@ -100,13 +101,19 @@ export default function TopBar({ currentTab, onTabChange, user, selectedMode }: 
     };
   }, []);
 
-  const equippedSkin = skins.find(s => s.id === user.equippedSkin) || skins.find(s => s.id === 'pixel_placer') || (skins.length > 0 ? skins[0] : null);
+  const equippedSkin = user.isGuest
+    ? GUEST_SKIN
+    : skins.find(s => s.id === user.equippedSkin) || skins.find(s => s.id === 'pixel_placer') || (skins.length > 0 ? skins[0] : null);
   // Get equipped face if available
-  const equippedFace = user.equippedFace ? skins.find(s => s.id === user.equippedFace && s.isFace) : null;
+  const equippedFace = user.isGuest
+    ? null
+    : user.equippedFace ? skins.find(s => s.id === user.equippedFace && s.isFace) : null;
   // equippedAccessories is an object, not an array: { hat: 'id', glasses: 'id', ... }
-  const equippedAccessoriesList = Object.values(user.equippedAccessories || {}).map(id =>
-    accessories.find(a => a.id === id)
-  ).filter(Boolean) as any[];
+  const equippedAccessoriesList = user.isGuest
+    ? []
+    : Object.values(user.equippedAccessories || {}).map(id =>
+        accessories.find(a => a.id === id)
+      ).filter(Boolean) as any[];
 
   // Merge equipped accessories into skin for display
   const skinWithAccessories = equippedSkin ? {
@@ -271,7 +278,7 @@ export default function TopBar({ currentTab, onTabChange, user, selectedMode }: 
                 borderRadius: 999,
                 background: 'rgba(255,255,255,0.06)',
               }}
-              title={user.username}
+              title={user.isGuest ? 'Guest' : user.username}
             >
               <div
                 className="avatar-top"
@@ -298,7 +305,7 @@ export default function TopBar({ currentTab, onTabChange, user, selectedMode }: 
                 )}
               </div>
               <span style={{ fontSize: 13, fontWeight: 600, maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                {user.username}
+                {user.isGuest ? 'Guest' : user.username}
               </span>
               <span aria-hidden style={{ opacity: 0.75, fontSize: 11 }}>▼</span>
             </button>
@@ -314,6 +321,7 @@ export default function TopBar({ currentTab, onTabChange, user, selectedMode }: 
                   zIndex: 1200,
                 }}
               >
+                {!user.isGuest ? (
                 <button
                   type="button"
                   className="btn"
@@ -325,6 +333,7 @@ export default function TopBar({ currentTab, onTabChange, user, selectedMode }: 
                 >
                   User
                 </button>
+                ) : null}
                 <button
                   type="button"
                   className="btn"

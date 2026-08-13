@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { User } from '@/types';
 import FilteredText, { FilteredUsername } from './FilteredText';
+import { filterGuestChat, isGuestUsername } from '@/lib/guestMode';
 
 interface WaitingRoomProps {
   gameTitle: string;
@@ -88,11 +89,13 @@ export default function WaitingRoom({
   const sendMessage = (message?: string) => {
     const msg = message || inputMessage.trim();
     if (!msg || !socket) return;
+    const outgoing = isGuestUsername(username) ? filterGuestChat(msg) : { ok: true as const, text: msg };
+    if (!outgoing.ok) return;
 
     socket.emit('waiting-room-chat', {
       roomId,
       username,
-      message: msg,
+      message: outgoing.text,
     });
 
     if (!message) {
