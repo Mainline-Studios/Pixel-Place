@@ -34,6 +34,11 @@ import SquishSlime from '../Games/SquishSlime';
 import LocalizeText, { FilteredThenLocalize } from '@/components/LocalizeText';
 import { useUser } from '@/contexts/UserContext';
 import { FriendsStrip } from '@/components/FriendsStrip';
+import {
+  getGuestGameOfTheDayId,
+  guestGameOfTheDayDateKey,
+  isGuestPlayableGameId,
+} from '@/lib/guestMode';
 
 interface GamesTabProps {
   user: User;
@@ -270,11 +275,21 @@ export default function GamesTab({ user, editMode }: GamesTabProps) {
   const [favoriteGameIds, setFavoriteGameIds] = useState<string[]>([]);
   const [pendingLaunchGameId, setPendingLaunchGameId] = useState<string | null>(null);
 
+  const guestGameOfTheDayId = useMemo(
+    () => (user.isGuest ? getGuestGameOfTheDayId() : null),
+    [user.isGuest],
+  );
+  const guestGameOfTheDayDate = useMemo(
+    () => (user.isGuest ? guestGameOfTheDayDateKey() : null),
+    [user.isGuest],
+  );
+
   const gamesList = useMemo(() => {
     let list = secretTheme === 'ixelace' ? [...games, ...SECRET_GAMES_IXEL_ACE] : games;
     if (isMobileBeta) list = list.filter((g) => g.id !== 'historiMac');
+    if (user.isGuest) list = list.filter((g) => isGuestPlayableGameId(g.id));
     return list;
-  }, [secretTheme, isMobileBeta]);
+  }, [secretTheme, isMobileBeta, user.isGuest]);
 
   useEffect(() => {
     if (isMobileBeta && selectedGame === 'historiMac') setSelectedGame(null);
@@ -294,18 +309,23 @@ export default function GamesTab({ user, editMode }: GamesTabProps) {
 
   // Real-time games from Firestore (instant updates when games are added/edited in Firebase Console)
   useEffect(() => {
+    if (user.isGuest) {
+      setUserMadeGames([]);
+      return;
+    }
     const unsub = subscribeToUserMadeGames((games) => {
       setUserMadeGames(games as UserMadeGame[]);
     });
     return () => unsub();
-  }, []);
+  }, [user.isGuest]);
 
   // Fallback initial load from API (e.g. if Firestore client not ready)
   useEffect(() => {
+    if (user.isGuest) return;
     getUserMadeGames().then((games) => {
       if (games.length > 0) setUserMadeGames((prev) => prev.length === 0 ? games : prev);
     });
-  }, []);
+  }, [user.isGuest]);
 
   // /games?playUserGame=<id> opens the selected user-made game immediately.
   useEffect(() => {
@@ -361,6 +381,14 @@ export default function GamesTab({ user, editMode }: GamesTabProps) {
   const selectedGameInfo = gamesList.find(g => g.id === selectedGame);
   const GameComponent = selectedGameInfo?.component;
   const favoriteGames = gamesList.filter((g) => favoriteGameIds.includes(g.id));
+  const guestGameOfTheDay = guestGameOfTheDayId
+    ? gamesList.find((g) => g.id === guestGameOfTheDayId) || games.find((g) => g.id === guestGameOfTheDayId) || null
+    : null;
+
+  useEffect(() => {
+    if (!user.isGuest || !selectedGame) return;
+    if (!isGuestPlayableGameId(selectedGame)) setSelectedGame(null);
+  }, [user.isGuest, selectedGame]);
 
   if (selectedUserGame) {
     return (
@@ -462,6 +490,7 @@ export default function GamesTab({ user, editMode }: GamesTabProps) {
         🎮 <LocalizeText text="Play Games" as="span" />
       </h2>
 
+      {!user.isGuest ? (
       <FriendsStrip
         user={user}
         selectedFriend={playWithFriend}
@@ -471,6 +500,7 @@ export default function GamesTab({ user, editMode }: GamesTabProps) {
           setSelectedGame('openWorldPlaza');
         }}
       />
+      ) : null}
 
       {isMobileBeta && (
         <div
@@ -496,9 +526,52 @@ export default function GamesTab({ user, editMode }: GamesTabProps) {
           <LocalizeText text="Available Games" />
         </div>
         <div className="ai-output">
-          <LocalizeText text="Choose a game to play! All games are playable directly in your browser." />
+          {user.isGuest ? (
+            <LocalizeText text="Guests can play 2D offline games, plus today’s 3D online Guest Game of the Day." />
+          ) : (
+            <LocalizeText text="Choose a game to play! All games are playable directly in your browser." />
+          )}
         </div>
       </div>
+
+      {user.isGuest && guestGameOfTheDay ? (
+        <div
+          className="ai-box"
+          style={{
+            marginTop: 16,
+            border: '1px solid rgba(56,189,248,0.45)',
+            background: 'linear-gradient(135deg, rgba(56,189,248,0.12) 0%, rgba(15,23,42,0.35) 100%)',
+          }}
+        >
+          <div className="ai-label" style={{ color: '#7dd3fc' }}>
+            Guest Game of the Day · {guestGameOfTheDayDate}
+          </div>
+          <div style={{ display: 'flex', gap: 16, alignItems: 'center', flexWrap: 'wrap' }}>
+            <span style={{ fontSize: 42 }} aria-hidden>
+              {guestGameOfTheDay.icon}
+            </span>
+            <div style={{ flex: 1, minWidth: 180 }}>
+              <div style={{ fontWeight: 800, fontSize: 18 }}>{guestGameOfTheDay.name}</div>
+              <div className="smalltext" style={{ margin: '4px 0 0' }}>
+                Today’s rotating 3D online game. Comes back on another day.
+              </div>
+            </div>
+            <button
+              type="button"
+              className="btn"
+              onClick={() => setSelectedGame(guestGameOfTheDay.id)}
+              style={{
+                padding: '12px 18px',
+                fontWeight: 800,
+                background: 'linear-gradient(180deg, #38bdf8 0%, #0284c7 100%)',
+                border: '1px solid rgba(255,255,255,0.25)',
+              }}
+            >
+              ▶ Play today’s game
+            </button>
+          </div>
+        </div>
+      ) : null}
 
       {favoriteGames.length > 0 && (
         <>
@@ -622,6 +695,11 @@ export default function GamesTab({ user, editMode }: GamesTabProps) {
               textAlign: 'center'
             }}>
               <LocalizeText text={game.name} />
+              {user.isGuest && game.id === guestGameOfTheDayId ? (
+                <div style={{ fontSize: 11, fontWeight: 800, color: '#7dd3fc', marginTop: 4 }}>
+                  Guest Game of the Day
+                </div>
+              ) : null}
             </div>
             <div style={{
               fontSize: '12px',
@@ -666,6 +744,7 @@ export default function GamesTab({ user, editMode }: GamesTabProps) {
         ))}
       </div>
 
+      {!user.isGuest ? (
       <div className="ai-box" style={{ marginTop: '24px' }}>
         <div className="ai-label">
           <LocalizeText text="Game Instructions" />
@@ -680,6 +759,7 @@ export default function GamesTab({ user, editMode }: GamesTabProps) {
           />
         </div>
       </div>
+      ) : null}
 
       {userMadeGames.length > 0 && (
         <>

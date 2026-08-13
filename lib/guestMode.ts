@@ -195,3 +195,44 @@ export function filterGuestChat(text: string): { ok: true; text: string } | { ok
   }
   return { ok: true, text: tokens.join(' ') };
 }
+
+/** Offline 2D games guests can always play. */
+export const GUEST_OFFLINE_2D_GAME_IDS = [
+  'hypnosia',
+  'underwaterOdyssey',
+  'oceanlifePro',
+  'showdown',
+  'baseballDiamond',
+  'celestialSeries',
+  'jungleJourney',
+  'voidArcade',
+  'ecoHero',
+  'coasterControl',
+  'squishBubbles',
+  'squishSlime',
+] as const;
+
+/** 3D online games that rotate as Guest Game of the Day. */
+export const GUEST_GAME_OF_THE_DAY_POOL = ['openWorldPlaza', 'petHabitat'] as const;
+
+export function utcDayIndex(now = new Date()): number {
+  return Math.floor(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()) / 86_400_000);
+}
+
+export function guestGameOfTheDayDateKey(now = new Date()): string {
+  return `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, '0')}-${String(now.getUTCDate()).padStart(2, '0')}`;
+}
+
+export function getGuestGameOfTheDayId(now = new Date()): string {
+  const pool = GUEST_GAME_OF_THE_DAY_POOL;
+  const idx = ((utcDayIndex(now) % pool.length) + pool.length) % pool.length;
+  return pool[idx]!;
+}
+
+export function isGuestOffline2DGameId(gameId: string): boolean {
+  return (GUEST_OFFLINE_2D_GAME_IDS as readonly string[]).includes(gameId);
+}
+
+export function isGuestPlayableGameId(gameId: string, now = new Date()): boolean {
+  return isGuestOffline2DGameId(gameId) || gameId === getGuestGameOfTheDayId(now);
+}
