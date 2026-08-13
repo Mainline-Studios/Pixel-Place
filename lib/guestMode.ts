@@ -212,8 +212,27 @@ export const GUEST_OFFLINE_2D_GAME_IDS = [
   'squishSlime',
 ] as const;
 
+/** Shared 3D online arenas that rotate in Guest Game of the Day. */
+export const GUEST_ARENA_GAME_IDS = [
+  'skyTag',
+  'crystalRush',
+  'kingHill',
+  'neonRace',
+  'balloonBrawl',
+  'laserDome',
+  'parkourPeak',
+  'snowballSiege',
+] as const;
+
 /** 3D online games that rotate as Guest Game of the Day. */
-export const GUEST_GAME_OF_THE_DAY_POOL = ['openWorldPlaza', 'petHabitat'] as const;
+export const GUEST_GAME_OF_THE_DAY_POOL = [
+  'openWorldPlaza',
+  'petHabitat',
+  'gymPump',
+  ...GUEST_ARENA_GAME_IDS,
+] as const;
+
+export const GUEST_FUNDAY_FAVORITE_KEY = 'pixelPlaceGuestFundayFavorite';
 
 export function utcDayIndex(now = new Date()): number {
   return Math.floor(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()) / 86_400_000);
@@ -221,6 +240,38 @@ export function utcDayIndex(now = new Date()): number {
 
 export function guestGameOfTheDayDateKey(now = new Date()): string {
   return `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, '0')}-${String(now.getUTCDate()).padStart(2, '0')}`;
+}
+
+/** UTC Friday — Guest Friday Funday unlocks every game. */
+export function isGuestFridayFunday(now = new Date()): boolean {
+  return now.getUTCDay() === 5;
+}
+
+export function getGuestFundayFavorite(now = new Date()): string | null {
+  if (typeof window === 'undefined' || !isGuestFridayFunday(now)) return null;
+  try {
+    const raw = sessionStorage.getItem(GUEST_FUNDAY_FAVORITE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as { date?: string; gameId?: string };
+    if (parsed.date !== guestGameOfTheDayDateKey(now) || typeof parsed.gameId !== 'string' || !parsed.gameId) {
+      return null;
+    }
+    return parsed.gameId;
+  } catch {
+    return null;
+  }
+}
+
+export function setGuestFundayFavorite(gameId: string, now = new Date()): void {
+  if (typeof window === 'undefined') return;
+  try {
+    sessionStorage.setItem(
+      GUEST_FUNDAY_FAVORITE_KEY,
+      JSON.stringify({ date: guestGameOfTheDayDateKey(now), gameId }),
+    );
+  } catch {
+    // ignore
+  }
 }
 
 export function getGuestGameOfTheDayId(now = new Date()): string {
@@ -233,6 +284,11 @@ export function isGuestOffline2DGameId(gameId: string): boolean {
   return (GUEST_OFFLINE_2D_GAME_IDS as readonly string[]).includes(gameId);
 }
 
+export function isGuestArenaGameId(gameId: string): boolean {
+  return (GUEST_ARENA_GAME_IDS as readonly string[]).includes(gameId);
+}
+
 export function isGuestPlayableGameId(gameId: string, now = new Date()): boolean {
+  if (isGuestFridayFunday(now)) return true;
   return isGuestOffline2DGameId(gameId) || gameId === getGuestGameOfTheDayId(now);
 }

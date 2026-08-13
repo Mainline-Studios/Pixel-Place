@@ -4,7 +4,6 @@ Allow: /about
 Allow: /historimac
 Allow: /historimac/
 Allow: /games
-Allow: /studio
 Allow: /avatarshop
 Allow: /coins
 Allow: /friends

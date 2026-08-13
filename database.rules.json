@@ -94,6 +94,23 @@
           ".validate": "!newData.exists() || (newData.hasChildren(['code', 'roomId', 'host', 'createdAt', 'expiresAt']) && newData.child('code').isString() && newData.child('roomId').isString() && newData.child('host').isString() && newData.child('createdAt').isNumber() && newData.child('expiresAt').isNumber())"
         }
       }
+    },
+    "guest_arena": {
+      "$gameId": {
+        "$room": {
+          ".read": true,
+          "players": {
+            "$playerId": {
+              ".write": true,
+              ".validate": "!newData.exists() || (newData.hasChildren(['username', 'x', 'y', 'z', 'rotY', 'anim', 'score', 'updatedAt']) && newData.child('username').isString() && newData.child('x').isNumber() && newData.child('y').isNumber() && newData.child('z').isNumber() && newData.child('rotY').isNumber() && newData.child('anim').isString() && newData.child('score').isNumber() && newData.child('updatedAt').isNumber())"
+            }
+          },
+          "meta": {
+            ".write": true,
+            ".validate": "!newData.exists() || newData.child('updatedAt').isNumber()"
+          }
+        }
+      }
     }
   }
 }

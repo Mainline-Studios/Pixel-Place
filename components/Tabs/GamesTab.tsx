@@ -34,10 +34,15 @@ import SquishSlime from '../Games/SquishSlime';
 import LocalizeText, { FilteredThenLocalize } from '@/components/LocalizeText';
 import { useUser } from '@/contexts/UserContext';
 import { FriendsStrip } from '@/components/FriendsStrip';
+import GuestArena3D from '../Games/GuestArena3D';
 import {
+  getGuestFundayFavorite,
   getGuestGameOfTheDayId,
   guestGameOfTheDayDateKey,
+  isGuestArenaGameId,
+  isGuestFridayFunday,
   isGuestPlayableGameId,
+  setGuestFundayFavorite,
 } from '@/lib/guestMode';
 
 interface GamesTabProps {
@@ -82,6 +87,7 @@ const games: GameInfo[] = [
     description: 'Run the Pixel Placer obstacle course with WASD + Space controls and camera drag/zoom.',
     icon: '🧱',
     category: 'Action',
+    is3D: true,
     component: ObstacleCourse,
   },
   {
@@ -105,6 +111,86 @@ const games: GameInfo[] = [
     component: PetHabitat,
   },
   {
+    id: 'skyTag',
+    name: 'Sky Tag',
+    description: '3D online tag across floating islands. Catch It, then don’t get caught.',
+    icon: '☁️',
+    category: 'Multiplayer',
+    is3D: true,
+    component: GuestArena3D,
+    props: { mode: 'skyTag' },
+  },
+  {
+    id: 'crystalRush',
+    name: 'Crystal Rush',
+    description: 'Race other players in a glowing cave to snag crystals first.',
+    icon: '💎',
+    category: 'Multiplayer',
+    is3D: true,
+    component: GuestArena3D,
+    props: { mode: 'crystalRush' },
+  },
+  {
+    id: 'kingHill',
+    name: 'King of the Hill',
+    description: 'Hold the golden summit while rivals try to knock you off.',
+    icon: '👑',
+    category: 'Multiplayer',
+    is3D: true,
+    component: GuestArena3D,
+    props: { mode: 'kingHill' },
+  },
+  {
+    id: 'neonRace',
+    name: 'Neon Circuit',
+    description: 'Lap a neon 3D track with live racers. Hit checkpoints, finish laps.',
+    icon: '🏎️',
+    category: 'Multiplayer',
+    is3D: true,
+    component: GuestArena3D,
+    props: { mode: 'neonRace' },
+  },
+  {
+    id: 'balloonBrawl',
+    name: 'Balloon Brawl',
+    description: 'Bump rivals off pastel sky pads in this 3D online brawl.',
+    icon: '🎈',
+    category: 'Multiplayer',
+    is3D: true,
+    component: GuestArena3D,
+    props: { mode: 'balloonBrawl' },
+  },
+  {
+    id: 'laserDome',
+    name: 'Laser Dome',
+    description: 'Live 3D laser arena. Dodge, fire, and climb the scoreboard.',
+    icon: '🟢',
+    category: 'Multiplayer',
+    is3D: true,
+    component: GuestArena3D,
+    props: { mode: 'laserDome' },
+  },
+  {
+    id: 'parkourPeak',
+    name: 'Parkour Peak',
+    description: 'Race other climbers up a 3D peak. Highest height wins.',
+    icon: '⛰️',
+    category: 'Multiplayer',
+    is3D: true,
+    component: GuestArena3D,
+    props: { mode: 'parkourPeak' },
+  },
+  {
+    id: 'snowballSiege',
+    name: 'Snowball Siege',
+    description: '3D snow fort fight. Pelt other players and defend your wall.',
+    icon: '❄️',
+    category: 'Multiplayer',
+    is3D: true,
+    component: GuestArena3D,
+    props: { mode: 'snowballSiege' },
+  },
+  {
     id: 'historiMac',
     name: 'HistoriMac',
     description:
@@ -121,6 +207,7 @@ const games: GameInfo[] = [
     icon: '💪',
     thumbnail: '/images/games/gym-pump.svg',
     category: 'Action',
+    is3D: true,
     component: GymPumpEngine,
   },
   {
@@ -283,6 +370,19 @@ export default function GamesTab({ user, editMode }: GamesTabProps) {
     () => (user.isGuest ? guestGameOfTheDayDateKey() : null),
     [user.isGuest],
   );
+  const guestFridayFunday = useMemo(
+    () => (user.isGuest ? isGuestFridayFunday() : false),
+    [user.isGuest],
+  );
+  const [fundayFavoriteId, setFundayFavoriteId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!user.isGuest) {
+      setFundayFavoriteId(null);
+      return;
+    }
+    setFundayFavoriteId(getGuestFundayFavorite());
+  }, [user.isGuest, guestFridayFunday]);
 
   const gamesList = useMemo(() => {
     let list = secretTheme === 'ixelace' ? [...games, ...SECRET_GAMES_IXEL_ACE] : games;
@@ -300,6 +400,12 @@ export default function GamesTab({ user, editMode }: GamesTabProps) {
   }, [user.favoriteGameIds]);
 
   const toggleFavorite = (gameId: string) => {
+    if (user.isGuest) {
+      if (!guestFridayFunday) return;
+      setGuestFundayFavorite(gameId);
+      setFundayFavoriteId(gameId);
+      return;
+    }
     setFavoriteGameIds((prev) => {
       const next = prev.includes(gameId) ? prev.filter((id) => id !== gameId) : [...prev, gameId];
       void updateUser({ favoriteGameIds: next } as Partial<User>);
@@ -384,6 +490,9 @@ export default function GamesTab({ user, editMode }: GamesTabProps) {
   const guestGameOfTheDay = guestGameOfTheDayId
     ? gamesList.find((g) => g.id === guestGameOfTheDayId) || games.find((g) => g.id === guestGameOfTheDayId) || null
     : null;
+  const guestFundayFavorite = fundayFavoriteId
+    ? gamesList.find((g) => g.id === fundayFavoriteId) || games.find((g) => g.id === fundayFavoriteId) || null
+    : null;
 
   useEffect(() => {
     if (!user.isGuest || !selectedGame) return;
@@ -408,7 +517,7 @@ export default function GamesTab({ user, editMode }: GamesTabProps) {
     };
     
     // Components that support onClose prop
-    const supportsOnClose = ['gymPump', 'hypnosia', 'voidArcade', 'ecoHero', 'historiMac', 'animationTest', 'worldGenerator', 'obstacleCourse', 'openWorldPlaza', 'petHabitat', 'squishBubbles', 'squishSlime', 'coasterControl'].includes(selectedGame);
+    const supportsOnClose = ['gymPump', 'hypnosia', 'voidArcade', 'ecoHero', 'historiMac', 'animationTest', 'worldGenerator', 'obstacleCourse', 'openWorldPlaza', 'petHabitat', 'squishBubbles', 'squishSlime', 'coasterControl'].includes(selectedGame) || isGuestArenaGameId(selectedGame);
     
     // Prepare props based on game type - pass user to games that need it
     const baseProps = selectedGame === 'gymPump'
@@ -443,6 +552,8 @@ export default function GamesTab({ user, editMode }: GamesTabProps) {
           onClose: handleClose,
           playWithFriend: playWithFriend || undefined,
         }
+      : isGuestArenaGameId(selectedGame)
+      ? { user, onClose: handleClose }
       : selectedGame === 'squishBubbles' || selectedGame === 'squishSlime'
       ? { onClose: handleClose }
       : selectedGame === 'coasterControl'
@@ -527,14 +638,62 @@ export default function GamesTab({ user, editMode }: GamesTabProps) {
         </div>
         <div className="ai-output">
           {user.isGuest ? (
-            <LocalizeText text="Guests can play 2D offline games, plus today’s 3D online Guest Game of the Day." />
+            guestFridayFunday ? (
+              <LocalizeText text="Friday Funday! Every game is unlocked. Pick your favorite to play for Funday." />
+            ) : (
+              <LocalizeText text="Guests can play 2D offline games, plus today’s rotating 3D online Guest Game of the Day." />
+            )
           ) : (
             <LocalizeText text="Choose a game to play! All games are playable directly in your browser." />
           )}
         </div>
       </div>
 
-      {user.isGuest && guestGameOfTheDay ? (
+      {user.isGuest && guestFridayFunday ? (
+        <div
+          className="ai-box"
+          style={{
+            marginTop: 16,
+            border: '1px solid rgba(251,191,36,0.55)',
+            background: 'linear-gradient(135deg, rgba(251,191,36,0.16) 0%, rgba(15,23,42,0.35) 100%)',
+          }}
+        >
+          <div className="ai-label" style={{ color: '#fbbf24' }}>
+            Guest Friday Funday · {guestGameOfTheDayDate}
+          </div>
+          <div style={{ display: 'flex', gap: 16, alignItems: 'center', flexWrap: 'wrap' }}>
+            <span style={{ fontSize: 42 }} aria-hidden>
+              {guestFundayFavorite?.icon || '🎉'}
+            </span>
+            <div style={{ flex: 1, minWidth: 180 }}>
+              <div style={{ fontWeight: 800, fontSize: 18 }}>
+                {guestFundayFavorite ? guestFundayFavorite.name : 'Pick your Funday favorite'}
+              </div>
+              <div className="smalltext" style={{ margin: '4px 0 0' }}>
+                {guestFundayFavorite
+                  ? 'Your Funday pick. Tap a star on any card to change it. Every game is unlocked today.'
+                  : 'Every game is unlocked. Tap the star on a card to choose your favorite for Funday.'}
+              </div>
+            </div>
+            {guestFundayFavorite ? (
+              <button
+                type="button"
+                className="btn"
+                onClick={() => setSelectedGame(guestFundayFavorite.id)}
+                style={{
+                  padding: '12px 18px',
+                  fontWeight: 800,
+                  background: 'linear-gradient(180deg, #fbbf24 0%, #d97706 100%)',
+                  border: '1px solid rgba(255,255,255,0.25)',
+                  color: '#111827',
+                }}
+              >
+                ▶ Play Funday favorite
+              </button>
+            ) : null}
+          </div>
+        </div>
+      ) : user.isGuest && guestGameOfTheDay ? (
         <div
           className="ai-box"
           style={{
@@ -553,7 +712,7 @@ export default function GamesTab({ user, editMode }: GamesTabProps) {
             <div style={{ flex: 1, minWidth: 180 }}>
               <div style={{ fontWeight: 800, fontSize: 18 }}>{guestGameOfTheDay.name}</div>
               <div className="smalltext" style={{ margin: '4px 0 0' }}>
-                Today’s rotating 3D online game. Comes back on another day.
+                Today’s rotating 3D online game. Comes back on another day. Friday Funday unlocks every game.
               </div>
             </div>
             <button
@@ -661,6 +820,7 @@ export default function GamesTab({ user, editMode }: GamesTabProps) {
                 {game.icon}
               </span>
             </div>
+            {!user.isGuest || guestFridayFunday ? (
             <button
               type="button"
               className="btn"
@@ -676,18 +836,37 @@ export default function GamesTab({ user, editMode }: GamesTabProps) {
                 padding: 0,
                 display: 'grid',
                 placeItems: 'center',
-                background: favoriteGameIds.includes(game.id)
+                background: (user.isGuest ? fundayFavoriteId === game.id : favoriteGameIds.includes(game.id))
                   ? 'rgba(250, 204, 21, 0.22)'
                   : 'rgba(0,0,0,0.35)',
-                border: favoriteGameIds.includes(game.id)
+                border: (user.isGuest ? fundayFavoriteId === game.id : favoriteGameIds.includes(game.id))
                   ? '1px solid rgba(250, 204, 21, 0.7)'
                   : '1px solid rgba(255,255,255,0.3)',
               }}
-              title={favoriteGameIds.includes(game.id) ? 'Remove favorite' : 'Add favorite'}
-              aria-label={favoriteGameIds.includes(game.id) ? 'Remove favorite' : 'Add favorite'}
+              title={
+                user.isGuest
+                  ? fundayFavoriteId === game.id
+                    ? 'Funday favorite'
+                    : 'Pick as Funday favorite'
+                  : favoriteGameIds.includes(game.id)
+                    ? 'Remove favorite'
+                    : 'Add favorite'
+              }
+              aria-label={
+                user.isGuest
+                  ? fundayFavoriteId === game.id
+                    ? 'Funday favorite'
+                    : 'Pick as Funday favorite'
+                  : favoriteGameIds.includes(game.id)
+                    ? 'Remove favorite'
+                    : 'Add favorite'
+              }
             >
-              <span style={{ fontSize: 18 }} aria-hidden>{favoriteGameIds.includes(game.id) ? '★' : '☆'}</span>
+              <span style={{ fontSize: 18 }} aria-hidden>
+                {(user.isGuest ? fundayFavoriteId === game.id : favoriteGameIds.includes(game.id)) ? '★' : '☆'}
+              </span>
             </button>
+            ) : null}
             <div style={{
               fontSize: '20px',
               fontWeight: 700,
@@ -695,7 +874,11 @@ export default function GamesTab({ user, editMode }: GamesTabProps) {
               textAlign: 'center'
             }}>
               <LocalizeText text={game.name} />
-              {user.isGuest && game.id === guestGameOfTheDayId ? (
+              {user.isGuest && guestFridayFunday && game.id === fundayFavoriteId ? (
+                <div style={{ fontSize: 11, fontWeight: 800, color: '#fbbf24', marginTop: 4 }}>
+                  Funday favorite
+                </div>
+              ) : user.isGuest && game.id === guestGameOfTheDayId ? (
                 <div style={{ fontSize: 11, fontWeight: 800, color: '#7dd3fc', marginTop: 4 }}>
                   Guest Game of the Day
                 </div>

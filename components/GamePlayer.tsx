@@ -7,6 +7,7 @@ import { io, Socket } from 'socket.io-client';
 import { useUser } from '@/contexts/UserContext';
 import FullScreenGameWrapper from '@/components/FullScreenGameWrapper';
 import { FilteredUsername } from '@/components/FilteredText';
+import { isGuestArenaGameId } from '@/lib/guestMode';
 
 interface GamePlayerProps {
   game: PublishedGame;
@@ -328,6 +329,16 @@ export default function GamePlayer({ game, onClose }: GamePlayerProps) {
             case 'petHabitat':
               GameComponent = (await import('@/components/Games/PetHabitat')).default;
               break;
+            case 'skyTag':
+            case 'crystalRush':
+            case 'kingHill':
+            case 'neonRace':
+            case 'balloonBrawl':
+            case 'laserDome':
+            case 'parkourPeak':
+            case 'snowballSiege':
+              GameComponent = (await import('@/components/Games/GuestArena3D')).default;
+              break;
             default:
               setError(`Built-in game "${gameId}" not found`);
               return;
@@ -345,9 +356,10 @@ export default function GamePlayer({ game, onClose }: GamePlayerProps) {
             
             // Create root and render component
             const root = ReactDOM.createRoot(containerRef.current);
-            root.render(React.createElement(GameComponent, { 
+            root.render(React.createElement(GameComponent, {
               onClose: onClose,
-              user: user 
+              user: user,
+              ...(isGuestArenaGameId(gameId) ? { mode: gameId } : {}),
             }));
             
             // Store cleanup function
