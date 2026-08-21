@@ -1,6 +1,6 @@
 # Pixel Place hidden service (`.onion`)
 
-A Tor v3 onion site for Pixel Place. The public internet never sees this origin: Nginx listens on loopback, and Tor publishes a randomly generated hidden-service address.
+A Tor v3 onion site for Pixel Place: classified-looking **secrets of Pixel Place**, in-jokes, and a fake 67 ballot. The public internet never sees this origin: Nginx listens on loopback, and Tor publishes a randomly generated hidden-service address.
 
 ## Address generation
 
