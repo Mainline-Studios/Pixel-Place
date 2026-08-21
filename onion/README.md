@@ -37,6 +37,9 @@ Open that hostname in [Tor Browser](https://www.torproject.org/download/). It wi
 | Path | Role |
 |------|------|
 | `www/` | Static site served as the onion origin |
+| `www/vault-files.js` | 260 cabinet files (130 sealed) |
+| `MASTER_LIST.md` | Operator cheat sheet: every file and unlock command |
+| `scripts/generate-vault-files.mjs` | Regenerates vault-files.js + MASTER_LIST.md |
 | `nginx/pixel-place-onion.conf` | Loopback-only Nginx vhost (`127.0.0.1:8080`) |
 | `tor/hidden-service.torrc` | Hidden service lines for `/etc/tor/torrc` |
 | `HOSTNAME` | Public v3 address after first successful Tor start |

@@ -29,11 +29,72 @@
 
   document.querySelectorAll('.file').forEach(function (el) {
     el.addEventListener('click', function () {
-      if (el.classList.contains('open')) return;
+      if (el.classList.contains('open') || el.classList.contains('sealed')) return;
       el.classList.add('open');
       bump(1);
     });
   });
+
+  var vaultFiles = Array.isArray(window.VAULT_FILES) ? window.VAULT_FILES : [];
+  var vaultCabinets = Array.isArray(window.VAULT_CABINETS) ? window.VAULT_CABINETS : [];
+  var revealed = {};
+  var grid = document.getElementById('vault-grid');
+
+  function pad3(n) {
+    return String(n).padStart(3, '0');
+  }
+  function isRevealed(f) {
+    return !f.locked || !!revealed[f.id];
+  }
+  function stats() {
+    var openN = vaultFiles.filter(function (f) { return isRevealed(f); }).length;
+    var lockN = vaultFiles.length - openN;
+    var el = document.getElementById('file-stats');
+    if (el) el.textContent = openN + ' declassified / ' + lockN + ' sealed (of ' + vaultFiles.length + ')';
+  }
+  function cardHtml(f) {
+    if (!isRevealed(f)) {
+      return (
+        '<article class="file sealed" data-id="' + f.id + '">' +
+          '<h2>File ' + pad3(f.id) + ' · LOCKED · ' + f.cabinet + '</h2>' +
+          '<p>Sealed. Title withheld. You need a command.</p>' +
+        '</article>'
+      );
+    }
+    return (
+      '<article class="file" data-id="' + f.id + '">' +
+        '<h2>File ' + pad3(f.id) + ' · ' + f.title.replace(/</g, '') + '</h2>' +
+        '<p>' + f.body.replace(/</g, '') + '</p>' +
+      '</article>'
+    );
+  }
+  function paintGrid(highlightId) {
+    if (!grid) return;
+    grid.innerHTML = vaultFiles.map(cardHtml).join('');
+    stats();
+    if (highlightId) {
+      var node = grid.querySelector('[data-id="' + highlightId + '"]');
+      if (node) {
+        node.classList.add('just-opened', 'open');
+        node.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      }
+    }
+  }
+  function unlockFile(f, quiet) {
+    if (!f) return 0;
+    if (!f.locked || revealed[f.id]) return 0;
+    revealed[f.id] = true;
+    bump(2);
+    if (!quiet) paintGrid(f.id);
+    return 1;
+  }
+  function findById(num) {
+    return vaultFiles.find(function (f) { return f.id === num; });
+  }
+  function findByCmd(cmd) {
+    return vaultFiles.find(function (f) { return f.cmd === cmd; });
+  }
+  paintGrid();
 
   var yes = 67;
   var no = 67;
@@ -137,31 +198,140 @@
     term.scrollTop = term.scrollHeight;
   }
   var cmds = {
-    help: 'help, 67, coins, studio, konami, onion, helios, gym, historimac, lava, pyx, about',
+    help: 'help, catalog, locked, unlocked, open 020, cabinet gym, konami, 67, coins, studio, onion, helios, gym, historimac, lava, pyx, about. Sealed slugs are not listed here.',
     '67': 'Safehouse 3.01 footer ballot. YES streams anti-67.mp3. NO gets early dismiss. Skipping is a lifestyle tax.',
     coins: 'Not legal tender. Also not Roblox Robux. We have a whole FAQ about that.',
     studio: 'Current Studio tab is retiring. New Studio is “more exciting.” ETA: after localhost is fixed (see docs).',
     onion: addr.textContent,
     helios: 'Video lab disguised as a built-in game. Continue video. Become sun.',
-    gym: 'Engine files not in git. Gains not in git. Spirit: very much in git.',
+    gym: 'Engine files not in git. Gains not in git. Spirit: very much in git. Try cabinet gym',
     historimac: 'From original Macintosh to NeXTSTEP. Invite links. Balloon Help has opinions.',
     lava: 'If you can read the footer, you are already dead. Respawn at /games.',
     pyx: 'Filters Studio publishes so park guests don’t learn forbidden words. “hunter2” is still *******.',
     about: 'Pixel Place by Mainline Studios. Free browser games, avatars, Studio, friends, coins. Not the other Pixel Place.',
   };
+  function catalogText() {
+    var openN = vaultFiles.filter(isRevealed).length;
+    return (
+      'Featured 001–018 on page. Cabinets 019–278 = ' +
+      vaultFiles.length +
+      ' files (' +
+      openN +
+      ' visible, ' +
+      (vaultFiles.length - openN) +
+      ' sealed). File 279 = konami. Cabinets: ' +
+      vaultCabinets.join(', ') +
+      '.'
+    );
+  }
+  function lockedList() {
+    return vaultFiles
+      .filter(function (f) { return f.locked && !revealed[f.id]; })
+      .map(function (f) { return pad3(f.id) + ' [' + f.cabinet + ']'; })
+      .join('\n') || '(none sealed)';
+  }
+  function unlockedList() {
+    return vaultFiles
+      .filter(function (f) { return isRevealed(f); })
+      .map(function (f) { return pad3(f.id) + ' ' + f.title; })
+      .join('\n');
+  }
+  function masterDump() {
+    return vaultFiles
+      .filter(function (f) { return f.locked; })
+      .map(function (f) { return pad3(f.id) + '  ' + f.cmd + '  |  open ' + pad3(f.id) + '  |  ' + f.title; })
+      .join('\n');
+  }
   document.getElementById('term-form').addEventListener('submit', function (e) {
     e.preventDefault();
     var input = document.getElementById('term-in');
     var raw = (input.value || '').trim();
-    var key = raw.toLowerCase();
+    var key = raw.toLowerCase().replace(/\s+/g, ' ');
     input.value = '';
     println('vault> ' + raw);
     if (key === 'konami') {
       unlockKonami();
-      println('Konami accepted. File 030 opened.');
+      println('Konami accepted. File 279 opened.');
+      bump(1);
       return;
     }
-    println(cmds[key] || 'Unknown. The empty file named More Games also does not know.');
+    if (key === 'catalog') {
+      println(catalogText());
+      bump(1);
+      return;
+    }
+    if (key === 'locked') {
+      println(lockedList());
+      bump(1);
+      return;
+    }
+    if (key === 'unlocked') {
+      println(unlockedList());
+      bump(1);
+      return;
+    }
+    if (key === 'master balloon-help') {
+      println('OPERATOR DUMP — 130 sealed slugs\n' + masterDump());
+      bump(5);
+      return;
+    }
+    if (key === 'master') {
+      println('Need the passphrase. Balloon Help already knows it.');
+      return;
+    }
+    var openMatch = key.match(/^open\s+#?(\d{1,3})$/);
+    if (openMatch) {
+      var id = parseInt(openMatch[1], 10);
+      var f = findById(id);
+      if (!f) {
+        println('No such file ' + pad3(id) + '. Range is 019–278.');
+        return;
+      }
+      if (!f.locked) {
+        println('File ' + pad3(f.id) + ' is already on the shelf: ' + f.title);
+        paintGrid(f.id);
+        return;
+      }
+      if (revealed[f.id]) {
+        println('Already declassified: ' + f.title);
+        paintGrid(f.id);
+        return;
+      }
+      unlockFile(f);
+      println('Declassified File ' + pad3(f.id) + ' · ' + f.title);
+      return;
+    }
+    var cabMatch = key.match(/^cabinet\s+([a-z]+)$/);
+    if (cabMatch) {
+      var cab = cabMatch[1];
+      if (vaultCabinets.indexOf(cab) === -1) {
+        println('Unknown cabinet. Try: ' + vaultCabinets.join(', '));
+        return;
+      }
+      var n = 0;
+      var last = null;
+      vaultFiles.forEach(function (file) {
+        if (file.cabinet === cab && file.locked) {
+          n += unlockFile(file, true);
+          last = file;
+        }
+      });
+      paintGrid(last && last.id);
+      println('Cabinet ' + cab + ': declassified ' + n + ' file(s).');
+      return;
+    }
+    var bySlug = findByCmd(key);
+    if (bySlug && bySlug.locked) {
+      if (revealed[bySlug.id]) {
+        println('Already declassified: ' + bySlug.title);
+        paintGrid(bySlug.id);
+        return;
+      }
+      unlockFile(bySlug);
+      println('Declassified File ' + pad3(bySlug.id) + ' · ' + bySlug.title + ' via ' + bySlug.cmd);
+      return;
+    }
+    println(cmds[key] || 'Unknown. Try help, catalog, open 020, cabinet gym. The empty file named More Games also does not know.');
     bump(1);
   });
 

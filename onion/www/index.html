@@ -7,7 +7,7 @@
     <meta name="description" content="CLASSIFIED — Pixel Place secrets, leaks, and extremely official jokes." />
     <title>PP//VAULT — Secrets of Pixel Place</title>
     <meta http-equiv="Cache-Control" content="no-store" />
-    <link rel="stylesheet" href="/vault.css?v=3" />
+    <link rel="stylesheet" href="/vault.css?v=4" />
   </head>
   <body>
     <div class="scanlines" aria-hidden="true"></div>
@@ -29,6 +29,7 @@
       <p class="hint">
         Visitors logged: <strong id="visitors">1</strong> (it’s always 1; this site is a secret).
         Clearance: <strong id="clearance">intern</strong>.
+        Cabinets: <strong id="file-stats">…</strong>
       </p>
     </header>
 
@@ -181,6 +182,16 @@
       </section>
 
       <section class="card">
+        <h2>Cabinets 019–278</h2>
+        <p class="hint" style="margin:0">
+          260 more files. Half are sealed. Type <code>open 020</code>, a slug like
+          <code>gym-tape</code>, or <code>cabinet gym</code> in the terminal below. Public help
+          will not list the slugs. You either know, or you guess, or you are the operator.
+        </p>
+      </section>
+      <section class="grid files" id="vault-grid"></section>
+
+      <section class="card">
         <h2>File 017 · Redacted, on purpose</h2>
         <p>
           Click the bars. We promise it is not a password.
@@ -197,7 +208,11 @@
 
       <section class="card terminal-card">
         <h2>File 018 · Operator terminal (fake)</h2>
-        <p class="hint">Commands: <code>help</code> · <code>67</code> · <code>coins</code> · <code>studio</code> · <code>konami</code> · <code>onion</code></p>
+        <p class="hint">
+          Commands: <code>help</code> · <code>catalog</code> · <code>open 020</code> ·
+          <code>cabinet gym</code> · <code>locked</code> · <code>unlocked</code> ·
+          <code>konami</code> · plus the old lore commands
+        </p>
         <pre id="term" class="term" tabindex="0">PP//VAULT ready. Type help.\n</pre>
         <form id="term-form" autocomplete="off">
           <label class="sr">command</label>
@@ -207,7 +222,7 @@
       </section>
 
       <section class="card" id="konami-box" hidden>
-        <h2>File 030 · Konami vault</h2>
+        <h2>File 279 · Konami vault</h2>
         <p>
           You entered the sacred sequence (or typed <code>konami</code>). Reward: the Studio
           retirement playlist is forty-seven minutes of System 7 Balloon Help saying “This is not
@@ -254,6 +269,7 @@
       <p class="lava">≈≈≈≈ FLOOR IS LAVA ≈≈≈≈ do not stand here ≈≈≈≈</p>
     </footer>
 
-    <script src="/vault.js?v=3"></script>
+    <script src="/vault-files.js?v=4"></script>
+    <script src="/vault.js?v=4"></script>
   </body>
 </html>
