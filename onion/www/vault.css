@@ -197,9 +197,15 @@ button {
   inset: 0;
   z-index: 80;
   background: rgba(0, 0, 0, 0.72);
-  display: grid;
   place-items: center;
   padding: 20px;
+}
+/* Author `display` beats the UA [hidden] rule — keep these in lockstep. */
+.lock[hidden] {
+  display: none !important;
+}
+.lock:not([hidden]) {
+  display: grid;
 }
 .lock-card {
   max-width: 420px;

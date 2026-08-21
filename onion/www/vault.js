@@ -49,19 +49,26 @@
 
   var need = 3;
   var done = 0;
+  var lockEl = document.getElementById('lock');
+  function setLockOpen(open) {
+    lockEl.hidden = !open;
+    lockEl.setAttribute('aria-hidden', open ? 'false' : 'true');
+  }
   function renderLock() {
     document.getElementById('need').textContent = String(Math.max(0, need - done));
     document.getElementById('bar').style.width = Math.min(100, (done / need) * 100) + '%';
     var close = document.getElementById('fake-close');
     close.hidden = done < need;
     document.getElementById('lock-msg').textContent =
-      done >= need ? 'Overlay would close now. You may return to leaking.' : done + ' / ' + need + ' pretend-plays.';
+      done >= need ? 'You may now be a changed onion.' : done + ' / ' + need + ' pretend-plays.';
   }
   document.getElementById('vote-yes').addEventListener('click', function () {
     yes += 67;
     bump(2);
     pollText('You voted YES. The lock overlay has entered the chat.');
-    document.getElementById('lock').hidden = false;
+    need = 3;
+    done = 0;
+    setLockOpen(true);
     renderLock();
   });
   document.getElementById('fake-play').addEventListener('click', function () {
@@ -74,7 +81,7 @@
     document.getElementById('lock-msg').textContent = 'Skip detected. +3 required plays. This is canon.';
   });
   document.getElementById('fake-close').addEventListener('click', function () {
-    document.getElementById('lock').hidden = true;
+    setLockOpen(false);
   });
 
   var mintLines = [
