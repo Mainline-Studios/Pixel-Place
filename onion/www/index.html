@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex, nofollow, noarchive" />
+    <meta
+      name="description"
+      content="Pixel Place hidden service — reachable only over Tor."
+    />
+    <title>Pixel Place — Hidden Service</title>
+    <style>
+      :root {
+        --bg: #07080c;
+        --panel: #12151d;
+        --border: rgba(148, 163, 184, 0.14);
+        --text: #e8e8ef;
+        --muted: #8b90a8;
+        --accent: #7c5cff;
+        --cyan: #5ecfff;
+        --ok: #34d399;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+        background:
+          radial-gradient(1200px 600px at 10% -10%, rgba(124, 92, 255, 0.18), transparent 55%),
+          radial-gradient(900px 500px at 110% 10%, rgba(94, 207, 255, 0.12), transparent 50%),
+          var(--bg);
+        color: var(--text);
+        line-height: 1.55;
+      }
+      .wrap {
+        max-width: 720px;
+        margin: 0 auto;
+        padding: 48px 20px 64px;
+      }
+      .badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 0.72rem;
+        font-weight: 800;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+        color: var(--ok);
+        border: 1px solid rgba(52, 211, 153, 0.35);
+        background: rgba(52, 211, 153, 0.08);
+        border-radius: 999px;
+        padding: 6px 12px;
+        margin-bottom: 18px;
+      }
+      .badge .dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: var(--ok);
+        box-shadow: 0 0 12px var(--ok);
+      }
+      h1 {
+        margin: 0 0 10px;
+        font-size: clamp(1.8rem, 4vw, 2.4rem);
+        letter-spacing: -0.04em;
+      }
+      .lede {
+        color: var(--muted);
+        font-size: 1.05rem;
+        max-width: 42rem;
+      }
+      .onion {
+        margin: 22px 0 28px;
+        padding: 14px 16px;
+        border-radius: 12px;
+        border: 1px dashed rgba(124, 92, 255, 0.45);
+        background: rgba(18, 21, 29, 0.85);
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        font-size: 0.82rem;
+        word-break: break-all;
+        color: var(--cyan);
+      }
+      .grid {
+        display: grid;
+        gap: 14px;
+      }
+      .card {
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        padding: 18px 20px;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
+      }
+      .card h2 {
+        margin: 0 0 8px;
+        font-size: 0.78rem;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--muted);
+      }
+      a {
+        color: var(--cyan);
+        font-weight: 650;
+        text-decoration: none;
+      }
+      a:hover {
+        text-decoration: underline;
+        text-underline-offset: 3px;
+      }
+      ul {
+        margin: 0;
+        padding-left: 1.15rem;
+        color: var(--muted);
+      }
+      li + li {
+        margin-top: 6px;
+      }
+      footer {
+        margin-top: 28px;
+        color: var(--muted);
+        font-size: 0.82rem;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <div class="badge"><span class="dot" aria-hidden="true"></span> Tor hidden service · v3</div>
+      <h1>Pixel Place, off the clearnet.</h1>
+      <p class="lede">
+        This is a private onion site for Pixel Place by Mainline Studios. It is not advertised on
+        the public web. You reached it through Tor’s overlay network using a randomly generated
+        v3 address.
+      </p>
+      <p class="onion" id="addr">loading.onion</p>
+      <div class="grid">
+        <section class="card">
+          <h2>What this is</h2>
+          <p style="margin: 0; color: var(--muted)">
+            A localhost-only Nginx origin published as a Tor onion service. Visitors never talk to
+            this host’s public IP; Tor decrypts the circuit on the server and forwards HTTP to
+            <code style="color: var(--text)">127.0.0.1:8080</code>.
+          </p>
+        </section>
+        <section class="card">
+          <h2>How to open it</h2>
+          <ul>
+            <li>Use <a href="https://www.torproject.org/download/">Tor Browser</a>.</li>
+            <li>Paste the <code>.onion</code> address above into the URL bar.</li>
+            <li>Do not expect this hostname to resolve on the ordinary internet.</li>
+          </ul>
+        </section>
+        <section class="card">
+          <h2>Clearnet home</h2>
+          <ul>
+            <li><a href="https://pixelplaceofficial.com/games">Play Pixel Place</a></li>
+            <li><a href="https://status.pixelplaceofficial.com">Status</a></li>
+            <li><a href="https://discord.com/invite/VV6nKAz5sR">Discord</a></li>
+          </ul>
+        </section>
+      </div>
+      <footer>
+        Pixel Place © 2026 Mainline Studios · CC BY-NC-ND 4.0 · This service is generated with
+        Tor standard random keys (not a vanity address).
+      </footer>
+    </div>
+    <script>
+      (function () {
+        var el = document.getElementById("addr");
+        el.textContent = location.hostname || "unknown.onion";
+      })();
+    </script>
+  </body>
+</html>

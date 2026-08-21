@@ -1,0 +1,11 @@
+############### Pixel Place hidden service (v3) ###
+# Standard random generation: Tor creates an ed25519 key pair in
+# HiddenServiceDir on first start and writes the 56-character v3
+# address to HiddenServiceDir/hostname.
+#
+# Append these lines to /etc/tor/torrc (or drop this file into
+# /etc/tor/torrc.d/ if your package supports it).
+
+HiddenServiceDir /var/lib/tor/pixelplace/
+HiddenServiceVersion 3
+HiddenServicePort 80 127.0.0.1:8080
