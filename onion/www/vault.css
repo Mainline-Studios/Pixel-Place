@@ -193,6 +193,7 @@ button {
 }
 .sr { position: absolute; left: -9999px; }
 .lock {
+  display: none;
   position: fixed;
   inset: 0;
   z-index: 80;
@@ -200,12 +201,19 @@ button {
   place-items: center;
   padding: 20px;
 }
-/* Author `display` beats the UA [hidden] rule — keep these in lockstep. */
-.lock[hidden] {
-  display: none !important;
-}
-.lock:not([hidden]) {
+.lock.is-open {
   display: grid;
+}
+#fake-close {
+  display: none;
+  margin-top: 8px;
+  width: 100%;
+  background: rgba(52, 211, 153, 0.18);
+  color: var(--ok);
+  border-color: rgba(52, 211, 153, 0.45);
+}
+#fake-close.is-ready {
+  display: inline-block;
 }
 .lock-card {
   max-width: 420px;

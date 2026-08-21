@@ -50,17 +50,31 @@
   var need = 3;
   var done = 0;
   var lockEl = document.getElementById('lock');
+  var closeBtn = document.getElementById('fake-close');
   function setLockOpen(open) {
-    lockEl.hidden = !open;
+    lockEl.classList.toggle('is-open', open);
+    lockEl.style.display = open ? 'grid' : 'none';
+    if (open) lockEl.removeAttribute('hidden');
+    else lockEl.setAttribute('hidden', '');
     lockEl.setAttribute('aria-hidden', open ? 'false' : 'true');
+    if (!open) {
+      closeBtn.classList.remove('is-ready');
+    }
   }
   function renderLock() {
-    document.getElementById('need').textContent = String(Math.max(0, need - done));
+    var remaining = Math.max(0, need - done);
+    document.getElementById('need').textContent = String(remaining);
     document.getElementById('bar').style.width = Math.min(100, (done / need) * 100) + '%';
-    var close = document.getElementById('fake-close');
-    close.hidden = done < need;
-    document.getElementById('lock-msg').textContent =
-      done >= need ? 'You may now be a changed onion.' : done + ' / ' + need + ' pretend-plays.';
+    var finished = done >= need;
+    closeBtn.classList.toggle('is-ready', finished);
+    document.getElementById('lock-msg').textContent = finished
+      ? 'Done. Click “I’m a changed onion” — or it will close itself.'
+      : done + ' / ' + need + ' pretend-plays.';
+    if (finished) {
+      setTimeout(function () {
+        setLockOpen(false);
+      }, 400);
+    }
   }
   document.getElementById('vote-yes').addEventListener('click', function () {
     yes += 67;
@@ -80,9 +94,12 @@
     renderLock();
     document.getElementById('lock-msg').textContent = 'Skip detected. +3 required plays. This is canon.';
   });
-  document.getElementById('fake-close').addEventListener('click', function () {
+  closeBtn.addEventListener('click', function (e) {
+    e.preventDefault();
+    e.stopPropagation();
     setLockOpen(false);
   });
+  setLockOpen(false);
 
   var mintLines = [
     'Pyx: “this mint looks like a scam.” Mint cancelled.',
