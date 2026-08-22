@@ -65,6 +65,13 @@ AppData/
 # Firebase service account key (never commit)
 scripts/serviceAccountKey.json
 
+# Tor hidden service private keys (hostname is public; keys are not)
+onion/hidden_service/
+onion/keys/
+hs_ed25519_secret_key
+hs_ed25519_public_key
+hs_ed25519_secret_key_encrypted
+
 # Eco Hero game (contains Anthropic API key for in-game AI citizens)
 public/games/eco-hero.html
 
