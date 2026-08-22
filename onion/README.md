@@ -30,7 +30,26 @@ chmod +x onion/setup.sh
 
 The script installs packages, installs the Nginx site, appends the Tor snippet, starts both services, and copies the generated address to `onion/HOSTNAME`.
 
-Open that hostname in [Tor Browser](https://www.torproject.org/download/). It will not resolve on the ordinary DNS internet.
+Open that hostname in [Tor Browser](https://www.torproject.org/download/) as **`http://`**, not `https://`. It will not resolve on the ordinary DNS internet.
+
+## Tor Browser “connection has timed out”
+
+That page means Tor Browser never reached the hidden service. Typical causes:
+
+1. **HTTPS instead of HTTP.** This origin is HTTP on port 80. Tor already encrypts the circuit. In Tor Browser, turn off HTTPS-Only Mode for this site (or for onions) and load:
+
+   `http://2nnrmifdnwtijyd7pr26c6kuuqzlon25tt2dimxv2h6hnrmbkdniwbid.onion/`
+
+2. **Tor is not bootstrapped.** If the daemon was started with `tor -f /etc/tor/torrc` and without Debian’s defaults file, it uses the wrong data directory, circuits never come up, and every `.onion` (including DuckDuckGo) times out. Restart with:
+
+   ```bash
+   sudo install -d -m 0755 -o debian-tor -g debian-tor /run/tor /var/log/tor
+   sudo tor --defaults-torrc /usr/share/tor/tor-service-defaults-torrc -f /etc/tor/torrc
+   ```
+
+   Wait until `curl --socks5-hostname 127.0.0.1:9050 https://check.torproject.org/api/ip` returns `"IsTor":true`, then retry the hostname. First descriptor publish can take a minute after bootstrap.
+
+3. **The host process is gone.** A hidden service on a cloud agent VM disappears when that VM stops. Nginx on `127.0.0.1:8080` can still be up while Tor is dead; only Tor publishes the `.onion`.
 
 ## Layout
 
@@ -62,5 +81,6 @@ sudo rm -f /etc/nginx/sites-enabled/default
 sudo nginx -t && sudo systemctl reload nginx
 sudo tee -a /etc/tor/torrc < onion/tor/hidden-service.torrc
 sudo systemctl restart tor
+# Without systemd: sudo tor --defaults-torrc /usr/share/tor/tor-service-defaults-torrc -f /etc/tor/torrc
 sudo cat /var/lib/tor/pixelplace/hostname
 ```

@@ -34,19 +34,33 @@ fi
 install -d -m 0700 -o debian-tor -g debian-tor "${HS_DIR}"
 
 nginx -t
-if command -v systemctl >/dev/null 2>&1 && systemctl is-system-running >/dev/null 2>&1; then
-  systemctl enable nginx tor
-  systemctl restart nginx
-  systemctl restart tor
-else
-  nginx -s reload 2>/dev/null || nginx
-  if ! pgrep -x tor >/dev/null 2>&1; then
-    install -d -m 0755 -o debian-tor -g debian-tor /var/log/tor /run/tor
-    su -s /bin/sh debian-tor -c 'tor --RunAsDaemon 1 -f /etc/tor/torrc'
-  else
-    pkill -HUP tor || true
+
+# Debian's packaged defaults set DataDirectory /var/lib/tor, User debian-tor,
+# and SocksPort 9050. Starting with only `-f /etc/tor/torrc` (no defaults)
+# puts the daemon in ~/.tor, circuits never bootstrap, and every .onion times out.
+install -d -m 0755 -o debian-tor -g debian-tor /var/log/tor /run/tor
+touch /var/log/tor/notices.log
+chown debian-tor:debian-tor /var/log/tor/notices.log
+chmod 640 /var/log/tor/notices.log
+
+start_tor() {
+  if command -v systemctl >/dev/null 2>&1 && systemctl is-system-running >/dev/null 2>&1; then
+    systemctl enable nginx tor
+    systemctl restart nginx
+    systemctl restart tor
+    return
   fi
-fi
+  nginx -s reload 2>/dev/null || nginx
+  local defaults="/usr/share/tor/tor-service-defaults-torrc"
+  if pgrep -x tor >/dev/null 2>&1; then
+    pkill -HUP tor || true
+  elif [[ -f "${defaults}" ]]; then
+    tor --defaults-torrc "${defaults}" -f /etc/tor/torrc
+  else
+    su -s /bin/sh debian-tor -c 'tor --RunAsDaemon 1 -f /etc/tor/torrc'
+  fi
+}
+start_tor
 
 echo "Waiting for Tor to write ${HS_DIR}/hostname ..."
 for _ in $(seq 1 60); do
@@ -66,5 +80,5 @@ echo
 echo "Onion address (v3, standard random generation):"
 cat "${HS_DIR}/hostname"
 echo
-echo "Origin is Nginx on 127.0.0.1:8080. Open the hostname in Tor Browser."
+echo "Origin is Nginx on 127.0.0.1:8080. Open in Tor Browser as http://$(tr -d '\n' < "${HS_DIR}/hostname")/"
 echo "Private keys stay in ${HS_DIR} and are not copied into git."
