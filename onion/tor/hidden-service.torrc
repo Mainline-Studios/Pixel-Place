@@ -9,6 +9,7 @@
 HiddenServiceDir /var/lib/tor/pixelplace/
 HiddenServiceVersion 3
 HiddenServicePort 80 127.0.0.1:8080
+HiddenServicePort 443 127.0.0.1:8443
 
 # Optional extra log (Debian already logs notice to syslog via defaults).
 # Create the file first: install -m 0640 -o debian-tor -g debian-tor /dev/null /var/log/tor/notices.log

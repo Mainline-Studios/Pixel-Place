@@ -29,10 +29,28 @@ rm -f /etc/nginx/sites-enabled/default
 if ! grep -q 'HiddenServiceDir /var/lib/tor/pixelplace/' /etc/tor/torrc; then
   printf '\n' >> /etc/tor/torrc
   cat "${TOR_SNIPPET}" >> /etc/tor/torrc
+elif ! grep -q 'HiddenServicePort 443 127.0.0.1:8443' /etc/tor/torrc; then
+  sed -i '/HiddenServicePort 80 127.0.0.1:8080/a HiddenServicePort 443 127.0.0.1:8443' /etc/tor/torrc
 fi
 
 install -d -m 0700 -o debian-tor -g debian-tor "${HS_DIR}"
 
+ensure_tls_cert() {
+  local host="${1}"
+  local crt="/etc/nginx/pixelplace-onion.crt"
+  local key="/etc/nginx/pixelplace-onion.key"
+  if [[ -f "${crt}" && -f "${key}" ]] && openssl x509 -in "${crt}" -noout -text 2>/dev/null | grep -q "${host}"; then
+    return
+  fi
+  openssl req -x509 -newkey ec -pkeyopt ec_paramgen_curve:prime256v1 -sha256 -days 825 -nodes \
+    -keyout "${key}" -out "${crt}" \
+    -subj "/CN=${host}" \
+    -addext "subjectAltName=DNS:${host}"
+  chmod 640 "${key}" "${crt}"
+  chown root:www-data "${key}"
+}
+
+ensure_tls_cert "pixelplace.onion"
 nginx -t
 
 # Debian's packaged defaults set DataDirectory /var/lib/tor, User debian-tor,
@@ -76,9 +94,19 @@ if [[ ! -s "${HS_DIR}/hostname" ]]; then
 fi
 
 install -m 0644 "${HS_DIR}/hostname" "${HOSTNAME_OUT}"
+ONION_HOST="$(tr -d '[:space:]' < "${HS_DIR}/hostname")"
+ensure_tls_cert "${ONION_HOST}"
+nginx -t
+if command -v systemctl >/dev/null 2>&1 && systemctl is-system-running >/dev/null 2>&1; then
+  systemctl reload nginx
+else
+  nginx -s reload
+fi
 echo
 echo "Onion address (v3, standard random generation):"
-cat "${HS_DIR}/hostname"
+echo "${ONION_HOST}"
 echo
-echo "Origin is Nginx on 127.0.0.1:8080. Open in Tor Browser as http://$(tr -d '\n' < "${HS_DIR}/hostname")/"
+echo "Tor Browser HTTPS-Only Mode needs TLS. Open:"
+echo "  https://${ONION_HOST}/"
+echo "Accept the self-signed warning once (no public CA issues .onion certs here)."
 echo "Private keys stay in ${HS_DIR} and are not copied into git."
