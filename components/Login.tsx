@@ -9,6 +9,7 @@ import BrandKitDownloadLink from './BrandKitDownloadLink';
 import SiteLicenseAttribution from './SiteLicenseAttribution';
 import Anti67FooterTriggers from './Anti67FooterTriggers';
 import WebDeployFooterLink from './WebDeployFooterLink';
+import TorSnowflakeFooterEmbed from './TorSnowflakeFooterEmbed';
 import StatusPageLink from './StatusPageLink';
 import { isSupportedLocale } from '@/lib/locale';
 import { useSiteLanguage } from '@/contexts/SiteLanguageContext';
@@ -657,6 +658,7 @@ export default function Login() {
           <div className="login-site-footer__brand-kit">
             <BrandKitDownloadLink variant="login" />
           </div>
+          <TorSnowflakeFooterEmbed />
           <p className="login-site-footer__about">
             <a href="/about">About Pixel Place — free browser games</a>
           </p>

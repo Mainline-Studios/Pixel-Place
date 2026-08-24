@@ -3,7 +3,8 @@ export const PIXEL_PLACE_YOUTUBE = 'https://www.youtube.com/@PixelPlaceOfficial'
 export const PIXEL_PLACE_GITHUB = 'https://github.com/Mainline-Studios/Pixel-Place';
 
 /** Official Pixel Place blog on Blogger. */
-export const PIXEL_PLACE_BLOG = 'https://thepixelplace.blogspot.com/';
+export const PIXEL_PLACE_BLOG =
+  'https://www.blogger.com/blog/posts/7830132861557753760?hl=en';
 
 /** Interim Mainline Studios site (until a permanent domain). */
 export const MAINLINE_STUDIOS_WEBSITE = 'https://mainlinestudios.pixelplaceofficial.com';

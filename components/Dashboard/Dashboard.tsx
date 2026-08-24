@@ -15,6 +15,7 @@ import BrandKitDownloadLink from '../BrandKitDownloadLink';
 import SiteLicenseAttribution from '../SiteLicenseAttribution';
 import Anti67FooterTriggers from '../Anti67FooterTriggers';
 import WebDeployFooterLink from '../WebDeployFooterLink';
+import TorSnowflakeFooterEmbed from '../TorSnowflakeFooterEmbed';
 import StatusPageLink from '../StatusPageLink';
 import LocalizeText from '@/components/LocalizeText';
 import { useSecretTheme } from '@/contexts/SecretThemeContext';
@@ -249,6 +250,7 @@ export default function Dashboard({ user, selectedMode }: DashboardProps) {
             <div style={{ marginBottom: 14 }}>
               <BrandKitDownloadLink variant="dashboard" />
             </div>
+            <TorSnowflakeFooterEmbed />
           </>
         ) : (
           <div style={{ marginBottom: 12, display: 'flex', justifyContent: 'center' }}>

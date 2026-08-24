@@ -18,6 +18,11 @@ import SafetyPrivacyPanel from '@/components/SafetyPrivacyPanel';
 import UpdateLogsPanel from '@/components/UpdateLogsPanel';
 import { requestSplashReplay } from '@/lib/appSession';
 import { getDeviceFingerprint } from '@/lib/deviceFingerprint';
+import {
+  getTorSnowflakeFooterEnabled,
+  setTorSnowflakeFooterEnabled,
+  TOR_SNOWFLAKE_FOOTER_CHANGE,
+} from '@/lib/torSnowflakeFooter';
 
 interface SettingsTabProps {
   user: User;
@@ -44,6 +49,7 @@ export default function SettingsTab({ user, editMode, onToggleEditMode }: Settin
   const [secretPasswordModal, setSecretPasswordModal] = useState(false);
   const [secretPasswordInput, setSecretPasswordInput] = useState('');
   const [secretPasswordError, setSecretPasswordError] = useState('');
+  const [torSnowflakeFooter, setTorSnowflakeFooter] = useState(false);
   const coins = user.coins || 0;
 
   const handleSecretPasswordSubmit = (e: React.FormEvent) => {
@@ -70,6 +76,13 @@ export default function SettingsTab({ user, editMode, onToggleEditMode }: Settin
       }
     };
     load();
+  }, []);
+
+  useEffect(() => {
+    setTorSnowflakeFooter(getTorSnowflakeFooterEnabled());
+    const onChange = () => setTorSnowflakeFooter(getTorSnowflakeFooterEnabled());
+    window.addEventListener(TOR_SNOWFLAKE_FOOTER_CHANGE, onChange);
+    return () => window.removeEventListener(TOR_SNOWFLAKE_FOOTER_CHANGE, onChange);
   }, []);
 
   const equippedSkin = skins.find((s) => s.id === user.equippedSkin);
@@ -143,6 +156,23 @@ export default function SettingsTab({ user, editMode, onToggleEditMode }: Settin
             style={{ width: '18px', height: '18px' }}
           />
           <span>Enable sound effects</span>
+        </label>
+      </div>
+
+      <div className="ai-box">
+        <div className="ai-label">Tor Snowflake</div>
+        <div className="ai-output" style={{ marginBottom: '12px' }}>
+          Show the optional Tor Snowflake proxy widget in the site footer. While this tab is open, your browser
+          can help censored users reach the open web through Tor — no install required.
+        </div>
+        <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer' }}>
+          <input
+            type="checkbox"
+            checked={torSnowflakeFooter}
+            onChange={(e) => setTorSnowflakeFooterEnabled(e.target.checked)}
+            style={{ width: '18px', height: '18px' }}
+          />
+          <span>Show Tor Snowflake in footer</span>
         </label>
       </div>
 
