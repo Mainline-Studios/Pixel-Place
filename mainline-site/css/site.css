@@ -384,6 +384,14 @@ section {
   animation-delay: 0.08s;
 }
 
+.product:nth-child(3) {
+  animation-delay: 0.14s;
+}
+
+.product:nth-child(4) {
+  animation-delay: 0.2s;
+}
+
 .product:hover {
   transform: translateY(-3px);
   border-color: var(--line-strong);
@@ -415,6 +423,34 @@ section {
   background: #0a0c12;
   object-fit: contain;
   padding: 6px;
+}
+
+.product__mark {
+  width: 64px;
+  height: 64px;
+  border-radius: 15px;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  font-size: 0.95rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  color: #dff2ff;
+  background:
+    linear-gradient(160deg, rgba(94, 176, 247, 0.35) 0%, rgba(26, 79, 134, 0.85) 100%),
+    #123a63;
+  border: 1px solid rgba(126, 200, 255, 0.35);
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.06),
+    0 12px 28px rgba(0, 0, 0, 0.32);
+}
+
+.product__mark--side {
+  background:
+    linear-gradient(160deg, rgba(255, 255, 255, 0.12) 0%, rgba(15, 23, 42, 0.9) 100%),
+    #0b1220;
+  border-color: rgba(148, 163, 184, 0.35);
+  letter-spacing: 0.04em;
 }
 
 .product__name {
@@ -685,6 +721,40 @@ section {
   letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--accent);
+}
+
+.mi-card__live {
+  display: inline-block;
+  margin-bottom: 0.55rem;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #9ae6b4;
+}
+
+.mi-card__link {
+  display: inline-block;
+  margin-top: 0.85rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--accent-bright);
+  text-decoration: none;
+}
+
+.mi-card__link:hover {
+  text-decoration: underline;
+}
+
+.mi-banner .section-lead a {
+  color: var(--accent-bright);
+  text-decoration: none;
+}
+
+.mi-banner .section-lead a:hover {
+  text-decoration: underline;
 }
 
 .mi-card h3 {
