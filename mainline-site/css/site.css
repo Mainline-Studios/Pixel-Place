@@ -425,6 +425,14 @@ section {
   padding: 6px;
 }
 
+.product__logo--mi {
+  background:
+    linear-gradient(160deg, rgba(94, 176, 247, 0.22) 0%, rgba(10, 22, 40, 0.95) 100%),
+    #0b1524;
+  object-fit: contain;
+  padding: 12px;
+}
+
 .product__mark {
   width: 64px;
   height: 64px;
@@ -681,6 +689,14 @@ section {
     radial-gradient(ellipse 60% 80% at 100% 0%, rgba(110, 182, 245, 0.14), transparent 55%),
     linear-gradient(180deg, rgba(255, 255, 255, 0.06) 0%, rgba(255, 255, 255, 0.02) 100%),
     var(--panel);
+}
+
+.mi-wordmark {
+  display: block;
+  width: min(100%, 420px);
+  height: auto;
+  margin: 0 0 1rem;
+  filter: drop-shadow(0 10px 28px rgba(0, 210, 255, 0.18));
 }
 
 .mi-badge {
