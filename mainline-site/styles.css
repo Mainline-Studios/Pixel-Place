@@ -916,3 +916,13 @@ section { padding: 2.25rem 0 1rem; }
   object-fit: cover;
   image-rendering: auto;
 }
+
+.staff-initials-long {
+  font-size: 0.72rem;
+  letter-spacing: 0.02em;
+  padding: 0 6px;
+  width: auto;
+  min-width: 72px;
+  max-width: 110px;
+  text-transform: none;
+}
