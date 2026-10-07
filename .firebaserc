@@ -8,7 +8,8 @@
         "main": ["pixel-place-823b1"],
         "pay": ["pixelplace-pay"],
         "deploy": ["pixelplace-deploy"],
-        "status": ["pixelplace-status"]
+        "status": ["pixelplace-status"],
+        "mainline": ["pixelplace-mainline"]
       }
     }
   }

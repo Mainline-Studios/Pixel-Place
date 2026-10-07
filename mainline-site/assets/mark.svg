@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" role="img" aria-label="Mainline Studios mark">
+  <rect width="100" height="100" fill="#0e1420"/>
+  <rect x="10" y="10" width="80" height="80" rx="10" fill="none" stroke="#5eb0f7" stroke-width="3"/>
+  <rect x="25" y="25" width="50" height="50" rx="5" fill="#2b6cb0"/>
+</svg>

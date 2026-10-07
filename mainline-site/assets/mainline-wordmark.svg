@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 56" role="img" aria-label="mainline">
+  <!-- soft sticker blob behind -->
+  <ellipse cx="110" cy="30" rx="108" ry="24" fill="#FFE566" opacity="0.85"/>
+  <!-- slightly wonky underline scribble -->
+  <path d="M12 44 C40 50, 70 40, 100 46 S160 52, 208 42" fill="none" stroke="#FF6B6B" stroke-width="2.5" stroke-linecap="round"/>
+  <!-- hand-drawn-ish letters as paths-ish via text with slight rotations via tspans -->
+  <g font-family="ui-rounded, 'Segoe UI', system-ui, sans-serif" font-weight="800" fill="#1A1A1A">
+    <text x="18" y="34" font-size="28" transform="rotate(-3 18 34)">m</text>
+    <text x="42" y="36" font-size="28" transform="rotate(2 42 36)">a</text>
+    <text x="62" y="33" font-size="28" transform="rotate(-1 62 33)">i</text>
+    <text x="74" y="35" font-size="28" transform="rotate(3 74 35)">n</text>
+    <text x="96" y="34" font-size="28" transform="rotate(-2 96 34)">l</text>
+    <text x="110" y="36" font-size="28" transform="rotate(1 110 36)">i</text>
+    <text x="122" y="33" font-size="28" transform="rotate(-3 122 33)">n</text>
+    <text x="144" y="35" font-size="28" transform="rotate(2 144 35)">e</text>
+  </g>
+  <!-- tiny star doodle -->
+  <path d="M198 12 L200 18 L206 18 L201 22 L203 28 L198 24 L193 28 L195 22 L190 18 L196 18 Z" fill="#7C5CFF"/>
+</svg>

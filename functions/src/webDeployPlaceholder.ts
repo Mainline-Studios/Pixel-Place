@@ -8,7 +8,7 @@ export const WEB_DEPLOY_PLACEHOLDER_CACHE_MAX_AGE = 60;
 const RESERVED = new Set([
   'www', 'api', 'app', 'pay', 'status', 'historimac', 'mail', 'smtp', 'admin', 'cdn', 'static',
   'dev', 'staging', 'test', 'pixel', 'pixelplace', 'games', 'studio', 'report', 'verify', 'login',
-  'auth', 'firebase', 'web', 'deploy', 'web-deploy',
+  'auth', 'firebase', 'web', 'deploy', 'web-deploy', 'mainlinestudios',
 ]);
 
 export function webDeploySubdomainFromHost(host: string): string | null {

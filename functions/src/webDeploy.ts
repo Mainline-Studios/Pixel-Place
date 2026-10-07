@@ -27,7 +27,7 @@ const storageBucket = getAppStorageBucket();
 const RESERVED = new Set([
   'www', 'api', 'app', 'pay', 'status', 'historimac', 'mail', 'smtp', 'admin', 'cdn', 'static',
   'dev', 'staging', 'test', 'pixel', 'pixelplace', 'games', 'studio', 'report', 'verify', 'login',
-  'auth', 'firebase', 'web', 'deploy', 'web-deploy',
+  'auth', 'firebase', 'web', 'deploy', 'web-deploy', 'mainlinestudios',
 ]);
 
 type Collections = {
