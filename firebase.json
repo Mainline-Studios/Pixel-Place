@@ -91,6 +91,22 @@
           "headers": [{"key": "Cache-Control", "value": "public, max-age=120"}]
         }
       ]
+    },
+    {
+      "target": "mainline",
+      "public": "mainline-site",
+      "ignore": ["firebase.json", "**/.*", "**/node_modules/**", "**/README.md"],
+      "cleanUrls": true,
+      "trailingSlash": true,
+      "redirects": [
+        {"source": "/staff.html", "destination": "/staff/", "type": 301}
+      ],
+      "headers": [
+        {
+          "source": "**",
+          "headers": [{"key": "Cache-Control", "value": "public, max-age=300"}]
+        }
+      ]
     }
   ],
   "storage": {

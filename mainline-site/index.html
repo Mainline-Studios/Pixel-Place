@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="mainline studios — built to feel premium. kept free. pixel place, pyx ai, mainline intelligence, and side quests." />
+  <meta name="theme-color" content="#FFF8E7" />
+  <title>mainline — premium, free, a little weird</title>
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="icon" href="assets/mark.svg" type="image/svg+xml" />
+</head>
+<body>
+  <div class="glow-orb" id="glowOrb" aria-hidden="true"></div>
+  <a class="skip" href="#main">skip to stuff</a>
+
+  <!-- floating doodles -->
+  <div class="doodle doodle-star" aria-hidden="true">✦</div>
+  <div class="doodle doodle-squiggle" aria-hidden="true"></div>
+  <div class="doodle doodle-dot" aria-hidden="true"></div>
+
+  <header class="site-header">
+    <div class="wrap nav">
+      <a class="logo" href="#top" aria-label="mainline home">
+        <img class="logo-mark" src="assets/mark.svg" width="40" height="40" alt="" />
+        <span class="logo-text">mainline</span>
+      </a>
+      <nav aria-label="primary">
+        <ul class="nav-links">
+          <li><a href="#products">products</a></li>
+          <li><a href="#mission">mission</a></li>
+          <li><a href="#ship">how we ship</a></li>
+          <li><a href="#github">on github</a></li>
+          <li><a href="/staff/">The Crew</a></li>
+          <li><a class="nav-pill" href="/#products">products</a></li>
+        </ul>
+      </nav>
+    </div>
+  </header>
+
+  <main id="main">
+    <section class="hero" id="top">
+      <div class="wrap hero-grid">
+        <div class="hero-copy">
+          <p class="hero-sticker">indie studio · premium vibes, free forever</p>
+          <h1>built to feel premium.<br /><span class="hero-accent">kept free.</span></h1>
+          <p class="hero-lead">
+            providing premium experiences for free. games you want to stay in,
+            tools that respect your focus, and a little chaos on the side.
+          </p>
+          <div class="hero-actions">
+            <a class="btn btn-coral" href="#products">
+              see the products
+            </a>
+            <a class="btn btn-outline" href="https://discord.gg/VV6nKAz5sR" rel="noopener noreferrer" target="_blank">
+              hang on discord
+            </a>
+          </div>
+        </div>
+        <div class="hero-mark-wrap brand-lockup" id="brandLockup">
+          <div class="mark-wrap">
+            <div class="mark-glow" aria-hidden="true"></div>
+            <img class="hero-mark mark" src="assets/mark.svg" width="160" height="160" alt="Mainline Studios mark" />
+          </div>
+          <span class="hero-mark-sticker">official mark ✓</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- products from hub -->
+    <section id="products" aria-labelledby="products-heading">
+      <div class="wrap">
+        <div class="section-head">
+          <h2 id="products-heading">live destinations <span class="wiggle" aria-hidden="true">~</span></h2>
+          <p>polished enough to charge for. open enough that anyone can walk in.</p>
+        </div>
+        <div class="grid grid-products">
+
+          <article class="card featured tilt-left accent-sky product-card">
+            <div class="sticker sticker-sky">⏸️ paused</div>
+            <div class="product-logo-wrap">
+              <img class="product-logo" src="assets/pixel-place-logo.png" width="72" height="72" alt="" />
+            </div>
+            <div class="card-top">
+              <h3>pixel place</h3>
+              <span class="pill pill-hold pill-status-case">Postponed until further notice</span>
+            </div>
+            <p class="card-desc">free browser games, 3d avatars, and game studio — on ice for now. back when we say so.</p>
+            <div class="card-links">
+              <a class="link-btn" href="https://pixelplaceofficial.com" rel="noopener noreferrer" target="_blank">site (paused)</a>
+              <a class="link-btn" href="https://github.com/Mainline-Studios/Pixel-Place" rel="noopener noreferrer" target="_blank">github</a>
+            </div>
+          </article>
+
+          <article class="card featured tilt-right accent-lime product-card">
+            <div class="sticker sticker-lime">✨ studio</div>
+            <div class="product-logo-wrap">
+              <img class="product-logo product-logo-tall" src="assets/pyx-app-icon.png" width="64" height="74" alt="" />
+            </div>
+            <div class="card-top">
+              <h3>pyx ai</h3>
+              <span class="pill pill-active">live</span>
+            </div>
+            <p class="card-desc">productivity for everybody — research, write, code, pixel art, and voice in one connected studio. hop apps, keep your thread.</p>
+            <div class="card-links">
+              <a class="link-btn live" href="https://pyx-ai.web.app/" rel="noopener noreferrer" target="_blank">open pyx studio</a>
+              <a class="link-btn" href="https://github.com/Mainline-Studios/pyx-ai" rel="noopener noreferrer" target="_blank">github</a>
+            </div>
+          </article>
+
+          <article class="card featured tilt-left accent-peach product-card">
+            <div class="sticker sticker-coral">🧠 beta</div>
+            <div class="product-logo-wrap">
+              <img class="product-logo product-logo-wide" src="assets/mi-letters.png" width="96" height="38" alt="" />
+            </div>
+            <div class="card-top">
+              <h3>mainline intelligence</h3>
+              <span class="pill pill-active">marii beta</span>
+            </div>
+            <p class="card-desc">the next wave. marii beta is live — instant realtime intelligence. pyx assistant + mi moderator up now. mci still on the way.</p>
+            <div class="card-links">
+              <a class="link-btn live" href="https://mainline-intelligence.web.app" rel="noopener noreferrer" target="_blank">open mi beta</a>
+              <a class="link-btn" href="https://mainlinestudios.pixelplaceofficial.com/ai-innovations" rel="noopener noreferrer" target="_blank">ai page</a>
+            </div>
+          </article>
+
+          <article class="card featured tilt-right product-card">
+            <div class="sticker sticker-sky">🧪 oddballs</div>
+            <div class="product-logo-wrap product-logo-emoji" aria-hidden="true">🎲</div>
+            <div class="card-top">
+              <h3>side projects</h3>
+              <span class="pill pill-hold">side</span>
+            </div>
+            <p class="card-desc">mainline side — less… mainline projects. experiments, side quests, and oddballs that still deserve a home. just not the front page.</p>
+            <div class="card-links">
+              <a class="link-btn live" href="https://mainlineside.web.app/" rel="noopener noreferrer" target="_blank">open mainline side</a>
+            </div>
+          </article>
+
+        </div>
+      </div>
+    </section>
+
+    <!-- mission -->
+    <section id="mission" aria-labelledby="mission-heading">
+      <div class="wrap">
+        <div class="section-head">
+          <h2 id="mission-heading">premium shouldn't mean paywalled</h2>
+          <p>
+            we build software that feels intentional — clear motion, careful craft,
+            stuff you'd expect from a paid product — without a checkout wall.
+            free can still mean ambitious.
+          </p>
+        </div>
+        <div class="grid grid-mission">
+          <article class="card tilt-left accent-lime">
+            <div class="mission-icon" aria-hidden="true">✂️</div>
+            <h3>craft over clutter</h3>
+            <p class="card-desc">fewer surfaces, stronger hierarchy, motion that earns its place.</p>
+          </article>
+          <article class="card tilt-right accent-sky">
+            <div class="mission-icon" aria-hidden="true">🚪</div>
+            <h3>open by default</h3>
+            <p class="card-desc">start in the browser. no install tax just to try the good version.</p>
+          </article>
+          <article class="card accent-peach">
+            <div class="mission-icon" aria-hidden="true">💛</div>
+            <h3>made for people</h3>
+            <p class="card-desc">play, create, get work done — without feeling like a second-class user.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <!-- how we ship -->
+    <section id="ship" aria-labelledby="ship-heading">
+      <div class="wrap">
+        <div class="section-head">
+          <h2 id="ship-heading">how we ship <span class="wiggle" aria-hidden="true">~</span></h2>
+          <p>small studio, high bar. iterate in public. keep the best parts free.</p>
+        </div>
+        <ol class="ship-steps">
+          <li class="card tilt-left ship-step">
+            <span class="ship-num">01</span>
+            <div>
+              <h3>design the feeling first</h3>
+              <p class="card-desc">before features pile up, lock the mood — brand, motion, that first impression that says this was made with care.</p>
+            </div>
+          </li>
+          <li class="card tilt-right ship-step accent-lime">
+            <span class="ship-num">02</span>
+            <div>
+              <h3>ship real products</h3>
+              <p class="card-desc">pyx ai and the mi beta are live. pixel place is postponed until further notice. still shipping the rest.</p>
+            </div>
+          </li>
+          <li class="card ship-step accent-peach">
+            <span class="ship-num">03</span>
+            <div>
+              <h3>stay with the community</h3>
+              <p class="card-desc">feedback on discord, updates in the open — the studio grows with the people who use it.</p>
+            </div>
+          </li>
+        </ol>
+        <div class="hang-banner">
+          <div>
+            <strong>come hang with mainline</strong>
+            <p>news, playtests, and studio chat live on discord.</p>
+          </div>
+          <a class="btn btn-coral" href="https://discord.gg/VV6nKAz5sR" rel="noopener noreferrer" target="_blank">join discord ↗</a>
+        </div>
+      </div>
+    </section>
+
+    <!-- on github — keep studio + side repos -->
+    <section id="github" aria-labelledby="github-heading">
+      <div class="wrap">
+        <div class="section-head">
+          <h2 id="github-heading">on github</h2>
+          <p>studio repos and side experiments. mixed bag. fun bag.</p>
+        </div>
+
+        <h3 class="subhead">studio repos</h3>
+        <div class="grid grid-studio">
+
+          <article class="card tilt-right">
+            <div class="card-top"><h3>imprint</h3></div>
+            <p class="card-desc">design tool. paper vibes. google sign-in. kinda cute.</p>
+            <div class="card-meta">
+              <span class="badge badge-lang" data-lang="TypeScript">typescript</span>
+            </div>
+            <div class="card-links">
+              <a class="link-btn" href="https://github.com/Mainline-Studios/imprint" rel="noopener noreferrer" target="_blank">github</a>
+              <a class="link-btn live" href="https://mainline-studios.github.io/imprint/" rel="noopener noreferrer" target="_blank">open it</a>
+            </div>
+          </article>
+
+          <article class="card tilt-left">
+            <div class="card-top"><h3>chocolateos</h3></div>
+            <p class="card-desc">first open-source ice cream flavor. yes really.</p>
+            <div class="card-meta">
+              <span class="badge badge-lang" data-lang="C">c</span>
+            </div>
+            <div class="card-links">
+              <a class="link-btn" href="https://github.com/Mainline-Studios/chocolateos" rel="noopener noreferrer" target="_blank">github</a>
+            </div>
+          </article>
+
+          <article class="card">
+            <div class="card-top"><h3>pyx-1.3</h3></div>
+            <p class="card-desc">old pyx starter zip. ui scaffold. dusty but useful.</p>
+            <div class="card-meta">
+              <span class="badge badge-lang" data-lang="Python">python</span>
+            </div>
+            <div class="card-links">
+              <a class="link-btn" href="https://github.com/Mainline-Studios/Pyx-1.3" rel="noopener noreferrer" target="_blank">github</a>
+            </div>
+          </article>
+
+          <article class="card tilt-right">
+            <div class="card-top"><h3>hypercube</h3></div>
+            <p class="card-desc">an emulator we tried to make. tried is the key word.</p>
+            <div class="card-meta">
+              <span class="badge badge-lang" data-lang="Python">python</span>
+            </div>
+            <div class="card-links">
+              <a class="link-btn" href="https://github.com/Mainline-Studios/HyperCube" rel="noopener noreferrer" target="_blank">github</a>
+            </div>
+          </article>
+
+          <article class="card tilt-left">
+            <div class="card-top"><h3>oceanlife-pro</h3></div>
+            <p class="card-desc">photoreal beach sim. three.js. sand everywhere.</p>
+            <div class="card-meta">
+              <span class="badge badge-lang" data-lang="HTML">html</span>
+            </div>
+            <div class="card-links">
+              <a class="link-btn" href="https://github.com/Mainline-Studios/OceanLife-Pro" rel="noopener noreferrer" target="_blank">github</a>
+            </div>
+          </article>
+
+          <article class="card">
+            <div class="card-top"><h3>boundary</h3></div>
+            <p class="card-desc">physics simulator. things bounce. sometimes.</p>
+            <div class="card-meta">
+              <span class="badge badge-lang" data-lang="TypeScript">typescript</span>
+            </div>
+            <div class="card-links">
+              <a class="link-btn" href="https://github.com/Mainline-Studios/Boundary" rel="noopener noreferrer" target="_blank">github</a>
+            </div>
+          </article>
+
+        </div>
+
+        <div class="misc-note" role="complementary" aria-label="misc">
+          <span class="misc-label">misc →</span>
+          <a href="https://github.com/Mainline-Studios/demo-repository" rel="noopener noreferrer" target="_blank">demo-repository</a>
+          — github showing off. the usual suspects. <span class="badge badge-lang" data-lang="HTML">html</span>
+        </div>
+
+        <h3 class="subhead subhead-gap">side projects</h3>
+        <p class="section-sub">bdawgsawesome1 land. mods, sims, browsers, daily games. chaos adjacent.</p>
+        <div class="grid grid-side">
+
+          <article class="card tilt-left">
+            <div class="card-top"><h3>monkeywrench</h3></div>
+            <p class="card-desc">mac-first bloons td 6 modder. stick monkeys get upgrades.</p>
+            <div class="card-meta">
+              <span class="badge badge-lang" data-lang="JavaScript">javascript</span>
+            </div>
+            <div class="card-links">
+              <a class="link-btn" href="https://github.com/BDawgsAwesome1-MAINLINESTUDIOSOFFICIAL/monkeywrench" rel="noopener noreferrer" target="_blank">github</a>
+            </div>
+          </article>
+
+          <article class="card tilt-right">
+            <div class="card-top"><h3>just-a-flight-sim</h3></div>
+            <p class="card-desc">one-file airplane pa sim. tiny. flies somehow.</p>
+            <div class="card-meta">
+              <span class="badge badge-lang" data-lang="JavaScript">javascript</span>
+            </div>
+            <div class="card-links">
+              <a class="link-btn" href="https://github.com/BDawgsAwesome1-MAINLINESTUDIOSOFFICIAL/just-a-flight-sim" rel="noopener noreferrer" target="_blank">github</a>
+              <a class="link-btn live" href="https://bdawgsawesome1-mainlinestudiosofficial.github.io/just-a-flight-sim/" rel="noopener noreferrer" target="_blank">fly it</a>
+            </div>
+          </article>
+
+          <article class="card">
+            <div class="card-top"><h3>goldy-gazette-code</h3></div>
+            <p class="card-desc">code for the goldy gazette. newspaper energy.</p>
+            <div class="card-meta">
+              <span class="badge badge-lang" data-lang="JavaScript">javascript</span>
+            </div>
+            <div class="card-links">
+              <a class="link-btn" href="https://github.com/BDawgsAwesome1-MAINLINESTUDIOSOFFICIAL/goldy-gazette-code" rel="noopener noreferrer" target="_blank">github</a>
+            </div>
+          </article>
+
+          <article class="card tilt-left">
+            <div class="card-top"><h3>pixel-place-browser-chromium</h3></div>
+            <p class="card-desc">chromium fork. custom ntp. pixel place branding. chunky.</p>
+            <div class="card-meta">
+              <span class="badge">browser</span>
+            </div>
+            <div class="card-links">
+              <a class="link-btn" href="https://github.com/BDawgsAwesome1-MAINLINESTUDIOSOFFICIAL/pixel-place-browser-chromium" rel="noopener noreferrer" target="_blank">github</a>
+            </div>
+          </article>
+
+          <article class="card tilt-right">
+            <div class="card-top"><h3>coaster-control</h3></div>
+            <p class="card-desc">coaster control experiment. wheels go brrr.</p>
+            <div class="card-meta">
+              <span class="badge badge-lang" data-lang="JavaScript">javascript</span>
+            </div>
+            <div class="card-links">
+              <a class="link-btn" href="https://github.com/BDawgsAwesome1-MAINLINESTUDIOSOFFICIAL/Coaster-Control" rel="noopener noreferrer" target="_blank">github</a>
+            </div>
+          </article>
+
+          <article class="card">
+            <div class="card-top"><h3>a-game-a-day</h3></div>
+            <p class="card-desc">daily game experiments. some good. some oops.</p>
+            <div class="card-meta">
+              <span class="badge badge-lang" data-lang="HTML">html</span>
+            </div>
+            <div class="card-links">
+              <a class="link-btn" href="https://github.com/BDawgsAwesome1-MAINLINESTUDIOSOFFICIAL/A-Game-a-Day" rel="noopener noreferrer" target="_blank">github</a>
+            </div>
+          </article>
+
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap footer-inner">
+      <div class="footer-brand">
+        <div class="footer-logo-row">
+          <img src="assets/mark.svg" width="28" height="28" alt="" />
+          <strong>mainline studios</strong>
+        </div>
+        <p>providing premium experiences for free. focus rn: pixel place, pyx, and mainline intelligence. the rest is happily messy.</p>
+      </div>
+      <nav class="footer-links" aria-label="footer">
+        <a href="/">home</a>
+        <a href="/staff/">The Crew</a>
+        <a href="https://discord.gg/VV6nKAz5sR" rel="noopener noreferrer" target="_blank">discord</a>
+        <a href="https://github.com/Mainline-Studios" rel="noopener noreferrer" target="_blank">github.com/Mainline-Studios</a>
+        <a href="https://pyx-ai.web.app/" rel="noopener noreferrer" target="_blank">pyx-ai.web.app</a>
+      </nav>
+      <p class="footer-copy">© mainline · made with stickers and slightly broken sentences</p>
+    </div>
+  </footer>
+  <script src="site.js"></script>
+</body>
+</html>
