@@ -14,6 +14,27 @@
     var w = window.open('about:blank', '_blank');
     if (!w) return; // popup blocked: let the normal link work
     e.preventDefault();
+    var src = a.getAttribute('data-blank-src');
+    if (src) {
+      // Raw mode: fetch the game's HTML (CORS-enabled CDN) and write it straight into about:blank.
+      src = new URL(src, location.href).href;
+      var base = src.replace(/[^\/]*$/, '');
+      try { w.opener = null; w.document.title = 'loading ' + title + '…'; } catch (err) {}
+      fetch(src).then(function (r) {
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        return r.text();
+      }).then(function (html) {
+        var tag = '<base href="' + esc(base) + '">';
+        html = /<head[^>]*>/i.test(html) ? html.replace(/<head[^>]*>/i, function (m) { return m + tag; }) : tag + html;
+        w.document.open();
+        w.document.write(html);
+        w.document.close();
+        if (!w.document.title) w.document.title = title + ' · mainline';
+      }).catch(function () {
+        try { w.location.href = url; } catch (err) { location.href = url; }
+      });
+      return;
+    }
     try {
       w.opener = null;
       w.document.open();
