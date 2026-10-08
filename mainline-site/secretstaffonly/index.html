@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="robots" content="noindex" />
+  <meta name="theme-color" content="#FFF8E7" />
+  <title>mainline — staff</title>
+  <link rel="stylesheet" href="../styles.css" />
+  <link rel="icon" href="../assets/mark.svg" type="image/svg+xml" />
+</head>
+<body>
+  <a class="skip" href="#main">skip to stuff</a>
+
+  <header class="site-header">
+    <div class="wrap nav">
+      <a class="logo" href="/" aria-label="mainline home">
+        <img class="logo-mark" src="../assets/mark.svg" width="40" height="40" alt="" />
+        <span class="logo-text">mainline</span>
+      </a>
+    </div>
+  </header>
+
+  <main id="main">
+    <section class="hero hero-staff" id="top">
+      <div class="wrap">
+        <form class="secret-gate" id="secretGate">
+          <label for="secretPass">password</label>
+          <input id="secretPass" type="password" autocomplete="current-password" required />
+          <button class="btn btn-coral" type="submit">enter</button>
+          <p class="secret-note" id="secretError" hidden>wrong password.</p>
+        </form>
+        <div id="secretTools" hidden>
+          <button class="btn btn-coral" type="button" id="inBusinessBtn">we are in business</button>
+          <p class="secret-note" id="secretStatus" hidden></p>
+        </div>
+      </div>
+    </section>
+  </main>
+  <script src="/assets/secret-staff.js" defer></script>
+</body>
+</html>

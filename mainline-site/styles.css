@@ -218,6 +218,45 @@ img { max-width: 100%; display: block; }
   }
 }
 
+.in-business {
+  display: inline-block;
+  margin-top: 1rem;
+  font-size: 0.95rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  color: var(--ink);
+  background: var(--sun);
+  border: var(--border-w) solid var(--ink);
+  border-radius: 16px;
+  padding: 0.7rem 0.9rem;
+  box-shadow: 3px 3px 0 var(--ink);
+}
+.in-business[hidden] { display: none; }
+
+.secret-gate {
+  max-width: 28rem;
+}
+.secret-gate label {
+  display: block;
+  font-weight: 800;
+  margin-bottom: 0.4rem;
+}
+.secret-gate input {
+  width: 100%;
+  font: inherit;
+  font-size: 1rem;
+  padding: 0.7rem 0.85rem;
+  border: var(--border-w) solid var(--ink);
+  border-radius: 14px;
+  background: var(--card);
+  color: var(--ink);
+  margin-bottom: 0.75rem;
+}
+.secret-note {
+  margin-top: 0.85rem;
+  font-weight: 700;
+}
+
 .hero-sticker {
   display: inline-block;
   font-size: 0.82rem;
