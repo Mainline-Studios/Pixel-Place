@@ -932,3 +932,20 @@ section { padding: 2.25rem 0 1rem; }
   max-width: 110px;
   text-transform: none;
 }
+
+.wakeup-play {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 20;
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 800;
+  padding: 0.55rem 0.9rem;
+  color: var(--ink);
+  background: var(--sun);
+  border: var(--border-w) solid var(--ink);
+  border-radius: 999px;
+  box-shadow: 3px 3px 0 var(--ink);
+  cursor: pointer;
+}
