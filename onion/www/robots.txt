@@ -1,0 +1,9 @@
+# You are already in the vault.
+User-agent: *
+Disallow: /
+User-agent: Helios
+Allow: /continues
+User-agent: Pyx
+Disallow: /forbidden-words
+User-agent: debian-tor
+Allow: /
